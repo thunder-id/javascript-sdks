@@ -18,48 +18,22 @@
 
 'use server';
 
-import {EmbeddedFlowExecuteRequestPayload, EmbeddedFlowExecuteResponse, EmbeddedFlowStatus} from '@thunderid/node';
 import getClient from '../getClient';
 
 /**
- * Server action for signing in a user.
- * Handles the embedded sign-in flow and manages session cookies.
- *
- * @param payload - The embedded sign-in flow payload
- * @param request - The embedded flow execute request config
- * @returns Promise that resolves when sign-in is complete
+ * Server action for initiating the sign-up redirect flow.
  */
-const signUpAction = async (
-  payload?: EmbeddedFlowExecuteRequestPayload,
-): Promise<{
-  data?:
-    | {
-        afterSignUpUrl?: string;
-        signUpUrl?: string;
-      }
-    | EmbeddedFlowExecuteResponse;
+const signUpAction = async (): Promise<{
+  data?: {signUpUrl?: string};
   error?: string;
   success: boolean;
 }> => {
   try {
     const client = getClient();
+    const config = client.getConfiguration() as any;
+    const signUpUrl: string = config?.signUpUrl ?? '';
 
-    // If no payload provided, redirect to sign-in URL for redirect-based sign-in.
-    // If there's a payload, handle the embedded sign-in flow.
-    if (!payload) {
-      const defaultSignUpUrl = '';
-
-      return {data: {signUpUrl: String(defaultSignUpUrl)}, success: true};
-    }
-    const response: any = await client.signUp(payload);
-
-    if (response.flowStatus === EmbeddedFlowStatus.Complete) {
-      const afterSignUpUrl: string = await (await client.getStorageManager()).getConfigDataParameter('afterSignInUrl');
-
-      return {data: {afterSignUpUrl: String(afterSignUpUrl)}, success: true};
-    }
-
-    return {data: response as EmbeddedFlowExecuteResponse, success: true};
+    return {data: {signUpUrl}, success: true};
   } catch (error) {
     return {error: String(error), success: false};
   }

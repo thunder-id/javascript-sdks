@@ -23,7 +23,6 @@ import {
   IdToken,
   OIDCDiscoveryApiResponse,
   Organization,
-  Platform,
   SignInOptions,
   TokenExchangeRequestConfig,
   TokenResponse,
@@ -212,7 +211,6 @@ export type ThunderIDContextProps = {
   signUpUrl: string | undefined;
 
   user: any;
-  platform?: Platform;
 } & Pick<ThunderIDReactClient, 'clearSession' | 'switchOrganization'>;
 
 /**
@@ -245,7 +243,6 @@ const ThunderIDContext: Context<ThunderIDContextProps | null> = createContext<nu
   meta: null,
   organization: null as unknown as Organization,
   organizationHandle: undefined,
-  platform: undefined,
   reInitialize: null as unknown as ThunderIDContextProps['reInitialize'],
   recover: () => Promise.resolve({} as any),
   resolveFlowTemplateLiterals: (text: string | undefined) => text ?? '',

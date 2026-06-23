@@ -1,11 +1,17 @@
 packages:
   - packages/**
 
+minimumReleaseAgeExclude:
+  # JUSTIFICATION: Temporary exclusion due to recent release. TODO: Remove after the time passes.
+  - '@thunderid/eslint-plugin'
+  - '@thunderid/prettier-config'
+
 allowBuilds:
   '@parcel/watcher': true
   core-js: true
   esbuild: true
   nx: true
+  sharp: true
   unrs-resolver: true
 
 catalog:

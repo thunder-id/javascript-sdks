@@ -17,7 +17,7 @@
  */
 
 import {describe, it, expect} from 'vitest';
-import buildValidatorFromRules from '../v2/buildValidatorFromRules';
+import buildValidatorFromRules from '../buildValidatorFromRules';
 
 describe('buildValidatorFromRules', () => {
   it('returns null when no rules are provided', () => {

@@ -21,7 +21,7 @@
 // rule shapes (non-string regex value, non-numeric length, unknown rule type).
 
 import {describe, it, expect} from 'vitest';
-import evaluateValidationRule, {DEFAULT_VALIDATION_MESSAGE_KEYS} from '../v2/evaluateValidationRule';
+import evaluateValidationRule, {DEFAULT_VALIDATION_MESSAGE_KEYS} from '../evaluateValidationRule';
 
 describe('evaluateValidationRule', () => {
   describe('regex', () => {

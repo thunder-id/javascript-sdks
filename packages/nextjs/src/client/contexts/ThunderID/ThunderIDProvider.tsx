@@ -21,8 +21,6 @@
 import {
   AllOrganizationsApiResponse,
   EmbeddedFlowExecuteRequestConfig,
-  EmbeddedFlowExecuteRequestPayload,
-  EmbeddedSignInFlowHandleRequestPayload,
   generateFlattenedUserProfile,
   Organization,
   UpdateMeProfileConfig,
@@ -193,10 +191,7 @@ const ThunderIDClientProvider: FC<PropsWithChildren<ThunderIDClientProviderProps
     setIsLoading(false);
   }, [isSignedIn, user]);
 
-  const handleSignIn = async (
-    payload: EmbeddedSignInFlowHandleRequestPayload,
-    request: EmbeddedFlowExecuteRequestConfig,
-  ): Promise<any> => {
+  const handleSignIn = async (payload: any, request: EmbeddedFlowExecuteRequestConfig): Promise<any> => {
     if (!signIn) {
       throw new ThunderIDRuntimeError(
         '`signIn` function is not available.',
@@ -228,10 +223,7 @@ const ThunderIDClientProvider: FC<PropsWithChildren<ThunderIDClientProviderProps
     return result?.data ?? result;
   };
 
-  const handleSignUp = async (
-    payload: EmbeddedFlowExecuteRequestPayload,
-    request: EmbeddedFlowExecuteRequestConfig,
-  ): Promise<any> => {
+  const handleSignUp = async (payload: any, request: EmbeddedFlowExecuteRequestConfig): Promise<any> => {
     if (!signUp) {
       throw new ThunderIDRuntimeError(
         '`signUp` function is not available.',

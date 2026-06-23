@@ -116,7 +116,7 @@ export const validateFieldValue = (
 };
 
 /**
- * Factory function to create form fields based on the EmbeddedSignInFlowAuthenticatorParamType.
+ * Factory function to create form fields based on field type.
  *
  * @param config - The field configuration
  * @returns The appropriate React component for the field type
@@ -125,7 +125,7 @@ export const validateFieldValue = (
  * ```tsx
  * const field = createField({
  *   param: 'username',
- *   type: EmbeddedSignInFlowAuthenticatorParamType.String,
+ *   type: FieldType.Text,
  *   label: 'Username',
  *   confidential: false,
  *   required: true,

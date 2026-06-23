@@ -17,8 +17,8 @@
  */
 
 import {FC, useState} from 'react';
-import {TokenCallback, TokenCallbackProps} from './TokenCallback';
 import {OAuthCallback, OAuthCallbackProps} from './OAuthCallback';
+import {TokenCallback, TokenCallbackProps} from './TokenCallback';
 
 /**
  * Props for the unified Callback component, combining properties for both Token and OAuth callbacks.

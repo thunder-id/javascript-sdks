@@ -16,11 +16,9 @@
  * under the License.
  */
 
-import identifyPlatform from './identifyPlatform';
 import isRecognizedBaseUrlPattern from './isRecognizedBaseUrlPattern';
 import logger from './logger';
 import {Config} from '../models/config';
-import {Platform} from '../models/platforms';
 
 /**
  * Utility to generate the redirect-based sign-up URL for ThunderID.
@@ -28,7 +26,7 @@ import {Platform} from '../models/platforms';
  * If the baseUrl is recognized (standard ThunderID pattern), constructs the sign-up URL.
  * Otherwise, returns an empty string.
  *
- * @param baseUrl - The base URL of the ThunderID identity server (string or undefined)
+ * @param config - The ThunderID client configuration
  * @returns The sign-up URL if baseUrl is recognized, otherwise an empty string
  */
 const getRedirectBasedSignUpUrl = (config: Config): string => {
@@ -38,20 +36,18 @@ const getRedirectBasedSignUpUrl = (config: Config): string => {
 
   let signUpBaseUrl: string = baseUrl!;
 
-  if (identifyPlatform(config) === Platform.ThunderID) {
-    try {
-      const url: URL = new URL(baseUrl!);
+  try {
+    const url: URL = new URL(baseUrl!);
 
-      // Replace 'api.' with 'accounts.' in the hostname, preserving subdomains like 'dev.'
-      if (/([a-z0-9-]+\.)*api\.thunderid\.io$/i.test(url.hostname)) {
-        url.hostname = url.hostname.replace('api.', 'accounts.');
-        signUpBaseUrl = url.toString().replace(/\/$/, ''); // Remove trailing slash if any
-      }
-    } catch {
-      logger.debug(
-        `[getRedirectBasedSignUpUrl] Could not parse base URL to replace 'api.' with 'accounts.'. Base URL: ${baseUrl}`,
-      );
+    // Replace 'api.' with 'accounts.' in the hostname, preserving subdomains like 'dev.'
+    if (/([a-z0-9-]+\.)*api\.thunderid\.io$/i.test(url.hostname)) {
+      url.hostname = url.hostname.replace('api.', 'accounts.');
+      signUpBaseUrl = url.toString().replace(/\/$/, '');
     }
+  } catch {
+    logger.debug(
+      `[getRedirectBasedSignUpUrl] Could not parse base URL to replace 'api.' with 'accounts.'. Base URL: ${baseUrl}`,
+    );
   }
 
   const url: URL = new URL(`${signUpBaseUrl}/accountrecoveryendpoint/register.do`);

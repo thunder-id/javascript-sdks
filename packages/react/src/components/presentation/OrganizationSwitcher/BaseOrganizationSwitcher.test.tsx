@@ -16,7 +16,7 @@
  * under the License.
  */
 
-/* eslint-disable sort-keys, @typescript-eslint/typedef, @typescript-eslint/explicit-function-return-type, testing-library/no-container, testing-library/no-node-access */
+/* eslint-disable testing-library/no-container, testing-library/no-node-access */
 
 import {cleanup, render, screen, waitFor} from '@testing-library/react';
 import {describe, it, expect, vi, beforeEach, afterEach} from 'vitest';

@@ -23,12 +23,10 @@ import {
   UserProfile,
   User,
   generateUserProfile,
-  EmbeddedFlowExecuteResponse,
   SignUpOptions,
-  EmbeddedFlowExecuteRequestPayload,
   ThunderIDRuntimeError,
-  executeEmbeddedSignUpFlowV2,
-  executeEmbeddedSignInFlowV2,
+  executeEmbeddedSignUpFlow,
+  executeEmbeddedSignInFlow,
   Organization,
   IdToken,
   AllOrganizationsApiResponse,
@@ -38,9 +36,9 @@ import {
   HttpResponse,
   TokenExchangeRequestConfig,
   isEmpty,
-  EmbeddedSignInFlowResponseV2,
-  EmbeddedSignInFlowStatusV2,
-  EmbeddedSignUpFlowStatusV2,
+  EmbeddedSignInFlowResponse,
+  EmbeddedSignInFlowStatus,
+  EmbeddedSignUpFlowStatus,
   deriveOrganizationHandleFromBaseUrl,
   StorageManager,
 } from '@thunderid/browser';
@@ -315,7 +313,7 @@ class ThunderIDVueClient<T extends ThunderIDVueConfig = ThunderIDVueConfig> exte
         const authId: string = authIdFromUrl || authIdFromStorage || '';
         const baseUrl: string = configData?.baseUrl || '';
 
-        const response: EmbeddedSignInFlowResponseV2 = await executeEmbeddedSignInFlowV2({
+        const response: EmbeddedSignInFlowResponse = await executeEmbeddedSignInFlow({
           authId,
           baseUrl,
           payload: arg1,
@@ -325,7 +323,7 @@ class ThunderIDVueClient<T extends ThunderIDVueConfig = ThunderIDVueConfig> exte
         if (
           response &&
           typeof response === 'object' &&
-          response.flowStatus === EmbeddedSignInFlowStatusV2.Complete &&
+          response.flowStatus === EmbeddedSignInFlowStatus.Complete &&
           response.assertion
         ) {
           const decodedAssertion: {
@@ -367,9 +365,7 @@ class ThunderIDVueClient<T extends ThunderIDVueConfig = ThunderIDVueConfig> exte
     return (await super.signInSilently(options as Record<string, string | boolean>))!;
   }
 
-  override async signUp(options?: SignUpOptions): Promise<void>;
-  override async signUp(payload: EmbeddedFlowExecuteRequestPayload): Promise<EmbeddedFlowExecuteResponse>;
-  override async signUp(...args: any[]): Promise<void | EmbeddedFlowExecuteResponse> {
+  override async signUp(...args: any[]): Promise<any> {
     const configData: any = await this.getStorageManager().getConfigData();
     const firstArg: any = args[0];
     const baseUrl: string = configData?.baseUrl || '';
@@ -384,19 +380,16 @@ class ThunderIDVueClient<T extends ThunderIDVueConfig = ThunderIDVueConfig> exte
       await this.getStorageManager().setHybridDataParameter('authId', authIdFromUrl);
     }
 
-    const response: any = await executeEmbeddedSignUpFlowV2({
+    const response: any = await executeEmbeddedSignUpFlow({
       authId,
       baseUrl,
-      payload:
-        typeof firstArg === 'object' && 'flowType' in firstArg
-          ? {...(firstArg as EmbeddedFlowExecuteRequestPayload), verbose: true}
-          : (firstArg as EmbeddedFlowExecuteRequestPayload),
+      payload: typeof firstArg === 'object' && 'flowType' in firstArg ? {...firstArg, verbose: true} : firstArg,
     });
 
     if (
       response &&
       typeof response === 'object' &&
-      response.flowStatus === EmbeddedSignUpFlowStatusV2.Complete &&
+      response.flowStatus === EmbeddedSignUpFlowStatus.Complete &&
       response.assertion
     ) {
       const decodedAssertion: {

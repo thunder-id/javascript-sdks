@@ -26,12 +26,11 @@ import {
   HttpResponse,
   IdToken,
   Organization,
-  Platform,
   User,
   UserProfile,
   SignInOptions,
   TokenResponse,
-  EmbeddedSignInFlowResponseV2,
+  EmbeddedSignInFlowResponse,
 } from '@thunderid/browser';
 import {
   type Component,
@@ -69,7 +68,6 @@ interface ThunderIDProviderProps {
   instanceId: number;
   organizationChain: object | undefined;
   organizationHandle: string | undefined;
-  platform: string | undefined;
   scopes: string | string[] | undefined;
   signInOptions: SignInOptions | undefined;
   signInUrl: string | undefined;
@@ -145,11 +143,6 @@ const ThunderIDProvider: Component = defineComponent({
     },
     /** The organization handle. */
     organizationHandle: {
-      default: undefined,
-      type: String,
-    },
-    /** Platform type. */
-    platform: {
       default: undefined,
       type: String,
     },
@@ -255,7 +248,7 @@ const ThunderIDProvider: Component = defineComponent({
     }
 
     // ── Sign In (wrapper) ──
-    async function signIn(...args: any[]): Promise<User | EmbeddedSignInFlowResponseV2> {
+    async function signIn(...args: any[]): Promise<User | EmbeddedSignInFlowResponse> {
       const arg1: any = args[0];
       const isV2FlowRequest: boolean =
         typeof arg1 === 'object' && arg1 !== null && ('executionId' in arg1 || 'applicationId' in arg1);
@@ -361,7 +354,6 @@ const ThunderIDProvider: Component = defineComponent({
       isSignedIn,
       organization: currentOrganization,
       organizationHandle: props.organizationHandle,
-      platform: Platform.ThunderID,
       reInitialize: async (config: any): Promise<boolean> => {
         const result: boolean = await client.reInitialize(config);
         return typeof result === 'boolean' ? result : true;

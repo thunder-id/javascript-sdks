@@ -31,8 +31,8 @@ import {
 import useFlowMeta from '../../../composables/useFlowMeta';
 import useI18n from '../../../composables/useI18n';
 import {useOAuthCallback} from '../../../composables/useOAuthCallback';
+import {extractErrorMessage, normalizeFlowResponse} from '../../../utils/flowTransformer';
 import {initiateOAuthRedirect} from '../../../utils/oauth';
-import {extractErrorMessage, normalizeFlowResponse} from '../../../utils/v2/flowTransformer';
 import {renderInviteUserComponents} from '../../auth/sign-in/AuthOptionFactory';
 import Alert from '../../primitives/Alert';
 import Button from '../../primitives/Button';

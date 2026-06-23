@@ -17,11 +17,6 @@
  */
 
 import {navigateTo} from '#app';
-import {
-  type EmbeddedSignInFlowHandleRequestPayload,
-  type EmbeddedSignInFlowHandleResponse,
-  type EmbeddedSignInFlowInitiateResponse,
-} from '@thunderid/browser';
 import {BaseSignIn} from '@thunderid/vue';
 import {type Component, type PropType, type SetupContext, type VNode, defineComponent, h} from 'vue';
 import {useThunderID} from '#imports';
@@ -64,16 +59,12 @@ const SignIn: Component = defineComponent({
   ): () => VNode {
     const {signIn, afterSignInUrl, isInitialized, isLoading} = useThunderID();
 
-    const handleInitialize = async (): Promise<EmbeddedSignInFlowInitiateResponse> =>
+    const handleInitialize = async (): Promise<any> =>
       // Pass flowId='' to trigger the embedded-flow initiation path in useThunderID.
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (await signIn({flowId: ''} as any, {} as any)) as EmbeddedSignInFlowInitiateResponse;
+      await signIn({flowId: ''} as any, {} as any);
 
-    const handleOnSubmit = async (
-      payload: EmbeddedSignInFlowHandleRequestPayload,
-      request: any,
-    ): Promise<EmbeddedSignInFlowHandleResponse> =>
-      (await signIn(payload, request)) as EmbeddedSignInFlowHandleResponse;
+    const handleOnSubmit = async (payload: any, request: any): Promise<any> => await signIn(payload, request);
 
     const handleSuccess = async (authData: Record<string, any>): Promise<void> => {
       emit('success', authData);

@@ -16,13 +16,13 @@
  * under the License.
  */
 
-import {EmbeddedFlowStatus} from '@thunderid/node';
+import {EmbeddedSignUpFlowStatus} from '@thunderid/node';
 import {defineEventHandler, readBody, createError} from 'h3';
 import type {H3Event} from 'h3';
 import ThunderIDNuxtClient from '../../../ThunderIDNuxtClient';
 import {useRuntimeConfig} from '#imports';
 
-function hasFlowStatus(value: unknown): value is {flowStatus?: EmbeddedFlowStatus} {
+function hasFlowStatus(value: unknown): value is {flowStatus?: EmbeddedSignUpFlowStatus} {
   return typeof value === 'object' && value !== null && 'flowStatus' in value;
 }
 
@@ -69,7 +69,7 @@ export default defineEventHandler(async (event: H3Event) => {
   }
 
   // ── Flow complete ─────────────────────────────────────────────────────────
-  if (hasFlowStatus(response) && response.flowStatus === EmbeddedFlowStatus.Complete) {
+  if (hasFlowStatus(response) && response.flowStatus === EmbeddedSignUpFlowStatus.Complete) {
     return {data: {afterSignUpUrl}, success: true};
   }
 

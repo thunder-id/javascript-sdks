@@ -90,7 +90,7 @@ vi.mock('../../src/runtime/server/utils/serverSession', () => ({
 vi.mock('@thunderid/node', () => ({
   generateSessionId: vi.fn().mockReturnValue('new-session-id'),
   isEmpty: vi.fn((obj: any) => !obj || Object.keys(obj).length === 0),
-  EmbeddedSignInFlowStatus: {SuccessCompleted: 'SUCCESS_COMPLETED'},
+  EmbeddedSignInFlowStatus: {Complete: 'COMPLETE'},
 }));
 
 // ── Helpers ───────────────────────────────────────────────────────────────────

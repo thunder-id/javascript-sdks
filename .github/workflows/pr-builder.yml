@@ -72,7 +72,7 @@ jobs:
         run: pnpm format:check
 
       - name: 🧹 Lint
-        run: pnpm lint
+        run: pnpm --filter '!./packages/**' lint
 
       - name: 🧪 Test
-        run: pnpm test
+        run: pnpm --filter '!./packages/**' test

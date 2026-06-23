@@ -22,8 +22,6 @@ import {
   ThunderIDRuntimeError,
   AuthClientConfig,
   CreateOrganizationPayload,
-  EmbeddedFlowExecuteRequestPayload,
-  EmbeddedFlowExecuteResponse,
   ExtendedAuthorizeRequestUrlParams,
   FlattenedSchema,
   IdToken,
@@ -39,8 +37,6 @@ import {
   UserProfile,
   createOrganization,
   deriveOrganizationHandleFromBaseUrl,
-  executeEmbeddedSignInFlow,
-  executeEmbeddedSignUpFlow,
   extractUserClaimsFromIdToken,
   flattenUserSchema,
   generateFlattenedUserProfile,
@@ -50,7 +46,6 @@ import {
   getOrganization,
   getScim2Me,
   getSchemas,
-  initializeEmbeddedSignInFlow,
   updateMeProfile,
 } from '@thunderid/node';
 import {ThunderIDNextConfig} from './models/config';
@@ -397,27 +392,6 @@ class ThunderIDNextClient<T extends ThunderIDNextConfig = ThunderIDNextConfig> e
     const arg3: any = args[2];
     const arg4: any = args[3];
 
-    if (typeof arg1 === 'object' && 'flowId' in arg1) {
-      if (arg1.flowId === '') {
-        const defaultSignInUrl: URL = new URL(
-          await this.getAuthorizeRequestUrl({
-            client_secret: '{{clientSecret}}',
-            response_mode: 'direct',
-          }),
-        );
-
-        return initializeEmbeddedSignInFlow({
-          payload: Object.fromEntries(defaultSignInUrl.searchParams.entries()),
-          url: `${defaultSignInUrl.origin}${defaultSignInUrl.pathname}`,
-        });
-      }
-
-      return executeEmbeddedSignInFlow({
-        payload: arg1,
-        url: arg2.url,
-      });
-    }
-
     return super.signIn(arg4, arg3, arg1?.code, arg1?.session_state, arg1?.state, arg1) as unknown as Promise<User>;
   }
 
@@ -444,32 +418,12 @@ class ThunderIDNextClient<T extends ThunderIDNextConfig = ThunderIDNextConfig> e
     return afterSignOutUrl;
   }
 
-  override async signUp(options?: SignUpOptions): Promise<void>;
-  override async signUp(payload: EmbeddedFlowExecuteRequestPayload): Promise<EmbeddedFlowExecuteResponse>;
-  override async signUp(firstArg?: any): Promise<void | EmbeddedFlowExecuteResponse> {
-    if (firstArg === undefined || firstArg === null) {
-      throw new ThunderIDRuntimeError(
-        'No arguments provided for signUp method.',
-        'ThunderIDNextClient-ValidationError-001',
-        'nextjs',
-        'The signUp method requires at least one argument, either a SignUpOptions object or an EmbeddedFlowExecuteRequestPayload.',
-      );
-    }
-
-    if (typeof firstArg === 'object' && 'flowType' in firstArg) {
-      const configData: AuthClientConfig<T> = await this.getStorageManager().getConfigData();
-      const baseUrl: string | undefined = configData?.baseUrl;
-
-      return executeEmbeddedSignUpFlow({
-        baseUrl,
-        payload: firstArg as EmbeddedFlowExecuteRequestPayload,
-      });
-    }
+  override async signUp(_options?: SignUpOptions): Promise<void> {
     throw new ThunderIDRuntimeError(
       'Not implemented',
       'ThunderIDNextClient-ValidationError-002',
       'nextjs',
-      'The signUp method with SignUpOptions is not implemented in the Next.js client.',
+      'The signUp method is not implemented in the Next.js client.',
     );
   }
 

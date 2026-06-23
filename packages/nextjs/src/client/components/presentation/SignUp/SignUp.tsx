@@ -18,12 +18,7 @@
 
 'use client';
 
-import {
-  ThunderIDRuntimeError,
-  EmbeddedFlowExecuteRequestPayload,
-  EmbeddedFlowExecuteResponse,
-  EmbeddedFlowType,
-} from '@thunderid/node';
+import {ThunderIDRuntimeError, EmbeddedFlowType} from '@thunderid/node';
 import {BaseSignUp, BaseSignUpProps} from '@thunderid/react';
 import {FC} from 'react';
 import useThunderID from '../../../contexts/ThunderID/useThunderID';
@@ -75,9 +70,7 @@ const SignUp: FC<SignUpProps> = ({
   /**
    * Initialize the sign-up flow.
    */
-  const handleInitialize = async (
-    payload?: EmbeddedFlowExecuteRequestPayload,
-  ): Promise<EmbeddedFlowExecuteResponse> => {
+  const handleInitialize = async (payload?: any): Promise<any> => {
     if (!signUp) {
       throw new ThunderIDRuntimeError(
         '`signUp` function is not available.',
@@ -92,13 +85,13 @@ const SignUp: FC<SignUpProps> = ({
         ...(contextApplicationId && {applicationId: contextApplicationId}),
         ...(scopes && {scopes}),
       },
-    )) as unknown as Promise<EmbeddedFlowExecuteResponse>;
+    )) as unknown as Promise<any>;
   };
 
   /**
    * Handle sign-up steps.
    */
-  const handleOnSubmit = async (payload: EmbeddedFlowExecuteRequestPayload): Promise<EmbeddedFlowExecuteResponse> => {
+  const handleOnSubmit = async (payload: any): Promise<any> => {
     if (!signUp) {
       throw new ThunderIDRuntimeError(
         '`signUp` function is not available.',
@@ -107,7 +100,7 @@ const SignUp: FC<SignUpProps> = ({
       );
     }
 
-    return (await signUp(payload)) as unknown as Promise<EmbeddedFlowExecuteResponse>;
+    return (await signUp(payload)) as unknown as Promise<any>;
   };
 
   return (

@@ -50,12 +50,7 @@ class StorageManager<T> {
 
   protected async setValue(
     key: string,
-    attribute:
-      | keyof AuthClientConfig<T>
-      | keyof OIDCDiscoveryApiResponse
-      | keyof SessionData
-      | keyof TemporaryStore
-      | keyof HybridStore,
+    attribute: keyof AuthClientConfig<T> | keyof OIDCDiscoveryApiResponse | keyof SessionData | keyof TemporaryStore,
     value: TemporaryStoreValue,
   ): Promise<void> {
     const existingDataJSON: string = (await this.store.getData(key)) ?? null;
@@ -69,12 +64,7 @@ class StorageManager<T> {
 
   protected async removeValue(
     key: string,
-    attribute:
-      | keyof AuthClientConfig<T>
-      | keyof OIDCDiscoveryApiResponse
-      | keyof SessionData
-      | keyof TemporaryStore
-      | keyof HybridStore,
+    attribute: keyof AuthClientConfig<T> | keyof OIDCDiscoveryApiResponse | keyof SessionData | keyof TemporaryStore,
   ): Promise<void> {
     const existingDataJSON: string = (await this.store.getData(key)) ?? null;
     const existingData: PartialData<T> = existingDataJSON && JSON.parse(existingDataJSON);

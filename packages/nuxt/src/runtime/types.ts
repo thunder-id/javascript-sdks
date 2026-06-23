@@ -20,7 +20,6 @@ import type {
   BrandingPreference,
   I18nPreferences,
   Organization,
-  Platform,
   TokenEndpointAuthMethod,
   User,
   UserProfile,
@@ -46,12 +45,6 @@ export interface ThunderIDNuxtConfig {
   clientId?: string;
   /** OAuth2 Client Secret (server-only, use THUNDERID_CLIENT_SECRET env var) */
   clientSecret?: string;
-  /**
-   * Identity platform variant. Set to `Platform.ThunderID` when connecting to
-   * a Thunder (ThunderIDV2) instance. Forwarded to the underlying Node client so
-   * platform-specific behaviours (e.g. issuer resolution) apply correctly.
-   */
-  platform?: keyof typeof Platform;
   /**
    * Feature-gating preferences that control which server-side data fetches
    * the Nitro plugin performs on every SSR request.

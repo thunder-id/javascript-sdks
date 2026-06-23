@@ -17,8 +17,8 @@
  */
 
 import {describe, expect, it, vi, beforeEach, afterEach} from 'vitest';
-import ThunderIDJavaScriptClient from '../ThunderIDJavaScriptClient';
 import type {Storage} from '../models/store';
+import ThunderIDJavaScriptClient from '../ThunderIDJavaScriptClient';
 
 vi.mock('../IsomorphicCrypto', () => ({
   IsomorphicCrypto: class MockIsomorphicCrypto {
@@ -107,9 +107,9 @@ describe('ThunderIDJavaScriptClient', () => {
 
       expect(config['enablePKCE']).toBe(true);
       expect(config['sendCookiesInRequests']).toBe(true);
-      expect(config['tokenValidation']['idToken']['clockTolerance']).toBe(300);
-      expect(config['tokenValidation']['idToken']['validate']).toBe(true);
-      expect(config['tokenValidation']['idToken']['validateIssuer']).toBe(true);
+      expect(config['tokenValidation'].idToken.clockTolerance).toBe(300);
+      expect(config['tokenValidation'].idToken.validate).toBe(true);
+      expect(config['tokenValidation'].idToken.validateIssuer).toBe(true);
     });
 
     it('should deep-merge partial tokenValidation, preserving sibling defaults', async () => {
@@ -123,9 +123,9 @@ describe('ThunderIDJavaScriptClient', () => {
 
       const config = await getStoredConfig(client);
 
-      expect(config['tokenValidation']['idToken']['validate']).toBe(false);
-      expect(config['tokenValidation']['idToken']['clockTolerance']).toBe(300);
-      expect(config['tokenValidation']['idToken']['validateIssuer']).toBe(true);
+      expect(config['tokenValidation'].idToken.validate).toBe(false);
+      expect(config['tokenValidation'].idToken.clockTolerance).toBe(300);
+      expect(config['tokenValidation'].idToken.validateIssuer).toBe(true);
     });
 
     it('should allow individual tokenValidation fields to be overridden independently', async () => {
@@ -139,9 +139,9 @@ describe('ThunderIDJavaScriptClient', () => {
 
       const config = await getStoredConfig(client);
 
-      expect(config['tokenValidation']['idToken']['clockTolerance']).toBe(60);
-      expect(config['tokenValidation']['idToken']['validate']).toBe(true);
-      expect(config['tokenValidation']['idToken']['validateIssuer']).toBe(true);
+      expect(config['tokenValidation'].idToken.clockTolerance).toBe(60);
+      expect(config['tokenValidation'].idToken.validate).toBe(true);
+      expect(config['tokenValidation'].idToken.validateIssuer).toBe(true);
     });
 
     it('should set explicit fields (applicationId, scope) at highest precedence', async () => {
@@ -242,14 +242,14 @@ describe('ThunderIDJavaScriptClient', () => {
       await client.initiateCIBA({bindingMessage: 'Approve login', loginHint: 'user@example.com'});
 
       const [, init] = fetchMock.mock.calls[0];
-      expect(init.headers['Authorization']).toMatch(/^Basic /);
+      expect(init.headers.Authorization).toMatch(/^Basic /);
       const body: URLSearchParams = init.body;
       expect(body.has('client_secret')).toBe(false);
     });
 
     it('should send client_secret in body and no Authorization header when using client_secret_post', async () => {
       const client = new ThunderIDJavaScriptClient(store, {} as any);
-      await client.initialize({...BASE_CONFIG, tokenRequest: {authMethod: 'client_secret_post'}} as any);
+      await client.initialize({...BASE_CONFIG, tokenRequest: {authMethod: 'client_secret_post'}});
       const sm = (client as any).storageManager;
       await sm.setOIDCProviderMetaData(OIDC_META);
       await sm.setTemporaryDataParameter('op_config_initiated', true);
@@ -266,7 +266,7 @@ describe('ThunderIDJavaScriptClient', () => {
       await client.initiateCIBA({loginHint: 'user@example.com'});
 
       const [, init] = fetchMock.mock.calls[0];
-      expect(init.headers['Authorization']).toBeUndefined();
+      expect(init.headers.Authorization).toBeUndefined();
       const body: URLSearchParams = init.body;
       expect(body.get('client_secret')).toBe('test-secret');
     });

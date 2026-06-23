@@ -15,7 +15,7 @@
  * under the License.
  */
 
-import {EmbeddedSignInFlowStatusV2, EmbeddedSignInFlowTypeV2, navigate as browserNavigate} from '@thunderid/browser';
+import {EmbeddedSignInFlowStatus, EmbeddedSignInFlowType, navigate as browserNavigate} from '@thunderid/browser';
 import {FC, useEffect, useRef} from 'react';
 import useThunderID from '../../../contexts/ThunderID/useThunderID';
 
@@ -158,8 +158,8 @@ export const TokenCallback: FC<TokenCallbackProps> = ({
           response = await signIn({executionId, inputs: {token}});
         }
 
-        if (response.type === EmbeddedSignInFlowTypeV2.Redirection) {
-          const redirectURL: string | undefined = (response.data as any)?.redirectURL || (response as any)?.redirectURL;
+        if (response.type === EmbeddedSignInFlowType.Redirection) {
+          const redirectURL: string | undefined = response.data?.redirectURL || response?.redirectURL;
           const nextExecutionId: string = response.executionId || executionId;
           sessionStorage.setItem('thunderid_execution_id', nextExecutionId);
 
@@ -169,8 +169,8 @@ export const TokenCallback: FC<TokenCallbackProps> = ({
           }
         }
 
-        if (response.flowStatus === EmbeddedSignInFlowStatusV2.Complete) {
-          const redirectUrl: string | undefined = (response as any)?.redirectUrl || (response as any)?.redirect_uri;
+        if (response.flowStatus === EmbeddedSignInFlowStatus.Complete) {
+          const redirectUrl: string | undefined = response?.redirectUrl || response?.redirect_uri;
 
           sessionStorage.removeItem('thunderid_execution_id');
           await storageManager.removeHybridDataParameter('authId');
@@ -189,8 +189,8 @@ export const TokenCallback: FC<TokenCallbackProps> = ({
           return;
         }
 
-        if (response.flowStatus === EmbeddedSignInFlowStatusV2.Error) {
-          const failureReason: string | undefined = (response as any)?.failureReason;
+        if (response.flowStatus === EmbeddedSignInFlowStatus.Error) {
+          const failureReason: string | undefined = response?.failureReason;
           const error: Error = new Error(failureReason || 'Token validation failed. Please try again.');
           await storageManager.removeHybridDataParameter('authId');
           redirectWithError(error, isRegistrationFlow);

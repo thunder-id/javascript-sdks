@@ -45,7 +45,7 @@ function isTokenResponse(value: unknown): value is TokenResponse {
  * Handles embedded (app-native) sign-in flow steps.
  *
  * Request body:
- * - `payload` — the embedded flow step payload (`EmbeddedSignInFlowHandleRequestPayload`).
+ * - `payload` — the embedded flow step payload.
  *   When omitted or `{}`, the flow is initialised and the authorize URL is returned.
  * - `request` — optional per-step config (e.g. `{ url }` override).
  *
@@ -123,7 +123,7 @@ export default defineEventHandler(async (event: H3Event) => {
   }
 
   // ── Flow complete — exchange code for tokens and issue session cookie ───────
-  if ((response as {flowStatus?: unknown})?.flowStatus === EmbeddedSignInFlowStatus.SuccessCompleted) {
+  if ((response as {flowStatus?: unknown})?.flowStatus === EmbeddedSignInFlowStatus.Complete) {
     const authData: {code?: string; session_state?: string; state?: string} =
       (response as {authData?: {code?: string; session_state?: string; state?: string}})?.authData ?? {};
     const {code, state, session_state: sessionState} = authData;

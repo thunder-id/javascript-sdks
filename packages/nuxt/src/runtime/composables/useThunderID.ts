@@ -72,7 +72,7 @@ export function useThunderID(): ThunderIDContext {
       // Flow complete — server has set the session cookie. Refresh the client
       // auth state so `useThunderID().isSignedIn` flips to true *immediately*
       // (without waiting for a full page reload). Then return a synthetic
-      // SuccessCompleted response so `BaseSignIn` emits its `success` event
+      // Complete response so `BaseSignIn` emits its `success` event
       // and the wrapper component (`<ThunderIDSignIn>`) drives navigation via
       // `onSuccess`.
       //
@@ -92,7 +92,7 @@ export function useThunderID(): ThunderIDContext {
         }
         return {
           authData: {},
-          flowStatus: EmbeddedSignInFlowStatus.SuccessCompleted,
+          flowStatus: EmbeddedSignInFlowStatus.Complete,
         };
       }
       return res.data;
@@ -126,22 +126,6 @@ export function useThunderID(): ThunderIDContext {
    */
   const signUp = async (...args: any[]): Promise<any> => {
     const payload: unknown = args[0];
-
-    // Embedded flow — payload must look like an EmbeddedFlowExecuteRequestPayload
-    // (i.e. have a `flowType` field). Plain options objects without `flowType`
-    // fall through to the redirect path so `signUp({applicationId: '...'})`
-    // still goes to the hosted register page.
-    if (payload && typeof payload === 'object' && 'flowType' in payload) {
-      const res: {data: any; success: boolean} = await $fetch<{data: any; success: boolean}>('/api/auth/signup', {
-        body: {payload},
-        method: 'POST',
-      });
-      if (res.data?.afterSignUpUrl) {
-        await navigateTo(res.data.afterSignUpUrl as string, {external: false});
-        return undefined;
-      }
-      return res.data;
-    }
 
     // Redirect flow.
     const cfg: {

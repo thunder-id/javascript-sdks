@@ -18,8 +18,6 @@
 
 import ThunderIDAPIError from '../errors/ThunderIDAPIError';
 import {BrandingPreference} from '../models/branding-preference';
-import {Platform} from '../models/platforms';
-import identifyPlatform from '../utils/identifyPlatform';
 import logger from '../utils/logger';
 
 /**
@@ -158,8 +156,6 @@ const getBrandingPreference = async ({
     if (!response?.ok) {
       const errorText: string = await response.text();
 
-      const platform: Platform = identifyPlatform({baseUrl} as any);
-
       let errorDescription: string;
       try {
         const errorBody: {description?: string; message?: string} = JSON.parse(errorText) as {
@@ -171,17 +167,8 @@ const getBrandingPreference = async ({
         errorDescription = errorText;
       }
 
-      let platformConsoleGuidance: string;
-      if (platform === Platform.ThunderID) {
-        platformConsoleGuidance = 'configure branding preferences in the ThunderID console';
-      } else if (platform === Platform.IdentityServer) {
-        platformConsoleGuidance = 'configure branding preferences in the WSO2 Identity Server console';
-      } else {
-        platformConsoleGuidance = 'configure branding preferences in the platform console';
-      }
-
       logger.warn(
-        `[BrandingError] ${errorDescription} To resolve this issue, please ${platformConsoleGuidance}. If you want to suppress this warning and stop fetching branding preferences, set \`<ThunderIDProvider>\` -> \`preferences\` -> \`theme\` -> \`inheritFromBranding\` to false.`,
+        `[BrandingError] ${errorDescription} To resolve this issue, please configure branding preferences in the ThunderID console. If you want to suppress this warning and stop fetching branding preferences, set \`<ThunderIDProvider>\` -> \`preferences\` -> \`theme\` -> \`inheritFromBranding\` to false.`,
       );
 
       throw new ThunderIDAPIError(
