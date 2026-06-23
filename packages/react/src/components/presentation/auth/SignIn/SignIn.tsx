@@ -435,6 +435,62 @@ const SignIn: FC<SignInProps> = ({
   };
 
   /**
+   * Handle terminal flow responses (Error and Complete) shared by initializeFlow and handleSubmit.
+   * Throws on an Error status so the caller's catch block can propagate it to BaseSignIn.
+   * Returns true when a Complete status was handled (caller should return), false otherwise.
+   */
+  const handleTerminalResponse = async (response: EmbeddedSignInFlowResponse): Promise<boolean> => {
+    // Handle Error flow status - flow has failed and is invalidated
+    if (response.flowStatus === EmbeddedSignInFlowStatus.Error) {
+      await clearFlowState();
+      const err: any = new Error(extractErrorMessage(response, t));
+      setError(err);
+      cleanupFlowUrlParams();
+      // Throw the error so it's caught by the catch block and propagated to BaseSignIn
+      throw err;
+    }
+
+    if (response.flowStatus === EmbeddedSignInFlowStatus.Complete) {
+      // Get redirectUrl from response (from /oauth2/auth/callback) or fall back to afterSignInUrl
+      const redirectUrl: any = (response as any)?.redirectUrl || (response as any)?.redirect_uri;
+      const finalRedirectUrl: any = redirectUrl || afterSignInUrl;
+
+      // Clear submitting state before redirect
+      setIsSubmitting(false);
+
+      // Clear all OAuth-related storage on successful completion
+      setExecutionId(null);
+      await setChallengeToken(null);
+      setIsFlowInitialized(false);
+      sessionStorage.removeItem('thunderid_execution_id');
+      try {
+        const storageManager: any = await getStorageManager();
+        await storageManager?.removeHybridDataParameter?.('authId');
+      } catch {
+        logger.warn('Failed to clear authId from hybrid storage after completion.');
+      }
+
+      // Clean up OAuth URL params before redirect
+      cleanupOAuthUrlParams(true);
+
+      if (onSuccess) {
+        onSuccess({
+          redirectUrl: finalRedirectUrl,
+          ...(response.data || {}),
+        });
+      }
+
+      if (finalRedirectUrl && window?.location) {
+        window.location.href = finalRedirectUrl;
+      }
+
+      return true;
+    }
+
+    return false;
+  };
+
+  /**
    * Initialize the authentication flow.
    * Priority: executionId > applicationId (from context) > applicationId (from URL)
    */
@@ -525,6 +581,13 @@ const SignIn: FC<SignInProps> = ({
       }
 
       if (await handleRedirection(response)) {
+        return;
+      }
+
+      // Handle a flow that completes (or errors) on the very first step — e.g. a reused SSO
+      // session lets the backend return COMPLETE immediately with no UI components. Without
+      // this the UI would fall through with no components and spin forever.
+      if (await handleTerminalResponse(response)) {
         return;
       }
 
@@ -764,50 +827,8 @@ const SignIn: FC<SignInProps> = ({
         meta,
       );
 
-      // Handle Error flow status - flow has failed and is invalidated
-      if (response.flowStatus === EmbeddedSignInFlowStatus.Error) {
-        await clearFlowState();
-        const err: any = new Error(extractErrorMessage(response, t));
-        setError(err);
-        cleanupFlowUrlParams();
-        // Throw the error so it's caught by the catch block and propagated to BaseSignIn
-        throw err;
-      }
-
-      if (response.flowStatus === EmbeddedSignInFlowStatus.Complete) {
-        // Get redirectUrl from response (from /oauth2/auth/callback) or fall back to afterSignInUrl
-        const redirectUrl: any = (response as any)?.redirectUrl || (response as any)?.redirect_uri;
-        const finalRedirectUrl: any = redirectUrl || afterSignInUrl;
-
-        // Clear submitting state before redirect
-        setIsSubmitting(false);
-
-        // Clear all OAuth-related storage on successful completion
-        setExecutionId(null);
-        await setChallengeToken(null);
-        setIsFlowInitialized(false);
-        sessionStorage.removeItem('thunderid_execution_id');
-        try {
-          const storageManager: any = await getStorageManager();
-          await storageManager?.removeHybridDataParameter?.('authId');
-        } catch {
-          logger.warn('Failed to clear authId from hybrid storage after completion.');
-        }
-
-        // Clean up OAuth URL params before redirect
-        cleanupOAuthUrlParams(true);
-
-        if (onSuccess) {
-          onSuccess({
-            redirectUrl: finalRedirectUrl,
-            ...(response.data || {}),
-          });
-        }
-
-        if (finalRedirectUrl && window?.location) {
-          window.location.href = finalRedirectUrl;
-        }
-
+      // Handle terminal flow statuses (Error throws, Complete redirects and returns true).
+      if (await handleTerminalResponse(response)) {
         return;
       }
 
