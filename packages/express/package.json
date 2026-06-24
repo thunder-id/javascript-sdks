@@ -7,7 +7,7 @@
     "express.js",
     "server"
   ],
-  "homepage": "https://github.com/thunder-id/thunderid/tree/main/sdks/express#readme",
+  "homepage": "https://github.com/thunder-id/javascript-sdks/tree/main/packages/express#readme",
   "bugs": {
     "url": "https://github.com/thunder-id/thunderid/issues"
   },
@@ -29,8 +29,8 @@
   "types": "dist/index.d.ts",
   "repository": {
     "type": "git",
-    "url": "https://github.com/thunder-id/thunderid",
-    "directory": "sdks/express"
+    "url": "https://github.com/thunder-id/javascript-sdks",
+    "directory": "packages/express"
   },
   "scripts": {
     "build": "pnpm clean:dist &&  rolldown -c rolldown.config.js && tsc -p tsconfig.lib.json --emitDeclarationOnly --outDir dist",

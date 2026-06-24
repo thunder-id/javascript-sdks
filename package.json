@@ -2,17 +2,17 @@
   "private": true,
   "name": "@thunderid/javascript-sdks",
   "version": "0.0.0",
-  "description": "JavaScript SDK workspace for ⚡️ ThunderID",
+  "description": "JavaScript Eco-system SDKs for ⚡️ ThunderID",
   "author": "WSO2",
   "license": "Apache-2.0",
   "type": "module",
-  "homepage": "https://github.com/thunder-id/thunderid",
+  "homepage": "https://github.com/thunder-id/javascript-sdks",
   "bugs": {
-    "url": "https://github.com/thunder-id/thunderid/issues"
+    "url": "https://github.com/thunder-id/javascript-sdks/issues"
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/thunder-id/thunderid"
+    "url": "https://github.com/thunder-id/javascript-sdks"
   },
   "keywords": [
     "thunderid",

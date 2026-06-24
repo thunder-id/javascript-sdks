@@ -8,7 +8,7 @@
     "nuxtjs",
     "ssr"
   ],
-  "homepage": "https://github.com/thunder-id/thunderid/tree/main/sdks/nuxt#readme",
+  "homepage": "https://github.com/thunder-id/javascript-sdks/tree/main/packages/nuxt#readme",
   "bugs": {
     "url": "https://github.com/thunder-id/thunderid/issues"
   },
@@ -57,7 +57,7 @@
   ],
   "repository": {
     "type": "git",
-    "url": "https://github.com/thunder-id/thunderid",
+    "url": "https://github.com/thunder-id/javascript-sdks",
     "directory": "packages/nuxt"
   },
   "scripts": {

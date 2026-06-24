@@ -9,7 +9,7 @@
     "agnostic",
     "js"
   ],
-  "homepage": "https://github.com/thunder-id/thunderid/tree/main/sdks/javascript#readme",
+  "homepage": "https://github.com/thunder-id/javascript-sdks/tree/main/packages/javascript#readme",
   "bugs": {
     "url": "https://github.com/thunder-id/thunderid/issues"
   },
@@ -32,8 +32,8 @@
   "types": "dist/index.d.ts",
   "repository": {
     "type": "git",
-    "url": "https://github.com/thunder-id/thunderid",
-    "directory": "sdks/javascript"
+    "url": "https://github.com/thunder-id/javascript-sdks",
+    "directory": "packages/javascript"
   },
   "scripts": {
     "build": "pnpm clean:dist &&  rolldown -c rolldown.config.js && tsc -p tsconfig.lib.json --emitDeclarationOnly --outDir dist",

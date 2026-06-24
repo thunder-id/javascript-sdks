@@ -7,7 +7,7 @@
     "browser",
     "spa"
   ],
-  "homepage": "https://github.com/thunder-id/thunderid/tree/main/sdks/browser#readme",
+  "homepage": "https://github.com/thunder-id/javascript-sdks/tree/main/packages/browser#readme",
   "bugs": {
     "url": "https://github.com/thunder-id/thunderid/issues"
   },
@@ -28,8 +28,8 @@
   "types": "dist/index.d.ts",
   "repository": {
     "type": "git",
-    "url": "https://github.com/thunder-id/thunderid",
-    "directory": "sdks/browser"
+    "url": "https://github.com/thunder-id/javascript-sdks",
+    "directory": "packages/browser"
   },
   "scripts": {
     "build": "pnpm clean:dist &&  node rolldown.config.js && tsc -p tsconfig.lib.json --emitDeclarationOnly --outDir dist",

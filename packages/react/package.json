@@ -7,7 +7,7 @@
     "react",
     "spa"
   ],
-  "homepage": "https://github.com/thunder-id/thunderid/tree/main/sdks/react#readme",
+  "homepage": "https://github.com/thunder-id/javascript-sdks/tree/main/packages/react#readme",
   "bugs": {
     "url": "https://github.com/thunder-id/thunderid/issues"
   },
@@ -29,8 +29,8 @@
   "types": "dist/index.d.ts",
   "repository": {
     "type": "git",
-    "url": "https://github.com/thunder-id/thunderid",
-    "directory": "sdks/react"
+    "url": "https://github.com/thunder-id/javascript-sdks",
+    "directory": "packages/react"
   },
   "scripts": {
     "build": "pnpm clean:dist &&  node rolldown.config.js && tsc -p tsconfig.lib.json --emitDeclarationOnly --outDir dist",

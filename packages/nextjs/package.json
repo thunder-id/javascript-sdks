@@ -8,7 +8,7 @@
     "react",
     "ssr"
   ],
-  "homepage": "https://github.com/thunder-id/thunderid/tree/main/packages/next#readme",
+  "homepage": "https://github.com/thunder-id/javascript-sdks/tree/main/packages/nextjs#readme",
   "bugs": {
     "url": "https://github.com/thunder-id/thunderid/issues"
   },
@@ -43,8 +43,8 @@
   "types": "dist/index.d.ts",
   "repository": {
     "type": "git",
-    "url": "https://github.com/thunder-id/thunderid",
-    "directory": "packages/next"
+    "url": "https://github.com/thunder-id/javascript-sdks",
+    "directory": "packages/nextjs"
   },
   "scripts": {
     "build": "pnpm clean:dist &&  rolldown -c rolldown.config.js && tsc -p tsconfig.lib.json --emitDeclarationOnly --outDir dist",

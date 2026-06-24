@@ -9,7 +9,7 @@
     "vueauth",
     "spa"
   ],
-  "homepage": "https://github.com/thunder-id/thunderid/tree/main/sdks/vue#readme",
+  "homepage": "https://github.com/thunder-id/javascript-sdks/tree/main/packages/vue#readme",
   "bugs": {
     "url": "https://github.com/thunder-id/thunderid/issues"
   },
@@ -30,8 +30,8 @@
   "types": "dist/index.d.ts",
   "repository": {
     "type": "git",
-    "url": "https://github.com/thunder-id/thunderid",
-    "directory": "sdks/vue"
+    "url": "https://github.com/thunder-id/javascript-sdks",
+    "directory": "packages/vue"
   },
   "scripts": {
     "build": "pnpm clean:dist &&  rolldown -c rolldown.config.js && tsc -p tsconfig.lib.json --emitDeclarationOnly --outDir dist",
