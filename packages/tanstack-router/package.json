@@ -63,7 +63,7 @@
   },
   "peerDependencies": {
     "@tanstack/react-router": ">=1.134.4",
-    "@thunderid/react": ">=0.15.0",
+    "@thunderid/react": ">=0.1.0",
     "react": ">=16.8.0"
   },
   "dependencies": {

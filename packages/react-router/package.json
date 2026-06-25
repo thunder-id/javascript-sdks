@@ -64,7 +64,7 @@
     "vitest": "catalog:"
   },
   "peerDependencies": {
-    "@thunderid/react": ">=0.15.0",
+    "@thunderid/react": ">=0.1.0",
     "react": ">=16.8.0",
     "react-router": ">=6.30.1"
   },
