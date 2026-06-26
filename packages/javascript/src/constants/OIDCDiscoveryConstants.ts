@@ -59,6 +59,7 @@ const OIDCDiscoveryConstants: {
         readonly USERINFO: string;
       };
       readonly OPENID_PROVIDER_CONFIG_INITIATED: string;
+      readonly OPENID_PROVIDER_CONFIG_FAILED: string;
     };
   };
 } = {
@@ -194,6 +195,14 @@ const OIDCDiscoveryConstants: {
        * This helps prevent duplicate initialization attempts.
        */
       OPENID_PROVIDER_CONFIG_INITIATED: 'op_config_initiated',
+
+      /**
+       * Flag to track if OpenID Provider configuration fetch has permanently failed.
+       * Prevents retrying a failing discovery endpoint on every SDK call, which would
+       * cause a flood of network requests when the server is unreachable or the TLS
+       * certificate is not trusted.
+       */
+      OPENID_PROVIDER_CONFIG_FAILED: 'op_config_failed',
     },
   },
 } as const;

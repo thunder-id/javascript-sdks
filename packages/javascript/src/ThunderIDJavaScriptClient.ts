@@ -341,13 +341,28 @@ class ThunderIDJavaScriptClient<T = Config> implements ThunderIDClient<T> {
   protected async loadOpenIDProviderConfiguration(forceInit = false): Promise<void> {
     const configData = await this.configProvider();
 
-    if (
-      !forceInit &&
-      (await this.storageManager.getTemporaryDataParameter(
-        OIDCDiscoveryConstants.Storage.StorageKeys.OPENID_PROVIDER_CONFIG_INITIATED,
-      ))
-    ) {
-      return;
+    if (!forceInit) {
+      if (
+        await this.storageManager.getTemporaryDataParameter(
+          OIDCDiscoveryConstants.Storage.StorageKeys.OPENID_PROVIDER_CONFIG_INITIATED,
+        )
+      ) {
+        return;
+      }
+
+      // A previous fetch already failed — do not flood the network with retries.
+      // The caller must use forceInit=true (e.g. via reInitialize) to retry.
+      if (
+        await this.storageManager.getTemporaryDataParameter(
+          OIDCDiscoveryConstants.Storage.StorageKeys.OPENID_PROVIDER_CONFIG_FAILED,
+        )
+      ) {
+        throw new ThunderIDAuthException(
+          'JS-AUTH_CORE-GOPMD-HE01',
+          'Invalid well-known response',
+          'The well known endpoint response has been failed with an error.',
+        );
+      }
     }
 
     const {discovery, baseUrl, endpoints} = configData as any;
@@ -367,6 +382,10 @@ class ThunderIDJavaScriptClient<T = Config> implements ThunderIDClient<T> {
           throw new Error();
         }
       } catch {
+        await this.storageManager.setTemporaryDataParameter(
+          OIDCDiscoveryConstants.Storage.StorageKeys.OPENID_PROVIDER_CONFIG_FAILED,
+          true,
+        );
         throw new ThunderIDAuthException(
           'JS-AUTH_CORE-GOPMD-HE01',
           'Invalid well-known response',
@@ -389,6 +408,10 @@ class ThunderIDJavaScriptClient<T = Config> implements ThunderIDClient<T> {
       await this.storageManager.setOIDCProviderMetaData(await this.authHelper.resolveEndpointsExplicitly());
     }
 
+    await this.storageManager.setTemporaryDataParameter(
+      OIDCDiscoveryConstants.Storage.StorageKeys.OPENID_PROVIDER_CONFIG_FAILED,
+      false,
+    );
     await this.storageManager.setTemporaryDataParameter(
       OIDCDiscoveryConstants.Storage.StorageKeys.OPENID_PROVIDER_CONFIG_INITIATED,
       true,
