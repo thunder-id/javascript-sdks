@@ -16,12 +16,6 @@
  * under the License.
  */
 
-// ── Client ──
-export {default as ThunderIDSvelteClient} from './ThunderIDSvelteClient';
+import type {ThunderIDBrowserConfig} from '@thunderid/browser';
 
-// ── Context ──
-export {THUNDERID_KEY, USER_KEY} from './context';
-
-// ── Models / Types ──
-export type {ThunderIDSvelteConfig} from './models/config';
-export type {ThunderIDContext, UserContextValue} from './models/contexts';
+export type ThunderIDSvelteConfig = ThunderIDBrowserConfig;
