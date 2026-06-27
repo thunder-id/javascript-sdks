@@ -84,6 +84,12 @@ on:
         type: boolean
         default: false
 
+      sdk_svelte:
+        description: '@thunderid/svelte'
+        required: false
+        type: boolean
+        default: false
+
 permissions:
   contents: write
   # IMPORTANT: DO NOT REMOVE. `id-token` is required for OIDC publishing.
@@ -447,6 +453,63 @@ jobs:
       - name: 📦 Publish to npm
         run: pnpm publish --no-git-checks --access public --provenance
         working-directory: packages/vue
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+  release-svelte:
+    name: 🧡 Release @thunderid/svelte
+    needs: [validate, release-browser]
+    if: ${{ always() && needs.validate.result == 'success' && (needs.release-browser.result == 'success' || needs.release-browser.result == 'skipped') && github.event.inputs.sdk_svelte == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: 📥 Checkout Code
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          token: ${{ secrets.THUNDERID_AUTOMATION_BOT }}
+
+      - name: 📦 Set up pnpm
+        uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4.3.0
+        with:
+          version: latest
+
+      - name: ⚙️ Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          registry-url: 'https://registry.npmjs.org'
+          cache: 'pnpm'
+
+      - name: 📦 Install Dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: 🏷️ Bump Version
+        id: bump
+        run: |
+          cd packages/svelte
+          pnpm version ${{ github.event.inputs.bump_type }} --no-git-tag-version
+          echo "version=$(node -p "require('./package.json').version")" >> $GITHUB_OUTPUT
+
+      - name: 🔨 Build
+        run: pnpm nx run @thunderid/svelte:build
+
+      - name: 📤 Commit, Tag & Push
+        run: |
+          git config user.name "${{ env.RELEASE_GIT_USER_NAME }}"
+          git config user.email "${{ env.RELEASE_GIT_USER_EMAIL }}"
+          git add packages/svelte/package.json
+          git diff --cached --quiet || git commit -m "[Release] @thunderid/svelte@${{ steps.bump.outputs.version }}"
+          for i in $(seq 1 5); do
+            git pull --rebase origin ${{ github.ref_name }}
+            git push origin HEAD:${{ github.ref_name }} && break
+            [ "$i" -eq 5 ] && exit 1
+            sleep $((i * 3))
+          done
+          git tag "sdk/svelte/v${{ steps.bump.outputs.version }}"
+          git push origin "sdk/svelte/v${{ steps.bump.outputs.version }}"
+
+      - name: 📦 Publish to npm
+        run: pnpm publish --no-git-checks --access public --provenance
+        working-directory: packages/svelte
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 

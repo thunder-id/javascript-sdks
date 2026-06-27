@@ -16,6 +16,39 @@
  * under the License.
  */
 
-import type {ThunderIDBrowserConfig} from '@thunderid/browser';
-
-export type ThunderIDSvelteConfig = ThunderIDBrowserConfig;
+export interface ThunderIDSvelteConfig {
+  /** URL to redirect to after sign-in (default: '/') */
+  afterSignInUrl?: string;
+  /** URL to redirect to after sign-out (default: '/') */
+  afterSignOutUrl?: string;
+  /**
+   * ThunderID application id (`spId`) — appended to the redirect-based sign-up
+   * URL when present.
+   */
+  applicationId?: string;
+  /** Base URL of the ThunderID org tenant (e.g. https://localhost:8090) */
+  baseUrl?: string;
+  /** OAuth2 Client ID */
+  clientId?: string;
+  /** OAuth2 Client Secret (server-only, use THUNDERID_CLIENT_SECRET env var) */
+  clientSecret?: string;
+  /** The auth method to use for the token request. */
+  enablePKCE?: boolean;
+  /** OAuth2 scopes to request */
+  scopes?: string | string[];
+  /** Secret for signing session JWTs (use THUNDERID_SESSION_SECRET env var) */
+  sessionSecret?: string;
+  /** Custom sign-in URL (overrides the default authorize endpoint URL) */
+  signInUrl?: string;
+  /** Custom sign-up URL */
+  signUpUrl?: string;
+  /** Controls which server-side data fetches to perform on every SSR request */
+  preferences?: {
+    user?: {
+      /** Whether to fetch the user's organizations during SSR (default: true) */
+      fetchOrganizations?: boolean;
+      /** Whether to fetch the SCIM2 user profile during SSR (default: true) */
+      fetchUserProfile?: boolean;
+    };
+  };
+}

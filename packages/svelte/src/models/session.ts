@@ -16,34 +16,35 @@
  * under the License.
  */
 
+import type {JWTPayload} from 'jose';
 import type {Organization, User, UserProfile} from '@thunderid/node';
 
-export interface ThunderIDContext {
-  afterSignInUrl?: string;
-  afterSignOutUrl?: string;
-  applicationId?: string;
-  baseUrl?: string;
-  clientId?: string;
-  isInitialized: boolean;
-  isLoading: boolean;
+/**
+ * Payload stored in the session JWT cookie.
+ */
+export interface ThunderIDSessionPayload extends JWTPayload {
+  accessToken: string;
+  accessTokenExpiresAt?: number;
+  exp: number;
+  iat: number;
+  idToken?: string;
+  organizationId?: string;
+  refreshToken?: string;
+  scopes: string;
+  sessionId: string;
+  sub: string;
+}
+
+/**
+ * Full SSR payload resolved by the handle hook on each page request.
+ * Written to `event.locals.thunderid` and returned from `+layout.server.ts`.
+ */
+export interface ThunderIDSSRData {
   isSignedIn: boolean;
   myOrganizations: Organization[];
   organization: Organization | null;
-  organizationHandle?: string;
-  resolvedBaseUrl: string;
-  scopes?: string | string[];
-  signInUrl?: string;
-  signUpUrl?: string;
+  resolvedBaseUrl: string | null;
+  session: ThunderIDSessionPayload | null;
   user: User | null;
   userProfile: UserProfile | null;
-
-  signIn: (...args: any[]) => Promise<any>;
-  signOut: (...args: any[]) => Promise<any>;
-  signUp: (...args: any[]) => Promise<any>;
-}
-
-export interface UserContextValue {
-  flattenedProfile: User | null;
-  profile: UserProfile | null;
-  schemas: any[] | null;
 }

@@ -16,17 +16,6 @@
  * under the License.
  */
 
-import type {Organization, User, UserProfile} from '@thunderid/node';
-
-class AuthState {
-  isSignedIn = $state(false);
-  isLoading = $state(true);
-  isInitialized = $state(false);
-  user: User | null = $state(null);
-  userProfile: UserProfile | null = $state(null);
-  organization: Organization | null = $state(null);
-  myOrganizations: Organization[] = $state([]);
-  resolvedBaseUrl = $state('');
-}
-
-export const authState = new AuthState();
+export {createSignInHandler} from './signin';
+export {createCallbackHandler} from './callback';
+export {createSignOutHandler} from './signout';

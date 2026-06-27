@@ -16,17 +16,23 @@
  * under the License.
  */
 
-import type {Organization, User, UserProfile} from '@thunderid/node';
+import {getUserContext} from '../context';
+import {authState} from '../state.svelte';
+import type {UserContextValue} from '../models/contexts';
 
-class AuthState {
-  isSignedIn = $state(false);
-  isLoading = $state(true);
-  isInitialized = $state(false);
-  user: User | null = $state(null);
-  userProfile: UserProfile | null = $state(null);
-  organization: Organization | null = $state(null);
-  myOrganizations: Organization[] = $state([]);
-  resolvedBaseUrl = $state('');
+export function useUser(): UserContextValue {
+  const context = getUserContext();
+
+  return {
+    ...context,
+    get profile() {
+      return authState.userProfile;
+    },
+    get flattenedProfile() {
+      return authState.user;
+    },
+    get schemas() {
+      return authState.userProfile?.schemas ?? null;
+    },
+  };
 }
-
-export const authState = new AuthState();

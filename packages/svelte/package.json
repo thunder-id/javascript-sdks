@@ -1,13 +1,13 @@
 {
   "name": "@thunderid/svelte",
-  "version": "0.1.0",
-  "description": "Svelte SDK for ThunderID",
+  "version": "0.2.0",
+  "description": "Svelte SDK for ThunderID — full SvelteKit SSR support",
   "keywords": [
     "thunderid",
     "svelte",
-    "sveltejs",
+    "sveltekit",
     "svelteauth",
-    "spa"
+    "ssr"
   ],
   "homepage": "https://github.com/thunder-id/javascript-sdks/tree/main/packages/svelte#readme",
   "bugs": {
@@ -23,6 +23,10 @@
       "types": "./dist/index.d.ts",
       "svelte": "./dist/index.js",
       "default": "./dist/index.js"
+    },
+    "./server": {
+      "types": "./dist/server/index.d.ts",
+      "default": "./dist/server/index.js"
     }
   },
   "files": [
@@ -43,6 +47,7 @@
     "typecheck": "svelte-check --tsconfig ./tsconfig.lib.json"
   },
   "devDependencies": {
+    "@sveltejs/kit": "catalog:",
     "@sveltejs/package": "catalog:",
     "@sveltejs/vite-plugin-svelte": "catalog:",
     "@thunderid/eslint-plugin": "catalog:",
@@ -57,10 +62,13 @@
     "vitest": "catalog:"
   },
   "peerDependencies": {
+    "@sveltejs/kit": ">=2.0.0",
     "svelte": ">=5.0.0"
   },
   "dependencies": {
     "@thunderid/browser": "workspace:^",
+    "@thunderid/node": "workspace:^",
+    "jose": "catalog:",
     "tslib": "catalog:"
   },
   "publishConfig": {

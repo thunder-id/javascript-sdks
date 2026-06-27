@@ -13,6 +13,7 @@ JavaScript SDKs for ThunderID. Provides authentication and user management for b
 | [`@thunderid/nextjs`](packages/nextjs) | ![npm](https://img.shields.io/npm/v/@thunderid/nextjs) | Next.js SDK |
 | [`@thunderid/react-router`](packages/react-router) | ![npm](https://img.shields.io/npm/v/@thunderid/react-router) | React Router integration |
 | [`@thunderid/vue`](packages/vue) | ![npm](https://img.shields.io/npm/v/@thunderid/vue) | Vue SDK |
+| [`@thunderid/svelte`](packages/svelte) | ![npm](https://img.shields.io/npm/v/@thunderid/svelte) | Svelte SDK |
 | [`@thunderid/nuxt`](packages/nuxt) | ![npm](https://img.shields.io/npm/v/@thunderid/nuxt) | Nuxt SDK |
 | [`@thunderid/express`](packages/express) | ![npm](https://img.shields.io/npm/v/@thunderid/express) | Express.js SDK |
 | [`@thunderid/tanstack-router`](packages/tanstack-router) | ![npm](https://img.shields.io/npm/v/@thunderid/tanstack-router) | TanStack Router integration |

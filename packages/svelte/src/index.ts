@@ -18,6 +18,12 @@
 
 // ── Components ──
 export {default as ThunderID} from './ThunderID.svelte';
+export {default as SignedIn} from './components/control/SignedIn.svelte';
+export {default as SignedOut} from './components/control/SignedOut.svelte';
+export {default as Loading} from './components/control/Loading.svelte';
+export {default as SignInButton} from './components/actions/SignInButton.svelte';
+export {default as SignOutButton} from './components/actions/SignOutButton.svelte';
+export {default as SignUpButton} from './components/actions/SignUpButton.svelte';
 
 // ── Client ──
 export {default as ThunderIDSvelteClient} from './ThunderIDSvelteClient';
@@ -25,6 +31,11 @@ export {default as ThunderIDSvelteClient} from './ThunderIDSvelteClient';
 // ── Context ──
 export {THUNDERID_KEY, USER_KEY} from './context';
 
+// ── Composables ──
+export {useThunderID} from './composables/useThunderID';
+export {useUser} from './composables/useUser';
+
 // ── Models / Types ──
 export type {ThunderIDSvelteConfig} from './models/config';
+export type {ThunderIDSSRData, ThunderIDSessionPayload} from './models/session';
 export type {ThunderIDContext, UserContextValue} from './models/contexts';

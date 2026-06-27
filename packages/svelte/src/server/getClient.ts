@@ -16,17 +16,22 @@
  * under the License.
  */
 
-import type {Organization, User, UserProfile} from '@thunderid/node';
+import ThunderIDSvelteClient from '../ThunderIDSvelteClient';
+import type {ThunderIDSvelteConfig} from '../models/config';
 
-class AuthState {
-  isSignedIn = $state(false);
-  isLoading = $state(true);
-  isInitialized = $state(false);
-  user: User | null = $state(null);
-  userProfile: UserProfile | null = $state(null);
-  organization: Organization | null = $state(null);
-  myOrganizations: Organization[] = $state([]);
-  resolvedBaseUrl = $state('');
+let clientInitialized = false;
+
+export async function getClient(config: ThunderIDSvelteConfig): Promise<ThunderIDSvelteClient> {
+  const client: ThunderIDSvelteClient = ThunderIDSvelteClient.getInstance();
+
+  if (!clientInitialized) {
+    await client.initialize(config);
+    clientInitialized = true;
+  }
+
+  return client;
 }
 
-export const authState = new AuthState();
+export function resetClient(): void {
+  clientInitialized = false;
+}

@@ -17,424 +17,212 @@
  */
 
 import {
-  ThunderIDBrowserClient,
-  flattenUserSchema,
-  generateFlattenedUserProfile,
-  UserProfile,
-  User,
-  generateUserProfile,
-  SignUpOptions,
-  ThunderIDRuntimeError,
-  executeEmbeddedSignUpFlow,
-  executeEmbeddedSignInFlow,
-  Organization,
-  IdToken,
-  AllOrganizationsApiResponse,
-  extractUserClaimsFromIdToken,
-  TokenResponse,
-  HttpRequestConfig,
-  HttpResponse,
-  TokenExchangeRequestConfig,
-  isEmpty,
-  EmbeddedSignInFlowResponse,
-  EmbeddedSignInFlowStatus,
-  EmbeddedSignUpFlowStatus,
-  deriveOrganizationHandleFromBaseUrl,
-  StorageManager,
-} from '@thunderid/browser';
-import getAllOrganizations from './api/getAllOrganizations';
-import getMeOrganizations from './api/getMeOrganizations';
-import getSchemas from './api/getSchemas';
-import getScim2Me from './api/getScim2Me';
+  ThunderIDNodeClient,
+  type AuthClientConfig,
+  type IdToken,
+  type Organization,
+  type Storage,
+  type TokenExchangeRequestConfig,
+  type TokenResponse,
+  type User,
+  type UserProfile,
+  getMeOrganizations,
+  MemoryCacheStore,
+} from '@thunderid/node';
 import type {ThunderIDSvelteConfig} from './models/config';
+import type {ThunderIDSessionPayload} from './models/session';
 
-class ThunderIDSvelteClient<T extends ThunderIDSvelteConfig = ThunderIDSvelteConfig> extends ThunderIDBrowserClient<T> {
-  private loadingState = false;
+class ThunderIDSvelteClient extends ThunderIDNodeClient<AuthClientConfig<ThunderIDSvelteConfig>> {
+  private static instance: ThunderIDSvelteClient;
 
-  constructor(instanceId = 0) {
-    super(instanceId);
+  public isInitialized = false;
+
+  private constructor() {
+    super();
   }
 
-  private setLoading(loading: boolean): void {
-    this.loadingState = loading;
-  }
-
-  private async withLoading<TResult>(operation: () => Promise<TResult>): Promise<TResult> {
-    this.setLoading(true);
-    try {
-      return await operation();
-    } finally {
-      this.setLoading(false);
+  public static getInstance(): ThunderIDSvelteClient {
+    if (!ThunderIDSvelteClient.instance) {
+      ThunderIDSvelteClient.instance = new ThunderIDSvelteClient();
     }
+    return ThunderIDSvelteClient.instance;
   }
 
-  override initialize(config: ThunderIDSvelteConfig): Promise<boolean> {
-    let resolvedOrganizationHandle: string | undefined = config?.organizationHandle;
-
-    if (!resolvedOrganizationHandle) {
-      resolvedOrganizationHandle = deriveOrganizationHandleFromBaseUrl(config?.baseUrl);
+  override async initialize(config: ThunderIDSvelteConfig, storage?: Storage): Promise<boolean> {
+    if (this.isInitialized) {
+      return true;
     }
 
-    return this.withLoading(async () =>
-      super.initialize({...config, organizationHandle: resolvedOrganizationHandle} as unknown as T),
+    const authConfig: AuthClientConfig<ThunderIDSvelteConfig> = {
+      afterSignInUrl: config.afterSignInUrl ?? '/',
+      afterSignOutUrl: config.afterSignOutUrl ?? '/',
+      baseUrl: config.baseUrl!,
+      clientId: config.clientId!,
+      clientSecret: config.clientSecret ?? undefined,
+      enablePKCE: config.enablePKCE ?? true,
+      scopes: config.scopes ?? ['openid', 'profile'],
+    } as AuthClientConfig<ThunderIDSvelteConfig>;
+
+    const resolvedStorage: Storage = storage ?? new MemoryCacheStore();
+
+    const result: boolean = await super.initialize(
+      authConfig as unknown as AuthClientConfig<ThunderIDSvelteConfig>,
+      resolvedStorage,
     );
+    this.isInitialized = true;
+    return result;
   }
 
-  override reInitialize(config: Partial<ThunderIDSvelteConfig>): Promise<boolean> {
-    return this.withLoading(async () => {
-      try {
-        await super.reInitialize(config as Partial<T>);
-        return true;
-      } catch (error) {
-        throw new ThunderIDRuntimeError(
-          `Failed to check if the client is initialized: ${error instanceof Error ? error.message : String(error)}`,
-          'ThunderIDSvelteClient-reInitialize-RuntimeError-001',
-          'svelte',
-          'An error occurred while checking the initialization status of the client.',
-        );
-      }
-    });
+  override async reInitialize(config: Partial<ThunderIDSvelteConfig>): Promise<boolean> {
+    await super.reInitialize(config as any);
+    return true;
   }
 
-  override async updateUserProfile(): Promise<User> {
-    throw new Error('Not implemented');
-  }
-
-  override async getUser(options?: any): Promise<User> {
-    try {
-      let baseUrl: string = options?.baseUrl;
-
-      if (!baseUrl) {
-        const configData: any = await this.getStorageManager().getConfigData();
-        baseUrl = configData?.baseUrl;
-      }
-
-      const profile: User = await getScim2Me({baseUrl});
-      const schemas: any = await getSchemas({baseUrl});
-
-      return generateUserProfile(profile, flattenUserSchema(schemas));
-    } catch (error) {
-      return extractUserClaimsFromIdToken(await this.getDecodedIdToken());
-    }
-  }
-
-  override async getDecodedIdToken(sessionId?: string): Promise<IdToken> {
-    return await super.getDecodedIdToken(sessionId);
-  }
-
-  override async getIdToken(): Promise<string> {
-    return this.withLoading(async () => super.getIdToken());
-  }
-
-  override async getUserProfile(options?: any): Promise<UserProfile> {
-    return this.withLoading(async () => {
-      try {
-        let baseUrl: string = options?.baseUrl;
-
-        if (!baseUrl) {
-          const configData: any = await this.getStorageManager().getConfigData();
-          baseUrl = configData?.baseUrl;
-        }
-
-        const profile: User = await getScim2Me({baseUrl, instanceId: this.getInstanceId()});
-        const schemas: any = await getSchemas({baseUrl, instanceId: this.getInstanceId()});
-
-        const processedSchemas: any = flattenUserSchema(schemas);
-
-        return {
-          flattenedProfile: generateFlattenedUserProfile(profile, processedSchemas),
-          profile,
-          schemas: processedSchemas,
-        } as UserProfile;
-      } catch (error) {
-        return {
-          flattenedProfile: extractUserClaimsFromIdToken(await this.getDecodedIdToken()),
-          profile: extractUserClaimsFromIdToken(await this.getDecodedIdToken()),
-          schemas: [],
-        } as UserProfile;
-      }
-    });
-  }
-
-  override async getMyOrganizations(options?: any): Promise<Organization[]> {
-    try {
-      let baseUrl: string = options?.baseUrl;
-
-      if (!baseUrl) {
-        const configData: any = await this.getStorageManager().getConfigData();
-        baseUrl = configData?.baseUrl;
-      }
-
-      return await getMeOrganizations({baseUrl, instanceId: this.getInstanceId()});
-    } catch (error) {
-      throw new ThunderIDRuntimeError(
-        `Failed to fetch the user's associated organizations: ${
-          error instanceof Error ? error.message : String(error)
-        }`,
-        'ThunderIDSvelteClient-getMyOrganizations-RuntimeError-001',
-        'svelte',
-        'An error occurred while fetching associated organizations of the signed-in user.',
-      );
-    }
-  }
-
-  override async getAllOrganizations(options?: any): Promise<AllOrganizationsApiResponse> {
-    try {
-      let baseUrl: string = options?.baseUrl;
-
-      if (!baseUrl) {
-        const configData: any = await this.getStorageManager().getConfigData();
-        baseUrl = configData?.baseUrl;
-      }
-
-      return await getAllOrganizations({baseUrl, instanceId: this.getInstanceId()});
-    } catch (error) {
-      throw new ThunderIDRuntimeError(
-        `Failed to fetch all organizations: ${error instanceof Error ? error.message : String(error)}`,
-        'ThunderIDSvelteClient-getAllOrganizations-RuntimeError-001',
-        'svelte',
-        'An error occurred while fetching all the organizations associated with the user.',
-      );
-    }
-  }
-
-  override async getCurrentOrganization(): Promise<Organization | null> {
-    try {
-      return await this.withLoading(async () => {
-        const idToken: IdToken = await this.getDecodedIdToken();
-        return {
-          id: idToken?.org_id ?? '',
-          name: idToken?.org_name ?? '',
-          orgHandle: idToken?.org_handle ?? '',
-        };
-      });
-    } catch (error) {
-      throw new ThunderIDRuntimeError(
-        `Failed to fetch the current organization: ${error instanceof Error ? error.message : String(error)}`,
-        'ThunderIDSvelteClient-getCurrentOrganization-RuntimeError-001',
-        'svelte',
-        'An error occurred while fetching the current organization of the signed-in user.',
-      );
-    }
-  }
-
-  override async switchOrganization(organization: Organization): Promise<TokenResponse | Response> {
-    return this.withLoading(async () => {
-      try {
-        const configData: any = await this.getStorageManager().getConfigData();
-        const sourceInstanceId: number | undefined = configData?.organizationChain?.sourceInstanceId;
-
-        if (!organization.id) {
-          throw new ThunderIDRuntimeError(
-            'Organization ID is required for switching organizations',
-            'svelte-ThunderIDSvelteClient-SwitchOrganizationError-001',
-            'svelte',
-            'The organization object must contain a valid ID to perform the organization switch.',
-          );
-        }
-
-        const exchangeConfig: TokenExchangeRequestConfig = {
-          attachToken: false,
-          data: {
-            client_id: '{{clientId}}',
-            grant_type: 'organization_switch',
-            scope: '{{scopes}}',
-            switching_organization: organization.id,
-            token: '{{accessToken}}',
-          },
-          id: 'organization-switch',
-          returnsSession: true,
-          signInRequired: sourceInstanceId === undefined,
-        };
-
-        return (await super.exchangeToken(exchangeConfig as any)) as unknown as TokenResponse | Response;
-      } catch (error) {
-        throw new ThunderIDRuntimeError(
-          `Failed to switch organization: ${error.message || error}`,
-          'svelte-ThunderIDSvelteClient-SwitchOrganizationError-003',
-          'svelte',
-          'An error occurred while switching to the specified organization. Please try again.',
-        );
-      }
-    });
-  }
-
-  override isLoading(): boolean {
-    return this.loadingState || super.isLoading();
-  }
-
-  override async isInitialized(): Promise<boolean> {
-    return super.isInitialized();
-  }
-
-  override async isSignedIn(): Promise<boolean> {
-    return await super.isSignedIn();
-  }
-
-  override async exchangeToken(config: TokenExchangeRequestConfig): Promise<TokenResponse | Response> {
-    return this.withLoading(
-      async () => (await super.exchangeToken(config as any)) as unknown as TokenResponse | Response,
-    );
-  }
-
-  override async signIn(...args: any[]): Promise<any> {
-    return this.withLoading(async () => {
-      const arg1: any = args[0];
-      const arg2: any = args[1];
-
-      if (typeof arg1 === 'object' && arg1 !== null && arg1.callOnlyOnRedirect === true) {
-        return undefined;
-      }
-
-      if (
-        typeof arg1 === 'object' &&
-        arg1 !== null &&
-        !isEmpty(arg1) &&
-        ('executionId' in arg1 || 'applicationId' in arg1)
-      ) {
-        const configData: any = await this.getStorageManager().getConfigData();
-        const authIdFromUrl: string | null = new URL(window.location.href).searchParams.get('authId');
-        const authIdFromStorage: string | null = (await this.getStorageManager().getHybridDataParameter('authId')) as
-          | string
-          | null;
-        const authId: string = authIdFromUrl || authIdFromStorage || '';
-        const baseUrl: string = configData?.baseUrl || '';
-
-        const response: EmbeddedSignInFlowResponse = await executeEmbeddedSignInFlow({
-          authId,
-          baseUrl,
-          payload: arg1,
-          url: arg2?.url,
-        });
-
-        if (
-          response &&
-          typeof response === 'object' &&
-          response.flowStatus === EmbeddedSignInFlowStatus.Complete &&
-          response.assertion
-        ) {
-          const decodedAssertion: {
-            [key: string]: unknown;
-            exp?: number;
-            iat?: number;
-            scope?: string;
-          } = await this.decodeJwtToken<{
-            [key: string]: unknown;
-            exp?: number;
-            iat?: number;
-            scope?: string;
-          }>(response.assertion);
-
-          const createdAt: number = decodedAssertion.iat ? decodedAssertion.iat * 1000 : Date.now();
-          const expiresIn: number =
-            decodedAssertion.exp && decodedAssertion.iat ? decodedAssertion.exp - decodedAssertion.iat : 3600;
-
-          await this.setSession({
-            access_token: response.assertion,
-            created_at: createdAt,
-            expires_in: expiresIn,
-            id_token: response.assertion,
-            scope: decodedAssertion.scope,
-            token_type: 'Bearer',
-          });
-
-          this.notifySignIn(extractUserClaimsFromIdToken(decodedAssertion as IdToken) as User);
-        }
-
-        return response;
-      }
-
-      return (await super.signIn(arg1))!;
-    });
-  }
-
-  override async signInSilently(options?: any): Promise<User | boolean> {
-    return (await super.signInSilently(options as Record<string, string | boolean>))!;
-  }
-
-  override async signUp(...args: any[]): Promise<any> {
-    const configData: any = await this.getStorageManager().getConfigData();
-    const firstArg: any = args[0];
-    const baseUrl: string = configData?.baseUrl || '';
-
-    const authIdFromUrl: string | null = new URL(window.location.href).searchParams.get('authId');
-    const authIdFromStorage: string | null = (await this.getStorageManager().getHybridDataParameter('authId')) as
-      | string
-      | null;
-    const authId: string = authIdFromUrl || authIdFromStorage || '';
-
-    if (authIdFromUrl && !authIdFromStorage) {
-      await this.getStorageManager().setHybridDataParameter('authId', authIdFromUrl);
+  async rehydrateSessionFromPayload(session: ThunderIDSessionPayload): Promise<void> {
+    if (!this.isInitialized || !session?.sessionId || !session?.accessToken) {
+      return;
     }
 
-    const response: any = await executeEmbeddedSignUpFlow({
-      authId,
-      baseUrl,
-      payload: typeof firstArg === 'object' && 'flowType' in firstArg ? {...firstArg, verbose: true} : firstArg,
-    });
+    const storageManager: any = this.getStorageManager();
+    const iatSeconds: number = typeof session.iat === 'number' ? session.iat : Math.floor(Date.now() / 1000);
+    const expiresInSeconds: number =
+      typeof session.accessTokenExpiresAt === 'number' ? Math.max(0, session.accessTokenExpiresAt - iatSeconds) : 3600;
 
-    if (
-      response &&
-      typeof response === 'object' &&
-      response.flowStatus === EmbeddedSignUpFlowStatus.Complete &&
-      response.assertion
-    ) {
-      const decodedAssertion: {
-        [key: string]: unknown;
-        exp?: number;
-        iat?: number;
-        scope?: string;
-      } = await this.decodeJwtToken<{
-        [key: string]: unknown;
-        exp?: number;
-        iat?: number;
-        scope?: string;
-      }>(response.assertion);
-
-      const createdAt: number = decodedAssertion.iat ? decodedAssertion.iat * 1000 : Date.now();
-      const expiresIn: number =
-        decodedAssertion.exp && decodedAssertion.iat ? decodedAssertion.exp - decodedAssertion.iat : 3600;
-
-      await this.setSession({
-        access_token: response.assertion,
-        created_at: createdAt,
-        expires_in: expiresIn,
-        id_token: response.assertion,
-        scope: decodedAssertion.scope,
+    await storageManager.setSessionData(
+      {
+        access_token: session.accessToken,
+        created_at: iatSeconds * 1000,
+        expires_in: String(expiresInSeconds || 3600),
+        id_token: session.idToken ?? '',
+        refresh_token: session.refreshToken ?? '',
+        scope: session.scopes ?? '',
+        session_state: '',
         token_type: 'Bearer',
-      });
+      },
+      session.sessionId,
+    );
+  }
 
-      this.notifySignIn(extractUserClaimsFromIdToken(decodedAssertion as IdToken) as User);
+  override signIn(...args: any[]): Promise<any> {
+    const arg0: unknown = args[0];
+
+    if (typeof arg0 === 'object' && arg0 !== null && ('code' in arg0 || 'state' in arg0)) {
+      const payload: {code?: unknown; session_state?: unknown; state?: unknown} = arg0 as {
+        code?: unknown;
+        session_state?: unknown;
+        state?: unknown;
+      };
+      const code: string | undefined = typeof payload.code === 'string' ? payload.code : undefined;
+      const sessionState: string | undefined =
+        typeof payload.session_state === 'string' ? payload.session_state : undefined;
+      const state: string | undefined = typeof payload.state === 'string' ? payload.state : undefined;
+      const extraParams: Record<string, string | boolean> = {};
+
+      if (code) extraParams['code'] = code;
+      if (sessionState) extraParams['session_state'] = sessionState;
+      if (state) extraParams['state'] = state;
+
+      return super.signIn(args[3], args[2], code, sessionState, state, extraParams);
     }
 
-    return response;
+    return super.signIn(args[0], args[1], args[2], args[3], args[4], args[5]);
   }
 
-  async request(requestConfig?: HttpRequestConfig): Promise<HttpResponse<any>> {
-    return (await this.httpRequest(requestConfig!))!;
+  override async signOut(...args: any[]): Promise<string> {
+    const configData: any = this.getStorageManager().getConfigData();
+    return (configData?.afterSignOutUrl as string) || (configData?.afterSignInUrl as string) || '/';
   }
 
-  async requestAll(requestConfigs?: HttpRequestConfig[]): Promise<HttpResponse<any>[]> {
-    return (await this.httpRequestAll(requestConfigs!))!;
+  override async signUp(_options?: any): Promise<void> {
+    return undefined;
   }
 
-  override async getAccessToken(sessionId?: string): Promise<string> {
+  public async getAuthorizeRequestUrl(customParams: Record<string, any>, userId?: string): Promise<string> {
+    return this.getSignInUrl(customParams, userId);
+  }
+
+  override getUser(sessionId?: string): Promise<User> {
+    return super.getUser(sessionId);
+  }
+
+  override getAccessToken(sessionId?: string): Promise<string> {
     return super.getAccessToken(sessionId);
   }
 
-  override clearSession(sessionId?: string): void {
-    super.clearSession(sessionId);
+  override getDecodedIdToken(sessionId?: string, idToken?: string): Promise<IdToken> {
+    return super.getDecodedIdToken(sessionId, idToken);
   }
 
-  override async setSession(sessionData: Record<string, unknown>, sessionId?: string): Promise<void> {
-    return this.getStorageManager().setSessionData(sessionData, sessionId);
+  override isSignedIn(sessionId?: string): Promise<boolean> {
+    return super.isSignedIn(sessionId);
   }
 
-  override decodeJwtToken<TResult = Record<string, unknown>>(token: string): Promise<TResult> {
-    return super.decodeJwtToken<TResult>(token);
+  override exchangeToken(
+    config: TokenExchangeRequestConfig,
+    sessionId?: string,
+  ): Promise<TokenResponse | Response> {
+    return super.exchangeToken(config, sessionId) as unknown as Promise<TokenResponse | Response>;
   }
 
-  public override getStorageManager(): StorageManager<T> {
+  override async getUserProfile(sessionId: string): Promise<UserProfile> {
+    const user: User = await this.getUser(sessionId);
+    return {flattenedProfile: user, profile: user, schemas: []};
+  }
+
+  override async getCurrentOrganization(sessionId: string): Promise<Organization | null> {
+    try {
+      const idToken: IdToken = await this.getDecodedIdToken(sessionId);
+      if (!idToken?.org_id) {
+        return null;
+      }
+      return {
+        id: idToken.org_id,
+        name: idToken.org_name ?? '',
+        orgHandle: idToken.org_handle ?? '',
+      };
+    } catch {
+      return null;
+    }
+  }
+
+  override async getMyOrganizations(sessionId: string): Promise<Organization[]> {
+    const accessToken: string = await this.getAccessToken(sessionId);
+    const configData: any = this.getStorageManager().getConfigData();
+    const baseUrl: string = (configData?.baseUrl ?? '') as string;
+
+    return getMeOrganizations({
+      baseUrl,
+      headers: {Authorization: `Bearer ${accessToken}`},
+    });
+  }
+
+  override async switchOrganization(
+    organization: Organization,
+    sessionId: string,
+  ): Promise<TokenResponse | Response> {
+    if (!organization.id) {
+      throw new Error('Organization ID is required for switching organizations.');
+    }
+
+    const exchangeConfig: TokenExchangeRequestConfig = {
+      attachToken: false,
+      data: {
+        client_id: '{{clientId}}',
+        client_secret: '{{clientSecret}}',
+        grant_type: 'organization_switch',
+        scope: '{{scopes}}',
+        switching_organization: organization.id,
+        token: '{{accessToken}}',
+      },
+      id: 'organization-switch',
+      returnsSession: true,
+      signInRequired: true,
+    };
+
+    return this.exchangeToken(exchangeConfig, sessionId);
+  }
+
+  public override getStorageManager(): any {
     return super.getStorageManager();
   }
 }

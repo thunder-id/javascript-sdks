@@ -16,17 +16,20 @@
  * under the License.
  */
 
-import type {Organization, User, UserProfile} from '@thunderid/node';
+export {createThunderIDHandle} from './hooks';
+export {loadThunderID} from './load';
+export {getClient, resetClient} from './getClient';
+export {
+  createSessionToken,
+  createTempSessionToken,
+  verifySessionToken,
+  verifyTempSessionToken,
+  issueSessionCookie,
+  getSessionCookieName,
+  getTempSessionCookieName,
+  getSessionCookieOptions,
+  getTempSessionCookieOptions,
+} from './session';
+export {createSignInHandler, createCallbackHandler, createSignOutHandler} from './routes';
 
-class AuthState {
-  isSignedIn = $state(false);
-  isLoading = $state(true);
-  isInitialized = $state(false);
-  user: User | null = $state(null);
-  userProfile: UserProfile | null = $state(null);
-  organization: Organization | null = $state(null);
-  myOrganizations: Organization[] = $state([]);
-  resolvedBaseUrl = $state('');
-}
-
-export const authState = new AuthState();
+export type {ThunderIDLocals} from './hooks';

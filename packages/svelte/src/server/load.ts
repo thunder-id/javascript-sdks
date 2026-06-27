@@ -16,17 +16,10 @@
  * under the License.
  */
 
-import type {Organization, User, UserProfile} from '@thunderid/node';
+import type {RequestEvent} from '@sveltejs/kit';
+import type {ThunderIDSSRData} from '../models/session';
+import type {ThunderIDLocals} from './hooks';
 
-class AuthState {
-  isSignedIn = $state(false);
-  isLoading = $state(true);
-  isInitialized = $state(false);
-  user: User | null = $state(null);
-  userProfile: UserProfile | null = $state(null);
-  organization: Organization | null = $state(null);
-  myOrganizations: Organization[] = $state([]);
-  resolvedBaseUrl = $state('');
+export function loadThunderID(event: RequestEvent): ThunderIDSSRData {
+  return (event.locals as ThunderIDLocals).thunderid;
 }
-
-export const authState = new AuthState();
