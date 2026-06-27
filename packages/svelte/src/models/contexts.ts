@@ -16,13 +16,14 @@
  * under the License.
  */
 
-import type {Organization, User, UserProfile} from '@thunderid/node';
+import type {BrandingPreference, Organization, User, UserProfile} from '@thunderid/node';
 
 export interface ThunderIDContext {
   afterSignInUrl?: string;
   afterSignOutUrl?: string;
   applicationId?: string;
   baseUrl?: string;
+  brandingPreference: BrandingPreference | null;
   clientId?: string;
   isInitialized: boolean;
   isLoading: boolean;

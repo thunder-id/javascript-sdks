@@ -38,4 +38,5 @@ export {useUser} from './composables/useUser';
 // ── Models / Types ──
 export type {ThunderIDSvelteConfig} from './models/config';
 export type {ThunderIDSSRData, ThunderIDSessionPayload} from './models/session';
+export type {BrandingPreference} from '@thunderid/node';
 export type {ThunderIDContext, UserContextValue} from './models/contexts';

@@ -19,6 +19,8 @@
 import {
   ThunderIDNodeClient,
   type AuthClientConfig,
+  type BrandingPreference,
+  type GetBrandingPreferenceConfig,
   type IdToken,
   type Organization,
   type Storage,
@@ -26,6 +28,7 @@ import {
   type TokenResponse,
   type User,
   type UserProfile,
+  getBrandingPreference,
   getMeOrganizations,
   MemoryCacheStore,
 } from '@thunderid/node';
@@ -220,6 +223,10 @@ class ThunderIDSvelteClient extends ThunderIDNodeClient<AuthClientConfig<Thunder
     };
 
     return this.exchangeToken(exchangeConfig, sessionId);
+  }
+
+  async getBrandingPreference(config: GetBrandingPreferenceConfig): Promise<BrandingPreference> {
+    return getBrandingPreference(config);
   }
 
   public override getStorageManager(): any {

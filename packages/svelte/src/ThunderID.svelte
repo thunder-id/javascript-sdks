@@ -79,11 +79,20 @@
     }
   }
 
+  let brandingPreference: ThunderIDContext['brandingPreference'] = $state(null);
+
+  $effect(() => {
+    if (ssrData?.brandingPreference) {
+      brandingPreference = ssrData.brandingPreference;
+    }
+  });
+
   const context: ThunderIDContext = {
     get afterSignInUrl() { return afterSignInUrl; },
     get afterSignOutUrl() { return afterSignOutUrl; },
     get applicationId() { return applicationId; },
     get baseUrl() { return baseUrl; },
+    get brandingPreference() { return brandingPreference; },
     get clientId() { return clientId; },
     get isInitialized() { return authState.isInitialized; },
     get isLoading() { return authState.isLoading; },

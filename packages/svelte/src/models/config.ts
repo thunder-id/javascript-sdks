@@ -44,6 +44,13 @@ export interface ThunderIDSvelteConfig {
   signUpUrl?: string;
   /** Controls which server-side data fetches to perform on every SSR request */
   preferences?: {
+    theme?: {
+      /**
+       * When true (default), the handle hook fetches the branding preference
+       * from ThunderID and passes it in `ThunderIDSSRData.brandingPreference`.
+       */
+      inheritFromBranding?: boolean;
+    };
     user?: {
       /** Whether to fetch the user's organizations during SSR (default: true) */
       fetchOrganizations?: boolean;

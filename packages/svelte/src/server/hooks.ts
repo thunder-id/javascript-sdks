@@ -16,6 +16,7 @@
  * under the License.
  */
 
+import type {BrandingPreference} from '@thunderid/node';
 import type {Handle, RequestEvent} from '@sveltejs/kit';
 import type {ThunderIDSvelteConfig} from '../models/config';
 import type {ThunderIDSSRData, ThunderIDSessionPayload} from '../models/session';
@@ -48,29 +49,46 @@ export function createThunderIDHandle(config: ThunderIDSvelteConfig): Handle {
 
     const isSignedIn: boolean = session !== null && (await client.isSignedIn(session.sessionId));
 
+    const shouldFetchBranding: boolean = config.preferences?.theme?.inheritFromBranding !== false;
+
     let ssrData: ThunderIDSSRData;
 
     if (isSignedIn && session) {
-      const [user, userProfile, organization, myOrganizations] = await Promise.all([
+      const [user, userProfile, organization, myOrganizations, branding] = await Promise.all([
         client.getUser(session.sessionId),
         client.getUserProfile(session.sessionId),
         client.getCurrentOrganization(session.sessionId),
         config.preferences?.user?.fetchOrganizations !== false
           ? client.getMyOrganizations(session.sessionId)
           : Promise.resolve([]),
+        shouldFetchBranding
+          ? client.getBrandingPreference({baseUrl: config.baseUrl!}).catch(() => null)
+          : Promise.resolve(null),
       ]);
 
       ssrData = {
+        brandingPreference: (branding as BrandingPreference) ?? null,
         isSignedIn: true,
-        myOrganizations,
-        organization,
+        myOrganizations: myOrganizations as any[],
+        organization: organization as any,
         resolvedBaseUrl: config.baseUrl ?? null,
         session,
-        user,
-        userProfile,
+        user: user as any,
+        userProfile: userProfile as any,
       };
     } else {
+      let branding: BrandingPreference | null = null;
+
+      if (shouldFetchBranding) {
+        try {
+          branding = await client.getBrandingPreference({baseUrl: config.baseUrl!});
+        } catch {
+          // branding fetch failed — continue without
+        }
+      }
+
       ssrData = {
+        brandingPreference: branding,
         isSignedIn: false,
         myOrganizations: [],
         organization: null,

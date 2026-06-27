@@ -25,6 +25,9 @@ export function useThunderID(): ThunderIDContext {
 
   return {
     ...context,
+    get brandingPreference() {
+      return context.brandingPreference;
+    },
     get isSignedIn() {
       return authState.isSignedIn;
     },

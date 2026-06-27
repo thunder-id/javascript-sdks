@@ -17,7 +17,7 @@
  */
 
 import type {JWTPayload} from 'jose';
-import type {Organization, User, UserProfile} from '@thunderid/node';
+import type {BrandingPreference, Organization, User, UserProfile} from '@thunderid/node';
 
 /**
  * Payload stored in the session JWT cookie.
@@ -40,6 +40,7 @@ export interface ThunderIDSessionPayload extends JWTPayload {
  * Written to `event.locals.thunderid` and returned from `+layout.server.ts`.
  */
 export interface ThunderIDSSRData {
+  brandingPreference: BrandingPreference | null;
   isSignedIn: boolean;
   myOrganizations: Organization[];
   organization: Organization | null;
