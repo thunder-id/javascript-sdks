@@ -16,6 +16,9 @@
  * under the License.
  */
 
+// ── Components ──
+export {default as ThunderID} from './ThunderID.svelte';
+
 // ── Client ──
 export {default as ThunderIDSvelteClient} from './ThunderIDSvelteClient';
 
