@@ -35,7 +35,7 @@ The SDK provides server utilities under the `@thunderid/svelte/server` subpath f
 Create a SvelteKit project if you don't have one:
 
 ```bash
-pnpm create sv@latest my-app --template minimal
+npx sv create my-app --template minimal --types ts
 cd my-app
 pnpm install
 pnpm add @thunderid/svelte
