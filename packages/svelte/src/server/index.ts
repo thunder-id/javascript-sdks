@@ -30,6 +30,6 @@ export {
   getSessionCookieOptions,
   getTempSessionCookieOptions,
 } from './session';
-export {createSignInHandler, createCallbackHandler, createSignOutHandler} from './routes';
-
-export type {ThunderIDLocals} from './hooks';
+export {maybeRefreshToken, getValidAccessToken} from './refresh';
+export {requireServerSession} from './guard';
+export {createSignInHandler, createCallbackHandler, createSignOutHandler, createOrgSwitchHandler} from './routes';

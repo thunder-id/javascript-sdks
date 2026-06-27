@@ -22,10 +22,7 @@ import type {ThunderIDSSRData, ThunderIDSessionPayload} from '../models/session'
 import ThunderIDSvelteClient from '../ThunderIDSvelteClient';
 import {getClient} from './getClient';
 import {verifySessionToken, getSessionCookieName} from './session';
-
-export interface ThunderIDLocals {
-  thunderid: ThunderIDSSRData;
-}
+import {maybeRefreshToken} from './refresh';
 
 export function createThunderIDHandle(config: ThunderIDSvelteConfig): Handle {
   return async ({event, resolve}) => {
@@ -37,7 +34,12 @@ export function createThunderIDHandle(config: ThunderIDSvelteConfig): Handle {
     if (sessionCookie) {
       try {
         session = await verifySessionToken(sessionCookie, config.sessionSecret);
-        await client.rehydrateSessionFromPayload(session);
+
+        session = await maybeRefreshToken(session, config, event);
+
+        if (session) {
+          await client.rehydrateSessionFromPayload(session);
+        }
       } catch {
         event.cookies.delete(getSessionCookieName(), {path: '/'});
         session = null;
@@ -79,12 +81,12 @@ export function createThunderIDHandle(config: ThunderIDSvelteConfig): Handle {
       };
     }
 
-    (event.locals as ThunderIDLocals).thunderid = ssrData;
+    event.locals.thunderid = ssrData;
 
     return resolve(event);
   };
 }
 
 export function loadThunderID(event: RequestEvent): ThunderIDSSRData {
-  return (event.locals as ThunderIDLocals).thunderid;
+  return event.locals.thunderid;
 }
