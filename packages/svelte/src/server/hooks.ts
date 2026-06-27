@@ -24,19 +24,22 @@ import ThunderIDSvelteClient from '../ThunderIDSvelteClient';
 import {getClient} from './getClient';
 import {verifySessionToken, getSessionCookieName} from './session';
 import {maybeRefreshToken} from './refresh';
+import {resolveConfig} from './config';
 
-export function createThunderIDHandle(config: ThunderIDSvelteConfig): Handle {
+export function createThunderIDHandle(config?: ThunderIDSvelteConfig): Handle {
+  const resolvedConfig: ThunderIDSvelteConfig = resolveConfig(config);
+
   return async ({event, resolve}) => {
-    const client: ThunderIDSvelteClient = await getClient(config);
+    const client: ThunderIDSvelteClient = await getClient(resolvedConfig);
 
     const sessionCookie: string | undefined = event.cookies.get(getSessionCookieName());
     let session: ThunderIDSessionPayload | null = null;
 
     if (sessionCookie) {
       try {
-        session = await verifySessionToken(sessionCookie, config.sessionSecret);
+        session = await verifySessionToken(sessionCookie, resolvedConfig.sessionSecret);
 
-        session = await maybeRefreshToken(session, config, event);
+        session = await maybeRefreshToken(session, resolvedConfig, event);
 
         if (session) {
           await client.rehydrateSessionFromPayload(session);
@@ -49,7 +52,7 @@ export function createThunderIDHandle(config: ThunderIDSvelteConfig): Handle {
 
     const isSignedIn: boolean = session !== null && (await client.isSignedIn(session.sessionId));
 
-    const shouldFetchBranding: boolean = config.preferences?.theme?.inheritFromBranding !== false;
+    const shouldFetchBranding: boolean = resolvedConfig.preferences?.theme?.inheritFromBranding !== false;
 
     let ssrData: ThunderIDSSRData;
 
@@ -58,11 +61,11 @@ export function createThunderIDHandle(config: ThunderIDSvelteConfig): Handle {
         client.getUser(session.sessionId),
         client.getUserProfile(session.sessionId),
         client.getCurrentOrganization(session.sessionId),
-        config.preferences?.user?.fetchOrganizations !== false
+        resolvedConfig.preferences?.user?.fetchOrganizations !== false
           ? client.getMyOrganizations(session.sessionId)
           : Promise.resolve([]),
         shouldFetchBranding
-          ? client.getBrandingPreference({baseUrl: config.baseUrl!}).catch(() => null)
+          ? client.getBrandingPreference({baseUrl: resolvedConfig.baseUrl!}).catch(() => null)
           : Promise.resolve(null),
       ]);
 
@@ -71,7 +74,7 @@ export function createThunderIDHandle(config: ThunderIDSvelteConfig): Handle {
         isSignedIn: true,
         myOrganizations: myOrganizations as any[],
         organization: organization as any,
-        resolvedBaseUrl: config.baseUrl ?? null,
+        resolvedBaseUrl: resolvedConfig.baseUrl ?? null,
         session,
         user: user as any,
         userProfile: userProfile as any,
@@ -81,7 +84,7 @@ export function createThunderIDHandle(config: ThunderIDSvelteConfig): Handle {
 
       if (shouldFetchBranding) {
         try {
-          branding = await client.getBrandingPreference({baseUrl: config.baseUrl!});
+          branding = await client.getBrandingPreference({baseUrl: resolvedConfig.baseUrl!});
         } catch {
           // branding fetch failed — continue without
         }

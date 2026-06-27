@@ -16,6 +16,7 @@
  * under the License.
  */
 
+export {resolveConfig} from './config';
 export {createThunderIDHandle} from './hooks';
 export {loadThunderID} from './load';
 export {getClient, resetClient} from './getClient';

@@ -20,20 +20,22 @@ import {generateSessionId} from '@thunderid/node';
 import type {ThunderIDSvelteConfig} from '../../models/config';
 import ThunderIDSvelteClient from '../../ThunderIDSvelteClient';
 import {createTempSessionToken, getTempSessionCookieName, getTempSessionCookieOptions} from '../session';
+import {resolveConfig} from '../config';
 
-export function createSignInHandler(config: ThunderIDSvelteConfig): (event: {url: URL; cookies: any}) => Promise<Response> {
+export function createSignInHandler(config?: ThunderIDSvelteConfig): (event: {url: URL; cookies: any}) => Promise<Response> {
+  const resolvedConfig: ThunderIDSvelteConfig = resolveConfig(config);
   return async (event) => {
     const client: ThunderIDSvelteClient = ThunderIDSvelteClient.getInstance();
     const sessionId: string = generateSessionId();
 
-    const returnTo: string = event.url.searchParams.get('returnTo') || config.afterSignInUrl || '/';
+    const returnTo: string = event.url.searchParams.get('returnTo') || resolvedConfig.afterSignInUrl || '/';
 
     const authorizeUrl: string = await client.getAuthorizeRequestUrl(
-      {redirectUri: `${event.url.origin}/api/auth/callback`, scope: config.scopes},
+      {redirectUri: `${event.url.origin}/api/auth/callback`, scope: resolvedConfig.scopes},
       sessionId,
     );
 
-    const tempToken: string = await createTempSessionToken(sessionId, config.sessionSecret, returnTo);
+    const tempToken: string = await createTempSessionToken(sessionId, resolvedConfig.sessionSecret, returnTo);
 
     event.cookies.set(getTempSessionCookieName(), tempToken, getTempSessionCookieOptions());
 

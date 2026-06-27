@@ -20,27 +20,30 @@ import type {TokenResponse} from '@thunderid/node';
 import type {ThunderIDSvelteConfig} from '../../models/config';
 import ThunderIDSvelteClient from '../../ThunderIDSvelteClient';
 import {issueSessionCookie, verifyTempSessionToken, getTempSessionCookieName, getSessionCookieName} from '../session';
+import {resolveConfig} from '../config';
 
-export function createCallbackHandler(config: ThunderIDSvelteConfig): (event: {url: URL; cookies: any}) => Promise<Response> {
+export function createCallbackHandler(config?: ThunderIDSvelteConfig): (event: {url: URL; cookies: any}) => Promise<Response> {
+  const resolvedConfig: ThunderIDSvelteConfig = resolveConfig(config);
+
   return async (event) => {
     const client: ThunderIDSvelteClient = ThunderIDSvelteClient.getInstance();
 
     const tempCookie: string | undefined = event.cookies.get(getTempSessionCookieName());
 
     if (!tempCookie) {
-      return new Response(null, {status: 302, headers: {Location: config.afterSignInUrl || '/'}});
+      return new Response(null, {status: 302, headers: {Location: resolvedConfig.afterSignInUrl || '/'}});
     }
 
     let sessionId: string;
     let returnTo: string | undefined;
 
     try {
-      const tempPayload = await verifyTempSessionToken(tempCookie, config.sessionSecret);
+      const tempPayload = await verifyTempSessionToken(tempCookie, resolvedConfig.sessionSecret);
       sessionId = tempPayload.sessionId;
       returnTo = tempPayload.returnTo;
     } catch {
       event.cookies.delete(getTempSessionCookieName(), {path: '/'});
-      return new Response(null, {status: 302, headers: {Location: config.afterSignInUrl || '/'}});
+      return new Response(null, {status: 302, headers: {Location: resolvedConfig.afterSignInUrl || '/'}});
     }
 
     const code: string | null = event.url.searchParams.get('code');
@@ -55,22 +58,22 @@ export function createCallbackHandler(config: ThunderIDSvelteConfig): (event: {u
       )) as unknown as TokenResponse;
 
       if (tokenResponse.accessToken) {
-        const sessionPayload = await issueSessionCookie(event, sessionId, tokenResponse, config.sessionSecret);
+        const sessionPayload = await issueSessionCookie(event, sessionId, tokenResponse, resolvedConfig.sessionSecret);
 
         event.cookies.delete(getTempSessionCookieName(), {path: '/'});
 
         return new Response(null, {
           status: 302,
-          headers: {Location: returnTo || config.afterSignInUrl || '/'},
+          headers: {Location: returnTo || resolvedConfig.afterSignInUrl || '/'},
         });
       }
     }
 
     const error: string | null = event.url.searchParams.get('error');
     if (error) {
-      return new Response(null, {status: 302, headers: {Location: `${config.afterSignInUrl || '/'}?error=${error}`}});
+      return new Response(null, {status: 302, headers: {Location: `${resolvedConfig.afterSignInUrl || '/'}?error=${error}`}});
     }
 
-    return new Response(null, {status: 302, headers: {Location: config.afterSignInUrl || '/'}});
+    return new Response(null, {status: 302, headers: {Location: resolvedConfig.afterSignInUrl || '/'}});
   };
 }

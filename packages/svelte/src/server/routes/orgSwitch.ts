@@ -20,10 +20,13 @@ import type {Organization, TokenResponse} from '@thunderid/node';
 import type {ThunderIDSvelteConfig} from '../../models/config';
 import ThunderIDSvelteClient from '../../ThunderIDSvelteClient';
 import {verifySessionToken, issueSessionCookie, getSessionCookieName} from '../session';
+import {resolveConfig} from '../config';
 
 export function createOrgSwitchHandler(
-  config: ThunderIDSvelteConfig,
+  config?: ThunderIDSvelteConfig,
 ): (event: {request: Request; cookies: any; url: URL}) => Promise<Response> {
+  const resolvedConfig: ThunderIDSvelteConfig = resolveConfig(config);
+
   return async (event) => {
     const client: ThunderIDSvelteClient = ThunderIDSvelteClient.getInstance();
 
@@ -34,7 +37,7 @@ export function createOrgSwitchHandler(
 
     let sessionId: string;
     try {
-      const session = await verifySessionToken(sessionCookie, config.sessionSecret);
+      const session = await verifySessionToken(sessionCookie, resolvedConfig.sessionSecret);
       sessionId = session.sessionId;
     } catch {
       return new Response(null, {status: 401, statusText: 'Invalid session'});
@@ -69,11 +72,11 @@ export function createOrgSwitchHandler(
         throw new Error('No access token in response');
       }
 
-      await issueSessionCookie(event, sessionId, tokenResponse, config.sessionSecret);
+      await issueSessionCookie(event, sessionId, tokenResponse, resolvedConfig.sessionSecret);
 
       return new Response(null, {
         status: 302,
-        headers: {Location: config.afterSignInUrl || '/'},
+        headers: {Location: resolvedConfig.afterSignInUrl || '/'},
       });
     } catch (err: unknown) {
       const message: string = err instanceof Error ? err.message : 'Organization switch failed';

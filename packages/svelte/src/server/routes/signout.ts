@@ -19,11 +19,14 @@
 import type {ThunderIDSvelteConfig} from '../../models/config';
 import ThunderIDSvelteClient from '../../ThunderIDSvelteClient';
 import {getSessionCookieName} from '../session';
+import {resolveConfig} from '../config';
 
-export function createSignOutHandler(config: ThunderIDSvelteConfig): (event: {cookies: any}) => Promise<Response> {
+export function createSignOutHandler(config?: ThunderIDSvelteConfig): (event: {cookies: any}) => Promise<Response> {
+  const resolvedConfig: ThunderIDSvelteConfig = resolveConfig(config);
+
   return async (event) => {
     const client: ThunderIDSvelteClient = ThunderIDSvelteClient.getInstance();
-    const redirectUrl: string = config.afterSignOutUrl || '/';
+    const redirectUrl: string = resolvedConfig.afterSignOutUrl || '/';
 
     try {
       await client.signOut();
