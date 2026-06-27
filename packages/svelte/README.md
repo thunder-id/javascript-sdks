@@ -101,18 +101,30 @@ import {loadThunderID} from '@thunderid/svelte/server';
 export const load = loadThunderID;
 ```
 
-### 7. Hydrate the provider
+### 7. Wire up the layout
 
-Pass `ssrData` from the server load function to the provider:
+Wrap your root layout with the provider and add sign-in/out controls:
+
+`src/routes/+layout.svelte`:
 
 ```svelte
 <script>
-  import { ThunderID } from '@thunderid/svelte';
+  import { ThunderID, SignedIn, SignedOut, SignInButton, SignOutButton } from '@thunderid/svelte';
+  import { useUser } from '@thunderid/svelte';
 
   let { children, data } = $props();
 </script>
 
-<ThunderID {...data.ssrData}>
+<ThunderID ssrData={data}>
+  <nav>
+    <SignedIn>
+      <span>{useUser().user?.name}</span>
+      <SignOutButton />
+    </SignedIn>
+    <SignedOut>
+      <SignInButton />
+    </SignedOut>
+  </nav>
   {@render children()}
 </ThunderID>
 ```
