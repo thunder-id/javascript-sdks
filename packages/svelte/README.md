@@ -30,6 +30,17 @@ pnpm add @thunderid/svelte
 
 The SDK provides server utilities under the `@thunderid/svelte/server` subpath for SvelteKit SSR support.
 
+### 0. Prerequisites
+
+Create a SvelteKit project if you don't have one:
+
+```bash
+pnpm create sv@latest my-app --template minimal
+cd my-app
+pnpm install
+pnpm add @thunderid/svelte
+```
+
 ### 1. Set environment variables
 
 ```env
