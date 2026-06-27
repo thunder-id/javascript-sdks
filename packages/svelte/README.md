@@ -43,21 +43,21 @@ THUNDERID_CLIENT_ID=<client-id>
 Create `src/hooks.server.ts`:
 
 ```ts
-import {handleThunderID} from '@thunderid/svelte/server';
+import {createThunderIDHandle} from '@thunderid/svelte/server';
 
-export const handle = handleThunderID();
+export const handle = createThunderIDHandle();
 ```
 
-The hook reads `THUNDERID_BASE_URL` and `THUNDERID_CLIENT_ID` from environment variables (or pass them via `handleThunderID({baseUrl, clientId})`). It resolves the session from the JWT cookie, refreshes expiring tokens proactively, fetches branding + organizations in parallel, and writes `event.locals.thunderid` with `ThunderIDSSRData`.
+The hook reads `THUNDERID_BASE_URL` and `THUNDERID_CLIENT_ID` from environment variables (or pass them via `createThunderIDHandle({baseUrl, clientId})`). It resolves the session from the JWT cookie, refreshes expiring tokens proactively, fetches branding + organizations in parallel, and writes `event.locals.thunderid` with `ThunderIDSSRData`.
 
 ### 3. Create the sign-in route
 
 `src/routes/api/auth/signin/+server.ts`:
 
 ```ts
-import {signInHandler} from '@thunderid/svelte/server';
+import {createSignInHandler} from '@thunderid/svelte/server';
 
-export const GET = signInHandler;
+export const GET = createSignInHandler();
 ```
 
 ### 4. Create the callback route
@@ -65,9 +65,9 @@ export const GET = signInHandler;
 `src/routes/api/auth/callback/+server.ts`:
 
 ```ts
-import {callbackHandler} from '@thunderid/svelte/server';
+import {createCallbackHandler} from '@thunderid/svelte/server';
 
-export const GET = callbackHandler;
+export const GET = createCallbackHandler();
 ```
 
 ### 5. Create the sign-out route
@@ -75,9 +75,9 @@ export const GET = callbackHandler;
 `src/routes/api/auth/signout/+server.ts`:
 
 ```ts
-import {signOutHandler} from '@thunderid/svelte/server';
+import {createSignOutHandler} from '@thunderid/svelte/server';
 
-export const GET = signOutHandler;
+export const GET = createSignOutHandler();
 ```
 
 ### 6. Pass SSR data to the client
@@ -106,6 +106,22 @@ Pass `ssrData` from the server load function to the provider:
 </ThunderID>
 ```
 
+### TypeScript
+
+For `event.locals.thunderid` to have proper types in your load functions, reference the SDK's type augmentation in your `src/app.d.ts`:
+
+```ts
+declare global {
+  namespace App {
+    interface Locals {
+      thunderid: import('@thunderid/svelte/server').ThunderIDSSRData;
+    }
+  }
+}
+
+export {};
+```
+
 ### Server-side route guard
 
 Protect pages or API routes from unauthenticated access:
@@ -123,9 +139,9 @@ export function load(event: RequestEvent) {
 ### Switch organization server-side
 
 ```ts
-import {orgSwitchHandler} from '@thunderid/svelte/server';
+import {createOrgSwitchHandler} from '@thunderid/svelte/server';
 
-export const POST = orgSwitchHandler;
+export const POST = createOrgSwitchHandler();
 ```
 
 ## Composables
