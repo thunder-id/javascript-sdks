@@ -1,0 +1,8 @@
+dist/
+node_modules/
+*.tsbuildinfo
+.svelte-kit/
+.svelte-kit
+coverage/
+.eslintcache
+.pnpm-store/

@@ -1,0 +1,69 @@
+{
+  "name": "@thunderid/svelte",
+  "version": "0.1.0",
+  "description": "Svelte SDK for ThunderID",
+  "keywords": [
+    "thunderid",
+    "svelte",
+    "sveltejs",
+    "svelteauth",
+    "spa"
+  ],
+  "homepage": "https://github.com/thunder-id/javascript-sdks/tree/main/packages/svelte#readme",
+  "bugs": {
+    "url": "https://github.com/thunder-id/thunderid/issues"
+  },
+  "author": "WSO2",
+  "license": "Apache-2.0",
+  "type": "module",
+  "svelte": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "svelte": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "pnpm clean:dist && svelte-package -i src -o dist",
+    "clean": "pnpm clean:node_modules && pnpm clean:dist",
+    "clean:dist": "rimraf dist",
+    "clean:node_modules": "rimraf node_modules",
+    "format:check": "prettier --check --cache .",
+    "format:fix": "prettier --write --cache .",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "test": "vitest --passWithNoTests",
+    "typecheck": "svelte-check --tsconfig ./tsconfig.lib.json"
+  },
+  "devDependencies": {
+    "@sveltejs/package": "catalog:",
+    "@sveltejs/vite-plugin-svelte": "catalog:",
+    "@thunderid/eslint-plugin": "catalog:",
+    "@thunderid/prettier-config": "catalog:",
+    "@types/node": "catalog:",
+    "eslint": "catalog:",
+    "prettier": "catalog:",
+    "rimraf": "catalog:",
+    "svelte": "catalog:",
+    "svelte-check": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  },
+  "peerDependencies": {
+    "svelte": ">=5.0.0"
+  },
+  "dependencies": {
+    "@thunderid/browser": "workspace:^",
+    "tslib": "catalog:"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}
