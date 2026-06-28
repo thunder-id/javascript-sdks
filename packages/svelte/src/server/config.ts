@@ -28,6 +28,7 @@ export function resolveConfig(config?: ThunderIDSvelteConfig): ThunderIDSvelteCo
     enablePKCE: config?.enablePKCE ?? true,
     scopes: config?.scopes ?? ['openid', 'profile'],
     sessionSecret: config?.sessionSecret || process.env['THUNDERID_SESSION_SECRET'],
+    tokenRequest: config?.tokenRequest ?? {authMethod: 'client_secret_post'},
     signInUrl: config?.signInUrl,
     signUpUrl: config?.signUpUrl,
     applicationId: config?.applicationId,

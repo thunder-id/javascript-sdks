@@ -51,11 +51,22 @@ export function createCallbackHandler(config?: ThunderIDSvelteConfig): (event: {
     const sessionState: string | null = event.url.searchParams.get('session_state');
 
     if (code) {
-      const tokenResponse: TokenResponse = (await client.signIn(
-        {code, session_state: sessionState ?? undefined, state: state ?? undefined},
-        undefined,
-        sessionId,
-      )) as unknown as TokenResponse;
+      let tokenResponse: TokenResponse;
+
+      try {
+        tokenResponse = (await client.signIn(
+          {code, session_state: sessionState ?? undefined, state: state ?? undefined},
+          undefined,
+          sessionId,
+        )) as unknown as TokenResponse;
+      } catch (err: unknown) {
+        const message: string = (err as any)?.message ?? String(err);
+        console.error('[thunderid] callback signIn failed:', message);
+        return new Response(JSON.stringify({error: message}), {
+          status: 500,
+          headers: {'content-type': 'application/json'},
+        });
+      }
 
       if (tokenResponse.accessToken) {
         const sessionPayload = await issueSessionCookie(event, sessionId, tokenResponse, resolvedConfig.sessionSecret);

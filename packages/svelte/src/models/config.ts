@@ -32,8 +32,12 @@ export interface ThunderIDSvelteConfig {
   clientId?: string;
   /** OAuth2 Client Secret (server-only, use THUNDERID_CLIENT_SECRET env var) */
   clientSecret?: string;
-  /** The auth method to use for the token request. */
+  /** Whether to enable PKCE (default: true) */
   enablePKCE?: boolean;
+  /** Token endpoint authentication method (default: 'client_secret_post') */
+  tokenRequest?: {
+    authMethod: 'client_secret_basic' | 'client_secret_post' | 'private_key_jwt' | 'none';
+  };
   /** OAuth2 scopes to request */
   scopes?: string | string[];
   /** Secret for signing session JWTs (use THUNDERID_SESSION_SECRET env var) */

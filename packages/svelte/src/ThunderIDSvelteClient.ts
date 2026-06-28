@@ -64,6 +64,7 @@ class ThunderIDSvelteClient extends ThunderIDNodeClient<AuthClientConfig<Thunder
       clientSecret: config.clientSecret ?? undefined,
       enablePKCE: config.enablePKCE ?? true,
       scopes: config.scopes ?? ['openid', 'profile'],
+      tokenRequest: config.tokenRequest ?? {authMethod: 'client_secret_post'},
     } as AuthClientConfig<ThunderIDSvelteConfig>;
 
     const resolvedStorage: Storage = storage ?? new MemoryCacheStore();
@@ -132,7 +133,7 @@ class ThunderIDSvelteClient extends ThunderIDNodeClient<AuthClientConfig<Thunder
   }
 
   override async signOut(...args: any[]): Promise<string> {
-    const configData: any = this.getStorageManager().getConfigData();
+    const configData: any = await this.getStorageManager().getConfigData();
     return (configData?.afterSignOutUrl as string) || (configData?.afterSignInUrl as string) || '/';
   }
 
@@ -190,7 +191,7 @@ class ThunderIDSvelteClient extends ThunderIDNodeClient<AuthClientConfig<Thunder
 
   override async getMyOrganizations(sessionId: string): Promise<Organization[]> {
     const accessToken: string = await this.getAccessToken(sessionId);
-    const configData: any = this.getStorageManager().getConfigData();
+    const configData: any = await this.getStorageManager().getConfigData();
     const baseUrl: string = (configData?.baseUrl ?? '') as string;
 
     return getMeOrganizations({

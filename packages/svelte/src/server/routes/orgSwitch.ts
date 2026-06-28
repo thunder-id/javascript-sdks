@@ -79,7 +79,7 @@ export function createOrgSwitchHandler(
         headers: {Location: resolvedConfig.afterSignInUrl || '/'},
       });
     } catch (err: unknown) {
-      const message: string = err instanceof Error ? err.message : 'Organization switch failed';
+      const message: string = (err as any)?.message ?? 'Organization switch failed';
       return new Response(JSON.stringify({error: message}), {
         status: 500,
         headers: {'content-type': 'application/json'},

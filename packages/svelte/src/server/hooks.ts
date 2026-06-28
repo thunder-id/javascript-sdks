@@ -26,11 +26,14 @@ import {verifySessionToken, getSessionCookieName} from './session';
 import {maybeRefreshToken} from './refresh';
 import {resolveConfig} from './config';
 
+const CALLBACK_PATH = '/api/auth/callback';
+
 export function createThunderIDHandle(config?: ThunderIDSvelteConfig): Handle {
   const resolvedConfig: ThunderIDSvelteConfig = resolveConfig(config);
 
   return async ({event, resolve}) => {
-    const client: ThunderIDSvelteClient = await getClient(resolvedConfig);
+    const callbackUrl: string = `${event.url.origin}${CALLBACK_PATH}`;
+    const client: ThunderIDSvelteClient = await getClient({...resolvedConfig, afterSignInUrl: callbackUrl});
 
     const sessionCookie: string | undefined = event.cookies.get(getSessionCookieName());
     let session: ThunderIDSessionPayload | null = null;
@@ -62,7 +65,7 @@ export function createThunderIDHandle(config?: ThunderIDSvelteConfig): Handle {
         client.getUserProfile(session.sessionId),
         client.getCurrentOrganization(session.sessionId),
         resolvedConfig.preferences?.user?.fetchOrganizations !== false
-          ? client.getMyOrganizations(session.sessionId)
+          ? client.getMyOrganizations(session.sessionId).catch(() => [])
           : Promise.resolve([]),
         shouldFetchBranding
           ? client.getBrandingPreference({baseUrl: resolvedConfig.baseUrl!}).catch(() => null)
