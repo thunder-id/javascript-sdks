@@ -1,6 +1,6 @@
 # @thunderid/svelte
 
-**Svelte 5 SDK for [ThunderID](https://thunderid.dev)** — reactive auth with runes.
+**Svelte 5 SDK for [ThunderID](https://thunderid.dev)** - reactive auth with runes.
 
 ## Installation
 
@@ -12,7 +12,7 @@ pnpm add @thunderid/svelte
 
 The SDK provides server utilities under the `@thunderid/svelte/server` subpath for SvelteKit SSR support.
 
-### 0. Prerequisites
+### Prerequisites
 
 Create a SvelteKit project if you don't have one:
 
@@ -145,12 +145,12 @@ export {};
 
 In your ThunderID application settings, add the exact callback URL:
 
-- **Development**: `http://localhost:5173/api/auth/callback` (use `http`, not `https` — SvelteKit dev server runs on HTTP)
+- **Development**: `http://localhost:5173/api/auth/callback` (use `http`, not `https` - SvelteKit dev server runs on HTTP)
 - **Production**: `https://your-domain.com/api/auth/callback`
 
-The hook automatically computes the callback URL from the request origin — no manual `afterSignInUrl` setup needed.
+The hook automatically computes the callback URL from the request origin - no manual `afterSignInUrl` setup needed.
 
-> **Local dev with self-signed TLS**: If your IdP uses a self-signed certificate, launch the dev server with `NODE_TLS_REJECT_UNAUTHORIZED=0 pnpm dev` (dev only — never use in production).
+> **Local dev with self-signed TLS**: If your IdP uses a self-signed certificate, launch the dev server with `NODE_TLS_REJECT_UNAUTHORIZED=0 pnpm dev` (dev only - never use in production).
 
 ### Server-side route guard
 
@@ -189,7 +189,7 @@ export const POST = createOrgSwitchHandler();
 
 | Component | Description |
 |-----------|-------------|
-| `<ThunderID>` | Provider — wraps your app with auth context |
+| `<ThunderID>` | Provider - wraps your app with auth context |
 | `<SignedIn>` | Renders children when signed in |
 | `<SignedOut>` | Renders children when signed out |
 | `<Loading>` | Renders children while auth state initializes |
