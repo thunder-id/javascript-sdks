@@ -146,8 +146,7 @@ const thunderIDProxy =
     options?: ThunderIDProxyOptions | ((req: NextRequest) => ThunderIDProxyOptions),
   ): ((request: NextRequest) => Promise<NextResponse>) =>
   async (request: NextRequest): Promise<NextResponse> => {
-    const resolvedOptions: ThunderIDProxyOptions =
-      typeof options === 'function' ? options(request) : options || {};
+    const resolvedOptions: ThunderIDProxyOptions = typeof options === 'function' ? options(request) : options || {};
 
     // Resolve full config from passed options + environment variable fallbacks.
     const resolvedConfig: ThunderIDNextConfig = decorateConfigWithNextEnv(resolvedOptions as ThunderIDNextConfig);

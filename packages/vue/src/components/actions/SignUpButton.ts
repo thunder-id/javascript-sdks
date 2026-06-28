@@ -17,7 +17,7 @@
  */
 
 import {ThunderIDRuntimeError, navigate} from '@thunderid/browser';
-import {defineComponent, h, ref, type Component, type Ref, type SetupContext, type VNode} from 'vue';
+import {Fragment, defineComponent, h, ref, type Component, type Ref, type SetupContext, type VNode} from 'vue';
 import BaseSignUpButton from './BaseSignUpButton';
 import useThunderID from '../../composables/useThunderID';
 
@@ -57,20 +57,17 @@ const SignUpButton: Component = defineComponent({
     };
 
     return (): VNode => {
-      const slotContent: (() => VNode[]) | undefined = slots['default']
-        ? (): VNode[] => slots['default']!({isLoading: isLoading.value})
-        : undefined;
+      if (slots['default']) {
+        const nodes: VNode[] = slots['default']({isLoading: isLoading.value, signUp: handleSignUp});
+        return nodes.length === 1 ? nodes[0] : h(Fragment, null, nodes);
+      }
 
-      return h(
-        BaseSignUpButton,
-        {
-          class: attrs.class,
-          isLoading: isLoading.value,
-          onClick: handleSignUp,
-          style: attrs.style,
-        },
-        slotContent,
-      );
+      return h(BaseSignUpButton, {
+        class: attrs.class,
+        isLoading: isLoading.value,
+        onClick: handleSignUp,
+        style: attrs.style,
+      });
     };
   },
 });

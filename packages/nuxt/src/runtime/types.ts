@@ -16,12 +16,7 @@
  * under the License.
  */
 
-import type {
-  I18nPreferences,
-  TokenEndpointAuthMethod,
-  User,
-  UserProfile,
-} from '@thunderid/node';
+import type {I18nPreferences, TokenEndpointAuthMethod, User, UserProfile} from '@thunderid/node';
 import type {JWTPayload} from 'jose';
 
 /**

@@ -27,4 +27,3 @@ export {default as thunderIDProxy} from './proxy/thunderIDProxy';
 export * from './proxy/thunderIDProxy';
 
 export {default as createRouteMatcher} from './proxy/createRouteMatcher';
-

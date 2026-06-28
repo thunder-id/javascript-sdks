@@ -44,14 +44,7 @@ export type {UseOAuthCallbackOptions, OAuthCallbackPayload} from './composables/
 export {default as ThunderIDVueClient} from './ThunderIDVueClient';
 
 // ── Keys ──
-export {
-  THUNDERID_KEY,
-  FLOW_KEY,
-  FLOW_META_KEY,
-  I18N_KEY,
-  THEME_KEY,
-  USER_KEY,
-} from './keys';
+export {THUNDERID_KEY, FLOW_KEY, FLOW_META_KEY, I18N_KEY, THEME_KEY, USER_KEY} from './keys';
 
 // ── Models / Types ──
 export type {ThunderIDVueConfig} from './models/config';

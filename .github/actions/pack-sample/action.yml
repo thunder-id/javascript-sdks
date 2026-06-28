@@ -1,0 +1,51 @@
+name: Pack Sample App
+description: >
+  Packages a sample app into a standalone zip using pnpm pack, which
+  rewrites workspace:* and catalog: references to real npm versions.
+  Requires the pnpm workspace to be installed before this action runs.
+
+inputs:
+  sdk:
+    description: SDK slug matching the samples/ subdirectory (e.g. react, browser, node)
+    required: true
+  version:
+    description: Version being released (e.g. 1.2.3), used to name the zip file
+    required: true
+
+outputs:
+  archive:
+    description: Filename of the produced zip (relative to the workspace root)
+    value: ${{ steps.pack.outputs.archive }}
+
+runs:
+  using: composite
+  steps:
+    - name: Pack
+      id: pack
+      shell: bash
+      run: |
+        SDK="${{ inputs.sdk }}"
+        VERSION="${{ inputs.version }}"
+        DEST_DIR="$(pwd)"
+        FOLDER="thunderid-${SDK}-sdk-sample-v${VERSION}"
+        ARCHIVE="${FOLDER}.zip"
+
+        PACK_DIR="$(mktemp -d)"
+        trap 'rm -rf "$PACK_DIR"' EXIT
+
+        cd "samples/${SDK}/quickstart"
+        pnpm pack --pack-destination "${PACK_DIR}"
+        cd "${DEST_DIR}"
+
+        tgz=$(ls "${PACK_DIR}"/*.tgz | head -1)
+        if [ -z "$tgz" ]; then
+          echo "Error: pnpm pack did not produce a .tgz for ${SDK}"
+          exit 1
+        fi
+
+        tar xzf "$tgz"
+        mv package "${FOLDER}"
+        (find "${FOLDER}" | sort | zip "${ARCHIVE}" -@)
+        rm -rf "${FOLDER}"
+
+        echo "archive=${ARCHIVE}" >> "$GITHUB_OUTPUT"

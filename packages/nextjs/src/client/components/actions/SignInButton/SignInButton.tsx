@@ -22,7 +22,7 @@ import {ThunderIDRuntimeError} from '@thunderid/node';
 import {BaseSignInButton, BaseSignInButtonProps, useTranslation} from '@thunderid/react';
 import {AppRouterInstance} from 'next/dist/shared/lib/app-router-context.shared-runtime';
 import {useRouter} from 'next/navigation';
-import {forwardRef, ForwardRefExoticComponent, ReactElement, Ref, RefAttributes, MouseEvent} from 'react';
+import {forwardRef, ForwardRefExoticComponent, ReactElement, Ref, RefAttributes, MouseEvent, useState} from 'react';
 import useThunderID from '../../../contexts/ThunderID/useThunderID';
 
 /**
@@ -71,17 +71,17 @@ const SignInButton: ForwardRefExoticComponent<SignInButtonProps & RefAttributes<
     const router: AppRouterInstance = useRouter();
     const {t} = useTranslation(preferences?.i18n);
 
-    const handleOnClick = async (e: MouseEvent<HTMLButtonElement>): Promise<void> => {
+    const [isLoading, setIsLoading] = useState(false);
+
+    const handleSignIn = async (): Promise<void> => {
       try {
+        setIsLoading(true);
+
         // If a custom `signInUrl` is provided, use it for navigation.
         if (signInUrl) {
           router.push(signInUrl);
         } else if (signIn) {
           await signIn(signInOptions);
-        }
-
-        if (onClick) {
-          onClick(e);
         }
       } catch (error) {
         throw new ThunderIDRuntimeError(
@@ -90,6 +90,15 @@ const SignInButton: ForwardRefExoticComponent<SignInButtonProps & RefAttributes<
           'nextjs',
           'Something went wrong while trying to sign in. Please try again later.',
         );
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    const handleOnClick = async (e: MouseEvent<HTMLButtonElement>): Promise<void> => {
+      await handleSignIn();
+      if (onClick) {
+        onClick(e);
       }
     };
 
@@ -99,6 +108,8 @@ const SignInButton: ForwardRefExoticComponent<SignInButtonProps & RefAttributes<
         style={style}
         ref={ref}
         preferences={preferences}
+        isLoading={isLoading}
+        signIn={handleSignIn}
         onClick={handleOnClick}
         {...rest}
       >

@@ -116,8 +116,7 @@ const getOrganizationUnitChildren = async ({
   if (offset !== undefined) queryParams.set('offset', String(offset));
   const query = queryParams.toString();
 
-  const resolvedBase =
-    url ?? `${baseUrl}/api/server/v1/organization-units/${organizationUnitId}/children`;
+  const resolvedBase = url ?? `${baseUrl}/api/server/v1/organization-units/${organizationUnitId}/children`;
   const resolvedUrl = query ? `${resolvedBase}?${query}` : resolvedBase;
 
   const requestInit: RequestInit = {

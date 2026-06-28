@@ -17,18 +17,8 @@
  */
 
 import {generateFlattenedUserProfile} from '@thunderid/browser';
-import type {
-  UpdateMeProfileConfig,
-  User,
-  UserProfile,
-} from '@thunderid/node';
-import {
-  FlowMetaProvider,
-  FlowProvider,
-  I18nProvider,
-  ThemeProvider,
-  UserProvider,
-} from '@thunderid/vue';
+import type {UpdateMeProfileConfig, User, UserProfile} from '@thunderid/node';
+import {FlowMetaProvider, FlowProvider, I18nProvider, ThemeProvider, UserProvider} from '@thunderid/vue';
 import {defineComponent, h, type Component, type Ref, type SetupContext, type VNode} from 'vue';
 import type {ThunderIDAuthState, ThunderIDNuxtConfig} from '../types';
 import {useState, useRuntimeConfig} from '#imports';

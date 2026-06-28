@@ -23,7 +23,7 @@ import {defineConfig} from 'rolldown';
 const pkg = JSON.parse(readFileSync('./package.json', 'utf8'));
 
 const externalPackages = [...Object.keys(pkg.dependencies || {}), ...Object.keys(pkg.peerDependencies || {})];
-const external = id => externalPackages.some(name => id === name || id.startsWith(`${name}/`));
+const external = (id) => externalPackages.some((name) => id === name || id.startsWith(`${name}/`));
 
 const commonOptions = {
   input: [join('src', 'index.ts'), join('src', 'server', 'index.ts')],

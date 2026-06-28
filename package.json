@@ -33,6 +33,7 @@
   },
   "devDependencies": {
     "nx": "22.7.5",
+    "@thunderid/eslint-plugin": "catalog:",
     "eslint": "catalog:",
     "prettier": "catalog:",
     "rimraf": "catalog:",

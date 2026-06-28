@@ -302,10 +302,7 @@ const ThunderIDClientProvider: FC<PropsWithChildren<ThunderIDClientProviderProps
     <ThunderIDContext.Provider value={contextValue}>
       <I18nProvider preferences={preferences?.i18n}>
         <FlowMetaProvider enabled={preferences?.resolveFromMeta !== false}>
-          <ThemeProvider
-            theme={preferences?.theme?.overrides}
-            mode={getActiveTheme(preferences?.theme?.mode as any)}
-          >
+          <ThemeProvider theme={preferences?.theme?.overrides} mode={getActiveTheme(preferences?.theme?.mode as any)}>
             <FlowProvider>
               <UserProvider profile={userProfile} onUpdateProfile={handleProfileUpdate} updateProfile={updateProfile}>
                 {children}

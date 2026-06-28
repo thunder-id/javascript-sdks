@@ -25,12 +25,7 @@ import useFlowMeta from '../../composables/useFlowMeta';
 import useI18n from '../../composables/useI18n';
 import useTheme from '../../composables/useTheme';
 import {FLOW_KEY, FLOW_META_KEY, THEME_KEY, I18N_KEY} from '../../keys';
-import type {
-  FlowContextValue,
-  FlowMetaContextValue,
-  ThemeContextValue,
-  I18nContextValue,
-} from '../../models/contexts';
+import type {FlowContextValue, FlowMetaContextValue, ThemeContextValue, I18nContextValue} from '../../models/contexts';
 
 describe('useFlow', () => {
   it('should return the FlowContextValue when called inside a provider', () => {

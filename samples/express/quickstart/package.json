@@ -1,0 +1,14 @@
+{
+  "name": "@thunderid/express-quickstart",
+  "private": true,
+  "version": "0.0.0",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "node --watch index.js"
+  },
+  "dependencies": {
+    "@thunderid/express": "workspace:*",
+    "cookie-parser": "^1.4.7",
+    "express": "^4.21.2"
+  }
+}

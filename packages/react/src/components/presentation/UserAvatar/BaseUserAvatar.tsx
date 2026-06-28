@@ -56,14 +56,7 @@ const resolveName = (user: User): string | undefined => {
   const family: string = user['familyName'] || user['family_name'] || '';
   if (given && family) return `${given} ${family}`;
 
-  return (
-    user['displayName'] ||
-    user['name'] ||
-    given ||
-    user['username'] ||
-    user['email'] ||
-    undefined
-  );
+  return user['displayName'] || user['name'] || given || user['username'] || user['email'] || undefined;
 };
 
 /**
