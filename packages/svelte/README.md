@@ -1,6 +1,6 @@
 # @thunderid/svelte
 
-> **Svelte 5 SDK for [ThunderID](https://thunderid.dev)** — reactive auth with runes. Supports both SPA and SSR (SvelteKit).
+**Svelte 5 SDK for [ThunderID](https://thunderid.dev)** — reactive auth with runes.
 
 ## Installation
 
