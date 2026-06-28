@@ -8,24 +8,6 @@
 pnpm add @thunderid/svelte
 ```
 
-## Quick Start (SPA)
-
-```svelte
-<script>
-  import { ThunderID, useThunderID, SignedIn, SignedOut, SignInButton, SignOutButton } from '@thunderid/svelte';
-</script>
-
-<ThunderID baseUrl="https://{tenant}.thunderid.dev" clientId="{clientId}" scopes="openid profile">
-  <SignedIn>
-    <p>Welcome!</p>
-    <SignOutButton />
-  </SignedIn>
-  <SignedOut>
-    <SignInButton />
-  </SignedOut>
-</ThunderID>
-```
-
 ## SvelteKit (SSR)
 
 The SDK provides server utilities under the `@thunderid/svelte/server` subpath for SvelteKit SSR support.
