@@ -16,9 +16,9 @@
  * under the License.
  */
 
+import type {RequestEvent} from '@sveltejs/kit';
 import {describe, it, expect, vi, beforeEach} from 'vitest';
 import type {ThunderIDSSRData} from '../../models/session';
-import type {RequestEvent} from '@sveltejs/kit';
 
 const mockRedirect = vi.fn();
 vi.mock('@sveltejs/kit', () => ({

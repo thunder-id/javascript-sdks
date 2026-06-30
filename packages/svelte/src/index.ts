@@ -24,6 +24,7 @@ export {default as Loading} from './components/control/Loading.svelte';
 export {default as SignInButton} from './components/actions/SignInButton.svelte';
 export {default as SignOutButton} from './components/actions/SignOutButton.svelte';
 export {default as SignUpButton} from './components/actions/SignUpButton.svelte';
+export {default as Callback} from './components/auth/Callback.svelte';
 
 // ── Client ──
 export {default as ThunderIDSvelteClient} from './ThunderIDSvelteClient';
@@ -40,3 +41,11 @@ export type {ThunderIDSvelteConfig} from './models/config';
 export type {ThunderIDSSRData, ThunderIDSessionPayload} from './models/session';
 export type {BrandingPreference} from '@thunderid/node';
 export type {ThunderIDContext, UserContextValue} from './models/contexts';
+
+// ── Errors ──
+export {IAMError, ErrorCode} from './errors/IAMError';
+
+// ── Logger ──
+export {DefaultLogger, setLogger, getLogger} from './logger/LoggerAdapter';
+export type {LoggerAdapter} from './logger/LoggerAdapter';
+export {sanitizeForLog, sanitizeTokenForLog} from './logger/sanitizer';

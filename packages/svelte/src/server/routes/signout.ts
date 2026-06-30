@@ -16,22 +16,25 @@
  * under the License.
  */
 
+import {getLogger} from '../../logger/LoggerAdapter';
 import type {ThunderIDSvelteConfig} from '../../models/config';
 import ThunderIDSvelteClient from '../../ThunderIDSvelteClient';
-import {getSessionCookieName} from '../session';
 import {resolveConfig} from '../config';
+import {getSessionCookieName} from '../session';
 
 export function createSignOutHandler(config?: ThunderIDSvelteConfig): (event: {cookies: any}) => Promise<Response> {
   const resolvedConfig: ThunderIDSvelteConfig = resolveConfig(config);
+  const logger = getLogger();
 
   return async (event) => {
     const client: ThunderIDSvelteClient = ThunderIDSvelteClient.getInstance();
     const redirectUrl: string = resolvedConfig.afterSignOutUrl || '/';
 
     try {
+      await client.revokeAccessToken();
       await client.signOut();
-    } catch {
-      // silent
+    } catch (err: unknown) {
+      logger.warn('sign-out encountered an issue', {error: (err as any)?.message ?? String(err)});
     }
 
     event.cookies.delete(getSessionCookieName(), {path: '/'});

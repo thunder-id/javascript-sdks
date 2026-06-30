@@ -17,13 +17,15 @@
  */
 
 import type {TokenResponse} from '@thunderid/node';
+import {getLogger} from '../../logger/LoggerAdapter';
 import type {ThunderIDSvelteConfig} from '../../models/config';
 import ThunderIDSvelteClient from '../../ThunderIDSvelteClient';
-import {issueSessionCookie, verifyTempSessionToken, getTempSessionCookieName, getSessionCookieName} from '../session';
 import {resolveConfig} from '../config';
+import {issueSessionCookie, verifyTempSessionToken, getTempSessionCookieName, getSessionCookieName} from '../session';
 
 export function createCallbackHandler(config?: ThunderIDSvelteConfig): (event: {url: URL; cookies: any}) => Promise<Response> {
   const resolvedConfig: ThunderIDSvelteConfig = resolveConfig(config);
+  const logger = getLogger();
 
   return async (event) => {
     const client: ThunderIDSvelteClient = ThunderIDSvelteClient.getInstance();
@@ -61,7 +63,7 @@ export function createCallbackHandler(config?: ThunderIDSvelteConfig): (event: {
         )) as unknown as TokenResponse;
       } catch (err: unknown) {
         const message: string = (err as any)?.message ?? String(err);
-        console.error('[thunderid] callback signIn failed:', message);
+        logger.error('callback signIn failed', err instanceof Error ? err : new Error(message));
         return new Response(JSON.stringify({error: message}), {
           status: 500,
           headers: {'content-type': 'application/json'},

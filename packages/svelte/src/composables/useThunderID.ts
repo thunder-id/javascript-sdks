@@ -17,8 +17,8 @@
  */
 
 import {getThunderIDContext} from '../context';
-import {authState} from '../state.svelte';
 import type {ThunderIDContext} from '../models/contexts';
+import {authState} from '../state.svelte';
 
 export function useThunderID(): ThunderIDContext {
   const context = getThunderIDContext();

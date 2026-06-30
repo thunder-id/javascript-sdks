@@ -32,11 +32,11 @@ export interface ThunderIDSvelteConfig {
   clientId?: string;
   /** OAuth2 Client Secret (server-only, use THUNDERID_CLIENT_SECRET env var) */
   clientSecret?: string;
-  /** Whether to enable PKCE (default: true) */
+  /** @deprecated PKCE is always enabled and cannot be disabled. */
   enablePKCE?: boolean;
   /** Token endpoint authentication method (default: 'client_secret_post') */
   tokenRequest?: {
-    authMethod: 'client_secret_basic' | 'client_secret_post' | 'private_key_jwt' | 'none';
+    authMethod?: 'client_secret_basic' | 'client_secret_post' | 'private_key_jwt' | 'none';
   };
   /** OAuth2 scopes to request */
   scopes?: string | string[];

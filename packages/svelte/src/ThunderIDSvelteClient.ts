@@ -32,6 +32,8 @@ import {
   getMeOrganizations,
   MemoryCacheStore,
 } from '@thunderid/node';
+import {IAMError, ErrorCode} from './errors/IAMError';
+import {getLogger, type LoggerAdapter} from './logger/LoggerAdapter';
 import type {ThunderIDSvelteConfig} from './models/config';
 import type {ThunderIDSessionPayload} from './models/session';
 
@@ -39,6 +41,8 @@ class ThunderIDSvelteClient extends ThunderIDNodeClient<AuthClientConfig<Thunder
   private static instance: ThunderIDSvelteClient;
 
   public isInitialized = false;
+  private _isLoading = false;
+  private logger: LoggerAdapter = getLogger();
 
   private constructor() {
     super();
@@ -53,33 +57,77 @@ class ThunderIDSvelteClient extends ThunderIDNodeClient<AuthClientConfig<Thunder
 
   override async initialize(config: ThunderIDSvelteConfig, storage?: Storage): Promise<boolean> {
     if (this.isInitialized) {
-      return true;
+      throw new IAMError({
+        code: ErrorCode.ALREADY_INITIALIZED,
+        message: 'ThunderID SDK is already initialized. Call reset() first if you need to re-initialize.',
+      });
+    }
+
+    if (!config.baseUrl) {
+      throw new IAMError({
+        code: ErrorCode.INVALID_CONFIGURATION,
+        message: 'baseUrl is required. Set THUNDERID_BASE_URL environment variable or pass it in the config.',
+      });
+    }
+
+    if (!config.baseUrl.startsWith('https://')) {
+      throw new IAMError({
+        code: ErrorCode.INVALID_CONFIGURATION,
+        message: 'baseUrl must use HTTPS.',
+      });
+    }
+
+    if (!config.clientId) {
+      throw new IAMError({
+        code: ErrorCode.INVALID_CONFIGURATION,
+        message: 'clientId is required. Set THUNDERID_CLIENT_ID environment variable or pass it in the config.',
+      });
     }
 
     const authConfig: AuthClientConfig<ThunderIDSvelteConfig> = {
       afterSignInUrl: config.afterSignInUrl ?? '/',
       afterSignOutUrl: config.afterSignOutUrl ?? '/',
-      baseUrl: config.baseUrl!,
-      clientId: config.clientId!,
+      baseUrl: config.baseUrl,
+      clientId: config.clientId,
       clientSecret: config.clientSecret ?? undefined,
-      enablePKCE: config.enablePKCE ?? true,
+      enablePKCE: true,
       scopes: config.scopes ?? ['openid', 'profile'],
       tokenRequest: config.tokenRequest ?? {authMethod: 'client_secret_post'},
     } as AuthClientConfig<ThunderIDSvelteConfig>;
 
     const resolvedStorage: Storage = storage ?? new MemoryCacheStore();
 
-    const result: boolean = await super.initialize(
-      authConfig as unknown as AuthClientConfig<ThunderIDSvelteConfig>,
-      resolvedStorage,
-    );
-    this.isInitialized = true;
-    return result;
+    this._isLoading = true;
+    try {
+      const result: boolean = await super.initialize(
+        authConfig as unknown as AuthClientConfig<ThunderIDSvelteConfig>,
+        resolvedStorage,
+      );
+      this.isInitialized = true;
+      return result;
+    } finally {
+      this._isLoading = false;
+    }
   }
 
   override async reInitialize(config: Partial<ThunderIDSvelteConfig>): Promise<boolean> {
+    if (!this.isInitialized) {
+      throw new IAMError({
+        code: ErrorCode.SDK_NOT_INITIALIZED,
+        message: 'SDK is not initialized. Call initialize() first.',
+      });
+    }
     await super.reInitialize(config as any);
     return true;
+  }
+
+  override isLoading(): boolean {
+    return this._isLoading;
+  }
+
+  override getConfiguration(): AuthClientConfig<ThunderIDSvelteConfig> {
+    const storageManager: any = this.getStorageManager();
+    return storageManager?.getConfigData?.() as AuthClientConfig<ThunderIDSvelteConfig>;
   }
 
   async rehydrateSessionFromPayload(session: ThunderIDSessionPayload): Promise<void> {
@@ -137,8 +185,74 @@ class ThunderIDSvelteClient extends ThunderIDNodeClient<AuthClientConfig<Thunder
     return (configData?.afterSignOutUrl as string) || (configData?.afterSignInUrl as string) || '/';
   }
 
-  override async signUp(_options?: any): Promise<void> {
-    return undefined;
+  override async signUp(options?: Record<string, unknown>): Promise<void> {
+    const configData: any = await this.getStorageManager().getConfigData();
+    const signUpUrl: string | undefined = configData?.signUpUrl as string | undefined;
+    const baseUrl: string | undefined = configData?.baseUrl as string | undefined;
+    const applicationId: string | undefined = configData?.applicationId as string | undefined;
+
+    if (signUpUrl) {
+      window.location.href = signUpUrl;
+      return;
+    }
+
+    if (baseUrl) {
+      let url = `${baseUrl}/accountrecoveryendpoint/register.do`;
+      if (applicationId) {
+        url += `?spId=${applicationId}`;
+      }
+      window.location.href = url;
+      return;
+    }
+
+    throw new IAMError({
+      code: ErrorCode.INVALID_CONFIGURATION,
+      message: 'Cannot sign up: no signUpUrl or baseUrl configured.',
+    });
+  }
+
+  override async signInSilently(_options?: Record<string, unknown>): Promise<User | boolean> {
+    if (!this.isInitialized) {
+      throw new IAMError({
+        code: ErrorCode.SDK_NOT_INITIALIZED,
+        message: 'SDK is not initialized. Call initialize() first.',
+      });
+    }
+
+    try {
+      const signedIn: boolean = await this.isSignedIn();
+      if (signedIn) {
+        const user: User = await this.getUser();
+        return user;
+      }
+      return false;
+    } catch {
+      return false;
+    }
+  }
+
+  async changePassword(_currentPassword: string, _newPassword: string): Promise<void> {
+    throw new IAMError({
+      code: ErrorCode.NOT_IMPLEMENTED,
+      message: 'changePassword() is not yet implemented. This will be available in a future release.',
+    });
+  }
+
+  async setSessionData(sessionData: Record<string, unknown>, sessionId?: string): Promise<void> {
+    const storageManager: any = this.getStorageManager();
+    await storageManager.setSessionData(sessionData, sessionId);
+  }
+
+  clearSessionData(sessionId?: string): void {
+    const storageManager: any = this.getStorageManager();
+    storageManager.clearSession(sessionId);
+  }
+
+  override getAllOrganizations(_options?: Record<string, unknown>, _sessionId?: string): Promise<any> {
+    throw new IAMError({
+      code: ErrorCode.NOT_IMPLEMENTED,
+      message: 'getAllOrganizations() is not yet implemented. Use getMyOrganizations() instead.',
+    });
   }
 
   public async getAuthorizeRequestUrl(customParams: Record<string, any>, userId?: string): Promise<string> {
@@ -168,12 +282,12 @@ class ThunderIDSvelteClient extends ThunderIDNodeClient<AuthClientConfig<Thunder
     return super.exchangeToken(config, sessionId) as unknown as Promise<TokenResponse | Response>;
   }
 
-  override async getUserProfile(sessionId: string): Promise<UserProfile> {
+  override async getUserProfile(sessionId?: string): Promise<UserProfile> {
     const user: User = await this.getUser(sessionId);
     return {flattenedProfile: user, profile: user, schemas: []};
   }
 
-  override async getCurrentOrganization(sessionId: string): Promise<Organization | null> {
+  override async getCurrentOrganization(sessionId?: string): Promise<Organization | null> {
     try {
       const idToken: IdToken = await this.getDecodedIdToken(sessionId);
       if (!idToken?.org_id) {
@@ -189,7 +303,7 @@ class ThunderIDSvelteClient extends ThunderIDNodeClient<AuthClientConfig<Thunder
     }
   }
 
-  override async getMyOrganizations(sessionId: string): Promise<Organization[]> {
+  override async getMyOrganizations(sessionId?: string): Promise<Organization[]> {
     const accessToken: string = await this.getAccessToken(sessionId);
     const configData: any = await this.getStorageManager().getConfigData();
     const baseUrl: string = (configData?.baseUrl ?? '') as string;
@@ -202,10 +316,13 @@ class ThunderIDSvelteClient extends ThunderIDNodeClient<AuthClientConfig<Thunder
 
   override async switchOrganization(
     organization: Organization,
-    sessionId: string,
+    sessionId?: string,
   ): Promise<TokenResponse | Response> {
     if (!organization.id) {
-      throw new Error('Organization ID is required for switching organizations.');
+      throw new IAMError({
+        code: ErrorCode.INVALID_INPUT,
+        message: 'Organization ID is required for switching organizations.',
+      });
     }
 
     const exchangeConfig: TokenExchangeRequestConfig = {

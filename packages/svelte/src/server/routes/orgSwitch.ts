@@ -17,15 +17,17 @@
  */
 
 import type {Organization, TokenResponse} from '@thunderid/node';
+import {getLogger} from '../../logger/LoggerAdapter';
 import type {ThunderIDSvelteConfig} from '../../models/config';
 import ThunderIDSvelteClient from '../../ThunderIDSvelteClient';
-import {verifySessionToken, issueSessionCookie, getSessionCookieName} from '../session';
 import {resolveConfig} from '../config';
+import {verifySessionToken, issueSessionCookie, getSessionCookieName} from '../session';
 
 export function createOrgSwitchHandler(
   config?: ThunderIDSvelteConfig,
 ): (event: {request: Request; cookies: any; url: URL}) => Promise<Response> {
   const resolvedConfig: ThunderIDSvelteConfig = resolveConfig(config);
+  const logger = getLogger();
 
   return async (event) => {
     const client: ThunderIDSvelteClient = ThunderIDSvelteClient.getInstance();
@@ -80,6 +82,7 @@ export function createOrgSwitchHandler(
       });
     } catch (err: unknown) {
       const message: string = (err as any)?.message ?? 'Organization switch failed';
+      logger.error('organization switch failed', err instanceof Error ? err : new Error(message));
       return new Response(JSON.stringify({error: message}), {
         status: 500,
         headers: {'content-type': 'application/json'},

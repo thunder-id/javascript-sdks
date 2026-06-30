@@ -78,7 +78,7 @@ describe('Session token utilities', () => {
       });
 
       const payload = await verifySessionToken(token);
-      const ttl = payload.exp! - payload.iat!;
+      const ttl = payload.exp - payload.iat;
       expect(ttl).toBeLessThanOrEqual(65);
       expect(ttl).toBeGreaterThanOrEqual(55);
     });

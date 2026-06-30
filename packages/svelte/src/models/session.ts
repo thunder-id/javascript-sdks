@@ -16,8 +16,8 @@
  * under the License.
  */
 
-import type {JWTPayload} from 'jose';
 import type {BrandingPreference, Organization, User, UserProfile} from '@thunderid/node';
+import type {JWTPayload} from 'jose';
 
 /**
  * Payload stored in the session JWT cookie.

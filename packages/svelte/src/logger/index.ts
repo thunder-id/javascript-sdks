@@ -16,22 +16,6 @@
  * under the License.
  */
 
-import type {ThunderIDSvelteConfig} from '../models/config';
-import ThunderIDSvelteClient from '../ThunderIDSvelteClient';
-
-let clientInitialized = false;
-
-export async function getClient(config: ThunderIDSvelteConfig): Promise<ThunderIDSvelteClient> {
-  const client: ThunderIDSvelteClient = ThunderIDSvelteClient.getInstance();
-
-  if (!clientInitialized) {
-    await client.initialize(config);
-    clientInitialized = true;
-  }
-
-  return client;
-}
-
-export function resetClient(): void {
-  clientInitialized = false;
-}
+export {DefaultLogger, setLogger, getLogger} from './LoggerAdapter';
+export type {LoggerAdapter} from './LoggerAdapter';
+export {sanitizeForLog, sanitizeTokenForLog} from './sanitizer';

@@ -16,15 +16,15 @@
  * under the License.
  */
 
-import type {BrandingPreference} from '@thunderid/node';
 import type {Handle, RequestEvent} from '@sveltejs/kit';
+import type {BrandingPreference} from '@thunderid/node';
+import {resolveConfig} from './config';
+import {getClient} from './getClient';
+import {maybeRefreshToken} from './refresh';
+import {verifySessionToken, getSessionCookieName} from './session';
 import type {ThunderIDSvelteConfig} from '../models/config';
 import type {ThunderIDSSRData, ThunderIDSessionPayload} from '../models/session';
 import ThunderIDSvelteClient from '../ThunderIDSvelteClient';
-import {getClient} from './getClient';
-import {verifySessionToken, getSessionCookieName} from './session';
-import {maybeRefreshToken} from './refresh';
-import {resolveConfig} from './config';
 
 const CALLBACK_PATH = '/api/auth/callback';
 
@@ -32,7 +32,7 @@ export function createThunderIDHandle(config?: ThunderIDSvelteConfig): Handle {
   const resolvedConfig: ThunderIDSvelteConfig = resolveConfig(config);
 
   return async ({event, resolve}) => {
-    const callbackUrl: string = `${event.url.origin}${CALLBACK_PATH}`;
+    const callbackUrl = `${event.url.origin}${CALLBACK_PATH}`;
     const client: ThunderIDSvelteClient = await getClient({...resolvedConfig, afterSignInUrl: callbackUrl});
 
     const sessionCookie: string | undefined = event.cookies.get(getSessionCookieName());
@@ -73,7 +73,7 @@ export function createThunderIDHandle(config?: ThunderIDSvelteConfig): Handle {
       ]);
 
       ssrData = {
-        brandingPreference: (branding as BrandingPreference) ?? null,
+        brandingPreference: (branding!) ?? null,
         isSignedIn: true,
         myOrganizations: myOrganizations as any[],
         organization: organization as any,

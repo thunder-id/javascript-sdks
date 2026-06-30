@@ -43,7 +43,7 @@ export function requireServerSession(
 ): ThunderIDSSRData {
   const ssrData: ThunderIDSSRData = event.locals.thunderid;
 
-  if (!ssrData || !ssrData.isSignedIn) {
+  if (!ssrData?.isSignedIn) {
     redirect(307, redirectTo || '/api/auth/signin');
   }
 

@@ -17,8 +17,8 @@
  */
 
 import {getUserContext} from '../context';
-import {authState} from '../state.svelte';
 import type {UserContextValue} from '../models/contexts';
+import {authState} from '../state.svelte';
 
 export function useUser(): UserContextValue {
   const context = getUserContext();

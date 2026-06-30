@@ -20,7 +20,7 @@ import {describe, it, expect, vi, beforeEach, afterEach} from 'vitest';
 import type {ThunderIDSessionPayload} from '../models/session';
 
 vi.mock('@thunderid/node', () => {
-  let storageData: Record<string, any> = {};
+  const storageData: Record<string, any> = {};
 
   class MockMemoryCacheStore {
     setItem(_key: string, _value: any): void {}
@@ -98,6 +98,10 @@ vi.mock('@thunderid/node', () => {
         return Promise.resolve('/');
       }
 
+      revokeAccessToken(_userId?: string): Promise<Response | boolean> {
+        return Promise.resolve(true);
+      }
+
       getInstanceId(): number {
         return 0;
       }
@@ -132,13 +136,32 @@ describe('ThunderIDSvelteClient', () => {
   });
 
   describe('initialize', () => {
-    it('should initialize only once', async () => {
+    it('should initialize successfully with valid config', async () => {
       const client = ThunderIDSvelteClient.getInstance();
       const r1 = await client.initialize({baseUrl: 'https://example.com', clientId: 'cid'});
-      const r2 = await client.initialize({baseUrl: 'https://example.com', clientId: 'cid'});
       expect(r1).toBe(true);
-      expect(r2).toBe(true);
       expect(client.isInitialized).toBe(true);
+    });
+
+    it('should throw AlreadyInitialized on second call', async () => {
+      const client = ThunderIDSvelteClient.getInstance();
+      await client.initialize({baseUrl: 'https://example.com', clientId: 'cid'});
+      await expect(client.initialize({baseUrl: 'https://example.com', clientId: 'cid'})).rejects.toThrow();
+    });
+
+    it('should throw InvalidConfiguration when baseUrl is missing', async () => {
+      const client = ThunderIDSvelteClient.getInstance();
+      await expect(client.initialize({} as any)).rejects.toThrow();
+    });
+
+    it('should throw InvalidConfiguration when baseUrl uses HTTP', async () => {
+      const client = ThunderIDSvelteClient.getInstance();
+      await expect(client.initialize({baseUrl: 'http://example.com', clientId: 'cid'})).rejects.toThrow();
+    });
+
+    it('should throw InvalidConfiguration when clientId is missing', async () => {
+      const client = ThunderIDSvelteClient.getInstance();
+      await expect(client.initialize({baseUrl: 'https://example.com'} as any)).rejects.toThrow();
     });
   });
 

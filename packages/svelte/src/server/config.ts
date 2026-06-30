@@ -16,16 +16,17 @@
  * under the License.
  */
 
+import {IAMError, ErrorCode} from '../errors/IAMError';
 import type {ThunderIDSvelteConfig} from '../models/config';
 
 export function resolveConfig(config?: ThunderIDSvelteConfig): ThunderIDSvelteConfig {
-  return {
+  const resolved: ThunderIDSvelteConfig = {
     afterSignInUrl: config?.afterSignInUrl ?? '/',
     afterSignOutUrl: config?.afterSignOutUrl ?? '/',
     baseUrl: config?.baseUrl || process.env['THUNDERID_BASE_URL'],
     clientId: config?.clientId || process.env['THUNDERID_CLIENT_ID'],
     clientSecret: config?.clientSecret || process.env['THUNDERID_CLIENT_SECRET'],
-    enablePKCE: config?.enablePKCE ?? true,
+    enablePKCE: true,
     scopes: config?.scopes ?? ['openid', 'profile'],
     sessionSecret: config?.sessionSecret || process.env['THUNDERID_SESSION_SECRET'],
     tokenRequest: config?.tokenRequest ?? {authMethod: 'client_secret_post'},
@@ -34,4 +35,27 @@ export function resolveConfig(config?: ThunderIDSvelteConfig): ThunderIDSvelteCo
     applicationId: config?.applicationId,
     preferences: config?.preferences,
   };
+
+  if (!resolved.baseUrl) {
+    throw new IAMError({
+      code: ErrorCode.INVALID_CONFIGURATION,
+      message: 'baseUrl is required. Set THUNDERID_BASE_URL environment variable or pass it in config.',
+    });
+  }
+
+  if (!resolved.baseUrl.startsWith('https://')) {
+    throw new IAMError({
+      code: ErrorCode.INVALID_CONFIGURATION,
+      message: 'baseUrl must use HTTPS.',
+    });
+  }
+
+  if (!resolved.clientId) {
+    throw new IAMError({
+      code: ErrorCode.INVALID_CONFIGURATION,
+      message: 'clientId is required. Set THUNDERID_CLIENT_ID environment variable or pass it in config.',
+    });
+  }
+
+  return resolved;
 }

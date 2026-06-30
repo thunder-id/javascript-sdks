@@ -17,17 +17,15 @@
  */
 
 import {generateSessionId} from '@thunderid/node';
+import {getLogger} from '../../logger/LoggerAdapter';
 import type {ThunderIDSvelteConfig} from '../../models/config';
 import ThunderIDSvelteClient from '../../ThunderIDSvelteClient';
-import {createTempSessionToken, getTempSessionCookieName, getTempSessionCookieOptions} from '../session';
 import {resolveConfig} from '../config';
+import {createTempSessionToken, getTempSessionCookieName, getTempSessionCookieOptions} from '../session';
 
 export function createSignInHandler(config?: ThunderIDSvelteConfig): (event: {url: URL; cookies: any}) => Promise<Response> {
   const resolvedConfig: ThunderIDSvelteConfig = resolveConfig(config);
-
-  if (!resolvedConfig.baseUrl) {
-    console.warn('[thunderid] THUNDERID_BASE_URL is not set. Set it as an environment variable or pass it to createSignInHandler().');
-  }
+  const logger = getLogger();
 
   return async (event) => {
     try {
@@ -51,7 +49,7 @@ export function createSignInHandler(config?: ThunderIDSvelteConfig): (event: {ur
       });
     } catch (err: unknown) {
       const message: string = (err as any)?.message ?? String(err);
-      console.error('[thunderid] sign-in failed:', message);
+      logger.error('sign-in failed', err instanceof Error ? err : new Error(message));
       return new Response(JSON.stringify({error: message}), {
         status: 500,
         headers: {'content-type': 'application/json'},

@@ -17,9 +17,9 @@
  */
 
 import type {RequestEvent} from '@sveltejs/kit';
+import {createSessionToken, getSessionCookieName, getSessionCookieOptions} from './session';
 import type {ThunderIDSvelteConfig} from '../models/config';
 import type {ThunderIDSessionPayload} from '../models/session';
-import {createSessionToken, getSessionCookieName, getSessionCookieOptions} from './session';
 
 const REFRESH_SKEW_SECONDS = 60;
 
@@ -52,7 +52,7 @@ export async function maybeRefreshToken(
     return null;
   }
 
-  const tokenEndpoint: string = `${config.baseUrl}/oauth2/token`;
+  const tokenEndpoint = `${config.baseUrl}/oauth2/token`;
 
   const body: URLSearchParams = new URLSearchParams({
     client_id: config.clientId!,

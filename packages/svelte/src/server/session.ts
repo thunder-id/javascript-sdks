@@ -19,12 +19,14 @@
 import {CookieConfig} from '@thunderid/node';
 import type {IdToken, TokenResponse} from '@thunderid/node';
 import {SignJWT, jwtVerify} from 'jose';
+import {getLogger} from '../logger/LoggerAdapter';
 import type {ThunderIDSessionPayload} from '../models/session';
 
 const DEFAULT_EXPIRY_SECONDS = 3600;
 
 function getSecret(sessionSecret?: string): Uint8Array {
   const secret: string | undefined = sessionSecret || process.env['THUNDERID_SESSION_SECRET'];
+  const logger = getLogger();
 
   if (!secret) {
     if (process.env['NODE_ENV'] === 'production') {
@@ -33,9 +35,7 @@ function getSecret(sessionSecret?: string): Uint8Array {
           'Set it to a secure random string of at least 32 characters.',
       );
     }
-    console.warn(
-      '[thunderid] Using default session secret for development. Set THUNDERID_SESSION_SECRET for production.',
-    );
+    logger.warn('Using default session secret for development. Set THUNDERID_SESSION_SECRET for production.');
     return new TextEncoder().encode('thunderid-dev-secret-not-for-production');
   }
 
