@@ -16,7 +16,7 @@
  * under the License.
  */
 
-import {beforeEach, describe, expect, it, vi} from 'vitest';
+import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
 import {EmbeddedSignInFlowResponse, EmbeddedSignInFlowStatus} from '../../models/embedded-signin-flow';
 import executeEmbeddedSignInFlow from '../executeEmbeddedSignInFlow';
 
@@ -131,6 +131,44 @@ describe('executeEmbeddedSignInFlow', (): void => {
       const body = captureRequestBody();
       expect(body).not.toHaveProperty('scopes');
       expect(body).not.toHaveProperty('inputs');
+    });
+  });
+
+  describe('browser SPA sign-in initiation is blocked', (): void => {
+    afterEach((): void => {
+      delete (globalThis as {window?: unknown}).window;
+    });
+
+    it('throws when a browser SPA initiates a new flow with applicationId and flowType', async (): Promise<void> => {
+      (globalThis as {window?: unknown}).window = {document: {}};
+
+      await expect(
+        executeEmbeddedSignInFlow({
+          payload: {applicationId: 'app-1', flowType: 'AUTHENTICATION'},
+          url: URL,
+        }),
+      ).rejects.toThrow(/cannot initiate a sign-in flow directly/);
+      expect(fetch).not.toHaveBeenCalled();
+    });
+
+    it('allows server-side (non-browser) initiation with applicationId and flowType', async (): Promise<void> => {
+      await executeEmbeddedSignInFlow({
+        payload: {applicationId: 'app-1', flowType: 'AUTHENTICATION'},
+        url: URL,
+      });
+
+      expect(fetch).toHaveBeenCalledTimes(1);
+    });
+
+    it('allows a browser SPA to continue an existing flow with executionId', async (): Promise<void> => {
+      (globalThis as {window?: unknown}).window = {document: {}};
+
+      await executeEmbeddedSignInFlow({
+        payload: {executionId: 'exec-abc'},
+        url: URL,
+      });
+
+      expect(fetch).toHaveBeenCalledTimes(1);
     });
   });
 

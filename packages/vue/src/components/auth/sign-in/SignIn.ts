@@ -81,6 +81,13 @@ export interface SignInRenderProps {
  * Initializes the authentication flow, handles passkey authentication/registration,
  * OAuth redirect flows, and renders the UI via `BaseSignIn` or a scoped slot.
  *
+ * @remarks
+ * Using this component to **initiate** a sign-in flow standalone in a browser SPA (i.e. when it is
+ * not driven by an `executionId` from a redirect) is **not supported** and throws at runtime.
+ * Browser SPAs should sign in with the redirect-based OAuth2 `authorization_code` + PKCE flow via
+ * `<SignInButton />` instead. This does not affect the hosted sign-in (Gate) experience, which
+ * continues a redirect-initiated flow.
+ *
  * @example
  * ```vue
  * <!-- Default UI -->

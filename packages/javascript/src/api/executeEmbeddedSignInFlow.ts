@@ -17,10 +17,29 @@
  */
 
 import ThunderIDAPIError from '../errors/ThunderIDAPIError';
+import ThunderIDRuntimeError from '../errors/ThunderIDRuntimeError';
 import {EmbeddedFlowExecuteRequestConfig} from '../models/embedded-flow';
 import {EmbeddedSignInFlowResponse, EmbeddedSignInFlowStatus} from '../models/embedded-signin-flow';
 import injectRequestedPermissions from '../utils/injectRequestedPermissions';
 
+/**
+ * Detects whether the SDK is executing inside a browser.
+ */
+const isBrowser = (): boolean =>
+  typeof window !== 'undefined' && typeof (window as {document?: unknown}).document !== 'undefined';
+
+/**
+ * Executes a step of the embedded sign-in flow against `POST /flow/execute`.
+ *
+ * @remarks
+ * Initiating a new sign-in flow directly from a **browser SPA** (by passing `applicationId` and
+ * `flowType`) is not supported — browser SPAs must use the redirect-based OAuth2
+ * `authorization_code` + PKCE flow, where the IdP enforces redirection to a pre-registered
+ * `redirect_uri`. Attempting it in a browser throws a {@link ThunderIDRuntimeError}.
+ *
+ * Continuing an existing flow with an `executionId` — the path the hosted sign-in (Gate) UI uses —
+ * is unaffected, and server-side (confidential client) code may still initiate the flow.
+ */
 const executeEmbeddedSignInFlow = async ({
   url,
   baseUrl,
@@ -60,6 +79,18 @@ const executeEmbeddedSignInFlow = async ({
     cleanPayload !== null &&
     'executionId' in cleanPayload &&
     Object.keys(cleanPayload).length === 1;
+
+  // Browser SPAs must not initiate a sign-in flow directly; they must use the redirect-based
+  // authorization_code + PKCE flow. Server-side (confidential client) initiation and browser-side
+  // continuation with an executionId remain supported.
+  if (isNewFlowStart && isBrowser()) {
+    throw new ThunderIDRuntimeError(
+      'Browser single-page applications cannot initiate a sign-in flow directly via ' +
+        '"POST /flow/execute". Use the redirect-based OAuth2 authorization_code + PKCE flow instead.',
+      'executeEmbeddedSignInFlow-SPAInitiationNotSupported',
+      'javascript',
+    );
+  }
 
   const basePayload: Record<string, unknown> = isNewFlowStart
     ? injectRequestedPermissions(cleanPayload as Record<string, unknown>)
