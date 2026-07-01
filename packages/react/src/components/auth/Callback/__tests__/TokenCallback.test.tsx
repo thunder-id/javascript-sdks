@@ -15,9 +15,10 @@
  * under the License.
  */
 
-import {render, waitFor} from '@testing-library/react';
+import {render, waitFor, cleanup} from '@testing-library/react';
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
 import {TokenCallback} from '../TokenCallback';
+import ThunderIDContext from '../../../../contexts/ThunderID/ThunderIDContext';
 
 const mockSignIn: any = vi.fn();
 const mockSignUp: any = vi.fn();
@@ -43,10 +44,6 @@ const thunderIDContext: any = {
   signUp: mockSignUp,
 };
 
-vi.mock('../../../contexts/ThunderID/useThunderID', () => ({
-  default: () => thunderIDContext,
-}));
-
 describe('TokenCallback', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -55,6 +52,7 @@ describe('TokenCallback', () => {
   });
 
   afterEach(() => {
+    cleanup();
     sessionStorage.clear();
     window.history.replaceState({}, '', '/');
   });
@@ -72,7 +70,11 @@ describe('TokenCallback', () => {
       '/callback?id=exec-1&applicationId=app-1&token=secret-token&type=AUTHENTICATION',
     );
 
-    render(<TokenCallback onNavigate={onNavigate} />);
+    render(
+      <ThunderIDContext.Provider value={thunderIDContext}>
+        <TokenCallback onNavigate={onNavigate} />
+      </ThunderIDContext.Provider>,
+    );
 
     await waitFor(() => {
       expect(mockSignIn).toHaveBeenCalledWith({
@@ -98,7 +100,11 @@ describe('TokenCallback', () => {
     });
     window.history.replaceState({}, '', '/callback?id=exec-1&applicationId=app-1&token=secret-token&type=REGISTRATION');
 
-    render(<TokenCallback onNavigate={onNavigate} />);
+    render(
+      <ThunderIDContext.Provider value={thunderIDContext}>
+        <TokenCallback onNavigate={onNavigate} />
+      </ThunderIDContext.Provider>,
+    );
 
     await waitFor(() => {
       expect(mockSignUp).toHaveBeenCalledWith({
@@ -120,7 +126,11 @@ describe('TokenCallback', () => {
     const onNavigate: any = vi.fn();
     window.history.replaceState({}, '', '/callback?id=exec-1');
 
-    render(<TokenCallback onError={onError} onNavigate={onNavigate} />);
+    render(
+      <ThunderIDContext.Provider value={thunderIDContext}>
+        <TokenCallback onError={onError} onNavigate={onNavigate} />
+      </ThunderIDContext.Provider>,
+    );
 
     await waitFor(() => {
       expect(onError).toHaveBeenCalledWith(
@@ -140,7 +150,11 @@ describe('TokenCallback', () => {
     mockSignIn.mockRejectedValue(new Error('Invalid token'));
     window.history.replaceState({}, '', '/callback?id=exec-1&token=secret-token');
 
-    render(<TokenCallback onError={onError} onNavigate={onNavigate} />);
+    render(
+      <ThunderIDContext.Provider value={thunderIDContext}>
+        <TokenCallback onError={onError} onNavigate={onNavigate} />
+      </ThunderIDContext.Provider>,
+    );
 
     await waitFor(() => {
       expect(onError).toHaveBeenCalledWith(expect.objectContaining({message: 'Invalid token'}));

@@ -450,6 +450,10 @@ export interface ThemePreferences {
    */
   direction?: 'ltr' | 'rtl';
   /**
+   * Whether to inherit theme from branding.
+   */
+  inheritFromBranding?: boolean;
+  /**
    * The theme mode to use. Defaults to 'system'.
    */
   mode?: ThemeMode;

@@ -105,13 +105,13 @@ const getScim2Me = async ({url, baseUrl, fetcher, ...requestConfig}: GetScim2MeC
   }
 
   const fetchFn: typeof fetch = fetcher || fetch;
-  const resolvedUrl: string = url ?? `${baseUrl}/scim2/Me`;
+  const resolvedUrl: string = url ?? `${baseUrl}/users/me`;
 
   const requestInit: RequestInit = {
     ...requestConfig,
     headers: {
       Accept: 'application/json',
-      'Content-Type': 'application/scim+json',
+      'Content-Type': 'application/json',
       ...requestConfig.headers,
     },
     method: 'GET',
@@ -134,8 +134,13 @@ const getScim2Me = async ({url, baseUrl, fetcher, ...requestConfig}: GetScim2MeC
     }
 
     const user: User = (await response.json()) as User;
+    const attributes: Record<string, unknown> = (user['attributes'] as Record<string, unknown>) ?? {};
+    const processedUser: User = {
+      ...user,
+      ...attributes,
+    };
 
-    return processUserUsername(user);
+    return processUserUsername(processedUser);
   } catch (error) {
     if (error instanceof ThunderIDAPIError) {
       throw error;

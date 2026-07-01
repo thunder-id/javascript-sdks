@@ -18,7 +18,7 @@
 
 import {cx} from '@emotion/css';
 import {User, withVendorCSSClassPrefix, WellKnownSchemaIds, bem, Preferences} from '@thunderid/browser';
-import {FC, ReactElement, useState, useCallback} from 'react';
+import {FC, ReactElement, useState, useCallback, useEffect} from 'react';
 import useStyles from './BaseUserProfile.styles';
 import useTheme from '../../../contexts/Theme/useTheme';
 import useTranslation from '../../../hooks/useTranslation';
@@ -141,6 +141,23 @@ const BaseUserProfile: FC<BaseUserProfileProps> = ({
   const [editedUser, setEditedUser] = useState(flattenedProfile || profile);
   const [editingFields, setEditingFields] = useState<Record<string, boolean>>({});
   const {t} = useTranslation(preferences?.i18n);
+
+  useEffect(() => {
+    const nextUser = flattenedProfile ?? profile;
+    if (!nextUser) return;
+
+    setEditedUser((prev: any) => {
+      if (!prev) return nextUser;
+
+      const updated = {...prev};
+      Object.keys(nextUser).forEach((key) => {
+        if (!editingFields[key]) {
+          updated[key] = nextUser[key];
+        }
+      });
+      return updated;
+    });
+  }, [flattenedProfile, profile, editingFields]);
 
   /**
    * Determines if a field should be visible based on showFields, hideFields, and fieldsToSkip arrays.

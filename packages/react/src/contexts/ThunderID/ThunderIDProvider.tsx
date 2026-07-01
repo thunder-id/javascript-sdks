@@ -39,6 +39,7 @@ import FlowMetaProvider from '../FlowMeta/FlowMetaProvider';
 import I18nProvider from '../I18n/I18nProvider';
 import ThemeProvider from '../Theme/ThemeProvider';
 import UserProvider from '../User/UserProvider';
+import getScim2Me from '../../api/getScim2Me';
 
 const logger: ReturnType<typeof createPackageComponentLogger> = createPackageComponentLogger(
   '@thunderid/react',
@@ -130,18 +131,29 @@ const ThunderIDProvider: FC<PropsWithChildren<ThunderIDProviderProps>> = ({
         setBaseUrl(resolvedBaseUrl);
       }
 
-      // TEMPORARY: SCIM2 and Organizations endpoints are not yet supported.
+      const shouldFetchProfile: boolean = preferences?.user?.fetchUserProfile === true;
       const claims: User = extractUserClaimsFromIdToken(decodedToken) as User;
-      setUser(claims);
+      let profileData = claims;
+      const currentSignInStatus: boolean = await client.isSignedIn();
+
+      if (currentSignInStatus && shouldFetchProfile) {
+        try {
+          const fetchedProfile = await getScim2Me({baseUrl: resolvedBaseUrl, instanceId});
+          profileData = {...claims, ...fetchedProfile};
+        } catch (err) {
+          logger.warn('Failed to fetch user profile from /users/me:', err);
+        }
+      }
+
+      setUser(profileData);
       setUserProfile({
-        flattenedProfile: claims,
-        profile: claims,
+        flattenedProfile: generateFlattenedUserProfile(profileData, []),
+        profile: profileData,
         schemas: [],
       });
 
       // CRITICAL: Update sign-in status BEFORE setting loading to false
       // This prevents the race condition where ProtectedRoute sees isLoading=false but isSignedIn=false
-      const currentSignInStatus: boolean = await client.isSignedIn();
       setIsSignedInSync(currentSignInStatus);
     } catch (error) {
       // TODO: Add an error log.

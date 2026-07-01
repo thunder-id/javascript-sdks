@@ -27,19 +27,26 @@ describe('updateMeProfile', (): void => {
   });
 
   it('should update profile successfully using default fetch', async (): Promise<void> => {
-    const mockUser: User = {
-      email: 'alice@example.com',
+    const mockUserResponse = {
       id: 'u1',
-      name: 'Alice',
+      attributes: {
+        email: 'alice@example.com',
+        name: 'Alice',
+      },
+    };
+
+    const mockUser: User = {
+      ...mockUserResponse,
+      ...mockUserResponse.attributes,
     };
 
     global.fetch = vi.fn().mockResolvedValue({
-      json: () => Promise.resolve(mockUser),
+      json: () => Promise.resolve(mockUserResponse),
       ok: true,
     });
 
-    const url = 'https://localhost:8090/scim2/Me';
-    const payload: Record<string, unknown> = {'urn:scim:wso2:schema': {mobileNumbers: ['0777933830']}};
+    const url = 'https://localhost:8090/users/me';
+    const payload: Record<string, unknown> = {given_name: 'Alice'};
 
     const result: User = await updateMeProfile({payload, url});
 
@@ -47,60 +54,77 @@ describe('updateMeProfile', (): void => {
     const [calledUrl, init]: [string, RequestInit] = (fetch as unknown as Mock).mock.calls[0];
 
     expect(calledUrl).toBe(url);
-    expect(init.method).toBe('PATCH');
-    expect((init.headers as Record<string, string>)['Content-Type']).toBe('application/scim+json');
+    expect(init.method).toBe('PUT');
+    expect((init.headers as Record<string, string>)['Content-Type']).toBe('application/json');
     expect((init.headers as Record<string, string>)['Accept']).toBe('application/json');
 
     const parsed: Record<string, unknown> = JSON.parse(init.body as string);
-    expect(parsed.schemas).toEqual(['urn:ietf:params:scim:api:messages:2.0:PatchOp']);
-    expect(parsed.Operations).toEqual([{op: 'replace', value: payload}]);
+    expect(parsed.attributes).toEqual(payload);
 
     expect(result).toEqual(mockUser);
   });
 
   it('should fall back to baseUrl when url is not provided', async (): Promise<void> => {
-    const mockUser: User = {
-      email: 'bob@example.com',
+    const mockUserResponse = {
       id: 'u2',
-      name: 'Bob',
+      attributes: {
+        email: 'bob@example.com',
+        name: 'Bob',
+      },
+    };
+
+    const mockUser: User = {
+      ...mockUserResponse,
+      ...mockUserResponse.attributes,
     };
 
     global.fetch = vi.fn().mockResolvedValue({
-      json: () => Promise.resolve(mockUser),
+      json: () => Promise.resolve(mockUserResponse),
       ok: true,
     });
 
     const baseUrl = 'https://localhost:8090';
-    const payload: Record<string, unknown> = {profile: {givenName: 'Bob'}};
+    const payload: Record<string, unknown> = {givenName: 'Bob'};
 
     const result: User = await updateMeProfile({baseUrl, payload});
 
-    expect(fetch).toHaveBeenCalledWith(`${baseUrl}/scim2/Me`, expect.any(Object));
+    expect(fetch).toHaveBeenCalledWith(`${baseUrl}/users/me`, expect.any(Object));
     expect(result).toEqual(mockUser);
   });
 
   it('should use custom fetcher when provided', async (): Promise<void> => {
-    const mockUser: User = {email: 'carol@example.com', id: 'u3', name: 'Carol'};
+    const mockUserResponse = {
+      id: 'u3',
+      attributes: {
+        email: 'carol@example.com',
+        name: 'Carol',
+      },
+    };
+
+    const mockUser: User = {
+      ...mockUserResponse,
+      ...mockUserResponse.attributes,
+    };
 
     const customFetcher: Mock = vi.fn().mockResolvedValue({
-      json: () => Promise.resolve(mockUser),
+      json: () => Promise.resolve(mockUserResponse),
       ok: true,
     });
 
     const baseUrl = 'https://localhost:8090';
-    const payload: Record<string, unknown> = {profile: {familyName: 'Doe'}};
+    const payload: Record<string, unknown> = {familyName: 'Doe'};
 
     const result: User = await updateMeProfile({baseUrl, fetcher: customFetcher, payload});
 
     expect(result).toEqual(mockUser);
     expect(customFetcher).toHaveBeenCalledWith(
-      `${baseUrl}/scim2/Me`,
+      `${baseUrl}/users/me`,
       expect.objectContaining({
         headers: expect.objectContaining({
           Accept: 'application/json',
-          'Content-Type': 'application/scim+json',
+          'Content-Type': 'application/json',
         }),
-        method: 'PATCH',
+        method: 'PUT',
       }),
     );
   });
@@ -112,7 +136,7 @@ describe('updateMeProfile', (): void => {
       ok: true,
     });
 
-    const url = 'https://localhost:8090/scim2/Me';
+    const url = 'https://localhost:8090/users/me';
     const baseUrl = 'https://localhost:8090';
     await updateMeProfile({baseUrl, payload: {x: 1}, url});
 
@@ -156,16 +180,16 @@ describe('updateMeProfile', (): void => {
   it('should handle network or unknown errors with the generic message', async (): Promise<void> => {
     // Rejection with Error
     global.fetch = vi.fn().mockRejectedValue(new Error('Network error'));
-    await expect(updateMeProfile({payload: {a: 1}, url: 'https://localhost:8090/scim2/Me'})).rejects.toThrow(
+    await expect(updateMeProfile({payload: {a: 1}, url: 'https://localhost:8090/users/me'})).rejects.toThrow(
       ThunderIDAPIError,
     );
-    await expect(updateMeProfile({payload: {a: 1}, url: 'https://localhost:8090/scim2/Me'})).rejects.toThrow(
+    await expect(updateMeProfile({payload: {a: 1}, url: 'https://localhost:8090/users/me'})).rejects.toThrow(
       'An error occurred while updating the user profile. Please try again.',
     );
 
     // Rejection with non-Error
     global.fetch = vi.fn().mockRejectedValue('weird failure');
-    await expect(updateMeProfile({payload: {a: 1}, url: 'https://localhost:8090/scim2/Me'})).rejects.toThrow(
+    await expect(updateMeProfile({payload: {a: 1}, url: 'https://localhost:8090/users/me'})).rejects.toThrow(
       'An error occurred while updating the user profile. Please try again.',
     );
   });
@@ -192,28 +216,26 @@ describe('updateMeProfile', (): void => {
     expect((init as Record<string, unknown>).headers).toMatchObject({
       Accept: 'application/json',
       Authorization: 'Bearer token',
-      'Content-Type': 'application/scim+json',
+      'Content-Type': 'application/json',
       'X-Custom-Header': 'custom-value',
     });
   });
 
-  it('should build the SCIM PatchOp body correctly', async (): Promise<void> => {
+  it('should build the PUT attributes body correctly', async (): Promise<void> => {
     global.fetch = vi.fn().mockResolvedValue({
       json: () => Promise.resolve({} as User),
       ok: true,
     });
 
     const baseUrl = 'https://localhost:8090';
-    const payload: Record<string, unknown> = {'urn:scim:wso2:schema': {mobileNumbers: ['123']}};
+    const payload: Record<string, unknown> = {mobileNumbers: ['123']};
 
     await updateMeProfile({baseUrl, payload});
 
     const [, init]: [string, RequestInit] = (fetch as unknown as Mock).mock.calls[0];
     const body: Record<string, unknown> = JSON.parse((init as Record<string, unknown>).body as string);
 
-    expect(body.schemas).toEqual(['urn:ietf:params:scim:api:messages:2.0:PatchOp']);
-    expect(body.Operations).toHaveLength(1);
-    expect((body.Operations as Record<string, unknown>[])[0]).toEqual({op: 'replace', value: payload});
+    expect(body.attributes).toEqual(payload);
   });
 
   it('should allow method override when provided in requestConfig', async (): Promise<void> => {

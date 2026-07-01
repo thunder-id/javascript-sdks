@@ -16,7 +16,7 @@
  * under the License.
  */
 
-import {ThunderIDError, User} from '@thunderid/browser';
+import {ThunderIDError, User, deepMerge} from '@thunderid/browser';
 import {FC, ReactElement, useState} from 'react';
 // eslint-disable-next-line import/no-named-as-default
 import BaseUserProfile, {BaseUserProfileProps} from './BaseUserProfile';
@@ -71,11 +71,22 @@ const UserProfile: FC<UserProfileProps> = ({preferences, ...rest}: UserProfilePr
 
   const [error, setError] = useState<string | null>(null);
 
-  const handleProfileUpdate = async (payload: any): Promise<void> => {
+  const handleProfileUpdate = async (payload: Record<string, unknown>): Promise<void> => {
     setError(null);
 
     try {
-      const response: User = await updateMeProfile({baseUrl, instanceId, payload});
+      const updatedAttributes: Record<string, unknown> = deepMerge(
+        (profile?.['attributes'] as Record<string, unknown>) ?? {},
+        payload,
+      );
+
+      Object.keys(updatedAttributes).forEach((key) => {
+        if (updatedAttributes[key] === undefined || updatedAttributes[key] === null) {
+          delete updatedAttributes[key];
+        }
+      });
+
+      const response: User = await updateMeProfile({baseUrl, instanceId, payload: updatedAttributes});
       onUpdateProfile(response);
     } catch (caughtError: unknown) {
       let message: string = t('user.profile.update.generic.error');

@@ -21,37 +21,44 @@ import ThunderIDAPIError from '../../errors/ThunderIDAPIError';
 import getScim2Me from '../getScim2Me';
 
 // Mock user data
-const mockUser: Record<string, unknown> = {
-  email: 'test@example.com',
-  familyName: 'User',
-  givenName: 'Test',
+const mockUserResponse: Record<string, unknown> = {
   id: '123',
-  username: 'testuser',
+  attributes: {
+    email: 'test@example.com',
+    familyName: 'User',
+    givenName: 'Test',
+    username: 'testuser',
+  },
+};
+
+const mockUser: Record<string, unknown> = {
+  ...mockUserResponse,
+  ...mockUserResponse.attributes,
 };
 
 describe('getScim2Me', () => {
   it('should fetch user profile successfully with default fetch', async () => {
     // Mock fetch
     const mockFetch: typeof fetch = vi.fn().mockResolvedValue({
-      json: () => Promise.resolve(mockUser),
+      json: () => Promise.resolve(mockUserResponse),
       ok: true,
       status: 200,
       statusText: 'OK',
-      text: () => Promise.resolve(JSON.stringify(mockUser)),
+      text: () => Promise.resolve(JSON.stringify(mockUserResponse)),
     });
 
     // Replace global fetch
     global.fetch = mockFetch;
 
     const result: Record<string, unknown> = await getScim2Me({
-      url: 'https://localhost:8090/scim2/Me',
+      url: 'https://localhost:8090/users/me',
     });
 
     expect(result).toEqual(mockUser);
-    expect(mockFetch).toHaveBeenCalledWith('https://localhost:8090/scim2/Me', {
+    expect(mockFetch).toHaveBeenCalledWith('https://localhost:8090/users/me', {
       headers: {
         Accept: 'application/json',
-        'Content-Type': 'application/scim+json',
+        'Content-Type': 'application/json',
       },
       method: 'GET',
     });
@@ -59,23 +66,23 @@ describe('getScim2Me', () => {
 
   it('should use custom fetcher when provided', async () => {
     const customFetcher: typeof fetch = vi.fn().mockResolvedValue({
-      json: () => Promise.resolve(mockUser),
+      json: () => Promise.resolve(mockUserResponse),
       ok: true,
       status: 200,
       statusText: 'OK',
-      text: () => Promise.resolve(JSON.stringify(mockUser)),
+      text: () => Promise.resolve(JSON.stringify(mockUserResponse)),
     });
 
     const result: Record<string, unknown> = await getScim2Me({
       fetcher: customFetcher,
-      url: 'https://localhost:8090/scim2/Me',
+      url: 'https://localhost:8090/users/me',
     });
 
     expect(result).toEqual(mockUser);
-    expect(customFetcher).toHaveBeenCalledWith('https://localhost:8090/scim2/Me', {
+    expect(customFetcher).toHaveBeenCalledWith('https://localhost:8090/users/me', {
       headers: {
         Accept: 'application/json',
-        'Content-Type': 'application/scim+json',
+        'Content-Type': 'application/json',
       },
       method: 'GET',
     });
@@ -89,13 +96,13 @@ describe('getScim2Me', () => {
     await expect(
       getScim2Me({
         fetcher: customFetcher,
-        url: 'https://localhost:8090/scim2/Me',
+        url: 'https://localhost:8090/users/me',
       }),
     ).rejects.toThrow(ThunderIDAPIError);
     await expect(
       getScim2Me({
         fetcher: customFetcher,
-        url: 'https://localhost:8090/scim2/Me',
+        url: 'https://localhost:8090/users/me',
       }),
     ).rejects.toThrow('Network or parsing error: Custom fetcher failure');
   });
@@ -153,7 +160,7 @@ describe('getScim2Me', () => {
 
     await expect(
       getScim2Me({
-        url: 'https://localhost:8090/scim2/Me',
+        url: 'https://localhost:8090/users/me',
       }),
     ).rejects.toThrow(ThunderIDAPIError);
   });
@@ -165,7 +172,7 @@ describe('getScim2Me', () => {
 
     await expect(
       getScim2Me({
-        url: 'https://localhost:8090/scim2/Me',
+        url: 'https://localhost:8090/users/me',
       }),
     ).rejects.toThrow(ThunderIDAPIError);
   });
@@ -181,11 +188,11 @@ describe('getScim2Me', () => {
 
   it('should pass through custom headers', async () => {
     const mockFetch: typeof fetch = vi.fn().mockResolvedValue({
-      json: () => Promise.resolve(mockUser),
+      json: () => Promise.resolve(mockUserResponse),
       ok: true,
       status: 200,
       statusText: 'OK',
-      text: () => Promise.resolve(JSON.stringify(mockUser)),
+      text: () => Promise.resolve(JSON.stringify(mockUserResponse)),
     });
 
     global.fetch = mockFetch;
@@ -196,13 +203,13 @@ describe('getScim2Me', () => {
 
     await getScim2Me({
       headers: customHeaders,
-      url: 'https://localhost:8090/scim2/Me',
+      url: 'https://localhost:8090/users/me',
     });
 
-    expect(mockFetch).toHaveBeenCalledWith('https://localhost:8090/scim2/Me', {
+    expect(mockFetch).toHaveBeenCalledWith('https://localhost:8090/users/me', {
       headers: {
         Accept: 'application/json',
-        'Content-Type': 'application/scim+json',
+        'Content-Type': 'application/json',
         ...customHeaders,
       },
       method: 'GET',
@@ -211,11 +218,11 @@ describe('getScim2Me', () => {
 
   it('should default to baseUrl if url is not provided', async () => {
     const mockFetch: typeof fetch = vi.fn().mockResolvedValue({
-      json: () => Promise.resolve(mockUser),
+      json: () => Promise.resolve(mockUserResponse),
       ok: true,
       status: 200,
       statusText: 'OK',
-      text: () => Promise.resolve(JSON.stringify(mockUser)),
+      text: () => Promise.resolve(JSON.stringify(mockUserResponse)),
     });
     global.fetch = mockFetch;
 
@@ -223,10 +230,10 @@ describe('getScim2Me', () => {
     await getScim2Me({
       baseUrl,
     });
-    expect(mockFetch).toHaveBeenCalledWith(`${baseUrl}/scim2/Me`, {
+    expect(mockFetch).toHaveBeenCalledWith(`${baseUrl}/users/me`, {
       headers: {
         Accept: 'application/json',
-        'Content-Type': 'application/scim+json',
+        'Content-Type': 'application/json',
       },
       method: 'GET',
     });

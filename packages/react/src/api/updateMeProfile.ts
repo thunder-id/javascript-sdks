@@ -71,7 +71,7 @@ const updateMeProfile = async ({fetcher, instanceId = 0, ...requestConfig}: Upda
     const response: HttpResponse<any> = await httpClient.request({
       data: config.body ? JSON.parse(config.body as string) : undefined,
       headers: config.headers as Record<string, string>,
-      method: config.method || 'PATCH',
+      method: config.method || 'PUT',
       url,
     } as HttpRequestConfig);
 

@@ -103,27 +103,21 @@ const updateMeProfile = async ({
     );
   }
 
-  const data: Record<string, unknown> = {
-    Operations: [
-      {
-        op: 'replace',
-        value: payload,
-      },
-    ],
-    schemas: ['urn:ietf:params:scim:api:messages:2.0:PatchOp'],
+  const data = {
+    attributes: payload,
   };
 
   const fetchFn: typeof fetch = fetcher || fetch;
-  const resolvedUrl: string = url ?? `${baseUrl}/scim2/Me`;
+  const resolvedUrl: string = url ?? `${baseUrl}/users/me`;
 
   const requestInit: RequestInit = {
-    method: 'PATCH',
     ...requestConfig,
+    method: 'PUT',
     body: JSON.stringify(data),
     headers: {
       ...requestConfig.headers,
       Accept: 'application/json',
-      'Content-Type': 'application/scim+json',
+      'Content-Type': 'application/json',
     },
   };
 
@@ -147,7 +141,13 @@ const updateMeProfile = async ({
     // (e.g. "DEFAULT/") so consumers receive a clean `userName`. Without
     // this, the optimistic-update path would put the prefixed value into
     // local state and the UI would flip to "DEFAULT/<email>" after a save.
-    return processUserUsername((await response.json()) as User);
+    const user: User = (await response.json()) as User;
+    const attributes: Record<string, unknown> = (user['attributes'] as Record<string, unknown>) ?? {};
+    const processedUser: User = {
+      ...user,
+      ...attributes,
+    };
+    return processUserUsername(processedUser);
   } catch (error) {
     if (error instanceof ThunderIDAPIError) {
       throw error;
