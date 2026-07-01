@@ -1,5 +1,5 @@
 import { createBrowserRouter, RouterProvider } from 'react-router'
-import { ProtectedRoute, CallbackRoute } from '@thunderid/react-router'
+import { ProtectedRoute } from '@thunderid/react-router'
 import Nav from './components/Nav'
 import HomePage from './pages/HomePage'
 import ProfilePage from './pages/ProfilePage'
@@ -13,7 +13,6 @@ const router = createBrowserRouter([
       { path: '/', element: <HomePage /> },
       { path: '/profile', element: <ProtectedRoute><ProfilePage /></ProtectedRoute> },
       { path: '/token', element: <ProtectedRoute><TokenDebugPage /></ProtectedRoute> },
-      { path: '/callback', element: <CallbackRoute /> },
     ],
   },
 ])

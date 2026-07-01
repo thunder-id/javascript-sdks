@@ -342,22 +342,38 @@ class ThunderIDJavaScriptClient<T = Config> implements ThunderIDClient<T> {
       (discovery?.wellKnown?.enabled !== false && baseUrl ? `${baseUrl}${WELL_KNOWN_PATH}` : undefined);
 
     if (resolvedWellKnownEndpoint) {
-      let response: Response;
+      let response: Response | undefined;
 
       try {
         response = await fetch(resolvedWellKnownEndpoint);
-        if (response.status !== 200 || !response.ok) {
-          throw new Error();
+        if (!response.ok || response.status !== 200) {
+          response = undefined;
         }
       } catch {
+        response = undefined;
+      }
+
+      if (response) {
+        await this.storageManager.setOIDCProviderMetaData(
+          await this.authHelper.resolveEndpoints(await response.json()),
+        );
+      } else if (baseUrl) {
+        try {
+          await this.storageManager.setOIDCProviderMetaData(await this.authHelper.resolveEndpointsByBaseURL());
+        } catch (error: any) {
+          throw new ThunderIDAuthException(
+            'JS-AUTH_CORE-GOPMD-IV02',
+            'Resolving endpoints failed.',
+            error ?? 'Resolving endpoints by base url failed.',
+          );
+        }
+      } else {
         throw new ThunderIDAuthException(
           'JS-AUTH_CORE-GOPMD-HE01',
           'Invalid well-known response',
           'The well known endpoint response has been failed with an error.',
         );
       }
-
-      await this.storageManager.setOIDCProviderMetaData(await this.authHelper.resolveEndpoints(await response.json()));
     } else if (baseUrl) {
       try {
         await this.storageManager.setOIDCProviderMetaData(await this.authHelper.resolveEndpointsByBaseURL());

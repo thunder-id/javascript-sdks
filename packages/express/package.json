@@ -16,10 +16,10 @@
   "type": "module",
   "main": "dist/index.js",
   "module": "dist/index.js",
-  "commonjs": "dist/cjs/index.js",
+  "commonjs": "dist/cjs/index.cjs",
   "exports": {
     "import": "./dist/index.js",
-    "require": "./dist/cjs/index.js"
+    "require": "./dist/cjs/index.cjs"
   },
   "files": [
     "dist",

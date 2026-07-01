@@ -9,7 +9,6 @@ createRoot(document.getElementById('root')).render(
     <ThunderIDProvider
       clientId={import.meta.env.VITE_THUNDERID_CLIENT_ID}
       baseUrl={import.meta.env.VITE_THUNDERID_BASE_URL}
-      afterSignInUrl={`${window.location.origin}/callback`}
     >
       <App />
     </ThunderIDProvider>

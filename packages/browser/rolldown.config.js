@@ -100,7 +100,7 @@ await esmBundle.close();
 const cjsBundle = await rolldown(commonOptions);
 await cjsBundle.write({
   banner: `const { Buffer } = require('buffer/index.js');\nif (typeof window !== 'undefined' && !window.Buffer) { window.Buffer = Buffer; }`,
-  file: 'dist/cjs/index.js',
+  file: 'dist/cjs/index.cjs',
   format: 'cjs',
   sourcemap: true,
 });

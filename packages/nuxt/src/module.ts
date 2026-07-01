@@ -174,8 +174,6 @@ export default defineNuxtModule<ThunderIDNuxtConfig>({
         method: 'patch' as const,
         route: '/api/auth/user/profile',
       },
-      // ── Branding ──────────────────────────────────────────────────────
-      {handler: resolve('./runtime/server/routes/auth/branding/branding.get'), route: '/api/auth/branding'},
     ];
 
     serverRoutes.forEach((sr: ServerRoute): void => {

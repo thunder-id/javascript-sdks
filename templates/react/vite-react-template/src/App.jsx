@@ -1,10 +1,18 @@
 import { createBrowserRouter, RouterProvider } from 'react-router'
-import { CallbackRoute } from '@thunderid/react-router'
+import { ProtectedRoute } from '@thunderid/react-router'
 import Home from './Home.jsx'
+import Dashboard from './Dashboard.jsx'
 
 const router = createBrowserRouter([
   { path: '/', element: <Home /> },
-  { path: '/callback', element: <CallbackRoute /> },
+  {
+    path: '/dashboard',
+    element: (
+      <ProtectedRoute redirectTo="/">
+        <Dashboard />
+      </ProtectedRoute>
+    ),
+  },
 ])
 
 export default function App() {
