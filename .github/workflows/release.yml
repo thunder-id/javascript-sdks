@@ -140,7 +140,7 @@ jobs:
           echo "version=$(node -p "require('./package.json').version")" >> $GITHUB_OUTPUT
 
       - name: 🔨 Build
-        run: pnpm nx run @thunderid/javascript:build
+        run: pnpm turbo run build --filter=@thunderid/javascript
 
       - name: 📤 Commit, Tag & Push
         run: |
@@ -206,7 +206,7 @@ jobs:
           echo "version=$(node -p "require('./package.json').version")" >> $GITHUB_OUTPUT
 
       - name: 🔨 Build
-        run: pnpm nx run @thunderid/browser:build
+        run: pnpm turbo run build --filter=@thunderid/browser
 
       - name: 📤 Commit, Tag & Push
         run: |
@@ -279,7 +279,7 @@ jobs:
           echo "version=$(node -p "require('./package.json').version")" >> $GITHUB_OUTPUT
 
       - name: 🔨 Build
-        run: pnpm nx run @thunderid/node:build
+        run: pnpm turbo run build --filter=@thunderid/node
 
       - name: 📤 Commit, Tag & Push
         run: |
@@ -353,7 +353,7 @@ jobs:
           echo "version=$(node -p "require('./package.json').version")" >> $GITHUB_OUTPUT
 
       - name: 🔨 Build
-        run: pnpm nx run @thunderid/express:build
+        run: pnpm turbo run build --filter=@thunderid/express
 
       - name: 📤 Commit, Tag & Push
         run: |
@@ -426,7 +426,7 @@ jobs:
           echo "version=$(node -p "require('./package.json').version")" >> $GITHUB_OUTPUT
 
       - name: 🔨 Build
-        run: pnpm nx run @thunderid/react:build
+        run: pnpm turbo run build --filter=@thunderid/react
 
       - name: 📤 Commit, Tag & Push
         run: |
@@ -499,7 +499,7 @@ jobs:
           echo "version=$(node -p "require('./package.json').version")" >> $GITHUB_OUTPUT
 
       - name: 🔨 Build
-        run: pnpm nx run @thunderid/vue:build
+        run: pnpm turbo run build --filter=@thunderid/vue
 
       - name: 📤 Commit, Tag & Push
         run: |
@@ -573,7 +573,7 @@ jobs:
           echo "version=$(node -p "require('./package.json').version")" >> $GITHUB_OUTPUT
 
       - name: 🔨 Build
-        run: pnpm nx run @thunderid/react-router:build
+        run: pnpm turbo run build --filter=@thunderid/react-router
 
       - name: 📤 Commit, Tag & Push
         run: |
@@ -638,7 +638,7 @@ jobs:
           echo "version=$(node -p "require('./package.json').version")" >> $GITHUB_OUTPUT
 
       - name: 🔨 Build
-        run: pnpm nx run @thunderid/tanstack-router:build
+        run: pnpm turbo run build --filter=@thunderid/tanstack-router
 
       - name: 📤 Commit, Tag & Push
         run: |
@@ -703,7 +703,7 @@ jobs:
           echo "version=$(node -p "require('./package.json').version")" >> $GITHUB_OUTPUT
 
       - name: 🔨 Build
-        run: pnpm nx run @thunderid/nextjs:build
+        run: pnpm turbo run build --filter=@thunderid/nextjs
 
       - name: 📤 Commit, Tag & Push
         run: |
@@ -776,7 +776,7 @@ jobs:
           echo "version=$(node -p "require('./package.json').version")" >> $GITHUB_OUTPUT
 
       - name: 🔨 Build
-        run: pnpm nx run @thunderid/nuxt:build
+        run: pnpm turbo run build --filter=@thunderid/nuxt
 
       - name: 📤 Commit, Tag & Push
         run: |

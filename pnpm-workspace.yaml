@@ -11,8 +11,8 @@ allowBuilds:
   '@parcel/watcher': true
   core-js: true
   esbuild: true
-  nx: true
   sharp: true
+  turbo: true
   unrs-resolver: true
 
 catalog:
