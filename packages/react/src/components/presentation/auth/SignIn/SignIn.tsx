@@ -162,6 +162,14 @@ interface PasskeyState {
  * This component handles the flow API calls for authentication and delegates UI logic to BaseSignIn.
  * It automatically transforms simple input-based responses into component-driven UI format.
  *
+ * @remarks
+ * Using this component to **initiate** a sign-in flow standalone in a browser SPA (i.e. when it is
+ * not driven by an `executionId` from a redirect) is **not supported** and throws at runtime.
+ * Browser SPAs should sign in with the redirect-based OAuth2 `authorization_code` + PKCE flow via
+ * [`<SignInButton />`](https://thunderid.dev/sdks/react/apis/components/sign-in-button) instead.
+ * This does not affect the hosted sign-in (Gate) experience, which continues a redirect-initiated
+ * flow.
+ *
  * @example
  * // Default UI
  * ```tsx
