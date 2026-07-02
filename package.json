@@ -21,23 +21,29 @@
     "wso2"
   ],
   "scripts": {
-    "build": "nx run-many --target=build --all",
-    "clean": "nx run-many --target=clean --all && rimraf node_modules",
-    "format:check": "nx run-many --target=format:check --all --parallel",
-    "format:fix": "nx run-many --target=format:fix --all --parallel",
-    "lint": "nx run-many --target=lint --all --parallel",
-    "lint:fix": "nx run-many --target=lint:fix --all --parallel",
-    "test": "nx run-many --target=test --all --parallel",
+    "build": "turbo run build",
+    "clean": "turbo run clean && rimraf node_modules",
+    "format:check": "turbo run format:check",
+    "format:fix": "turbo run format:fix",
+    "lint": "turbo run lint",
+    "lint:fix": "turbo run lint:fix",
+    "test": "turbo run test",
     "symlink": "node scripts/symlink.js",
-    "typecheck": "nx run-many --target=typecheck --all --parallel"
+    "typecheck": "turbo run typecheck"
   },
   "devDependencies": {
-    "nx": "22.7.5",
+    "turbo": "2.10.2",
     "@thunderid/eslint-plugin": "catalog:",
     "eslint": "catalog:",
     "prettier": "catalog:",
     "rimraf": "catalog:",
     "tslib": "catalog:",
     "typescript": "catalog:"
+  },
+  "devEngines": {
+    "packageManager": {
+      "name": "pnpm",
+      "version": "11.9.0"
+    }
   }
 }
