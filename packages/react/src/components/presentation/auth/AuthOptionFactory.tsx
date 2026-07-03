@@ -21,6 +21,7 @@ import {
   FieldType,
   FlowMetadataResponse,
   EmbeddedFlowComponent,
+  EmbeddedFlowComponentAction,
   EmbeddedFlowComponentType,
   EmbeddedFlowTextVariant,
   EmbeddedFlowEventType,
@@ -523,10 +524,69 @@ const createAuthComponentFromFlow = (
     }
 
     case EmbeddedFlowComponentType.RichText: {
+      const richTextAction: EmbeddedFlowComponentAction | undefined = component.action;
+
+      const dispatchRichTextAction = (): void => {
+        if (!richTextAction || !options.onSubmit) {
+          return;
+        }
+        const eventTypeValue = String(richTextAction.eventType ?? EmbeddedFlowEventType.Submit);
+        const shouldSkipValidation: boolean = eventTypeValue.toUpperCase() === String(EmbeddedFlowEventType.Trigger);
+        const syntheticAction: EmbeddedFlowComponent = {
+          eventType: eventTypeValue,
+          id: `${component.id}_action`,
+          ref: richTextAction.ref,
+          type: EmbeddedFlowComponentType.Action,
+        };
+        const formData: Record<string, string> = {};
+        Object.keys(formValues).forEach((field: string) => {
+          formData[field] = formValues[field];
+        });
+        options.onSubmit(syntheticAction, formData, shouldSkipValidation);
+      };
+
+      // Sentinel-anchor contract: only anchors carrying `data-action-ref` equal to
+      // richTextAction.ref dispatch the action. Anchors without the sentinel (or with
+      // a non-matching one) are treated as ordinary links and are ignored here.
+      const isMatchingSentinelAnchor = (anchor: HTMLAnchorElement): boolean =>
+        anchor.getAttribute('data-action-ref') === richTextAction?.ref;
+
+      const handleRichTextClick: React.MouseEventHandler<HTMLDivElement> | undefined = richTextAction
+        ? (event: React.MouseEvent<HTMLDivElement>): void => {
+            const anchor: HTMLAnchorElement | null = (event.target as HTMLElement).closest('a');
+            if (!anchor || !isMatchingSentinelAnchor(anchor)) {
+              return;
+            }
+            event.preventDefault();
+            dispatchRichTextAction();
+          }
+        : undefined;
+
+      const handleRichTextKeyDown: React.KeyboardEventHandler<HTMLDivElement> | undefined = richTextAction
+        ? (event: React.KeyboardEvent<HTMLDivElement>): void => {
+            if (event.key !== 'Enter' && event.key !== ' ') {
+              return;
+            }
+            const anchor: HTMLAnchorElement | null = (event.target as HTMLElement).closest('a');
+            if (!anchor || !isMatchingSentinelAnchor(anchor)) {
+              return;
+            }
+            event.preventDefault();
+            dispatchRichTextAction();
+          }
+        : undefined;
+
       return (
+        // Sentinel anchors are made keyboard-operable via the container's onKeyDown
+        // (Enter/Space activate the matching anchor). Authors should ensure the anchor
+        // is focusable (`href` or `tabIndex`); the click+keydown delegation covers both
+        // pointer and keyboard activation once focus lands on the anchor.
+        // eslint-disable-next-line jsx-a11y/no-static-element-interactions
         <div
           key={key}
           className={richTextClass}
+          onClick={handleRichTextClick}
+          onKeyDown={handleRichTextKeyDown}
           // Manually sanitizes with `DOMPurify`.
           // IMPORTANT: DO NOT REMOVE OR MODIFY THIS SANITIZATION STEP.
           dangerouslySetInnerHTML={{__html: DOMPurify.sanitize(resolveEmojiUrisInHtml(resolve(component.label)))}}

@@ -58,6 +58,7 @@ export {
 } from './models/embedded-flow';
 export type {
   EmbeddedFlowComponent,
+  EmbeddedFlowComponentAction,
   EmbeddedFlowResponseData,
   EmbeddedFlowExecuteRequestConfig,
   FlowExecutionError,

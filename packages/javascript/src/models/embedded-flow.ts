@@ -245,6 +245,23 @@ export enum EmbeddedFlowEventType {
 }
 
 /**
+ * Optional action wiring for otherwise-passive components such as RICH_TEXT. When
+ * set on a RICH_TEXT component, sentinel-marked anchors (`<a data-action-ref="...">`)
+ * inside the sanitized HTML dispatch a flow action instead of navigating.
+ *
+ * @experimental This interface may change in future versions
+ */
+export interface EmbeddedFlowComponentAction {
+  /** Reference of the flow action to dispatch when the sentinel anchor is clicked. */
+  ref: string;
+  /**
+   * Event type controlling submission semantics. `TRIGGER` bypasses client-side
+   * validation; `SUBMIT` runs validation. Defaults to `SUBMIT` when omitted.
+   */
+  eventType?: EmbeddedFlowEventType | string;
+}
+
+/**
  * Enhanced component interface for embedded flow components.
  *
  * This interface provides better support for modern form handling and user experience.
@@ -268,6 +285,14 @@ export enum EmbeddedFlowEventType {
  * @experimental This interface may change in future versions
  */
 export interface EmbeddedFlowComponent {
+  /**
+   * Optional flow-action wiring for otherwise-passive components. On RICH_TEXT
+   * components, sentinel-marked anchors (`<a data-action-ref="...">`) inside the
+   * sanitized HTML dispatch this action. When absent, the component remains pure
+   * display.
+   */
+  action?: EmbeddedFlowComponentAction;
+
   /**
    * Alignment of children along the cross axis (for Stack components).
    */
