@@ -22,9 +22,7 @@ import {
   AuthClientConfig,
   EmbeddedSignInFlowResponse,
   ExtendedAuthorizeRequestUrlParams,
-  FlattenedSchema,
   IdToken,
-  Schema,
   SignInOptions,
   SignUpOptions,
   Storage,
@@ -34,11 +32,8 @@ import {
   UserProfile,
   executeEmbeddedSignInFlow,
   extractUserClaimsFromIdToken,
-  flattenUserSchema,
   generateFlattenedUserProfile,
-  generateUserProfile,
-  getScim2Me,
-  getSchemas,
+  getUsersMe,
   updateMeProfile,
 } from '@thunderid/node';
 import {ThunderIDNextConfig} from './models/config';
@@ -130,21 +125,14 @@ class ThunderIDNextClient<T extends ThunderIDNextConfig = ThunderIDNextConfig> e
       const configData: AuthClientConfig<T> = await this.getStorageManager().getConfigData();
       const baseUrl: string | undefined = configData?.baseUrl;
 
-      const profile: User = await getScim2Me({
+      const profile: User = await getUsersMe({
         baseUrl,
         headers: {
           Authorization: `Bearer ${await this.getAccessToken(userId)}`,
         },
       });
 
-      const schemas: Schema[] = await getSchemas({
-        baseUrl,
-        headers: {
-          Authorization: `Bearer ${await this.getAccessToken(userId)}`,
-        },
-      });
-
-      return generateUserProfile(profile, flattenUserSchema(schemas));
+      return profile;
     } catch (error) {
       return await super.getUser(resolvedSessionId);
     }
@@ -157,32 +145,21 @@ class ThunderIDNextClient<T extends ThunderIDNextConfig = ThunderIDNextConfig> e
       const configData: AuthClientConfig<T> = await this.getStorageManager().getConfigData();
       const baseUrl: string | undefined = configData?.baseUrl;
 
-      const profile: User = await getScim2Me({
+      const profile: User = await getUsersMe({
         baseUrl,
         headers: {
           Authorization: `Bearer ${await this.getAccessToken(userId)}`,
         },
       });
-
-      const schemas: Schema[] = await getSchemas({
-        baseUrl,
-        headers: {
-          Authorization: `Bearer ${await this.getAccessToken(userId)}`,
-        },
-      });
-
-      const processedSchemas: FlattenedSchema[] = flattenUserSchema(schemas);
 
       return {
-        flattenedProfile: generateFlattenedUserProfile(profile, processedSchemas),
+        flattenedProfile: generateFlattenedUserProfile(profile),
         profile,
-        schemas: processedSchemas,
       };
     } catch (error) {
       return {
         flattenedProfile: extractUserClaimsFromIdToken(await super.getDecodedIdToken(userId)),
         profile: extractUserClaimsFromIdToken(await super.getDecodedIdToken(userId)),
-        schemas: [],
       };
     }
   }
@@ -199,7 +176,7 @@ class ThunderIDNextClient<T extends ThunderIDNextConfig = ThunderIDNextConfig> e
         headers: {
           Authorization: `Bearer ${await this.getAccessToken(userId)}`,
         },
-        payload,
+        payload: payload?.payload ?? payload,
       });
     } catch (error) {
       throw new ThunderIDRuntimeError(
@@ -289,7 +266,12 @@ class ThunderIDNextClient<T extends ThunderIDNextConfig = ThunderIDNextConfig> e
     } catch (error) {
       const message: string = error instanceof Error ? error.message : String(error);
 
-      if (!message.includes('end_session_endpoint')) {
+      if (
+        !message.includes('end_session_endpoint') &&
+        !message.includes('sign-out endpoint') &&
+        !message.includes('Sign-out endpoint') &&
+        !message.includes('Sign-out redirect URL')
+      ) {
         throw error;
       }
     }

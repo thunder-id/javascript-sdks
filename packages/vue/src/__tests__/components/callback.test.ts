@@ -21,26 +21,18 @@ import {describe, expect, it, vi, beforeEach, afterEach} from 'vitest';
 import Callback from '../../components/auth/Callback';
 
 describe('Callback', () => {
-  let originalLocation: Location;
-
   beforeEach(() => {
-    originalLocation = window.location;
     sessionStorage.clear();
   });
 
   afterEach(() => {
-    Object.defineProperty(window, 'location', {
-      value: originalLocation,
-      writable: true,
-    });
+    window.history.replaceState({}, '', '/');
     sessionStorage.clear();
   });
 
   function setWindowLocation(url: string): void {
-    Object.defineProperty(window, 'location', {
-      value: new URL(url),
-      writable: true,
-    });
+    const parsed = new URL(url);
+    window.history.replaceState({}, '', parsed.pathname + parsed.search);
   }
 
   it('should render nothing (headless component)', () => {

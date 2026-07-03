@@ -49,7 +49,7 @@ describe('AuthOptionFactory rich-text action', () => {
   it('renders a plain rich-text component without any click handler', () => {
     const onSubmit = vi.fn();
     const {container} = renderInto(
-      richTextWithLink('<p>Have an account? <a href="/signin" data-action-ref="action_signin">Sign in</a></p>'),
+      richTextWithLink('<p>Have an account? <a href="#" data-action-ref="action_signin">Sign in</a></p>'),
       onSubmit,
     );
 
@@ -62,7 +62,7 @@ describe('AuthOptionFactory rich-text action', () => {
   it('dispatches a synthetic action with SUBMIT semantics when the sentinel anchor is clicked', () => {
     const onSubmit = vi.fn();
     const {container} = renderInto(
-      richTextWithLink('<p>Have an account? <a href="/signin" data-action-ref="action_signin">Sign in</a></p>', {
+      richTextWithLink('<p>Have an account? <a href="#" data-action-ref="action_signin">Sign in</a></p>', {
         eventType: EmbeddedFlowEventType.Submit,
         ref: 'action_signin',
       }),
@@ -143,7 +143,7 @@ describe('AuthOptionFactory rich-text action', () => {
   it('ignores clicks on anchors that lack the data-action-ref sentinel', () => {
     const onSubmit = vi.fn();
     const {container} = renderInto(
-      richTextWithLink('<p>Have an account? <a href="/plain" target="_blank">Sign up</a></p>', {ref: 'action_signup'}),
+      richTextWithLink('<p>Have an account? <a href="#" target="_blank">Sign up</a></p>', {ref: 'action_signup'}),
       onSubmit,
     );
 

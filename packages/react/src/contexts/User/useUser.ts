@@ -24,7 +24,6 @@ import UserContext, {UserContextProps} from './UserContext';
  *
  * This hook provides access to user profile data including:
  * - Raw profile API response
- * - SCIM2 schemas
  * - Nested user object
  * - Flattened user profile
  * - Functions to refresh and update user data

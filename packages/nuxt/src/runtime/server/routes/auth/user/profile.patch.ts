@@ -27,10 +27,10 @@ import {useRuntimeConfig} from '#imports';
 /**
  * PATCH /api/auth/user/profile
  *
- * Updates the SCIM2 /Me profile for the authenticated user.
+ * Updates the /users/me profile for the authenticated user.
  * Mirrors the `updateUserProfileAction` Next.js server action.
  *
- * Request body: {@link UpdateMeProfileConfig} (the SCIM patch payload).
+ * Request body: {@link UpdateMeProfileConfig} (the patch payload).
  * Response: `{ data: { user: User }; success: boolean; error: string }`
  */
 export default defineEventHandler(

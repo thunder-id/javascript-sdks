@@ -39,6 +39,7 @@ export type ThunderIDContextProps = {
   applicationId: string | undefined;
   baseUrl: string | undefined;
   clientId: string | undefined;
+  preferences?: ThunderIDReactConfig['preferences'];
   scopes: string | string[] | undefined;
   /**
    * OIDC discovery data.
@@ -226,6 +227,7 @@ const ThunderIDContext: Context<ThunderIDContextProps | null> = createContext<nu
   baseUrl: undefined,
   clearSession: () => {},
   clientId: undefined,
+  preferences: undefined,
   scopes: undefined,
   discovery: {
     wellKnown: null,

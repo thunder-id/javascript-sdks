@@ -41,7 +41,7 @@ export enum ErrorCode {
   TempSessionInvalid = 'session/temp-invalid',
   TokenExchangeFailed = 'oauth/token-exchange-failed',
   TokenRefreshFailed = 'oauth/token-refresh-failed',
-  // ── SCIM2 ──────────────────────────────────────────────────────────
-  UserProfileFetchFailed = 'scim2/user-profile-fetch-failed',
-  UserProfileUpdateFailed = 'scim2/user-profile-update-failed',
+  // ── User Profile ──────────────────────────────────────────────────
+  UserProfileFetchFailed = 'user-profile/fetch-failed',
+  UserProfileUpdateFailed = 'user-profile/update-failed',
 }

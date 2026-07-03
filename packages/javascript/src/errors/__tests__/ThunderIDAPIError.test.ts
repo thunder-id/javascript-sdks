@@ -110,7 +110,6 @@ describe('ThunderIDAPIError — structured response body parsing', (): void => {
     const errorText: string = JSON.stringify({
       code: 'SSE-5000',
       description: {defaultValue: 'An unexpected error occurred', key: 'error.desc'},
-      message: {defaultValue: 'Internal server error', key: 'error.msg'},
     });
     const error: ThunderIDAPIError = new ThunderIDAPIError(
       errorText,

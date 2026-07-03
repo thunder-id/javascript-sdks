@@ -526,14 +526,13 @@ export interface I18nPreferences {
 
 export interface UserPreferences {
   /**
-   * Whether to automatically fetch the user profile from SCIM2 endpoints after sign-in.
-   * When set to false, the SDK will not make API calls to `/scim2/Me` and `/scim2/Schemas`.
-   * Instead, it will extract basic user claims from the ID token.
+   * Whether to automatically fetch the user profile from the `/users/me` endpoint after sign-in.
+   * When enabled, the SDK merges the server-backed profile with the ID token claims.
+   * When set to false, the SDK resolves attributes only from the OIDC ID token and the
+   * profile UI should be treated as read-only.
    * @default true
-   * @remarks Disabling this will improve performance but provide limited user profile information.
-   * Only the claims present in the ID token will be available (e.g., sub, email, name).
-   * For full user profile attributes (custom claims, enterprise attributes, etc.),
-   * keep this enabled or manually call `getUserProfile()` when needed.
+   * @remarks Disabling this avoids the `/users/me` request, but only the claims present
+   * in the ID token will be available (e.g. sub, email, name).
    */
   fetchUserProfile?: boolean;
 }

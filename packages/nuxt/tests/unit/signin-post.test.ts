@@ -183,7 +183,7 @@ describe('POST /api/auth/signin', () => {
         ],
       };
       const completedResponse = {
-        flowStatus: 'SUCCESS_COMPLETED',
+        flowStatus: 'COMPLETE',
         authData: {
           code: 'auth-code-xyz',
           state: 'state-123',
@@ -206,7 +206,7 @@ describe('POST /api/auth/signin', () => {
 
     it('throws 502 when authorization code is missing from completed flow', async () => {
       const flowPayload = {flowId: 'flow-abc', selectedAuthenticator: {authenticatorId: 'Basic'}, flowInputs: []};
-      const completedNoCode = {flowStatus: 'SUCCESS_COMPLETED', authData: {}};
+      const completedNoCode = {flowStatus: 'COMPLETE', authData: {}};
 
       mockClientInstance.signIn.mockResolvedValueOnce(completedNoCode);
       vi.mocked(readBody).mockResolvedValue({payload: flowPayload});

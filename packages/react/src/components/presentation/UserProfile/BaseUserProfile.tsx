@@ -17,8 +17,8 @@
  */
 
 import {cx} from '@emotion/css';
-import {User, withVendorCSSClassPrefix, WellKnownSchemaIds, bem, Preferences} from '@thunderid/browser';
-import {FC, ReactElement, useState, useCallback} from 'react';
+import {User, withVendorCSSClassPrefix, bem, Preferences, startCase} from '@thunderid/browser';
+import {FC, ReactElement, useState, useCallback, useEffect} from 'react';
 import useStyles from './BaseUserProfile.styles';
 import useTheme from '../../../contexts/Theme/useTheme';
 import useTranslation from '../../../hooks/useTranslation';
@@ -85,7 +85,6 @@ export interface BaseUserProfileProps {
    */
   preferences?: Preferences;
   profile?: User;
-  schemas?: Schema[];
   showFields?: string[];
 
   title?: string;
@@ -111,17 +110,20 @@ const fieldsToSkip: string[] = [
   'phoneNumbers.mobile',
   'emailAddresses',
   'preferredMFAOption',
+  'attributes',
+  'picture',
+  'isReadOnly',
+  'isReadonly',
 ];
 
 // Fields that should be readonly
-const readonlyFields: string[] = ['username', 'userName', 'user_name'];
+const readonlyFields: string[] = ['attributes', 'id', 'isReadOnly', 'ouId', 'username'];
 
 const BaseUserProfile: FC<BaseUserProfileProps> = ({
   fallback = null,
   className = '',
   cardLayout = true,
   profile,
-  schemas = [],
   flattenedProfile,
   mode = 'inline',
   title,
@@ -141,6 +143,23 @@ const BaseUserProfile: FC<BaseUserProfileProps> = ({
   const [editedUser, setEditedUser] = useState(flattenedProfile || profile);
   const [editingFields, setEditingFields] = useState<Record<string, boolean>>({});
   const {t} = useTranslation(preferences?.i18n);
+
+  useEffect(() => {
+    const nextUser = flattenedProfile ?? profile;
+    if (!nextUser) return;
+
+    setEditedUser((prev: any) => {
+      if (!prev) return nextUser;
+
+      const updated = {...nextUser};
+      Object.keys(prev).forEach((key) => {
+        if (editingFields[key]) {
+          updated[key] = prev[key];
+        }
+      });
+      return updated;
+    });
+  }, [flattenedProfile, profile, editingFields]);
 
   /**
    * Determines if a field should be visible based on showFields, hideFields, and fieldsToSkip arrays.
@@ -280,24 +299,7 @@ const BaseUserProfile: FC<BaseUserProfileProps> = ({
       }
 
       let payload: Record<string, any> = {};
-
-      // SCIM Patch Operation Logic:
-      // - Fields from core schema (urn:ietf:params:scim:schemas:core:2.0:User)
-      //   should be sent directly: {"name":{"givenName":"John"}}
-      // - Fields from extension schemas (like urn:scim:wso2:schema)
-      //   should be nested under the schema namespace: {"urn:scim:wso2:schema":{"country":"Sri Lanka"}}
-      if (schema.schemaId && schema.schemaId !== WellKnownSchemaIds.User) {
-        // For non-core schemas, nest the field under the schema namespace
-        payload = {
-          [schema.schemaId]: {
-            [fieldName]: fieldValue,
-          },
-        };
-      } else {
-        // For core schema or fields without schemaId, use the field path directly
-        // This handles complex paths like "name.givenName" correctly
-        set(payload, fieldName, fieldValue);
-      }
+      set(payload, fieldName, fieldValue);
 
       onUpdate(payload);
 
@@ -340,7 +342,7 @@ const BaseUserProfile: FC<BaseUserProfileProps> = ({
   ): ReactElement | null => {
     if (!schema) return null;
     const {value, displayName, description, name, type, required, mutability, subAttributes, multiValued} = schema;
-    const label: any = displayName || description || name || '';
+    const label: any = displayName || description || (name ? startCase(name) : '');
 
     if (subAttributes && Array.isArray(subAttributes)) {
       return (
@@ -659,17 +661,17 @@ const BaseUserProfile: FC<BaseUserProfileProps> = ({
           )}
         </div>
         <Divider />
-        {profileEntries.map(([key, value]: any, index: any) => (
-          <div key={key}>
-            <div className={styles.sectionRow}>
-              <div className={styles.sectionLabel}>{formatLabel(key)}</div>
-              <div className={styles.sectionValue}>
-                {typeof value === 'object' ? <ObjectDisplay data={value} /> : String(value)}
-              </div>
+        {profileEntries.map(([key, value]: any) => {
+          const isReadonly = readonlyFields.includes(key);
+          const schema: Schema = {name: key, mutability: isReadonly ? 'READ_ONLY' : 'READ_WRITE'};
+          const schemaWithValue: any = {...schema, value};
+
+          return (
+            <div key={key} className={styles.info}>
+              {renderUserInfo(schemaWithValue)}
             </div>
-            {index < profileEntries.length - 1 && <Divider />}
-          </div>
-        ))}
+          );
+        })}
       </>
     );
   };
@@ -685,50 +687,7 @@ const BaseUserProfile: FC<BaseUserProfileProps> = ({
           <AlertPrimitive.Description>{error}</AlertPrimitive.Description>
         </AlertPrimitive>
       )}
-      {schemas && schemas.length > 0 && (
-        <div className={styles.header}>
-          <Avatar
-            imageUrl={getMappedUserProfileValue('picture', mergedMappings, currentUser)}
-            name={getDisplayName(mergedMappings, profile!)}
-            size={80}
-            alt={`${getDisplayName(mergedMappings, profile!)}'s avatar`}
-            isLoading={isLoading}
-          />
-        </div>
-      )}
-      <div className={styles.infoContainer}>
-        {schemas && schemas.length > 0
-          ? schemas
-              .filter((schema: any) => {
-                if (!schema.name || !shouldShowField(schema.name)) return false;
-
-                if (!editable) {
-                  const value: any = flattenedProfile && schema.name ? flattenedProfile[schema.name] : undefined;
-                  return value !== undefined && value !== '' && value !== null;
-                }
-
-                return true;
-              })
-              .sort((a: any, b: any) => {
-                const orderA: any = a.displayOrder ? parseInt(a.displayOrder, 10) : 999;
-                const orderB: any = b.displayOrder ? parseInt(b.displayOrder, 10) : 999;
-                return orderA - orderB;
-              })
-              .map((schema: any, index: any) => {
-                const value: any = flattenedProfile && schema.name ? flattenedProfile[schema.name] : undefined;
-                const schemaWithValue: any = {
-                  ...schema,
-                  value,
-                };
-
-                return (
-                  <div key={schema.name || index} className={styles.info}>
-                    {renderUserInfo(schemaWithValue)}
-                  </div>
-                );
-              })
-          : renderProfileWithoutSchemas()}
-      </div>
+      <div className={styles.infoContainer}>{renderProfileWithoutSchemas()}</div>
     </CardPrimitive>
   );
 

@@ -56,7 +56,7 @@ export interface ThunderIDNuxtConfig {
       mode?: 'light' | 'dark' | 'system' | 'class' | 'branding';
     };
     user?: {
-      /** Whether to fetch the SCIM2 user profile during SSR (default: true). */
+      /** Whether to fetch the user profile during SSR (default: true). */
       fetchUserProfile?: boolean;
     };
   };
@@ -146,7 +146,7 @@ export interface ThunderIDSSRData {
   resolvedBaseUrl: string | null;
   session: ThunderIDSessionPayload | null;
   user: User | null;
-  /** Flattened SCIM2 profile + raw profile + schemas (null when `preferences.user.fetchUserProfile` is false). */
+  /** Flattened user profile + raw profile (null when `preferences.user.fetchUserProfile` is false). */
   userProfile: UserProfile | null;
 }
 

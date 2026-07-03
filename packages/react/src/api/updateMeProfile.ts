@@ -41,7 +41,7 @@ export interface UpdateMeProfileConfig extends Omit<BaseUpdateMeProfileConfig, '
 }
 
 /**
- * Updates the user profile information at the specified SCIM2 Me endpoint.
+ * Updates the user profile information at the specified /users/me endpoint.
  * This function uses the ThunderID SPA client's httpClient by default, but allows for custom fetchers.
  *
  * @param config - Configuration object with URL, payload and optional request config.
@@ -50,8 +50,8 @@ export interface UpdateMeProfileConfig extends Omit<BaseUpdateMeProfileConfig, '
  * ```typescript
  * // Using default ThunderID SPA client httpClient
  * await updateMeProfile({
- *   url: "https://localhost:8090/scim2/Me",
- *   payload: { "urn:scim:wso2:schema": { mobileNumbers: ["0777933830"] } }
+ *   url: "https://localhost:8090/users/me",
+ *   payload: { picture: "https://example.com/pic.jpg" }
  * });
  * ```
  *
@@ -59,8 +59,8 @@ export interface UpdateMeProfileConfig extends Omit<BaseUpdateMeProfileConfig, '
  * ```typescript
  * // Using custom fetcher
  * await updateMeProfile({
- *   url: "https://localhost:8090/scim2/Me",
- *   payload: { "urn:scim:wso2:schema": { mobileNumbers: ["0777933830"] } },
+ *   url: "https://localhost:8090/users/me",
+ *   payload: { picture: "https://example.com/pic.jpg" },
  *   fetcher: customFetchFunction
  * });
  * ```
@@ -71,7 +71,7 @@ const updateMeProfile = async ({fetcher, instanceId = 0, ...requestConfig}: Upda
     const response: HttpResponse<any> = await httpClient.request({
       data: config.body ? JSON.parse(config.body as string) : undefined,
       headers: config.headers as Record<string, string>,
-      method: config.method || 'PATCH',
+      method: config.method || 'PUT',
       url,
     } as HttpRequestConfig);
 

@@ -88,20 +88,19 @@ const ThunderIDRoot: Component = defineComponent({
     /**
      * Optimistic local update — mirrors `handleProfileUpdate` in
      * `ThunderIDClientProvider` (Next.js). Keeps reactive state fresh after a
-     * successful SCIM2 PATCH without an extra server round-trip.
+     * successful profile PATCH without an extra server round-trip.
      */
     const onUpdateProfile = (payload: User): void => {
       const prev: UserProfile | null = userProfileState.value;
       userProfileState.value = prev
         ? {
             ...prev,
-            flattenedProfile: generateFlattenedUserProfile(payload, prev.schemas),
+            flattenedProfile: generateFlattenedUserProfile(payload),
             profile: payload,
           }
         : {
-            flattenedProfile: generateFlattenedUserProfile(payload, []),
+            flattenedProfile: generateFlattenedUserProfile(payload),
             profile: payload,
-            schemas: [],
           };
       // Keep THUNDERID_KEY `user` ref in sync so `useThunderID().user` reflects
       // the update immediately.
@@ -109,7 +108,7 @@ const ThunderIDRoot: Component = defineComponent({
     };
 
     /**
-     * SCIM2 PATCH via the `/api/auth/user/profile` Nitro route.
+     * profile PATCH via the `/api/auth/user/profile` Nitro route.
      * Signature matches `UserProvider.updateProfile` exactly.
      *
      * On success, applies an optimistic local update via `onUpdateProfile`
@@ -183,7 +182,7 @@ const ThunderIDRoot: Component = defineComponent({
                               UserProvider,
                               {
                                 // When fetchUserProfile is false the Nitro plugin
-                                // skips SCIM calls, so we must also pass empty values
+                                // skips profile fetches, so we must also pass empty values
                                 // here to keep SSR and client in sync.
                                 flattenedProfile: shouldFetchProfile
                                   ? (userProfileState.value?.flattenedProfile ?? null)
@@ -191,7 +190,6 @@ const ThunderIDRoot: Component = defineComponent({
                                 onUpdateProfile: shouldFetchProfile ? onUpdateProfile : undefined,
                                 profile: shouldFetchProfile ? userProfileState.value : null,
                                 revalidateProfile: shouldFetchProfile ? revalidateProfile : undefined,
-                                schemas: shouldFetchProfile ? (userProfileState.value?.schemas ?? null) : null,
                                 updateProfile: shouldFetchProfile ? updateProfile : undefined,
                               },
                               {

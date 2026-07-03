@@ -21,16 +21,16 @@ import {
   HttpResponse,
   FetchHttpClient,
   HttpRequestConfig,
-  getScim2Me as baseGetScim2Me,
-  GetScim2MeConfig as BaseGetScim2MeConfig,
+  getUsersMe as baseGetUsersMe,
+  GetUsersMeConfig as BaseGetUsersMeConfig,
 } from '@thunderid/browser';
 
-export interface GetScim2MeConfig extends Omit<BaseGetScim2MeConfig, 'fetcher'> {
+export interface GetUsersMeConfig extends Omit<BaseGetUsersMeConfig, 'fetcher'> {
   fetcher?: (url: string, config: RequestInit) => Promise<Response>;
   instanceId?: number;
 }
 
-const getScim2Me = async ({fetcher, instanceId = 0, ...requestConfig}: GetScim2MeConfig): Promise<User> => {
+const getUsersMe = async ({fetcher, instanceId = 0, ...requestConfig}: GetUsersMeConfig): Promise<User> => {
   const defaultFetcher = async (url: string, config: RequestInit): Promise<Response> => {
     const httpClient: FetchHttpClient = FetchHttpClient.getInstance(instanceId);
 
@@ -49,10 +49,10 @@ const getScim2Me = async ({fetcher, instanceId = 0, ...requestConfig}: GetScim2M
     } as Response;
   };
 
-  return baseGetScim2Me({
+  return baseGetUsersMe({
     ...requestConfig,
     fetcher: fetcher || defaultFetcher,
   });
 };
 
-export default getScim2Me;
+export default getUsersMe;

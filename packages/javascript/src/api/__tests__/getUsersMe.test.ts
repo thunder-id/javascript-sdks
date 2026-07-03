@@ -18,40 +18,47 @@
 
 import {describe, it, expect, vi} from 'vitest';
 import ThunderIDAPIError from '../../errors/ThunderIDAPIError';
-import getScim2Me from '../getScim2Me';
+import getUsersMe from '../getUsersMe';
 
 // Mock user data
-const mockUser: Record<string, unknown> = {
-  email: 'test@example.com',
-  familyName: 'User',
-  givenName: 'Test',
+const mockUserResponse: Record<string, unknown> = {
   id: '123',
-  username: 'testuser',
+  attributes: {
+    email: 'test@example.com',
+    familyName: 'User',
+    givenName: 'Test',
+    username: 'testuser',
+  },
 };
 
-describe('getScim2Me', () => {
+const mockUser: Record<string, unknown> = {
+  ...mockUserResponse,
+  ...mockUserResponse.attributes,
+};
+
+describe('getUsersMe', () => {
   it('should fetch user profile successfully with default fetch', async () => {
     // Mock fetch
     const mockFetch: typeof fetch = vi.fn().mockResolvedValue({
-      json: () => Promise.resolve(mockUser),
+      json: () => Promise.resolve(mockUserResponse),
       ok: true,
       status: 200,
       statusText: 'OK',
-      text: () => Promise.resolve(JSON.stringify(mockUser)),
+      text: () => Promise.resolve(JSON.stringify(mockUserResponse)),
     });
 
     // Replace global fetch
     global.fetch = mockFetch;
 
-    const result: Record<string, unknown> = await getScim2Me({
-      url: 'https://localhost:8090/scim2/Me',
+    const result: Record<string, unknown> = await getUsersMe({
+      url: 'https://localhost:8090/users/me',
     });
 
     expect(result).toEqual(mockUser);
-    expect(mockFetch).toHaveBeenCalledWith('https://localhost:8090/scim2/Me', {
+    expect(mockFetch).toHaveBeenCalledWith('https://localhost:8090/users/me', {
       headers: {
         Accept: 'application/json',
-        'Content-Type': 'application/scim+json',
+        'Content-Type': 'application/json',
       },
       method: 'GET',
     });
@@ -59,23 +66,23 @@ describe('getScim2Me', () => {
 
   it('should use custom fetcher when provided', async () => {
     const customFetcher: typeof fetch = vi.fn().mockResolvedValue({
-      json: () => Promise.resolve(mockUser),
+      json: () => Promise.resolve(mockUserResponse),
       ok: true,
       status: 200,
       statusText: 'OK',
-      text: () => Promise.resolve(JSON.stringify(mockUser)),
+      text: () => Promise.resolve(JSON.stringify(mockUserResponse)),
     });
 
-    const result: Record<string, unknown> = await getScim2Me({
+    const result: Record<string, unknown> = await getUsersMe({
       fetcher: customFetcher,
-      url: 'https://localhost:8090/scim2/Me',
+      url: 'https://localhost:8090/users/me',
     });
 
     expect(result).toEqual(mockUser);
-    expect(customFetcher).toHaveBeenCalledWith('https://localhost:8090/scim2/Me', {
+    expect(customFetcher).toHaveBeenCalledWith('https://localhost:8090/users/me', {
       headers: {
         Accept: 'application/json',
-        'Content-Type': 'application/scim+json',
+        'Content-Type': 'application/json',
       },
       method: 'GET',
     });
@@ -87,58 +94,58 @@ describe('getScim2Me', () => {
     });
 
     await expect(
-      getScim2Me({
+      getUsersMe({
         fetcher: customFetcher,
-        url: 'https://localhost:8090/scim2/Me',
+        url: 'https://localhost:8090/users/me',
       }),
     ).rejects.toThrow(ThunderIDAPIError);
     await expect(
-      getScim2Me({
+      getUsersMe({
         fetcher: customFetcher,
-        url: 'https://localhost:8090/scim2/Me',
+        url: 'https://localhost:8090/users/me',
       }),
     ).rejects.toThrow('Network or parsing error: Custom fetcher failure');
   });
 
   it('should throw ThunderIDAPIError for invalid URL', async () => {
     await expect(
-      getScim2Me({
+      getUsersMe({
         url: 'invalid-url',
       }),
     ).rejects.toThrow(ThunderIDAPIError);
 
     await expect(
-      getScim2Me({
+      getUsersMe({
         baseUrl: 'invalid-url',
       }),
     ).rejects.toThrow(ThunderIDAPIError);
   });
 
   it('should throw ThunderIDAPIError for undefined URL', async () => {
-    await expect(getScim2Me({})).rejects.toThrow(ThunderIDAPIError);
+    await expect(getUsersMe({})).rejects.toThrow(ThunderIDAPIError);
 
-    const error: ThunderIDAPIError = await getScim2Me({
+    const error: ThunderIDAPIError = await getUsersMe({
       baseUrl: undefined,
       url: undefined,
     }).catch((e: ThunderIDAPIError) => e);
 
     expect(error.name).toBe('ThunderIDAPIError');
-    expect(error.code).toBe('getScim2Me-ValidationError-001');
+    expect(error.code).toBe('getUsersMe-ValidationError-001');
   });
 
   it('should throw ThunderIDAPIError for empty string URL', async () => {
     await expect(
-      getScim2Me({
+      getUsersMe({
         url: '',
       }),
     ).rejects.toThrow(ThunderIDAPIError);
 
-    const error: ThunderIDAPIError = await getScim2Me({
+    const error: ThunderIDAPIError = await getUsersMe({
       url: '',
     }).catch((e: ThunderIDAPIError) => e);
 
     expect(error.name).toBe('ThunderIDAPIError');
-    expect(error.code).toBe('getScim2Me-ValidationError-001');
+    expect(error.code).toBe('getUsersMe-ValidationError-001');
   });
 
   it('should throw ThunderIDAPIError for failed response', async () => {
@@ -152,8 +159,8 @@ describe('getScim2Me', () => {
     global.fetch = mockFetch;
 
     await expect(
-      getScim2Me({
-        url: 'https://localhost:8090/scim2/Me',
+      getUsersMe({
+        url: 'https://localhost:8090/users/me',
       }),
     ).rejects.toThrow(ThunderIDAPIError);
   });
@@ -164,8 +171,8 @@ describe('getScim2Me', () => {
     global.fetch = mockFetch;
 
     await expect(
-      getScim2Me({
-        url: 'https://localhost:8090/scim2/Me',
+      getUsersMe({
+        url: 'https://localhost:8090/users/me',
       }),
     ).rejects.toThrow(ThunderIDAPIError);
   });
@@ -175,17 +182,17 @@ describe('getScim2Me', () => {
 
     const baseUrl = 'https://localhost:8090';
 
-    await expect(getScim2Me({baseUrl})).rejects.toThrow(ThunderIDAPIError);
-    await expect(getScim2Me({baseUrl})).rejects.toThrow('Network or parsing error: Unknown error');
+    await expect(getUsersMe({baseUrl})).rejects.toThrow(ThunderIDAPIError);
+    await expect(getUsersMe({baseUrl})).rejects.toThrow('Network or parsing error: Unknown error');
   });
 
   it('should pass through custom headers', async () => {
     const mockFetch: typeof fetch = vi.fn().mockResolvedValue({
-      json: () => Promise.resolve(mockUser),
+      json: () => Promise.resolve(mockUserResponse),
       ok: true,
       status: 200,
       statusText: 'OK',
-      text: () => Promise.resolve(JSON.stringify(mockUser)),
+      text: () => Promise.resolve(JSON.stringify(mockUserResponse)),
     });
 
     global.fetch = mockFetch;
@@ -194,15 +201,15 @@ describe('getScim2Me', () => {
       'X-Custom-Header': 'custom-value',
     };
 
-    await getScim2Me({
+    await getUsersMe({
       headers: customHeaders,
-      url: 'https://localhost:8090/scim2/Me',
+      url: 'https://localhost:8090/users/me',
     });
 
-    expect(mockFetch).toHaveBeenCalledWith('https://localhost:8090/scim2/Me', {
+    expect(mockFetch).toHaveBeenCalledWith('https://localhost:8090/users/me', {
       headers: {
         Accept: 'application/json',
-        'Content-Type': 'application/scim+json',
+        'Content-Type': 'application/json',
         ...customHeaders,
       },
       method: 'GET',
@@ -211,22 +218,22 @@ describe('getScim2Me', () => {
 
   it('should default to baseUrl if url is not provided', async () => {
     const mockFetch: typeof fetch = vi.fn().mockResolvedValue({
-      json: () => Promise.resolve(mockUser),
+      json: () => Promise.resolve(mockUserResponse),
       ok: true,
       status: 200,
       statusText: 'OK',
-      text: () => Promise.resolve(JSON.stringify(mockUser)),
+      text: () => Promise.resolve(JSON.stringify(mockUserResponse)),
     });
     global.fetch = mockFetch;
 
     const baseUrl = 'https://localhost:8090';
-    await getScim2Me({
+    await getUsersMe({
       baseUrl,
     });
-    expect(mockFetch).toHaveBeenCalledWith(`${baseUrl}/scim2/Me`, {
+    expect(mockFetch).toHaveBeenCalledWith(`${baseUrl}/users/me`, {
       headers: {
         Accept: 'application/json',
-        'Content-Type': 'application/scim+json',
+        'Content-Type': 'application/json',
       },
       method: 'GET',
     });

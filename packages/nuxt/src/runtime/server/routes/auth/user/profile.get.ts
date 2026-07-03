@@ -26,8 +26,7 @@ import {useRuntimeConfig} from '#imports';
 /**
  * GET /api/auth/user/profile
  *
- * Returns the full SCIM2 {@link UserProfile} (with `flattenedProfile` and
- * `schemas`) for the authenticated user.  Used by `ThunderIDRoot.revalidateProfile`
+ * Returns the full {@link UserProfile} (with `flattenedProfile`) for the authenticated user.  Used by `ThunderIDRoot.revalidateProfile`
  * to refresh client-side state after a profile update.
  *
  * Mirrors `getUserProfileAction` in the Next.js SDK.

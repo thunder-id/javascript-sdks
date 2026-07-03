@@ -55,6 +55,7 @@ vi.mock('../../src/runtime/server/ThunderIDNuxtClient', () => ({
 
 vi.mock('@thunderid/node', () => ({
   EmbeddedFlowStatus: {Complete: 'COMPLETE'},
+  EmbeddedSignUpFlowStatus: {Complete: 'COMPLETE'},
 }));
 
 // ── Helpers ───────────────────────────────────────────────────────────────────

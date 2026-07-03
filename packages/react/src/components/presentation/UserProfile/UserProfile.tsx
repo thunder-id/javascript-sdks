@@ -16,7 +16,7 @@
  * under the License.
  */
 
-import {ThunderIDError, User} from '@thunderid/browser';
+import {ThunderIDError, User, deepMerge} from '@thunderid/browser';
 import {FC, ReactElement, useState} from 'react';
 // eslint-disable-next-line import/no-named-as-default
 import BaseUserProfile, {BaseUserProfileProps} from './BaseUserProfile';
@@ -29,7 +29,7 @@ import useTranslation from '../../../hooks/useTranslation';
  * Props for the UserProfile component.
  * Extends BaseUserProfileProps but makes the user prop optional since it will be obtained from useThunderID
  */
-export type UserProfileProps = Omit<BaseUserProfileProps, 'user' | 'profile' | 'flattenedProfile' | 'schemas'>;
+export type UserProfileProps = Omit<BaseUserProfileProps, 'user' | 'profile' | 'flattenedProfile'>;
 
 /**
  * UserProfile component displays the authenticated user's profile information in a
@@ -64,18 +64,38 @@ export type UserProfileProps = Omit<BaseUserProfileProps, 'user' | 'profile' | '
  * />
  * ```
  */
-const UserProfile: FC<UserProfileProps> = ({preferences, ...rest}: UserProfileProps): ReactElement => {
-  const {baseUrl, instanceId} = useThunderID();
-  const {profile, flattenedProfile, schemas, onUpdateProfile} = useUser();
-  const {t} = useTranslation(preferences?.i18n);
+const UserProfile: FC<UserProfileProps> = ({preferences, editable = true, ...rest}: UserProfileProps): ReactElement => {
+  const {baseUrl, instanceId, preferences: contextPreferences} = useThunderID();
+  const {profile, flattenedProfile, onUpdateProfile} = useUser();
+  const resolvedPreferences = {
+    ...contextPreferences,
+    ...preferences,
+    user: {
+      ...contextPreferences?.user,
+      ...preferences?.user,
+    },
+  };
+  const {t} = useTranslation(resolvedPreferences?.i18n);
+  const isEditableProfile: boolean = resolvedPreferences?.user?.fetchUserProfile === false ? false : editable;
 
   const [error, setError] = useState<string | null>(null);
 
-  const handleProfileUpdate = async (payload: any): Promise<void> => {
+  const handleProfileUpdate = async (payload: Record<string, unknown>): Promise<void> => {
     setError(null);
 
     try {
-      const response: User = await updateMeProfile({baseUrl, instanceId, payload});
+      const updatedAttributes: Record<string, unknown> = deepMerge(
+        (profile?.['attributes'] as Record<string, unknown>) ?? {},
+        payload,
+      );
+
+      Object.keys(updatedAttributes).forEach((key) => {
+        if (updatedAttributes[key] === undefined || updatedAttributes[key] === null) {
+          delete updatedAttributes[key];
+        }
+      });
+
+      const response: User = await updateMeProfile({baseUrl, instanceId, payload: updatedAttributes});
       onUpdateProfile(response);
     } catch (caughtError: unknown) {
       let message: string = t('user.profile.update.generic.error');
@@ -92,10 +112,10 @@ const UserProfile: FC<UserProfileProps> = ({preferences, ...rest}: UserProfilePr
     <BaseUserProfile
       profile={profile ?? undefined}
       flattenedProfile={flattenedProfile ?? undefined}
-      schemas={schemas ?? undefined}
-      onUpdate={handleProfileUpdate}
+      editable={isEditableProfile}
+      onUpdate={isEditableProfile ? handleProfileUpdate : undefined}
       error={error}
-      preferences={preferences}
+      preferences={resolvedPreferences}
       {...rest}
     />
   );

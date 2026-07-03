@@ -16,7 +16,7 @@
  * under the License.
  */
 
-import {type User, type Schema, WellKnownSchemaIds, withVendorCSSClassPrefix} from '@thunderid/browser';
+import {type User, withVendorCSSClassPrefix} from '@thunderid/browser';
 import {type Component, type PropType, type Ref, type SetupContext, type VNode, defineComponent, h, ref} from 'vue';
 import getDisplayName from '../../../utils/getDisplayName';
 import getMappedUserProfileValue from '../../../utils/getMappedUserProfileValue';
@@ -60,7 +60,7 @@ export interface BaseUserProfileProps {
   isLoading?: boolean;
   onUpdate?: (payload: any) => Promise<void>;
   profile?: User | null;
-  schemas?: Schema[] | null;
+  schemas?: any[] | null;
   showAvatar?: boolean;
   showFields?: string[];
   title?: string;
@@ -127,44 +127,13 @@ function formatLabel(key: string): string {
     .join(' ');
 }
 
-function buildScimPatchValue(
+function buildPatchValue(
   flatKey: string,
   rawValue: any,
-  schemaId: string | undefined,
+  _schemaId: string | undefined,
   multiValued: boolean | undefined,
 ): Record<string, unknown> {
-  if (flatKey === 'phoneNumbers.mobile') {
-    return {
-      phoneNumbers: [{type: 'mobile', value: rawValue}],
-      [WellKnownSchemaIds.SystemUser]: {mobileNumbers: [rawValue]},
-    };
-  }
-
-  const complexMultiValued = new Set<string>([
-    'phoneNumbers',
-    'emails',
-    'ims',
-    'photos',
-    'addresses',
-    'entitlements',
-    'roles',
-    'x509Certificates',
-  ]);
-
-  const dotIndex: number = flatKey.indexOf('.');
-  if (dotIndex > 0) {
-    const head: string = flatKey.slice(0, dotIndex);
-    const tail: string = flatKey.slice(dotIndex + 1);
-    if (complexMultiValued.has(head)) {
-      return {[head]: [{type: tail, value: rawValue}]};
-    }
-  }
-
   const value: unknown = multiValued ? [rawValue] : rawValue;
-
-  if (schemaId && schemaId !== WellKnownSchemaIds.User) {
-    return {[schemaId]: {[flatKey]: value}};
-  }
 
   const segments: string[] = flatKey.split('.');
   const nested: Record<string, unknown> = {};
@@ -204,7 +173,7 @@ const BaseUserProfile: Component = defineComponent({
     isLoading: {default: false, type: Boolean},
     onUpdate: {default: undefined, type: Function as PropType<(payload: any) => Promise<void>>},
     profile: {default: null, type: Object as PropType<User | null>},
-    schemas: {default: () => [], type: Array as PropType<Schema[] | null>},
+    schemas: {default: () => [], type: Array as PropType<any[] | null>},
     /** Whether to render the avatar hero banner. */
     showAvatar: {default: true, type: Boolean},
     showFields: {default: () => [], type: Array as PropType<string[]>},
@@ -242,12 +211,7 @@ const BaseUserProfile: Component = defineComponent({
     function saveField(schema: ExtendedSchema): void {
       if (!props.onUpdate || !schema.name) return;
       const value: any = editedValues.value[schema.name] ?? '';
-      const payload: Record<string, unknown> = buildScimPatchValue(
-        schema.name,
-        value,
-        schema.schemaId,
-        schema.multiValued,
-      );
+      const payload: Record<string, unknown> = buildPatchValue(schema.name, value, schema.schemaId, schema.multiValued);
       props.onUpdate(payload);
       editingFields.value = {...editingFields.value, [schema.name]: false};
     }

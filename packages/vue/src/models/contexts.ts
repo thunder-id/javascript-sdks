@@ -21,7 +21,6 @@ import type {
   HttpRequestConfig,
   HttpResponse,
   IdToken,
-  Schema,
   SignInOptions,
   StorageManager,
   Theme,
@@ -121,14 +120,12 @@ export interface UserContextValue {
   flattenedProfile: Readonly<Ref<User | null>>;
   /** Called after a successful profile update to sync state up to ThunderIDProvider. */
   onUpdateProfile: (payload: User) => void;
-  /** The raw nested user profile from the SCIM2/ME endpoint. */
+  /** The raw nested user profile from the users/me endpoint. */
   profile: Readonly<Ref<UserProfile | null>>;
   /** Refetch the user profile from the server. */
   revalidateProfile: () => Promise<void>;
-  /** The SCIM2 schemas describing the user profile attributes. */
-  schemas: Readonly<Ref<Schema[] | null>>;
   /**
-   * Update the user profile. Accepts the standard SCIM2 patch request config.
+   * Update the user profile. Accepts the standard patch request config.
    */
   updateProfile: (
     requestConfig: UpdateMeProfileConfig,

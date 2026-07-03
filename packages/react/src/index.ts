@@ -243,8 +243,8 @@ export {default as BuildingAlt} from './components/primitives/Icons/BuildingAlt'
 
 export {default as updateMeProfile} from './api/updateMeProfile';
 export type {UpdateMeProfileConfig} from './api/updateMeProfile';
-export {default as getMeProfile} from './api/getScim2Me';
-export * from './api/getScim2Me';
+export {default as getMeProfile} from './api/getUsersMe';
+export * from './api/getUsersMe';
 
 export {
   ThunderIDRuntimeError,

@@ -31,10 +31,8 @@ export type {
   OrganizationUnitListResponse,
 } from './api/getOrganizationUnitChildren';
 export {default as getUserInfo} from './api/getUserInfo';
-export {default as getScim2Me} from './api/getScim2Me';
-export type {GetScim2MeConfig} from './api/getScim2Me';
-export {default as getSchemas} from './api/getSchemas';
-export type {GetSchemasConfig} from './api/getSchemas';
+export {default as getUsersMe} from './api/getUsersMe';
+export type {GetUsersMeConfig} from './api/getUsersMe';
 export {default as updateMeProfile} from './api/updateMeProfile';
 export type {UpdateMeProfileConfig} from './api/updateMeProfile';
 
@@ -155,8 +153,6 @@ export type {User, UserProfile} from './models/user';
 export type {SessionData} from './models/session';
 export type {TranslationFn} from './models/translation';
 export type {ResolveFlowTemplateLiteralsOptions} from './models/vars';
-export {WellKnownSchemaIds} from './models/scim2-schema';
-export type {Schema, SchemaAttribute, FlattenedSchema} from './models/scim2-schema';
 export type {RecursivePartial} from './models/utility-types';
 export {FieldType} from './models/field';
 
@@ -175,8 +171,6 @@ export {default as deepMerge} from './utils/deepMerge';
 export {default as extractUserClaimsFromIdToken} from './utils/extractUserClaimsFromIdToken';
 export {default as isRecognizedBaseUrlPattern} from './utils/isRecognizedBaseUrlPattern';
 export {default as extractPkceStorageKeyFromState} from './utils/extractPkceStorageKeyFromState';
-export {default as flattenUserSchema} from './utils/flattenUserSchema';
-export {default as generateUserProfile} from './utils/generateUserProfile';
 export {default as getLatestStateParam} from './utils/getLatestStateParam';
 export {default as generateFlattenedUserProfile} from './utils/generateFlattenedUserProfile';
 export {default as getRedirectBasedSignUpUrl} from './utils/getRedirectBasedSignUpUrl';
@@ -185,6 +179,7 @@ export {default as isEmojiUri, EMOJI_URI_SCHEME} from './utils/isEmojiUri';
 export {default as extractEmojiFromUri} from './utils/extractEmojiFromUri';
 export {default as set} from './utils/set';
 export {default as get} from './utils/get';
+export {default as startCase} from './utils/startCase';
 export {default as removeTrailingSlash} from './utils/removeTrailingSlash';
 export {default as resolveFieldName} from './utils/resolveFieldName';
 export {default as resolveMeta} from './utils/resolveMeta';
