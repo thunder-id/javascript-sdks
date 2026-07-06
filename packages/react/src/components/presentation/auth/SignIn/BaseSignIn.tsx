@@ -26,7 +26,7 @@ import {
   Preferences,
   buildValidatorFromRules,
 } from '@thunderid/browser';
-import {FC, useEffect, useState, useCallback, useContext, ReactElement, ReactNode} from 'react';
+import {FC, useEffect, useMemo, useState, useCallback, useContext, ReactElement, ReactNode} from 'react';
 import useStyles from './BaseSignIn.styles';
 import ComponentRendererContext, {
   ComponentRendererMap,
@@ -351,7 +351,15 @@ const BaseSignInContent: FC<BaseSignInProps> = ({
     [t],
   );
 
-  const formFields: FormField[] = components ? extractFormFields(components) : [];
+  // Memoize the derived field list so its identity is stable across renders.
+  // Without this, a fresh array is created on every render, which cascades through
+  // `useForm` (getFieldConfig -> validateField -> setTouched), re-firing the
+  // server-error effect below on every render and causing an infinite update loop
+  // ("Maximum update depth exceeded"). See thunder-id/thunderid#3697.
+  const formFields: FormField[] = useMemo(
+    () => (components ? extractFormFields(components) : []),
+    [components, extractFormFields],
+  );
 
   const form: ReturnType<typeof useForm> = useForm<Record<string, string>>({
     fields: formFields,
