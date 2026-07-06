@@ -237,10 +237,19 @@ export interface BaseSignInProps {
 }
 
 /**
+ * Stable empty-array reference used as the default for the optional `components`
+ * prop. A shared constant (rather than an inline `[]` default) keeps the reference
+ * identity stable across renders, so the memoized `formFields` below is not
+ * invalidated every render when a consumer omits `components`.
+ * See thunder-id/thunderid#3697.
+ */
+const EMPTY_COMPONENTS: EmbeddedFlowComponent[] = [];
+
+/**
  * Internal component that consumes FlowContext and renders the sign-in UI.
  */
 const BaseSignInContent: FC<BaseSignInProps> = ({
-  components = [],
+  components = EMPTY_COMPONENTS,
   onSubmit,
   onError,
   error: externalError,
