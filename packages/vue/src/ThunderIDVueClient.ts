@@ -254,15 +254,7 @@ class ThunderIDVueClient<T extends ThunderIDVueConfig = ThunderIDVueConfig> exte
     const firstArg: any = args[0];
     const baseUrl: string = configData?.baseUrl || '';
 
-    const authIdFromUrl: string | null = new URL(window.location.href).searchParams.get('authId');
-    const authIdFromStorage: string | null = (await this.getStorageManager().getHybridDataParameter('authId')) as
-      | string
-      | null;
-    const authId: string = authIdFromUrl || authIdFromStorage || '';
-
-    if (authIdFromUrl && !authIdFromStorage) {
-      await this.getStorageManager().setHybridDataParameter('authId', authIdFromUrl);
-    }
+    const authId: string = new URL(window.location.href).searchParams.get('authId') ?? '';
 
     const response: any = await executeEmbeddedSignUpFlow({
       authId,
