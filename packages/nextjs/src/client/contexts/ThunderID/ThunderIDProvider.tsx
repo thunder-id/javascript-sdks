@@ -315,7 +315,14 @@ const ThunderIDClientProvider: FC<PropsWithChildren<ThunderIDClientProviderProps
   // nextjs equivalent (token/http helpers meant for direct browser API calls) are stubbed out,
   // since nextjs routes those operations through server actions instead.
   const unsupported = (name: string): (() => Promise<never>) => {
-    return () => Promise.reject(new ThunderIDRuntimeError(`\`${name}\` is not supported in @thunderid/nextjs.`, `ThunderIDClientProvider-${name}-NotSupportedError-001`, 'nextjs'));
+    return () =>
+      Promise.reject(
+        new ThunderIDRuntimeError(
+          `\`${name}\` is not supported in @thunderid/nextjs.`,
+          `ThunderIDClientProvider-${name}-NotSupportedError-001`,
+          'nextjs',
+        ),
+      );
   };
 
   const reactContextValue: ReactThunderIDContextProps = useMemo(

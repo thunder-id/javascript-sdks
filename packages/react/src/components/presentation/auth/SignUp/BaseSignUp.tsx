@@ -456,8 +456,7 @@ const BaseSignUpContent: FC<BaseSignUpProps> = ({
   );
 
   const formFields: any = useMemo(
-    () =>
-      (currentFlow?.data as any)?.components ? extractFormFields((currentFlow!.data as any).components) : [],
+    () => ((currentFlow?.data as any)?.components ? extractFormFields((currentFlow!.data as any).components) : []),
     [currentFlow, extractFormFields],
   );
 
