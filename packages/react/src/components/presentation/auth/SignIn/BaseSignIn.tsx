@@ -346,10 +346,7 @@ const BaseSignInContent: FC<BaseSignInProps> = ({
   // `useForm` (getFieldConfig -> validateField -> setTouched), re-firing the
   // server-error effect below on every render and causing an infinite update loop
   // ("Maximum update depth exceeded"). See thunder-id/thunderid#3697.
-  const formFields: FormField[] = useMemo(
-    () => (components ? extractFormFields(components) : []),
-    [components, extractFormFields],
-  );
+  const formFields: FormField[] = useMemo(() => extractFormFields(components), [components, extractFormFields]);
 
   const form: ReturnType<typeof useForm> = useForm<Record<string, string>>({
     fields: formFields,
