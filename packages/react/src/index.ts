@@ -65,6 +65,8 @@ export * from './hooks/useBrowserUrl';
 export {default as useTranslation} from './hooks/useTranslation';
 export * from './hooks/useTranslation';
 
+export {normalizeFlowResponse, extractErrorMessage} from './utils/flowTransformer';
+
 export {default as useForm} from './hooks/useForm';
 
 export {default as BaseSignInButton} from './components/actions/SignInButton/BaseSignInButton';

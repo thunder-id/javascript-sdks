@@ -73,8 +73,10 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 24px;
+  padding: 0 28px;
   background: var(--color-nav-bg);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   border-bottom: 1px solid var(--color-nav-border);
   z-index: 100;
   transition: background 0.2s, border-color 0.2s;
@@ -136,20 +138,21 @@ body {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 32px;
-  height: 32px;
+  width: 34px;
+  height: 34px;
   padding: 0;
   background: transparent;
-  border: none;
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-btn);
   color: var(--color-text-muted);
   cursor: pointer;
-  transition: color 0.15s, background 0.15s;
+  transition: color 0.15s, background 0.15s, border-color 0.15s;
+  flex-shrink: 0;
 }
 
 .dark-toggle:hover {
   color: var(--color-text);
-  background: rgba(54, 136, 255, 0.06);
+  background: var(--color-border);
 }
 
 /* ── Buttons ── */
@@ -233,21 +236,28 @@ button:focus-visible {
   flex-direction: column;
   align-items: center;
   text-align: center;
-  gap: 20px;
+  gap: 0;
   max-width: 560px;
   width: 100%;
   margin: 0 auto;
+}
+
+.hero-mark {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 32px;
 }
 
 .hero-badge {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  font-size: 10px;
-  font-weight: 600;
+  font-size: 11px;
+  font-weight: 700;
   letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--color-text-muted);
+  margin-bottom: 28px;
 }
 
 .hero-badge-line {
@@ -264,6 +274,7 @@ button:focus-visible {
   letter-spacing: -0.05em;
   color: var(--color-text);
   line-height: 1.1;
+  margin: 0 0 18px;
 }
 
 .hero-subtitle {
@@ -272,6 +283,7 @@ button:focus-visible {
   max-width: 420px;
   line-height: 1.8;
   letter-spacing: -0.01em;
+  margin: 0 auto 36px;
 }
 
 .hero-ctas {
@@ -279,14 +291,14 @@ button:focus-visible {
   gap: 12px;
   flex-wrap: wrap;
   justify-content: center;
-  margin-top: 4px;
+  margin-bottom: 52px;
 }
 
 .hero-divider {
   width: 100%;
   border: none;
   border-top: 1px solid var(--color-border);
-  margin: 8px 0;
+  margin: 4px 0;
 }
 
 /* ── Stats row ── */
@@ -294,9 +306,6 @@ button:focus-visible {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   width: 100%;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-card);
-  overflow: hidden;
 }
 
 .hero-stat {
@@ -304,7 +313,7 @@ button:focus-visible {
   flex-direction: column;
   align-items: center;
   gap: 4px;
-  padding: 20px 16px;
+  padding: 16px 8px;
   position: relative;
 }
 
@@ -328,6 +337,50 @@ button:focus-visible {
 .hero-stat-label {
   font-size: 12px;
   color: var(--color-text-muted);
+}
+
+/* ── Config notice ── */
+.config-badge {
+  color: #e88b3a;
+}
+
+.config-list {
+  width: 100%;
+  max-width: 420px;
+  text-align: left;
+  list-style: none;
+  background: var(--color-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-btn);
+  padding: 0 16px;
+  margin: 4px 0 28px;
+}
+
+.config-list-item {
+  padding: 10px 0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 13px;
+  color: var(--color-text);
+}
+
+.config-list-item:not(:last-child) {
+  border-bottom: 1px solid var(--color-border);
+}
+
+.config-hint {
+  font-size: 14px;
+  color: var(--color-text-muted);
+  line-height: 1.7;
+  max-width: 420px;
+  margin: 0 auto;
+}
+
+.config-hint code {
+  background: rgba(54, 136, 255, 0.1);
+  border-radius: 4px;
+  padding: 2px 6px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 13px;
 }
 
 /* ── User / welcome card ── */
@@ -428,17 +481,6 @@ button:focus-visible {
 }
 
 .home-avatar {
-  width: 52px;
-  height: 52px;
-  border-radius: 50%;
-  background: var(--color-primary);
-  color: #ffffff;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 18px;
-  font-weight: 700;
-  letter-spacing: 0.02em;
   flex-shrink: 0;
 }
 
@@ -642,19 +684,12 @@ button:focus-visible {
   color: var(--color-text);
 }
 
-/* ── Profile page ── */
-.profile-main {
-  width: 100%;
-  max-width: 780px;
-  margin: 0 auto;
-  padding: 52px 28px 80px;
-}
-
 /* ── Token debug page ── */
 .token-main {
   width: 100%;
   max-width: 780px;
   margin: 0 auto;
+  margin-top: 52px;
   padding: 52px 28px 80px;
 }
 
@@ -680,6 +715,63 @@ button:focus-visible {
   font-size: 13px;
   color: var(--color-muted);
   letter-spacing: -0.01em;
+}
+
+/* ── Sign in / Sign up pages ── */
+.auth-main {
+  width: 100%;
+  min-height: calc(100vh - 52px);
+  margin-top: 52px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+}
+
+.auth-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  background: var(--color-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
+  padding: 40px 32px;
+  max-width: 420px;
+  width: 100%;
+}
+
+.auth-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--color-text);
+  text-align: center;
+}
+
+.auth-subtitle {
+  margin: 0 0 16px;
+  font-size: 13px;
+  color: var(--color-text-muted);
+  text-align: center;
+}
+
+.auth-switch {
+  margin-top: 20px;
+  font-size: 13px;
+  color: var(--color-text-muted);
+  text-align: center;
+}
+
+.auth-switch a {
+  color: var(--color-primary);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.auth-switch a:hover {
+  text-decoration: underline;
 }
 
 .token-badge {

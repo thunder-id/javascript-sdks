@@ -1,5 +1,5 @@
 'use client'
-import { SignedIn, SignedOut, User, useThunderID } from '@thunderid/nextjs'
+import { SignedIn, SignedOut, User, UserAvatar, useThunderID } from '@thunderid/nextjs'
 import { useState, useEffect } from 'react'
 import { fetchAccessToken } from './actions'
 import HeroCtas from './components/HeroCtas'
@@ -127,19 +127,15 @@ function HomeContent() {
 
   return (
     <User>
-      {(user: { firstName?: string; lastName?: string; email?: string } | null) => {
-        const givenName = user?.firstName ?? user?.email?.split('@')[0] ?? 'there'
+      {(user: { givenName?: string; given_name?: string; familyName?: string; email?: string } | null) => {
+        const givenName = user?.givenName ?? user?.given_name ?? user?.email?.split('@')[0] ?? 'there'
         const email = user?.email
         const ouName = organizationHandle ?? 'Default'
-        const initials = user
-          ? (`${(user.firstName?.[0] ?? '').toUpperCase()}${(user.lastName?.[0] ?? '').toUpperCase()}` ||
-              user.email?.[0]?.toUpperCase()) ?? '?'
-          : ''
 
         return (
           <main className="home-main">
             <div className="home-greeting">
-              <div className="home-avatar" aria-hidden="true">{initials}</div>
+              <UserAvatar className="home-avatar" size={52} />
               <div className="home-greeting-text">
                 <h1 className="home-greeting-name">{greeting(givenName)}</h1>
                 <div className="home-greeting-meta">
@@ -219,11 +215,13 @@ export default function HomePage() {
       <SignedOut>
         <section className="hero">
           <div className="hero-inner">
-            <ThunderMark height={40} />
+            <div className="hero-mark">
+              <ThunderMark height={40} />
+            </div>
 
             <div className="hero-badge">
               <span className="hero-badge-line" />
-              <span>v1.0 · Open source</span>
+              <span>Open source</span>
               <span className="hero-badge-line" />
             </div>
 
@@ -248,7 +246,7 @@ export default function HomePage() {
                 <span className="hero-stat-label">Integration time</span>
               </div>
               <div className="hero-stat">
-                <span className="hero-stat-value">MIT</span>
+                <span className="hero-stat-value">Apache 2.0</span>
                 <span className="hero-stat-label">License</span>
               </div>
             </div>

@@ -1,8 +1,8 @@
 import './style.css'
-import auth from './auth.js'
+import auth, { missingEnvVars } from './auth.js'
 import { renderSignedOutNav, renderSignedInNav, attachNavHandlers, attachSignedOutNavHandlers } from './components/nav.js'
-import { renderSignedOut, renderHome, startCountdown, attachSignedOutHandlers } from './pages/home.js'
-import { renderProfile } from './pages/profile.js'
+import { renderProfileDialog, attachProfileDialogHandlers } from './components/profileDialog.js'
+import { renderSignedOut, renderHome, renderConfigNeeded, startCountdown, attachSignedOutHandlers } from './pages/home.js'
 import { renderTokenDebug, attachTokenHandlers } from './pages/token.js'
 
 let isDark = false
@@ -25,8 +25,6 @@ function renderSignedInPage() {
   let content
   if (currentPage === 'token') {
     content = renderTokenDebug({ rawToken })
-  } else if (currentPage === 'profile') {
-    content = renderProfile({ user })
   } else {
     content = renderHome({ user, idToken })
   }
@@ -38,6 +36,7 @@ function renderSignedInPage() {
     setIsDark: (v) => { isDark = v },
     navigateTo,
     auth,
+    openManageProfile,
   })
 
   if (currentPage === 'token') {
@@ -47,9 +46,30 @@ function renderSignedInPage() {
   }
 }
 
+function openManageProfile() {
+  const app = document.getElementById('app')
+  if (!app) return
+
+  app.insertAdjacentHTML('beforeend', renderProfileDialog(user))
+  attachProfileDialogHandlers({
+    user,
+    auth,
+    onSaved: (updatedUser) => {
+      user = updatedUser
+      renderSignedInPage()
+    },
+  })
+}
+
 async function renderApp() {
   const app = document.getElementById('app')
   if (!app) return
+
+  if (missingEnvVars.length > 0) {
+    app.innerHTML = renderSignedOutNav({ isDark, hideSignIn: true }) + renderConfigNeeded(missingEnvVars)
+    attachSignedOutNavHandlers({ auth })
+    return
+  }
 
   if (timer) { clearInterval(timer); timer = null }
 

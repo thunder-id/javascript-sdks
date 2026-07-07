@@ -20,6 +20,7 @@ import {
   ThunderIDNodeClient,
   ThunderIDRuntimeError,
   AuthClientConfig,
+  EmbeddedSignInFlowResponse,
   ExtendedAuthorizeRequestUrlParams,
   FlattenedSchema,
   IdToken,
@@ -31,6 +32,7 @@ import {
   TokenResponse,
   User,
   UserProfile,
+  executeEmbeddedSignInFlow,
   extractUserClaimsFromIdToken,
   flattenUserSchema,
   generateFlattenedUserProfile,
@@ -248,6 +250,25 @@ class ThunderIDNextClient<T extends ThunderIDNextConfig = ThunderIDNextConfig> e
     const arg2: any = args[1];
     const arg3: any = args[2];
     const arg4: any = args[3];
+
+    // An embedded sign-in flow payload initiates or continues a `POST /flow/execute` step
+    // (identified by `applicationId` for a new flow or `executionId` to continue one). This is
+    // distinct from the OAuth authorization_code exchange handled by `super.signIn` below, which
+    // is used once the embedded flow completes and returns an authorization code.
+    const isEmbeddedFlowPayload: boolean =
+      typeof arg1 === 'object' && arg1 !== null && ('executionId' in arg1 || 'applicationId' in arg1);
+
+    if (isEmbeddedFlowPayload) {
+      await this.ensureInitialized();
+
+      const configData: AuthClientConfig<T> = await this.getStorageManager().getConfigData();
+
+      return executeEmbeddedSignInFlow({
+        baseUrl: configData?.baseUrl,
+        payload: arg1,
+        url: arg2?.url,
+      }) as unknown as Promise<EmbeddedSignInFlowResponse>;
+    }
 
     return super.signIn(arg4, arg3, arg1?.code, arg1?.session_state, arg1?.state, arg1) as unknown as Promise<User>;
   }

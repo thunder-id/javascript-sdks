@@ -20,6 +20,7 @@
 
 import {
   EmbeddedFlowExecuteRequestConfig,
+  FlowMetadataResponse,
   generateFlattenedUserProfile,
   UpdateMeProfileConfig,
   User,
@@ -32,6 +33,8 @@ import {
   FlowProvider,
   UserProvider,
   ThemeProvider,
+  ThunderIDContext as ReactThunderIDContext,
+  ThunderIDContextProps as ReactThunderIDContextProps,
   ThunderIDProviderProps,
   getActiveTheme,
 } from '@thunderid/react';
@@ -55,6 +58,11 @@ export type ThunderIDClientProviderProps = Partial<Omit<ThunderIDProviderProps, 
       state: string,
       sessionState?: string,
     ) => Promise<{error?: string; redirectUrl?: string; success: boolean}>;
+    /**
+     * Flow metadata fetched server-side ahead of time, seeding `FlowMetaProvider` so it can skip
+     * its own initial client-side fetch (avoiding a flash of untranslated i18n keys).
+     */
+    initialMeta?: FlowMetadataResponse | null;
     isSignedIn: boolean;
     organizationHandle: ThunderIDContextProps['organizationHandle'];
     refreshToken: () => Promise<RefreshResult>;
@@ -88,6 +96,7 @@ const ThunderIDClientProvider: FC<PropsWithChildren<ThunderIDClientProviderProps
   applicationId,
   organizationHandle,
   scopes,
+  initialMeta = null,
 }: PropsWithChildren<ThunderIDClientProviderProps>) => {
   const reRenderCheckRef: RefObject<boolean> = useRef(false);
   const router: AppRouterInstance = useRouter();
@@ -298,19 +307,90 @@ const ThunderIDClientProvider: FC<PropsWithChildren<ThunderIDClientProviderProps
     }));
   };
 
+  // Bridge into @thunderid/react's own ThunderIDContext. Internal react components rendered by
+  // BaseSignIn/BaseSignUp — most notably FlowMetaProvider, which fetches `/flow/meta` and injects
+  // its i18n bundle — call react's `useThunderID()` directly. Without this bridge they'd only see
+  // react's context default (applicationId/baseUrl undefined, isInitialized false), so the meta
+  // fetch would never fire and flow labels would render as untranslated i18n keys. Fields with no
+  // nextjs equivalent (token/http helpers meant for direct browser API calls) are stubbed out,
+  // since nextjs routes those operations through server actions instead.
+  const unsupported = (name: string): (() => Promise<never>) => {
+    return () =>
+      Promise.reject(
+        new ThunderIDRuntimeError(
+          `\`${name}\` is not supported in @thunderid/nextjs.`,
+          `ThunderIDClientProvider-${name}-NotSupportedError-001`,
+          'nextjs',
+        ),
+      );
+  };
+
+  const reactContextValue: ReactThunderIDContextProps = useMemo(
+    () => ({
+      afterSignInUrl: undefined,
+      applicationId,
+      baseUrl,
+      clearSession,
+      clientId: undefined,
+      discovery: {wellKnown: null},
+      exchangeToken: unsupported('exchangeToken'),
+      getAccessToken: unsupported('getAccessToken'),
+      getDecodedIdToken: unsupported('getDecodedIdToken'),
+      getIdToken: unsupported('getIdToken'),
+      getStorageManager: () => Promise.resolve(null),
+      http: {
+        request: unsupported('http.request'),
+        requestAll: unsupported('http.requestAll'),
+      },
+      instanceId: 0,
+      isInitialized: !isLoading,
+      isLoading,
+      isMetaLoading: false,
+      isSignedIn,
+      meta: initialMeta ?? null,
+      organizationHandle,
+      reInitialize: unsupported('reInitialize'),
+      recover: unsupported('recover'),
+      resolveFlowTemplateLiterals: (text: string | undefined): string => text ?? '',
+      scopes,
+      signIn: handleSignIn,
+      signInSilently: unsupported('signInSilently'),
+      signInUrl,
+      signOut: handleSignOut,
+      signUp: handleSignUp,
+      signUpUrl,
+      user,
+    }),
+    [
+      applicationId,
+      baseUrl,
+      clearSession,
+      isLoading,
+      isSignedIn,
+      organizationHandle,
+      scopes,
+      signInUrl,
+      signUpUrl,
+      user,
+      initialMeta,
+    ],
+  );
+
   return (
     <ThunderIDContext.Provider value={contextValue}>
-      <I18nProvider preferences={preferences?.i18n}>
-        <FlowMetaProvider enabled={preferences?.resolveFromMeta !== false}>
-          <ThemeProvider theme={preferences?.theme?.overrides} mode={getActiveTheme(preferences?.theme?.mode as any)}>
-            <FlowProvider>
-              <UserProvider profile={userProfile} onUpdateProfile={handleProfileUpdate} updateProfile={updateProfile}>
-                {children}
-              </UserProvider>
-            </FlowProvider>
-          </ThemeProvider>
-        </FlowMetaProvider>
-      </I18nProvider>
+      <ReactThunderIDContext.Provider value={reactContextValue}>
+        <I18nProvider preferences={preferences?.i18n}>
+          <FlowMetaProvider enabled={preferences?.resolveFromMeta !== false} initialMeta={initialMeta}>
+            <ThemeProvider theme={preferences?.theme?.overrides} mode={getActiveTheme(preferences?.theme?.mode as any)}>
+              <FlowProvider>
+                <UserProvider profile={userProfile} onUpdateProfile={handleProfileUpdate} updateProfile={updateProfile}>
+                  {children}
+                </UserProvider>
+              </FlowProvider>
+            </ThemeProvider>
+          </FlowMetaProvider>
+        </I18nProvider>
+      </ReactThunderIDContext.Provider>
     </ThunderIDContext.Provider>
   );
 };

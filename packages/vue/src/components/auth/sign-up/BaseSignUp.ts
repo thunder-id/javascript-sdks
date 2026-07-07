@@ -529,9 +529,13 @@ const BaseSignUp: Component = defineComponent({
     watch(
       () => [props.isInitialized, isFlowInitialized.value] as [boolean, boolean],
       ([initialized, flowInit]: [boolean, boolean]) => {
-        // Skip if URL has OAuth code params
-        const urlParams: URLSearchParams = new URL(window.location.href).searchParams;
-        if (urlParams.get('code') || urlParams.get('state')) return;
+        // Skip if URL has OAuth code params. `window` is unavailable during SSR
+        // (e.g. Nuxt) — initialization simply proceeds and the check re-runs
+        // once this watch re-evaluates on the client.
+        if (typeof window !== 'undefined') {
+          const urlParams: URLSearchParams = new URL(window.location.href).searchParams;
+          if (urlParams.get('code') || urlParams.get('state')) return;
+        }
 
         if (initialized && !flowInit && !initializationAttempted) {
           initializationAttempted = true;

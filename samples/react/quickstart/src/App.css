@@ -284,6 +284,50 @@
   color: var(--color-muted);
 }
 
+/* ─── Config notice ─────────────────────────────────────────────────── */
+.config-badge {
+  color: #e88b3a;
+}
+
+.config-list {
+  width: 100%;
+  max-width: 420px;
+  text-align: left;
+  list-style: none;
+  background: var(--color-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-btn);
+  padding: 0 16px;
+  margin: 4px 0 28px;
+}
+
+.config-list-item {
+  padding: 10px 0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 13px;
+  color: var(--color-text);
+}
+
+.config-list-item:not(:last-child) {
+  border-bottom: 1px solid var(--color-border);
+}
+
+.config-hint {
+  font-size: 14px;
+  color: var(--color-muted);
+  line-height: 1.7;
+  max-width: 420px;
+  margin: 0 auto;
+}
+
+.config-hint code {
+  background: rgba(54, 136, 255, 0.08);
+  border-radius: 4px;
+  padding: 2px 6px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 13px;
+}
+
 /* ─── Signed-in home page ───────────────────────────────────────────── */
 .home-main {
   width: 100%;
@@ -501,17 +545,11 @@
 }
 
 /* ─── Token debug page ──────────────────────────────────────────── */
-.profile-main {
-  width: 100%;
-  max-width: 780px;
-  margin: 0 auto;
-  padding: 52px 28px 80px;
-}
-
 .token-main {
   width: 100%;
   max-width: 780px;
   margin: 0 auto;
+  margin-top: var(--nav-height);
   padding: 52px 28px 80px;
 }
 

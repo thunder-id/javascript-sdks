@@ -211,7 +211,7 @@ export default function HomePage() {
 
             <div className="hero-badge">
               <span className="hero-badge-line" />
-              <span>v1.0 · Open source</span>
+              <span>Open source</span>
               <span className="hero-badge-line" />
             </div>
 
@@ -236,7 +236,7 @@ export default function HomePage() {
                 <span className="stat-label">Integration time</span>
               </div>
               <div className="stat">
-                <span className="stat-value">MIT</span>
+                <span className="stat-value">Apache 2.0</span>
                 <span className="stat-label">License</span>
               </div>
             </div>

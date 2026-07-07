@@ -1,6 +1,6 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue'
-import { SignedIn, SignedOut, SignInButton, SignUpButton, User, useThunderID } from '@thunderid/vue'
+import { SignedIn, SignedOut, SignInButton, User, useThunderID } from '@thunderid/vue'
 
 const props = defineProps({
   dark: { type: Boolean, default: false },
@@ -99,7 +99,7 @@ onUnmounted(() => {
 
         <div class="hero-badge">
           <span class="hero-badge-line"></span>
-          <span>v1.0 · Open source</span>
+          <span>Open source</span>
           <span class="hero-badge-line"></span>
         </div>
 
@@ -111,16 +111,9 @@ onUnmounted(() => {
         </p>
 
         <div class="hero-ctas">
-          <SignUpButton>
-            <template #default="{ signUp, isLoading }">
-              <button class="btn-primary" @click="signUp" :disabled="isLoading">
-                {{ isLoading ? 'Signing up…' : 'Get started' }}
-              </button>
-            </template>
-          </SignUpButton>
           <SignInButton>
             <template #default="{ signIn, isLoading }">
-              <button class="btn-outline" @click="signIn" :disabled="isLoading">
+              <button class="btn-primary" @click="signIn" :disabled="isLoading">
                 {{ isLoading ? 'Signing in…' : 'Sign in' }}
               </button>
             </template>
@@ -139,7 +132,7 @@ onUnmounted(() => {
             <span class="stat-label">Integration time</span>
           </div>
           <div class="stat">
-            <span class="stat-value">MIT</span>
+            <span class="stat-value">Apache 2.0</span>
             <span class="stat-label">License</span>
           </div>
         </div>

@@ -79,13 +79,12 @@ const SignUp: FC<SignUpProps> = ({
       );
     }
 
-    return (await signUp(
-      payload || {
-        flowType: EmbeddedFlowType.Registration,
-        ...(contextApplicationId && {applicationId: contextApplicationId}),
-        ...(scopes && {scopes}),
-      },
-    )) as unknown as Promise<any>;
+    return (await signUp({
+      flowType: EmbeddedFlowType.Registration,
+      ...(contextApplicationId && {applicationId: contextApplicationId}),
+      ...(scopes && {scopes}),
+      ...payload,
+    })) as unknown as Promise<any>;
   };
 
   /**

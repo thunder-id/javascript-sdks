@@ -1,6 +1,6 @@
 <script setup>
 import { computed } from 'vue'
-import { SignedIn, SignedOut, SignInButton, SignUpButton, UserDropdown } from '@thunderid/vue'
+import { SignedIn, SignedOut, SignInButton, UserDropdown } from '@thunderid/vue'
 
 const props = defineProps({
   page: { type: String, default: 'home' },
@@ -9,11 +9,9 @@ const props = defineProps({
 
 const emit = defineEmits(['update:page', 'update:dark'])
 
-const markTopFill = computed(() => props.dark ? '#E8F4FF' : '#05213F')
 const isHome = computed(() => props.page === 'home')
 
 const menuItems = computed(() => [
-  { label: 'Profile', onClick: () => emit('update:page', 'profile') },
   { label: 'Token debug', onClick: () => emit('update:page', 'token') },
 ])
 
@@ -25,15 +23,11 @@ function toggleDark() {
 <template>
   <nav class="nav">
     <a class="nav-logo" href="/" @click.prevent="emit('update:page', 'home')">
-      <svg :width="Math.round(24 * (207 / 257))" height="24" viewBox="0 0 207 257" fill="none" aria-hidden="true">
-        <path d="M55.4763 26.4391L58.8866 0H0V26.4391H55.4763Z" :fill="markTopFill" />
-        <path d="M39.8438 147.407L49.5455 72.2839H4.9909e-05V256.743H60.5602L80.048 147.407H39.8438Z" fill="#3688FF" />
-        <path d="M192.42 59.361C182.782 40.2307 168.929 25.5705 150.903 15.3381C145.501 12.2662 139.761 9.6605 133.703 7.5208L115.401 103.702H159.757L76.2987 256.743H83.3735C109.449 256.743 131.69 251.574 150.14 241.236C168.569 230.897 182.634 216.131 192.356 196.959C202.058 177.765 206.909 154.8 206.909 128.043C206.909 101.286 202.079 78.5123 192.441 59.3821L192.42 59.361Z" fill="#3688FF" />
+      <svg width="24" height="24" viewBox="0 0 196.32 170.02" aria-hidden="true">
+        <path fill="#42b883" d="M120.83 0L98.16 39.26 75.49 0H0l98.16 170.02L196.32 0h-75.49z" />
+        <path fill="#35495e" d="M120.83 0L98.16 39.26 75.49 0H39.26l58.9 102.01L157.06 0h-36.23z" />
       </svg>
-      <div class="wordmark">
-        <span class="wordmark-name">ThunderID</span>
-        <span class="wordmark-sub">Quickstart</span>
-      </div>
+      <span class="wordmark-name">Quickstart</span>
     </a>
 
     <div class="nav-actions">
@@ -72,18 +66,11 @@ function toggleDark() {
       <SignedOut>
         <SignInButton>
           <template #default="{ signIn, isLoading }">
-            <button class="btn-ghost" @click="signIn" :disabled="isLoading">
+            <button class="btn-primary" @click="signIn" :disabled="isLoading">
               {{ isLoading ? 'Signing in…' : 'Sign in' }}
             </button>
           </template>
         </SignInButton>
-        <SignUpButton>
-          <template #default="{ signUp, isLoading }">
-            <button class="btn-primary" @click="signUp" :disabled="isLoading">
-              {{ isLoading ? 'Signing up…' : 'Sign up' }}
-            </button>
-          </template>
-        </SignUpButton>
       </SignedOut>
     </div>
   </nav>

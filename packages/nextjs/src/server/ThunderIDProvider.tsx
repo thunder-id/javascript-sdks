@@ -18,7 +18,15 @@
 
 'use server';
 
-import {ThunderIDRuntimeError, IdToken, User, UserProfile} from '@thunderid/node';
+import {
+  ThunderIDRuntimeError,
+  FlowMetadataResponse,
+  FlowMetaType,
+  IdToken,
+  User,
+  UserProfile,
+  getFlowMeta,
+} from '@thunderid/node';
 import {ThunderIDProviderProps} from '@thunderid/react';
 import {FC, PropsWithChildren, ReactElement} from 'react';
 import clearSession from './actions/clearSession';
@@ -106,6 +114,19 @@ const ThunderIDServerProvider: FC<PropsWithChildren<ThunderIDServerProviderProps
     return <></>;
   }
 
+  // Fetch flow metadata (design config + i18n bundle) server-side so `FlowMetaProvider` can seed
+  // its state and skip a redundant client-side fetch — avoiding a flash of untranslated i18n keys
+  // (e.g. raw `signin.forms.credentials.title`) while embedded flow components first render.
+  let flowMeta: FlowMetadataResponse | null = null;
+  try {
+    flowMeta = await getFlowMeta({
+      baseUrl: config?.baseUrl,
+      ...(config?.applicationId ? {id: config.applicationId, type: FlowMetaType.App} : {}),
+    });
+  } catch (error) {
+    logger.warn('[ThunderIDServerProvider] Failed to fetch flow metadata:', error?.toString());
+  }
+
   // Try to get session information from JWT first, then fall back to legacy
   const sessionPayload: SessionTokenPayload | undefined = await getSessionPayload();
   const sessionId: string = sessionPayload?.sessionId || (await getSessionId()) || '';
@@ -164,6 +185,7 @@ const ThunderIDServerProvider: FC<PropsWithChildren<ThunderIDServerProviderProps
       organizationHandle={config?.organizationHandle}
       applicationId={config?.applicationId}
       baseUrl={config?.baseUrl}
+      initialMeta={flowMeta}
       signIn={signInAction}
       clearSession={clearSession}
       refreshToken={refreshToken}

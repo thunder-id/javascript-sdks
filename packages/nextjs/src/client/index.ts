@@ -45,5 +45,8 @@ export type {SignUpProps} from './components/presentation/SignUp/SignUp';
 export {default as UserDropdown} from './components/presentation/UserDropdown/UserDropdown';
 export type {UserDropdownProps} from './components/presentation/UserDropdown/UserDropdown';
 
+export {default as UserAvatar} from './components/presentation/UserAvatar/UserAvatar';
+export type {UserAvatarProps} from './components/presentation/UserAvatar/UserAvatar';
+
 export {default as UserProfile} from './components/presentation/UserProfile/UserProfile';
 export type {UserProfileProps} from './components/presentation/UserProfile/UserProfile';

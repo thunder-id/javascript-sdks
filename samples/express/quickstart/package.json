@@ -2,9 +2,10 @@
   "name": "@thunderid/express-quickstart",
   "private": true,
   "version": "0.0.0",
+  "type": "module",
   "scripts": {
-    "start": "node index.js",
-    "dev": "node --watch index.js"
+    "start": "node --env-file=.env index.mjs",
+    "dev": "node --env-file=.env --watch index.mjs"
   },
   "dependencies": {
     "@thunderid/express": "workspace:*",

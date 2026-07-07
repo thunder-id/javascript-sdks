@@ -224,14 +224,7 @@ class ThunderIDReactClient<T extends ThunderIDReactConfig = ThunderIDReactConfig
     const firstArg: any = args[0];
     const baseUrl: string = config?.baseUrl ?? '';
 
-    const authIdFromUrl: string = new URL(window.location.href).searchParams.get('authId') ?? '';
-    const authIdFromStorage: string =
-      ((await this.getStorageManager().getHybridDataParameter('authId')) as string) ?? '';
-    const authId: string = authIdFromUrl || authIdFromStorage;
-
-    if (authIdFromUrl && !authIdFromStorage) {
-      await this.getStorageManager().setHybridDataParameter('authId', authIdFromUrl);
-    }
+    const authId: string = new URL(window.location.href).searchParams.get('authId') ?? '';
 
     const response: any = await executeEmbeddedSignUpFlow({
       authId,

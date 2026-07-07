@@ -60,6 +60,18 @@ function getInitials(user) {
   return name.slice(0, 2).toUpperCase()
 }
 
+function getAvatarUrl(user) {
+  return user?.profile || user?.profileUrl || user?.picture || user?.URL || null
+}
+
+function renderAvatar(user, className) {
+  const avatarUrl = getAvatarUrl(user)
+  if (avatarUrl) {
+    return `<div class="${className}"><img src="${escapeHtml(avatarUrl)}" alt="" /></div>`
+  }
+  return `<div class="${className}">${escapeHtml(getInitials(user))}</div>`
+}
+
 function greeting(name) {
   const h = new Date().getHours()
   const tod = h < 12 ? 'morning' : h < 17 ? 'afternoon' : 'evening'
@@ -92,7 +104,7 @@ export function renderSignedOut() {
         <div class="hero-mark">${HERO_MARK}</div>
         <div class="hero-badge">
           <span class="hero-badge-line"></span>
-          <span>v1.0 · Open source</span>
+          <span>Open source</span>
           <span class="hero-badge-line"></span>
         </div>
         <h1 class="hero-title">Auth for Modern Apps and Agents</h1>
@@ -101,8 +113,7 @@ export function renderSignedOut() {
           Clone the Quickstart and ship auth before lunch.
         </p>
         <div class="hero-ctas">
-          <button class="btn-primary btn-lg" id="hero-get-started-btn">Get started</button>
-          <button class="btn-outline btn-lg" id="hero-sign-in-btn">Sign in</button>
+          <button class="btn-primary" id="hero-sign-in-btn">Sign in</button>
         </div>
         <hr class="hero-divider">
         <div class="hero-stats">
@@ -115,7 +126,7 @@ export function renderSignedOut() {
             <span class="stat-label">Integration time</span>
           </div>
           <div class="stat">
-            <span class="stat-value">MIT</span>
+            <span class="stat-value">Apache 2.0</span>
             <span class="stat-label">License</span>
           </div>
         </div>
@@ -124,15 +135,39 @@ export function renderSignedOut() {
 }
 
 export function attachSignedOutHandlers({ auth }) {
-  document.getElementById('hero-get-started-btn')?.addEventListener('click', () => auth.signIn())
   document.getElementById('hero-sign-in-btn')?.addEventListener('click', () => auth.signIn())
+}
+
+export function renderConfigNeeded(missing) {
+  return `
+    <section class="hero">
+      <div class="hero-inner">
+        <div class="hero-mark">${HERO_MARK}</div>
+        <div class="hero-badge config-badge">
+          <span class="hero-badge-line"></span>
+          <span>Setup required</span>
+          <span class="hero-badge-line"></span>
+        </div>
+        <h1 class="hero-title">Configuration needed</h1>
+        <p class="hero-subtitle">
+          This quickstart can't reach ThunderID yet. Set the following
+          environment variable(s), then restart the dev server.
+        </p>
+        <ul class="config-list">
+          ${missing.map(key => `<li class="config-list-item">${escapeHtml(key)}</li>`).join('')}
+        </ul>
+        <p class="config-hint">
+          Copy <code>.env.example</code> to <code>.env.local</code>, fill in the
+          values from your ThunderID application, then run <code>npm run dev</code> again.
+        </p>
+      </div>
+    </section>`
 }
 
 export function renderHome({ user, idToken }) {
   const now = Math.floor(Date.now() / 1000)
   const givenName = user?.given_name || user?.name || user?.username || 'there'
   const email = user?.email || ''
-  const initials = escapeHtml(getInitials(user))
 
   const authTime = idToken?.auth_time
   const exp = idToken?.exp
@@ -143,7 +178,7 @@ export function renderHome({ user, idToken }) {
   return `
     <main class="home-main">
       <div class="home-greeting">
-        <div class="home-avatar-initials">${initials}</div>
+        ${renderAvatar(user, 'home-avatar-initials')}
         <div class="home-greeting-text">
           <h1 class="home-greeting-name">${escapeHtml(greeting(givenName))}</h1>
           <div class="home-greeting-meta">

@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link, Outlet, useLocation } from 'react-router'
-import { SignedIn, SignedOut, SignInButton, SignUpButton, UserDropdown, Loading } from '@thunderid/react'
-import ThunderMark from './ThunderMark'
+import { SignedIn, SignedOut, SignInButton, UserDropdown, Loading } from '@thunderid/react'
+import ReactLogo from './icons/ReactLogo'
 
 function MoonIcon() {
   return (
@@ -41,15 +41,6 @@ function KeyIcon() {
   )
 }
 
-function UserIcon() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <circle cx="12" cy="8" r="4" />
-      <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" />
-    </svg>
-  )
-}
-
 export default function Nav() {
   const [dark, setDark] = useState(false)
   const location = useLocation()
@@ -61,10 +52,6 @@ export default function Nav() {
     document.documentElement.setAttribute('data-theme', next ? 'dark' : '')
   }
 
-  const profileMenuItem = {
-    label: <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}><UserIcon />Profile</span>,
-    href: '/profile',
-  }
   const tokenDebugMenuItem = {
     label: <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}><KeyIcon />Token debug</span>,
     href: '/token',
@@ -74,11 +61,8 @@ export default function Nav() {
     <div className="app" data-theme={dark ? 'dark' : undefined}>
       <nav className="nav">
         <Link to="/" className="nav-logo">
-          <ThunderMark height={24} dark={dark} />
-          <div className="wordmark">
-            <span className="wordmark-name">ThunderID</span>
-            <span className="wordmark-sub">Quickstart</span>
-          </div>
+          <ReactLogo size={24} />
+          <span className="wordmark-name">Quickstart</span>
         </Link>
         <div className="nav-actions">
           {!isHome && (
@@ -95,23 +79,16 @@ export default function Nav() {
             {dark ? <SunIcon /> : <MoonIcon />}
           </button>
           <SignedIn>
-            <UserDropdown showTriggerLabel menuItems={[profileMenuItem, tokenDebugMenuItem]} />
+            <UserDropdown showTriggerLabel menuItems={[tokenDebugMenuItem]} />
           </SignedIn>
           <SignedOut>
             <SignInButton>
               {({ signIn, isLoading }) => (
-                <button className="btn-ghost" onClick={signIn} disabled={isLoading}>
+                <button className="btn-primary" onClick={signIn} disabled={isLoading}>
                   {isLoading ? 'Signing in…' : 'Sign in'}
                 </button>
               )}
             </SignInButton>
-            <SignUpButton>
-              {({ signUp, isLoading }) => (
-                <button className="btn-primary" onClick={signUp} disabled={isLoading}>
-                  {isLoading ? 'Signing up…' : 'Sign up'}
-                </button>
-              )}
-            </SignUpButton>
           </SignedOut>
         </div>
       </nav>

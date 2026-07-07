@@ -1,9 +1,9 @@
 'use client'
 import { usePathname } from 'next/navigation'
 import Link from 'next/link'
-import { SignedIn, SignedOut, SignInButton, SignUpButton, UserDropdown } from '@thunderid/nextjs'
+import { SignedIn, SignedOut, SignInButton, UserDropdown } from '@thunderid/nextjs'
 import { useState } from 'react'
-import ThunderMark from './ThunderMark'
+import NextLogo from './icons/NextLogo'
 
 function MoonIcon() {
   return (
@@ -43,15 +43,6 @@ function KeyIcon() {
   )
 }
 
-function UserIcon() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <circle cx="12" cy="8" r="4" />
-      <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" />
-    </svg>
-  )
-}
-
 export default function Nav() {
   const [dark, setDark] = useState(false)
   const pathname = usePathname()
@@ -65,10 +56,6 @@ export default function Nav() {
 
   const menuItems = [
     {
-      label: <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}><UserIcon />Profile</span>,
-      href: '/profile',
-    },
-    {
       label: <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}><KeyIcon />Token debug</span>,
       href: '/token',
     },
@@ -77,11 +64,8 @@ export default function Nav() {
   return (
     <nav className="nav">
       <Link href="/" className="nav-logo">
-        <ThunderMark height={24} darkMode={dark} />
-        <div className="wordmark">
-          <span className="wordmark-name">ThunderID</span>
-          <span className="wordmark-sub">Quickstart</span>
-        </div>
+        <NextLogo size={24} />
+        <span className="wordmark-name">Quickstart</span>
       </Link>
       <div style={{ flex: 1 }} />
       <div className="nav-actions">
@@ -100,18 +84,11 @@ export default function Nav() {
         <SignedOut>
           <SignInButton>
             {({ signIn, isLoading }) => (
-              <button className="btn-ghost" onClick={() => { void signIn?.() }} disabled={isLoading}>
+              <button className="btn-primary" onClick={() => { void signIn?.() }} disabled={isLoading}>
                 {isLoading ? 'Signing in…' : 'Sign in'}
               </button>
             )}
           </SignInButton>
-          <SignUpButton>
-            {({ signUp, isLoading }) => (
-              <button className="btn-primary" onClick={() => { void signUp?.() }} disabled={isLoading}>
-                {isLoading ? 'Signing up…' : 'Sign up'}
-              </button>
-            )}
-          </SignUpButton>
         </SignedOut>
       </div>
     </nav>
