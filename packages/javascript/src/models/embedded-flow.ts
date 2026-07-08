@@ -35,6 +35,13 @@ export enum EmbeddedFlowResponseType {
  */
 export interface EmbeddedFlowExecuteRequestConfigBase<T = any> extends Partial<Request> {
   baseUrl?: string;
+  /**
+   * Flow Secret authenticating a backend/server-side application when it initiates a new native
+   * flow directly. When set, it is sent in the `Flow-Secret` request header, and only on a new
+   * flow initiation (a payload carrying `applicationId` and `flowType`) — never on continuation
+   * requests. Not applicable to public clients or redirect-based applications.
+   */
+  flowSecret?: string;
   payload?: T;
   url?: string;
 }
