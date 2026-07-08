@@ -26,6 +26,7 @@ const executeEmbeddedSignInFlow = async ({
   baseUrl,
   payload,
   authId,
+  flowSecret,
   ...requestConfig
 }: EmbeddedFlowExecuteRequestConfig): Promise<EmbeddedSignInFlowResponse> => {
   if (!payload) {
@@ -74,6 +75,9 @@ const executeEmbeddedSignInFlow = async ({
     headers: {
       Accept: 'application/json',
       'Content-Type': 'application/json',
+      // A backend/server-side application presents its Flow Secret to initiate a new flow. It is
+      // only relevant on initiation, so it is omitted from continuation requests.
+      ...(isNewFlowStart && flowSecret ? {'Flow-Secret': flowSecret} : {}),
       ...requestConfig.headers,
     } as HeadersInit,
     method: requestConfig.method || 'POST',

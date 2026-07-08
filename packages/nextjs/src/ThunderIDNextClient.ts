@@ -265,6 +265,7 @@ class ThunderIDNextClient<T extends ThunderIDNextConfig = ThunderIDNextConfig> e
 
       return executeEmbeddedSignInFlow({
         baseUrl: configData?.baseUrl,
+        flowSecret: arg2?.flowSecret,
         payload: arg1,
         url: arg2?.url,
       }) as unknown as Promise<EmbeddedSignInFlowResponse>;
