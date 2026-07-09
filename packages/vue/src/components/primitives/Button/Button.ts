@@ -76,6 +76,7 @@ const Button: Component = defineComponent({
         {
           class: cssClass,
           disabled: props.disabled || props.loading,
+          id: attrs['id'],
           onClick: (e: MouseEvent) => emit('click', e),
           style: attrs.style,
           type: props.type,

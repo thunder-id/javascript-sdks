@@ -3,7 +3,7 @@
 # SDKs at the same dependency level run concurrently; push conflicts are
 # handled by a retry-with-rebase loop in the publish step.
 
-name: 🧩 Release SDKs
+name: 🚀 Release
 
 on:
   workflow_dispatch:

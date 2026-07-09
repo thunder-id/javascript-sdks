@@ -311,6 +311,11 @@ export interface EmbeddedFlowComponent {
   alt?: string;
 
   /**
+   * Space-separated list of CSS class names to apply to the rendered element.
+   */
+  classes?: string;
+
+  /**
    * Icon color, CSS color value (for Icon components).
    */
   color?: string;

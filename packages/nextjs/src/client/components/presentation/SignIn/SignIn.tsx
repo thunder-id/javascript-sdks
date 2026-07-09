@@ -27,7 +27,7 @@ import useThunderID from '../../../contexts/ThunderID/useThunderID';
  * Props for the SignIn component.
  * Extends BaseSignInProps for full compatibility with the React BaseSignIn component
  */
-export type SignInProps = Pick<BaseSignInProps, 'className' | 'onSuccess' | 'onError' | 'variant' | 'size'>;
+export type SignInProps = Pick<BaseSignInProps, 'className' | 'id' | 'onSuccess' | 'onError' | 'variant' | 'size'>;
 
 /**
  * A SignIn component for Next.js that provides native authentication flow.

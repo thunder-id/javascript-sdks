@@ -173,6 +173,11 @@ export interface BaseSignUpProps {
   errorClassName?: string;
 
   /**
+   * HTML id attribute for the form container.
+   */
+  id?: string;
+
+  /**
    * Custom CSS class name for form inputs.
    */
   inputClassName?: string;
@@ -264,6 +269,7 @@ const BaseSignUpContent: FC<BaseSignUpProps> = ({
   onFlowChange,
   onComplete,
   error: externalError,
+  id,
   className = '',
   inputClassName = '',
   buttonClassName = '',
@@ -1099,12 +1105,16 @@ const BaseSignUpContent: FC<BaseSignUpProps> = ({
       values: formValues,
     };
 
-    return <div className={containerClasses}>{children(renderProps)}</div>;
+    return (
+      <div id={id} className={containerClasses}>
+        {children(renderProps)}
+      </div>
+    );
   }
 
   if (!isFlowInitialized && isLoading) {
     return (
-      <CardPrimitive className={cx(containerClasses, styles.card)} variant={variant}>
+      <CardPrimitive id={id} className={cx(containerClasses, styles.card)} variant={variant}>
         <CardPrimitive.Content>
           <div className={styles.loadingContainer}>
             <Spinner size="medium" />
@@ -1116,7 +1126,7 @@ const BaseSignUpContent: FC<BaseSignUpProps> = ({
 
   if (!currentFlow) {
     return (
-      <CardPrimitive className={cx(containerClasses, styles.card)} variant={variant}>
+      <CardPrimitive id={id} className={cx(containerClasses, styles.card)} variant={variant}>
         <CardPrimitive.Content>
           <AlertPrimitive variant="error" className={errorClasses}>
             <AlertPrimitive.Title>{t('errors.heading')}</AlertPrimitive.Title>
@@ -1138,7 +1148,7 @@ const BaseSignUpContent: FC<BaseSignUpProps> = ({
   );
 
   return (
-    <CardPrimitive className={cx(containerClasses, styles.card)} variant={variant}>
+    <CardPrimitive id={id} className={cx(containerClasses, styles.card)} variant={variant}>
       {(showTitle || showSubtitle) && (
         <CardPrimitive.Header className={styles.header}>
           {showTitle && (

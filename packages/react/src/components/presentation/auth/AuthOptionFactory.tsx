@@ -16,7 +16,7 @@
  * under the License.
  */
 
-import {css} from '@emotion/css';
+import {css, cx} from '@emotion/css';
 import {
   FieldType,
   FlowMetadataResponse,
@@ -258,8 +258,9 @@ const createAuthComponentFromFlow = (
       const fieldType: string = getFieldType(component.type);
 
       const field: any = createField({
-        className: options.inputClassName,
+        className: cx(options.inputClassName, component.classes),
         error,
+        id: component.id,
         label: resolve(component.label) || '',
         name: identifier,
         onBlur: () => options.onInputBlur?.(identifier),
@@ -280,8 +281,9 @@ const createAuthComponentFromFlow = (
       const error: string = isTouched ? formErrors[identifier] : undefined!;
 
       const field: any = createField({
-        className: options.inputClassName,
+        className: cx(options.inputClassName, component.classes),
         error,
+        id: component.id,
         label: resolve(component.label) || '',
         name: identifier,
         onBlur: () => options.onInputBlur?.(identifier),
@@ -346,26 +348,35 @@ const createAuthComponentFromFlow = (
 
       // Render branded social login buttons for known action IDs
 
+      const socialButtonClassName: string = cx(options.buttonClassName, component.classes);
+
       if (matchesSocialProvider(actionId, eventType, buttonText, 'google', authType, componentVariant)) {
-        return <GoogleButton key={key} onClick={handleClick} className={options.buttonClassName} />;
+        return <GoogleButton key={key} id={component.id} onClick={handleClick} className={socialButtonClassName} />;
       }
       if (matchesSocialProvider(actionId, eventType, buttonText, 'github', authType, componentVariant)) {
-        return <GitHubButton key={key} onClick={handleClick} className={options.buttonClassName} />;
+        return <GitHubButton key={key} id={component.id} onClick={handleClick} className={socialButtonClassName} />;
       }
       if (matchesSocialProvider(actionId, eventType, buttonText, 'facebook', authType, componentVariant)) {
-        return <FacebookButton key={key} onClick={handleClick} className={options.buttonClassName} />;
+        return <FacebookButton key={key} id={component.id} onClick={handleClick} className={socialButtonClassName} />;
       }
       if (matchesSocialProvider(actionId, eventType, buttonText, 'microsoft', authType, componentVariant)) {
-        return <MicrosoftButton key={key} onClick={handleClick} className={options.buttonClassName} />;
+        return <MicrosoftButton key={key} id={component.id} onClick={handleClick} className={socialButtonClassName} />;
       }
       if (matchesSocialProvider(actionId, eventType, buttonText, 'linkedin', authType, componentVariant)) {
-        return <LinkedInButton key={key} onClick={handleClick} className={options.buttonClassName} />;
+        return <LinkedInButton key={key} id={component.id} onClick={handleClick} className={socialButtonClassName} />;
       }
       if (matchesSocialProvider(actionId, eventType, buttonText, 'ethereum', authType, componentVariant)) {
-        return <SignInWithEthereumButton key={key} onClick={handleClick} className={options.buttonClassName} />;
+        return (
+          <SignInWithEthereumButton
+            key={key}
+            id={component.id}
+            onClick={handleClick}
+            className={socialButtonClassName}
+          />
+        );
       }
       if (actionId === 'prompt_mobile' || eventType === 'prompt_mobile') {
-        return <SmsOtpButton key={key} onClick={handleClick} className={options.buttonClassName} />;
+        return <SmsOtpButton key={key} id={component.id} onClick={handleClick} className={socialButtonClassName} />;
       }
 
       const startIconEl: ReactElement | null = component.startIcon ? (
@@ -390,6 +401,7 @@ const createAuthComponentFromFlow = (
         <Button
           fullWidth
           key={key}
+          id={component.id}
           onClick={handleClick}
           disabled={
             isLoading ||
@@ -397,7 +409,7 @@ const createAuthComponentFromFlow = (
             options.isTimeoutDisabled ||
             (component as any).config?.disabled
           }
-          className={options.buttonClassName}
+          className={cx(options.buttonClassName, component.classes)}
           data-testid="thunderid-signin-submit"
           variant={component.variant?.toLowerCase() === 'primary' ? 'solid' : 'outline'}
           color={component.variant?.toLowerCase() === 'primary' ? 'primary' : 'secondary'}
@@ -414,6 +426,8 @@ const createAuthComponentFromFlow = (
       return (
         <Typography
           key={key}
+          id={component.id}
+          className={component.classes}
           variant={variant}
           style={{
             marginBottom: 2,
@@ -445,6 +459,7 @@ const createAuthComponentFromFlow = (
       return (
         <Select
           key={key}
+          id={component.id}
           name={identifier}
           label={resolve(component.label) || ''}
           placeholder={resolve(component.placeholder)}
@@ -454,7 +469,7 @@ const createAuthComponentFromFlow = (
           error={error}
           onChange={(e: any): void => onInputChange(identifier, e.target.value)}
           onBlur={(): any => options.onInputBlur?.(identifier)}
-          className={options.inputClassName}
+          className={cx(options.inputClassName, component.classes)}
         />
       );
     }
@@ -468,6 +483,7 @@ const createAuthComponentFromFlow = (
       return (
         <DatePicker
           key={key}
+          id={component.id}
           name={identifier}
           label={resolve(component.label) || ''}
           placeholder={resolve(component.placeholder)}
@@ -477,7 +493,7 @@ const createAuthComponentFromFlow = (
           error={error}
           onChange={(e: any): void => onInputChange(identifier, e.target.value)}
           onBlur={(): any => options.onInputBlur?.(identifier)}
-          className={options.inputClassName}
+          className={cx(options.inputClassName, component.classes)}
         />
       );
     }
@@ -515,7 +531,7 @@ const createAuthComponentFromFlow = (
           .filter(Boolean);
 
         return (
-          <form id={component.id} key={key} style={formStyles}>
+          <form id={component.id} key={key} className={component.classes} style={formStyles}>
             {blockComponents}
           </form>
         );
@@ -668,7 +684,7 @@ const createAuthComponentFromFlow = (
         : [];
 
       return (
-        <div key={key} style={stackStyle}>
+        <div key={key} id={component.id} className={component.classes} style={stackStyle}>
           {stackChildren}
         </div>
       );
