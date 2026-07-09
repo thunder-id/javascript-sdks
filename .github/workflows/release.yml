@@ -302,21 +302,13 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
-      - name: 📦 Pack Sample
-        id: pack
-        uses: ./.github/actions/pack-sample
-        with:
-          sdk: node
-          version: ${{ steps.bump.outputs.version }}
-
       - name: 🚀 Create GitHub Release
         env:
           GH_TOKEN: ${{ secrets.THUNDERID_AUTOMATION_BOT }}
         run: |
           gh release create "sdk/node/v${{ steps.bump.outputs.version }}" \
             --title "ThunderID Node SDK v${{ steps.bump.outputs.version }}" \
-            --generate-notes \
-            "${{ steps.pack.outputs.archive }}"
+            --generate-notes
 
   # ── Level 2: depends on browser / node ─────────────────────────────────────
   release-express:
