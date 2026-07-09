@@ -475,6 +475,7 @@ const BaseSignUpContent: FC<BaseSignUpProps> = ({
     isValid: isFormValid,
     setValue: setFormValue,
     setTouched: setFormTouched,
+    setTouchedFields,
     setErrors: setFormErrors,
     clearErrors: clearFormErrors,
     validateForm,
@@ -482,11 +483,9 @@ const BaseSignUpContent: FC<BaseSignUpProps> = ({
     reset: resetForm,
   } = form;
 
-  /**
-   * Project server-side validation errors from the most recent flow response into the
-   * form's `errors` state. See BaseSignIn for the same pattern: first error per field
-   * wins, and the affected fields are marked touched so the error renders immediately.
-   */
+  // Project server-side fieldErrors from the flow response into form state.
+  // `setTouchedFields` avoids re-running client-side validation that would wipe
+  // server errors when the client rules happen to pass.
   useEffect(() => {
     clearFormErrors();
     const responseFieldErrors: FieldError[] | undefined = (currentFlow?.data as any)?.fieldErrors;
@@ -494,14 +493,16 @@ const BaseSignUpContent: FC<BaseSignUpProps> = ({
       return;
     }
     const errors: Record<string, string> = {};
+    const touched: Record<string, boolean> = {};
     for (const fe of responseFieldErrors) {
       if (!(fe.identifier in errors)) {
         errors[fe.identifier] = fe.message;
+        touched[fe.identifier] = true;
       }
     }
+    setTouchedFields(touched);
     setFormErrors(errors);
-    Object.keys(errors).forEach((field: string) => setFormTouched(field, true));
-  }, [currentFlow, setFormErrors, setFormTouched, clearFormErrors]);
+  }, [currentFlow, setFormErrors, setTouchedFields, clearFormErrors]);
 
   /**
    * Setup form fields based on the current flow.
