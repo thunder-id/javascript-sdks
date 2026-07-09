@@ -211,6 +211,11 @@ export interface BaseSignInProps {
   preferences?: Preferences;
 
   /**
+   * HTML id attribute for the form container.
+   */
+  id?: string;
+
+  /**
    * Field-level validation errors returned by the server in `data.fieldErrors` on the
    * most recent flow response. The component collapses these into the form's
    * `fieldErrors` state (first error per field wins), surfacing them through the same
@@ -238,6 +243,7 @@ const BaseSignInContent: FC<BaseSignInProps> = ({
   onSubmit,
   onError,
   error: externalError,
+  id,
   className = '',
   inputClassName = '',
   buttonClassName = '',
@@ -526,7 +532,7 @@ const BaseSignInContent: FC<BaseSignInProps> = ({
     };
 
     return (
-      <div className={containerClasses} data-testid="thunderid-signin">
+      <div id={id} className={containerClasses} data-testid="thunderid-signin">
         {children(renderProps)}
       </div>
     );
@@ -535,7 +541,12 @@ const BaseSignInContent: FC<BaseSignInProps> = ({
   // Default UI rendering
   if (isLoading) {
     return (
-      <CardPrimitive className={cx(containerClasses, styles.card)} data-testid="thunderid-signin" variant={variant}>
+      <CardPrimitive
+        id={id}
+        className={cx(containerClasses, styles.card)}
+        data-testid="thunderid-signin"
+        variant={variant}
+      >
         <CardPrimitive.Content>
           <div style={{display: 'flex', justifyContent: 'center', padding: '2rem'}}>
             <Spinner />
@@ -547,7 +558,12 @@ const BaseSignInContent: FC<BaseSignInProps> = ({
 
   if (!components || components.length === 0) {
     return (
-      <CardPrimitive className={cx(containerClasses, styles.card)} data-testid="thunderid-signin" variant={variant}>
+      <CardPrimitive
+        id={id}
+        className={cx(containerClasses, styles.card)}
+        data-testid="thunderid-signin"
+        variant={variant}
+      >
         <CardPrimitive.Content>
           <AlertPrimitive variant="warning">
             <Typography variant="body1">{t('errors.signin.components.not.available')}</Typography>
@@ -558,7 +574,12 @@ const BaseSignInContent: FC<BaseSignInProps> = ({
   }
 
   return (
-    <CardPrimitive className={cx(containerClasses, styles.card)} data-testid="thunderid-signin" variant={variant}>
+    <CardPrimitive
+      id={id}
+      className={cx(containerClasses, styles.card)}
+      data-testid="thunderid-signin"
+      variant={variant}
+    >
       <CardPrimitive.Content>
         {externalError && (
           <div className={styles.flowMessagesContainer}>
