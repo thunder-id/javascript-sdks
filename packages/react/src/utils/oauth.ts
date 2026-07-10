@@ -16,15 +16,16 @@
  * under the License.
  */
 
-import {navigate} from '@thunderid/browser';
+import {navigate, getVendorPrefix} from '@thunderid/browser';
 
 /**
  * Initiates OAuth redirect with CSRF protection.
  * Generates random state, stores return path in sessionStorage, and redirects to OAuth provider.
  *
  * @param redirectURL - OAuth authorization URL from the server
+ * @param vendor - Vendor/brand namespace used to prefix the sessionStorage key. Defaults to `'thunderid'`.
  */
-export function initiateOAuthRedirect(redirectURL: string): void {
+export function initiateOAuthRedirect(redirectURL: string, vendor?: string): void {
   const basePath: string = document.querySelector('base')?.getAttribute('href') || '';
   let returnPath: string = window.location.pathname;
 
@@ -35,7 +36,7 @@ export function initiateOAuthRedirect(redirectURL: string): void {
   const state: string = crypto.randomUUID();
 
   sessionStorage.setItem(
-    `thunderid_oauth_${state}`,
+    `${getVendorPrefix(vendor)}_oauth_${state}`,
     JSON.stringify({
       path: returnPath,
       timestamp: Date.now(),

@@ -16,7 +16,7 @@
  * under the License.
  */
 
-import {FlowMetadataResponse, withVendorCSSClassPrefix} from '@thunderid/browser';
+import {FlowMetadataResponse, withVendorCSSClassPrefix, getVendorPrefix} from '@thunderid/browser';
 import {
   type Component,
   type PropType,
@@ -25,12 +25,15 @@ import {
   type VNode,
   defineComponent,
   h,
+  inject,
   ref,
   watch,
 } from 'vue';
 import useFlowMeta from '../../../composables/useFlowMeta';
 import useI18n from '../../../composables/useI18n';
 import {useOAuthCallback} from '../../../composables/useOAuthCallback';
+import {THUNDERID_KEY} from '../../../keys';
+import type {ThunderIDContext} from '../../../models/contexts';
 import {extractErrorMessage, normalizeFlowResponse} from '../../../utils/flowTransformer';
 import {initiateOAuthRedirect} from '../../../utils/oauth';
 import {renderInviteUserComponents} from '../../auth/sign-in/AuthOptionFactory';
@@ -135,6 +138,12 @@ const BaseAcceptInvite: Component = defineComponent({
     const {meta: metaRef} = useFlowMeta();
     const {t} = useI18n();
 
+    // This component can be used standalone (outside <ThunderIDProvider>, see AcceptInvite.ts),
+    // so read the vendor prefix via optional injection rather than the throwing useThunderID composable.
+    const thunderIDContext: ThunderIDContext | null = inject(THUNDERID_KEY, null);
+    const vendor: string = getVendorPrefix(thunderIDContext?.vendor);
+    const flowIdStorageKey = `${vendor}_flow_id`;
+
     // ── State ──
     const isLoading: Ref<boolean> = ref(false);
     const isValidatingToken: Ref<boolean> = ref(true);
@@ -179,6 +188,7 @@ const BaseAcceptInvite: Component = defineComponent({
 
     useOAuthCallback({
       currentFlowId: ref(props.flowId ?? null),
+      flowIdStorageKey,
       isInitialized: ref(true),
       onComplete: () => {
         isComplete.value = true;
@@ -286,7 +296,7 @@ const BaseAcceptInvite: Component = defineComponent({
         if (response.type === 'REDIRECTION') {
           const redirectURL: string | undefined = response.data?.redirectURL || (response as any)?.redirectURL;
           if (redirectURL) {
-            initiateOAuthRedirect(redirectURL);
+            initiateOAuthRedirect(redirectURL, vendor);
             return;
           }
         }
@@ -349,7 +359,7 @@ const BaseAcceptInvite: Component = defineComponent({
           apiError.value = null;
 
           try {
-            if (flowId) sessionStorage.setItem('thunderid_flow_id', flowId);
+            if (flowId) sessionStorage.setItem(flowIdStorageKey, flowId);
 
             const payload: any = {flowId, inputs: {inviteToken}, verbose: true};
             const rawResponse: AcceptInviteFlowResponse = await props.onSubmit(payload);

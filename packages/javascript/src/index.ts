@@ -196,6 +196,7 @@ export {default as buildValidatorFromRules} from './utils/buildValidatorFromRule
 export {default as evaluateValidationRule, DEFAULT_VALIDATION_MESSAGE_KEYS} from './utils/evaluateValidationRule';
 export {default as processOpenIDScopes} from './utils/processOpenIDScopes';
 export {default as withVendorCSSClassPrefix} from './utils/withVendorCSSClassPrefix';
+export {default as getVendorPrefix} from './utils/getVendorPrefix';
 
 export {
   default as logger,

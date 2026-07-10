@@ -28,6 +28,7 @@ import {
   extendViteConfig,
 } from '@nuxt/kit';
 import type {Nuxt} from '@nuxt/schema';
+import {VendorConstants} from '@thunderid/node';
 import {defu} from 'defu';
 import type {ThunderIDNuxtConfig, ThunderIDSessionPayload, ThunderIDSSRData} from './runtime/types';
 
@@ -61,6 +62,7 @@ export default defineNuxtModule<ThunderIDNuxtConfig>({
         clientId: process.env.NUXT_PUBLIC_THUNDERID_CLIENT_ID,
         signInUrl: process.env.NUXT_PUBLIC_THUNDERID_SIGN_IN_URL,
         signUpUrl: process.env.NUXT_PUBLIC_THUNDERID_SIGN_UP_URL,
+        vendor: process.env.NUXT_PUBLIC_THUNDERID_VENDOR,
       },
       // Layer 2: nuxt.config.ts options
       userOptions,
@@ -69,6 +71,7 @@ export default defineNuxtModule<ThunderIDNuxtConfig>({
         afterSignInUrl: '/',
         afterSignOutUrl: '/',
         scopes: ['openid', 'profile'],
+        vendor: VendorConstants.VENDOR_PREFIX,
       },
     );
 
@@ -106,6 +109,7 @@ export default defineNuxtModule<ThunderIDNuxtConfig>({
         signInUrl: publicConfig.signInUrl,
         signUpUrl: publicConfig.signUpUrl,
         tokenRequest: publicConfig.tokenRequest,
+        vendor: publicConfig.vendor,
       },
     ) as {
       afterSignInUrl: string;
@@ -119,6 +123,7 @@ export default defineNuxtModule<ThunderIDNuxtConfig>({
       signInUrl?: string;
       signUpUrl?: string;
       tokenRequest?: ThunderIDNuxtConfig['tokenRequest'];
+      vendor: string;
     };
 
     // Ensure clientSecret never leaks to public config

@@ -18,7 +18,6 @@
 
 import {logger as Logger} from '@thunderid/node';
 import express from 'express';
-import {SESSION_COOKIE_NAME} from '../constants/CookieConfig';
 import ThunderIDExpressClient from '../ThunderIDExpressClient';
 
 /**
@@ -34,7 +33,7 @@ const protect = (
 ): ((req: express.Request, res: express.Response, next: express.NextFunction) => Promise<void>) => {
   return async (req: express.Request, res: express.Response, next: express.NextFunction): Promise<void> => {
     const client: ThunderIDExpressClient | undefined = (req as any).thunderIDAuth;
-    const sessionId: string | undefined = req.cookies?.[SESSION_COOKIE_NAME];
+    const sessionId: string | undefined = req.cookies?.[client?.getSessionCookieName() ?? ''];
 
     const reject = (): void => {
       if (onUnauthenticated) {

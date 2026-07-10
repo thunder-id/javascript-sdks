@@ -26,6 +26,7 @@ import {
   User,
   UserProfile,
   ThunderIDRuntimeError,
+  getVendorPrefix,
 } from '@thunderid/node';
 import {
   I18nProvider,
@@ -96,6 +97,7 @@ const ThunderIDClientProvider: FC<PropsWithChildren<ThunderIDClientProviderProps
   applicationId,
   organizationHandle,
   scopes,
+  vendor,
   initialMeta = null,
 }: PropsWithChildren<ThunderIDClientProviderProps>) => {
   const reRenderCheckRef: RefObject<boolean> = useRef(false);
@@ -360,6 +362,7 @@ const ThunderIDClientProvider: FC<PropsWithChildren<ThunderIDClientProviderProps
       signUp: handleSignUp,
       signUpUrl,
       user,
+      vendor: getVendorPrefix(vendor),
     }),
     [
       applicationId,
@@ -373,6 +376,7 @@ const ThunderIDClientProvider: FC<PropsWithChildren<ThunderIDClientProviderProps
       signUpUrl,
       user,
       initialMeta,
+      vendor,
     ],
   );
 

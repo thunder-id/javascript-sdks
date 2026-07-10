@@ -49,8 +49,6 @@ import {extractErrorMessage, normalizeFlowResponse} from '../../../utils/flowTra
 import {initiateOAuthRedirect} from '../../../utils/oauth';
 import {handlePasskeyAuthentication, handlePasskeyRegistration} from '../../../utils/passkey';
 
-const EXECUTION_ID_STORAGE_KEY = 'thunderid_execution_id';
-
 interface PasskeyState {
   actionId: string | null;
   challenge: string | null;
@@ -121,9 +119,12 @@ const SignIn: Component = defineComponent({
       isLoading: sdkLoading,
       scopes,
       getStorageManager,
+      vendor,
     } = useThunderID();
     const {meta: flowMeta} = useFlowMeta();
     const {t} = useI18n();
+
+    const executionIdStorageKey = `${vendor}_execution_id`;
 
     // Flow state
     const components: Ref<EmbeddedFlowComponent[]> = ref([]);
@@ -152,9 +153,9 @@ const SignIn: Component = defineComponent({
     const persistExecutionId = (executionId: string | null): void => {
       currentExecutionId.value = executionId;
       if (executionId) {
-        sessionStorage.setItem(EXECUTION_ID_STORAGE_KEY, executionId);
+        sessionStorage.setItem(executionIdStorageKey, executionId);
       } else {
-        sessionStorage.removeItem(EXECUTION_ID_STORAGE_KEY);
+        sessionStorage.removeItem(executionIdStorageKey);
       }
     };
 
@@ -266,7 +267,7 @@ const SignIn: Component = defineComponent({
                 await sm.setHybridDataParameter('authId', urlParams.authId);
               }
             }
-            initiateOAuthRedirect(redirectURL);
+            initiateOAuthRedirect(redirectURL, vendor);
             return;
           }
         }
@@ -370,7 +371,7 @@ const SignIn: Component = defineComponent({
                 await sm.setHybridDataParameter('authId', urlParams.authId);
               }
             }
-            initiateOAuthRedirect(redirectURL);
+            initiateOAuthRedirect(redirectURL, vendor);
             return;
           }
         }
@@ -551,7 +552,7 @@ const SignIn: Component = defineComponent({
 
     useOAuthCallback({
       currentFlowId: currentExecutionId,
-      flowIdStorageKey: EXECUTION_ID_STORAGE_KEY,
+      flowIdStorageKey: executionIdStorageKey,
       isInitialized,
       isSubmitting,
       onError: (err: any) => {

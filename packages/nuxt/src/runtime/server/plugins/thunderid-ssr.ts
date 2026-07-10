@@ -16,6 +16,7 @@
  * under the License.
  */
 
+import {VendorConstants} from '@thunderid/node';
 import {getRequestURL, type H3Event} from 'h3';
 import {defineNitroPlugin} from 'nitropack/runtime';
 import type {ThunderIDAuthState, ThunderIDNuxtConfig, ThunderIDSSRData} from '../../types';
@@ -49,8 +50,9 @@ function resolveCallbackUrl(event: H3Event): string {
  *    within an organisation.
  * 4. In parallel (gated by `preferences`):
  *    - Fetches user + SCIM2 user profile  (`preferences.user.fetchUserProfile !== false`)
- * 5. Writes the full {@link ThunderIDSSRData} to `event.context.thunderid.ssr`
- *    so the Nuxt plugin can seed `useState` keys for zero-cost hydration.
+ * 5. Writes the full {@link ThunderIDSSRData} to `event.context[vendor].ssr`
+ *    (default vendor: `'thunderid'`) so the Nuxt plugin can seed `useState`
+ *    keys for zero-cost hydration.
  *
  * Each fetch is individually wrapped in try/catch so a broken SCIM
  * call never crashes SSR — the client layer can recover via the existing
@@ -119,14 +121,17 @@ export default defineNitroPlugin((nitro: {hooks: {hook: Function}}) => {
     const publicConfig: ThunderIDNuxtConfig = config.public.thunderid as ThunderIDNuxtConfig;
     const prefs: ThunderIDNuxtConfig['preferences'] | undefined = publicConfig?.preferences;
     const sessionSecret: string | undefined = process.env.THUNDERID_SESSION_SECRET || config.thunderid?.sessionSecret;
+    // Vendor namespace for `event.context[vendor]` — must match the key the
+    // Nuxt plugin (`runtime/plugins/thunderid.ts`) reads from.
+    const vendor: string = publicConfig?.vendor ?? VendorConstants.VENDOR_PREFIX;
 
     const session: Awaited<ReturnType<typeof verifyAndRehydrateSession>> = await verifyAndRehydrateSession(
       event,
       sessionSecret,
     );
     if (!session) {
-      const eventContext: H3Event['context'] = event.context;
-      eventContext.thunderid = {isSignedIn: false, session: null};
+      const eventContext: Record<string, unknown> = event.context;
+      eventContext[vendor] = {isSignedIn: false, session: null};
       return;
     }
 
@@ -178,8 +183,8 @@ export default defineNitroPlugin((nitro: {hooks: {hook: Function}}) => {
       userProfile: userProfileResult.status === 'fulfilled' ? userProfileResult.value : null,
     };
 
-    const eventContext: H3Event['context'] = event.context;
-    eventContext.thunderid = {isSignedIn: true, session, ssr: ssrData};
+    const eventContext: Record<string, unknown> = event.context;
+    eventContext[vendor] = {isSignedIn: true, session, ssr: ssrData};
 
     // Keep legacy __thunderidAuth in place so the existing Nuxt plugin
     // (Step 3) can be updated independently without a runtime gap.

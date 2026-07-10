@@ -227,7 +227,7 @@ const SignIn: FC<SignInProps> = ({
   variant,
   children,
 }: SignInProps): ReactElement => {
-  const {applicationId, afterSignInUrl, signIn, isInitialized, isLoading, meta, getStorageManager, scopes} =
+  const {applicationId, afterSignInUrl, signIn, isInitialized, isLoading, meta, getStorageManager, scopes, vendor} =
     useThunderID();
   const {t} = useTranslation(preferences?.i18n);
 
@@ -262,9 +262,9 @@ const SignIn: FC<SignInProps> = ({
   const setExecutionId = (executionId: string | null): void => {
     setCurrentExecutionId(executionId);
     if (executionId) {
-      sessionStorage.setItem('thunderid_execution_id', executionId);
+      sessionStorage.setItem(`${vendor}_execution_id`, executionId);
     } else {
-      sessionStorage.removeItem('thunderid_execution_id');
+      sessionStorage.removeItem(`${vendor}_execution_id`);
     }
   };
 
@@ -427,7 +427,7 @@ const SignIn: FC<SignInProps> = ({
         const urlParams: any = getUrlParams();
         await handleAuthId(urlParams.authId);
 
-        initiateOAuthRedirect(redirectURL);
+        initiateOAuthRedirect(redirectURL, vendor);
         return true;
       }
     }
@@ -462,7 +462,7 @@ const SignIn: FC<SignInProps> = ({
       setExecutionId(null);
       await setChallengeToken(null);
       setIsFlowInitialized(false);
-      sessionStorage.removeItem('thunderid_execution_id');
+      sessionStorage.removeItem(`${vendor}_execution_id`);
       try {
         const storageManager: any = await getStorageManager();
         await storageManager?.removeHybridDataParameter?.('authId');
@@ -511,7 +511,7 @@ const SignIn: FC<SignInProps> = ({
     // sessionStorage so the in-progress flow can be resumed instead of starting a new flow.
     // This is required for authorization_code apps where direct new-flow initiation is blocked
     // server-side and the flow must be initiated through the OAuth /authorize endpoint.
-    const storedExecutionId: any = !urlParams.executionId ? sessionStorage.getItem('thunderid_execution_id') : null;
+    const storedExecutionId: any = !urlParams.executionId ? sessionStorage.getItem(`${vendor}_execution_id`) : null;
     const resumeExecutionId: any = urlParams.executionId || storedExecutionId;
 
     if (!resumeExecutionId && !effectiveApplicationId) {
@@ -878,6 +878,7 @@ const SignIn: FC<SignInProps> = ({
 
   useOAuthCallback({
     currentExecutionId,
+    executionIdStorageKey: `${vendor}_execution_id`,
     isInitialized: isInitialized && !isLoading && isStorageReady,
     isSubmitting,
     onError: (err: any) => {

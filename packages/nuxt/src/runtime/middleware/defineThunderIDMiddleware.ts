@@ -16,10 +16,11 @@
  * under the License.
  */
 
-import {defineNuxtRouteMiddleware, navigateTo, useState} from '#app';
+import {defineNuxtRouteMiddleware, navigateTo, useRuntimeConfig, useState} from '#app';
 import type {Ref} from 'vue';
 import type {RouteLocationNormalized} from 'vue-router';
 import type {ThunderIDAuthState} from '../types';
+import {getAuthStateKey} from '../utils/stateKeys';
 
 export interface ThunderIDMiddlewareOptions {
   /**
@@ -64,7 +65,11 @@ export function defineThunderIDMiddleware(
   const {redirectTo = DEFAULT_REDIRECT_TO, requireOrganization = false, requireScopes = []} = options;
 
   return defineNuxtRouteMiddleware((to: RouteLocationNormalized) => {
-    const authState: Ref<ThunderIDAuthState> = useState<ThunderIDAuthState>('thunderid:auth');
+    // Must resolve the same `vendor` as `runtime/plugins/thunderid.ts` and
+    // `runtime/components/ThunderIDRoot.ts` so all three read/write the same
+    // `useState` key.
+    const vendor: string | undefined = (useRuntimeConfig().public.thunderid as {vendor?: string} | undefined)?.vendor;
+    const authState: Ref<ThunderIDAuthState> = useState<ThunderIDAuthState>(getAuthStateKey(vendor));
 
     if (!authState.value?.isSignedIn) {
       const returnTo: string = encodeURIComponent(to.fullPath);

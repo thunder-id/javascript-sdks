@@ -16,9 +16,6 @@
  * under the License.
  */
 
-/** Session cookie name used across the Express SDK. */
-export const SESSION_COOKIE_NAME = 'THUNDERID_SESSION_ID';
-
 /** Default cookie configuration values. */
 const CookieConfig = {
   defaultExpirySeconds: 86400,

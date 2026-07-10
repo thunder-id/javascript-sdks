@@ -21,6 +21,7 @@ import type {UpdateMeProfileConfig, User, UserProfile} from '@thunderid/node';
 import {FlowMetaProvider, FlowProvider, I18nProvider, ThemeProvider, UserProvider} from '@thunderid/vue';
 import {defineComponent, h, type Component, type Ref, type SetupContext, type VNode} from 'vue';
 import type {ThunderIDAuthState, ThunderIDNuxtConfig} from '../types';
+import {getAuthStateKey, getUserProfileStateKey} from '../utils/stateKeys';
 import {useState, useRuntimeConfig} from '#imports';
 
 /**
@@ -54,17 +55,26 @@ import {useState, useRuntimeConfig} from '#imports';
 const ThunderIDRoot: Component = defineComponent({
   name: 'ThunderIDRoot',
   setup(_props: Record<string, unknown>, {slots}: SetupContext): () => VNode {
+    // ── Vendor namespace from runtime config ────────────────────────────────
+    // Must resolve the same `vendor` as `runtime/plugins/thunderid.ts` and
+    // `runtime/middleware/defineThunderIDMiddleware.ts` so all three read/write
+    // the same `useState` keys.
+    const runtimeThunderIDConfig: {
+      preferences?: ThunderIDNuxtConfig['preferences'];
+      vendor?: string;
+    } = useRuntimeConfig().public.thunderid as {
+      preferences?: ThunderIDNuxtConfig['preferences'];
+      vendor?: string;
+    };
+    const vendor: string | undefined = runtimeThunderIDConfig?.vendor;
+
     // ── Read SSR-hydrated state keys (seeded by the Nuxt plugin) ────────────
-    const userProfileState: Ref<UserProfile | null> = useState<UserProfile | null>('thunderid:user-profile');
+    const userProfileState: Ref<UserProfile | null> = useState<UserProfile | null>(getUserProfileStateKey(vendor));
     // Used by onUpdateProfile to keep the top-level auth user claim in sync.
-    const authState: Ref<ThunderIDAuthState> = useState<ThunderIDAuthState>('thunderid:auth');
+    const authState: Ref<ThunderIDAuthState> = useState<ThunderIDAuthState>(getAuthStateKey(vendor));
 
     // ── Preferences from runtime config ────────────────────────────────────
-    const prefs: ThunderIDNuxtConfig['preferences'] | undefined = (
-      useRuntimeConfig().public.thunderid as {
-        preferences?: ThunderIDNuxtConfig['preferences'];
-      }
-    )?.preferences;
+    const prefs: ThunderIDNuxtConfig['preferences'] | undefined = runtimeThunderIDConfig?.preferences;
 
     // Gate flags — mirror the same checks in thunderid-ssr.ts so client props
     // always agree with what the Nitro plugin decided to fetch server-side.

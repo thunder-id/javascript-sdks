@@ -30,6 +30,7 @@ const decorateConfigWithNextEnv = (config: ThunderIDNextConfig): ThunderIDNextCo
     signUpUrl,
     afterSignInUrl,
     afterSignOutUrl,
+    vendor,
     ...rest
   } = config;
 
@@ -53,6 +54,7 @@ const decorateConfigWithNextEnv = (config: ThunderIDNextConfig): ThunderIDNextCo
     },
     signInUrl: signInUrl || process.env['NEXT_PUBLIC_THUNDERID_SIGN_IN_URL']!,
     signUpUrl: signUpUrl || process.env['NEXT_PUBLIC_THUNDERID_SIGN_UP_URL']!,
+    vendor: vendor || process.env['NEXT_PUBLIC_THUNDERID_VENDOR'],
   };
 };
 

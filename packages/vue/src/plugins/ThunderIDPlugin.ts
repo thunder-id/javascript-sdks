@@ -44,6 +44,12 @@ export interface ThunderIDPluginOptions {
    * initialisation so it is safe to call during SSR.
    */
   mode?: 'browser' | 'delegated';
+
+  /**
+   * Vendor/brand namespace used to prefix the injected `<style>` element's dedupe id.
+   * Should match the `vendor` passed to `<ThunderIDProvider>`. Defaults to `VendorConstants.VENDOR_PREFIX`.
+   */
+  vendor?: string;
 }
 
 /**
@@ -74,7 +80,7 @@ export interface ThunderIDPluginOptions {
  */
 const ThunderIDPlugin: Plugin<[ThunderIDPluginOptions?]> = {
   install(app: App, options?: ThunderIDPluginOptions): void {
-    injectStyles();
+    injectStyles(options?.vendor);
 
     if (options?.mode === 'delegated') {
       // In delegated mode the host framework is responsible for providing all

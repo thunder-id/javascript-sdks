@@ -101,6 +101,12 @@ export interface ThunderIDContext {
 
   /** The current user object, or `null` if not signed in. */
   user: Readonly<Ref<any | null>>;
+
+  /**
+   * Vendor/brand namespace used to prefix storage keys, cookie names, and CSS class names.
+   * Resolved from the `vendor` config option, defaulting to `VendorConstants.VENDOR_PREFIX`.
+   */
+  vendor: string;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

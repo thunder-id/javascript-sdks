@@ -34,6 +34,7 @@
  * `document.documentElement`, which wins over the `:root` stylesheet rule.
  */
 
+import {getVendorPrefix} from '@thunderid/browser';
 import ANIMATIONS_CSS from './animations.css';
 import DEFAULTS_CSS from './defaults.css';
 
@@ -56,8 +57,6 @@ import TEXT_FIELD_CSS from '../components/primitives/TextField/TextField.css';
 import TYPOGRAPHY_CSS from '../components/primitives/Typography/Typography.css';
 
 // Presentation
-
-const STYLE_ID = 'thunderid-vue-styles';
 
 /**
  * Assembled CSS for all ThunderID Vue components.
@@ -93,13 +92,19 @@ const STYLES: string = [
 /**
  * Injects ThunderID Vue component styles into the document `<head>` once.
  * Subsequent calls are no-ops (idempotent).
+ *
+ * @param vendor - Vendor/brand namespace used to derive the dedupe `<style>` element id
+ * (e.g. `${vendor}-vue-styles`). Defaults to `VendorConstants.VENDOR_PREFIX`.
  */
-export function injectStyles(): void {
+export function injectStyles(vendor?: string): void {
   if (typeof document === 'undefined') return;
-  if (document.getElementById(STYLE_ID)) return;
+
+  const styleId: string = `${getVendorPrefix(vendor)}-vue-styles`;
+
+  if (document.getElementById(styleId)) return;
 
   const style: HTMLStyleElement = document.createElement('style');
-  style.id = STYLE_ID;
+  style.id = styleId;
   style.textContent = STYLES;
   document.head.appendChild(style);
 }

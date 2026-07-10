@@ -28,7 +28,10 @@ export {default as handleFlow} from './middleware/flow';
 export type {ExpressClientConfig, ThunderIDExpressConfig, StrictExpressClientConfig} from './models/config';
 
 // Constants
-export {default as CookieConfig, SESSION_COOKIE_NAME} from './constants/CookieConfig';
+// Note: session cookie *naming* is owned by `@thunderid/node`'s `CookieConfig` class,
+// re-exported below, so every server-side SDK derives the same cookie name.
+export {default as CookieConfig} from './constants/CookieConfig';
 
-// Re-export everything from the Node SDK (includes SessionCookieConfig, ThunderIDNodeConfig, etc.)
+// Re-export everything from the Node SDK (includes SessionCookieConfig, ThunderIDNodeConfig,
+// the `CookieConfig` naming class, etc.)
 export * from '@thunderid/node';

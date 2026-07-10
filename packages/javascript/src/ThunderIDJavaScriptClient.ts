@@ -19,6 +19,7 @@
 import OIDCDiscoveryConstants from './constants/OIDCDiscoveryConstants';
 import OIDCRequestConstants from './constants/OIDCRequestConstants';
 import PKCEConstants from './constants/PKCEConstants';
+import VendorConstants from './constants/VendorConstants';
 import {DefaultCacheStore} from './DefaultCacheStore';
 import {DefaultCrypto} from './DefaultCrypto';
 import {ThunderIDAuthException} from './errors/exception';
@@ -97,8 +98,9 @@ class ThunderIDJavaScriptClient<T = Config> implements ThunderIDClient<T> {
     }
 
     const storageKey = clientId ? `instance_${this.instanceIdValue}-${clientId}` : `instance_${this.instanceIdValue}`;
+    const vendor = (fullConfig as any).vendor ?? VendorConstants.VENDOR_PREFIX;
 
-    this.storageManager = new StorageManager<T>(storageKey, store);
+    this.storageManager = new StorageManager<T>(storageKey, store, vendor);
     this.cryptoHelper = new IsomorphicCrypto(this.cryptoUtils);
     this.authHelper = new AuthenticationHelper(this.storageManager, this.cryptoHelper);
     this.configProvider = async (): Promise<AuthClientConfig<T>> => this.storageManager.getConfigData();

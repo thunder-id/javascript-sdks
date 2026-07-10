@@ -263,14 +263,14 @@ class SessionManager {
    * Get session cookie name
    */
   static getSessionCookieName(): string {
-    return CookieConfig.SESSION_COOKIE_NAME;
+    return CookieConfig.getSessionCookieName();
   }
 
   /**
    * Get temporary session cookie name
    */
   static getTempSessionCookieName(): string {
-    return CookieConfig.TEMP_SESSION_COOKIE_NAME;
+    return CookieConfig.getTempSessionCookieName();
   }
 }
 

@@ -25,6 +25,7 @@ import {
   SignInOptions,
   TokenExchangeRequestConfig,
   TokenResponse,
+  VendorConstants,
 } from '@thunderid/browser';
 import {Context, createContext} from 'react';
 import {ThunderIDReactConfig} from '../../models/config';
@@ -208,6 +209,12 @@ export type ThunderIDContextProps = {
   signUpUrl: string | undefined;
 
   user: any;
+
+  /**
+   * Vendor/brand namespace used to prefix storage keys, cookie names, and CSS class names.
+   * Resolved from the `vendor` config option, defaulting to `'thunderid'`.
+   */
+  vendor: string;
 } & Pick<ThunderIDReactClient, 'clearSession'>;
 
 /**
@@ -249,6 +256,7 @@ const ThunderIDContext: Context<ThunderIDContextProps | null> = createContext<nu
   signUp: () => Promise.resolve({} as any),
   signUpUrl: undefined,
   user: null,
+  vendor: VendorConstants.VENDOR_PREFIX,
 });
 
 ThunderIDContext.displayName = 'ThunderIDContext';

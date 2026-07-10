@@ -27,6 +27,7 @@ import {
   extractUserClaimsFromIdToken,
   EmbeddedSignInFlowResponse,
   createPackageComponentLogger,
+  getVendorPrefix,
 } from '@thunderid/browser';
 import {FC, RefObject, PropsWithChildren, ReactElement, useEffect, useMemo, useRef, useState, useCallback} from 'react';
 import ThunderIDContext from './ThunderIDContext';
@@ -245,7 +246,9 @@ const ThunderIDProvider: FC<PropsWithChildren<ThunderIDProviderProps>> = ({
           const urlParams: URLSearchParams = currentUrl.searchParams;
           const code: string | null = urlParams.get('code');
           const executionIdFromUrl: string | null = urlParams.get('executionId');
-          const storedExecutionId: string | null = sessionStorage.getItem('thunderid_execution_id');
+          const storedExecutionId: string | null = sessionStorage.getItem(
+            `${getVendorPrefix(config.vendor)}_execution_id`,
+          );
 
           if (code && !executionIdFromUrl && !storedExecutionId) {
             await signIn();
@@ -468,10 +471,12 @@ const ThunderIDProvider: FC<PropsWithChildren<ThunderIDProviderProps>> = ({
       signUpUrl,
       syncSession,
       user,
+      vendor: getVendorPrefix(config.vendor),
     }),
     [
       applicationId,
       config?.organizationHandle,
+      config.vendor,
       config.afterSignInUrl,
       config.scopes,
       signInUrl,
@@ -507,7 +512,7 @@ const ThunderIDProvider: FC<PropsWithChildren<ThunderIDProviderProps>> = ({
 
   return (
     <ThunderIDContext.Provider value={value}>
-      <I18nProvider preferences={preferences?.i18n}>
+      <I18nProvider preferences={preferences?.i18n} vendor={getVendorPrefix(config.vendor)}>
         <FlowMetaProvider enabled={preferences?.resolveFromMeta !== false}>
           <ThemeProvider
             theme={{

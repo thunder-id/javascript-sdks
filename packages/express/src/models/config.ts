@@ -43,6 +43,13 @@ export interface StrictExpressClientConfig {
  *
  * Set `mode: 'embedded'` to enable app-native embedded auth via `handleFlow()`.
  * Defaults to `'redirect'` (standard OAuth 2.0 authorization-code flow).
+ *
+ * Inherits `vendor` and `sessionCookie.name` from `ThunderIDNodeConfig` — set
+ * either to control the session cookie name written by this SDK (default:
+ * `__thunderid__session`, the same `@thunderid/node` `CookieConfig` naming
+ * convention used by every server-side ThunderID SDK, derived from `vendor`
+ * defaulting to `'thunderid'`). `sessionCookie.name` takes priority over the
+ * `vendor`-derived default.
  */
 export type ExpressClientConfig = ThunderIDNodeConfig & StrictExpressClientConfig;
 

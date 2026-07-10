@@ -16,10 +16,17 @@
  * under the License.
  */
 
-import {ThunderIDNodeClient, ThunderIDAuthException, Storage, TokenResponse, User} from '@thunderid/node';
+import {
+  ThunderIDNodeClient,
+  ThunderIDAuthException,
+  Storage,
+  TokenResponse,
+  User,
+  CookieConfig as NodeCookieConfig,
+} from '@thunderid/node';
 import express from 'express';
 import {v4 as uuidv4} from 'uuid';
-import CookieConfig, {SESSION_COOKIE_NAME} from './constants/CookieConfig';
+import CookieConfig from './constants/CookieConfig';
 import {ExpressClientConfig} from './models/config';
 import hasErrorInURL from './utils/expressUtils';
 
@@ -39,8 +46,20 @@ class ThunderIDExpressClient<T extends ExpressClientConfig = ExpressClientConfig
     return this._expressConfig;
   }
 
+  /**
+   * Resolves the session cookie name for this client instance, honoring an
+   * explicit `sessionCookie.name` override before falling back to the
+   * `vendor`-derived default (which itself defaults to `'thunderid'`).
+   */
+  public getSessionCookieName(): string {
+    return NodeCookieConfig.resolveSessionCookieName(
+      this._expressConfig?.vendor,
+      this._expressConfig?.sessionCookie?.name,
+    );
+  }
+
   public async getUserFromRequest(req: express.Request): Promise<User | undefined> {
-    const sessionId: string | undefined = req.cookies?.[SESSION_COOKIE_NAME];
+    const sessionId: string | undefined = req.cookies?.[this.getSessionCookieName()];
     return this.getUser(sessionId);
   }
 
@@ -60,7 +79,8 @@ class ThunderIDExpressClient<T extends ExpressClientConfig = ExpressClientConfig
       );
     }
 
-    let userId: string = req.cookies?.[SESSION_COOKIE_NAME];
+    const cookieName = this.getSessionCookieName();
+    let userId: string = req.cookies?.[cookieName];
     if (!userId) {
       userId = uuidv4();
     }
@@ -70,7 +90,7 @@ class ThunderIDExpressClient<T extends ExpressClientConfig = ExpressClientConfig
     const authRedirectCallback = (url: string): void => {
       if (!url) return;
 
-      res.cookie(SESSION_COOKIE_NAME, userId, {
+      res.cookie(cookieName, userId, {
         httpOnly: sc?.httpOnly ?? CookieConfig.defaultHttpOnly,
         maxAge: (sc?.expiryTime ?? CookieConfig.defaultExpirySeconds) * 1000,
         sameSite: (sc?.sameSite ?? CookieConfig.defaultSameSite) as any,

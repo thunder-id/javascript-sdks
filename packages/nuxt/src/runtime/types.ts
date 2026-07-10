@@ -87,6 +87,17 @@ export interface ThunderIDNuxtConfig {
      */
     authMethod?: TokenEndpointAuthMethod;
   };
+  /**
+   * Vendor/brand namespace used to prefix Nuxt `useState` keys, the
+   * `event.context` namespace, and other server-side identifiers.
+   * Override this when white-labeling the SDK under a different brand.
+   *
+   * Note: this is unrelated to the module's Nuxt config key (`thunderid: {...}`
+   * in `nuxt.config.ts`), which is fixed and not affected by this option.
+   *
+   * @default 'thunderid'
+   */
+  vendor?: string;
 }
 
 /**
@@ -120,8 +131,9 @@ export interface ThunderIDTempSessionPayload extends JWTPayload {
 
 /**
  * Full SSR payload resolved by the Nitro plugin on each page request.
- * Written to `event.context.thunderid.ssr` and subsequently seeded into
- * hydrated `useState` keys so the client never re-fetches on first render.
+ * Written to `event.context[vendor].ssr` (default vendor: `'thunderid'`, i.e.
+ * `event.context.thunderid.ssr`) and subsequently seeded into hydrated
+ * `useState` keys so the client never re-fetches on first render.
  */
 export interface ThunderIDSSRData {
   isSignedIn: boolean;

@@ -2,7 +2,7 @@ import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import express from 'express';
 import cookieParser from 'cookie-parser';
-import {thunderID, handleSignIn, handleSignOut, protect, SESSION_COOKIE_NAME} from '@thunderid/express';
+import {thunderID, handleSignIn, handleSignOut, protect} from '@thunderid/express';
 import {verifyBearerToken} from './lib/auth.mjs';
 import {layout, esc, escAttr, COPY_ICON} from './lib/layout.mjs';
 import {thunderMark} from './lib/thunderMark.mjs';
@@ -51,7 +51,7 @@ const requireBearer = verifyBearerToken(baseUrl);
 
 async function getSession(req) {
   const client = req.thunderIDAuth;
-  const sessionId = req.cookies?.[SESSION_COOKIE_NAME];
+  const sessionId = client && req.cookies?.[client.getSessionCookieName()];
   if (!client || !sessionId) return {signedIn: false, accessToken: null, user: null};
   const signedIn = (await client.isSignedIn(sessionId)) ?? false;
   if (!signedIn) return {signedIn: false, accessToken: null, user: null};

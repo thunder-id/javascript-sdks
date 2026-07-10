@@ -17,6 +17,7 @@
  */
 
 import {getRedirectBasedSignUpUrl} from '@thunderid/browser';
+import {VendorConstants} from '@thunderid/node';
 import type {UserProfile} from '@thunderid/node';
 import {ThunderIDPlugin, THUNDERID_KEY} from '@thunderid/vue';
 import type {H3Event} from 'h3';
@@ -24,6 +25,7 @@ import {computed} from 'vue';
 import type {ComputedRef, Ref} from 'vue';
 import ThunderIDRoot from '../components/ThunderIDRoot';
 import type {ThunderIDAuthState, ThunderIDSSRData} from '../types';
+import {getAuthStateKey, getUserProfileStateKey} from '../utils/stateKeys';
 import type {NuxtApp} from '#app';
 import {defineNuxtPlugin, useState, useRequestEvent, useRuntimeConfig, navigateTo} from '#app';
 
@@ -34,9 +36,9 @@ import {defineNuxtPlugin, useState, useRequestEvent, useRuntimeConfig, navigateT
  * Responsibilities — mirrors the split between `ThunderIDServerProvider` and
  * `ThunderIDClientProvider` in the Next.js SDK:
  *
- *  1. **Auth state** — hydrate `useState('thunderid:auth')` from the Nitro
- *     plugin's `event.context.thunderid` so SSR and client agree on signed-in
- *     status and the user object.
+ *  1. **Auth state** — hydrate `useState(getAuthStateKey(vendor))` (default
+ *     key: `'thunderid:auth'`) from the Nitro plugin's `event.context[vendor]`
+ *     so SSR and client agree on signed-in status and the user object.
  *  2. **THUNDERID_KEY** — provide the primary auth context at the app level.
  *     Action helpers (`signIn` / `signOut` / `signUp`) use Nuxt's
  *     `navigateTo` so redirects work on both server and client.
@@ -57,6 +59,7 @@ export default defineNuxtPlugin((nuxtApp: NuxtApp) => {
     scopes: string | string[];
     signInUrl?: string;
     signUpUrl?: string;
+    vendor?: string;
   } = useRuntimeConfig().public.thunderid as {
     afterSignInUrl: string;
     afterSignOutUrl: string;
@@ -67,7 +70,10 @@ export default defineNuxtPlugin((nuxtApp: NuxtApp) => {
     scopes: string | string[];
     signInUrl?: string;
     signUpUrl?: string;
+    vendor?: string;
   };
+
+  const vendor: string = publicConfig.vendor ?? VendorConstants.VENDOR_PREFIX;
 
   // Surface misconfiguration in the browser dev console only. The server
   // counterpart is handled by the thunderid-ssr Nitro plugin; doing both
@@ -88,16 +94,19 @@ export default defineNuxtPlugin((nuxtApp: NuxtApp) => {
   //  Nuxt snapshots the values into the `__NUXT__` payload and the client
   //  hydrates automatically — no extra fetch needed.
 
-  const authState: Ref<ThunderIDAuthState> = useState<ThunderIDAuthState>('thunderid:auth', () => ({
+  const authState: Ref<ThunderIDAuthState> = useState<ThunderIDAuthState>(getAuthStateKey(vendor), () => ({
     isLoading: true,
     isSignedIn: false,
     user: null,
   }));
-  const userProfileState: Ref<UserProfile | null> = useState<UserProfile | null>('thunderid:user-profile', () => null);
+  const userProfileState: Ref<UserProfile | null> = useState<UserProfile | null>(
+    getUserProfileStateKey(vendor),
+    () => null,
+  );
 
   if (import.meta.server) {
     const event: H3Event | undefined = useRequestEvent();
-    const ssr: ThunderIDSSRData | undefined = event?.context?.thunderid?.ssr;
+    const ssr: ThunderIDSSRData | undefined = (event?.context as Record<string, any> | undefined)?.[vendor]?.ssr;
 
     if (ssr) {
       // Seed from the rich SSR payload written by the thunderid-ssr Nitro plugin.
@@ -109,9 +118,9 @@ export default defineNuxtPlugin((nuxtApp: NuxtApp) => {
       userProfileState.value = ssr.userProfile;
     } else {
       // Backwards-compat: fall back to the legacy context shape (pre-Step-2 plugin).
-      const ssrContext: {isSignedIn?: boolean; session?: {sub?: string}} | undefined = event?.context?.thunderid as
-        | {isSignedIn?: boolean; session?: {sub?: string}}
-        | undefined;
+      const ssrContext: {isSignedIn?: boolean; session?: {sub?: string}} | undefined = (
+        event?.context as Record<string, any> | undefined
+      )?.[vendor] as {isSignedIn?: boolean; session?: {sub?: string}} | undefined;
       if (ssrContext) {
         authState.value = {
           isLoading: false,
