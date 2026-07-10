@@ -211,7 +211,7 @@ const createAuthComponentFromFlow = (
         [EmbeddedFlowEventType.Trigger]: 'button',
         [EmbeddedFlowEventType.Back]: 'button',
       };
-      const buttonType: HTMLButtonElement['type'] = buttonTypeEnum[eventType.toUpperCase()] || 'submit';
+      const buttonType: HTMLButtonElement['type'] = buttonTypeEnum[eventType.toUpperCase()] ?? 'submit';
 
       const handleClick = (): void => {
         if (options.onSubmit) {

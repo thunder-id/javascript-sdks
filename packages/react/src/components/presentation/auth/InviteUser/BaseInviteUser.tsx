@@ -560,6 +560,8 @@ const BaseInviteUser: FC<BaseInviteUserProps> = ({
     setFormValues({});
     setFormErrors({});
     setTouchedFields({});
+    setApiError(null);
+    setIsFormValid(true);
   }, []);
 
   /**
