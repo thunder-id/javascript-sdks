@@ -187,6 +187,7 @@ const createAuthComponentFromFlow = (
   formErrors: Record<string, string>,
   isLoading: boolean,
   isFormValid: boolean,
+  resetForm: () => void,
   onInputChange: (name: string, value: string) => void,
   authType: AuthType,
   options: {
@@ -230,6 +231,7 @@ const createAuthComponentFromFlow = (
       isFormValid,
       isLoading,
       meta: options.meta,
+      resetForm,
       onInputBlur: options.onInputBlur,
       onInputChange,
       onSubmit: options.onSubmit,
@@ -304,7 +306,17 @@ const createAuthComponentFromFlow = (
       const componentVariant: string = component.variant || '';
 
       // Only validate on submit type events.
-      const shouldSkipValidation: boolean = eventType.toUpperCase() === EmbeddedFlowEventType.Trigger;
+      const shouldSkipValidation: boolean = eventType.toUpperCase() !== EmbeddedFlowEventType.Submit;
+
+      // Determine the button type based on the event type. Default to 'submit' if not recognized.
+      const buttonTypeEnum = {
+        [EmbeddedFlowEventType.Submit]: 'submit',
+        [EmbeddedFlowEventType.Reset]: 'reset',
+        [EmbeddedFlowEventType.Cancel]: 'button',
+        [EmbeddedFlowEventType.Trigger]: 'button',
+        [EmbeddedFlowEventType.Back]: 'button',
+      };
+      const buttonType: HTMLButtonElement['type'] = buttonTypeEnum[eventType.toUpperCase()] || 'submit';
 
       const handleClick = (): any => {
         if (options.onSubmit) {
@@ -342,7 +354,13 @@ const createAuthComponentFromFlow = (
             formData['consent_decisions'] = JSON.stringify(decisions);
           }
 
-          options.onSubmit(component, formData, shouldSkipValidation);
+          // For submit events, pass the form data to the onSubmit callback. For other event types, reset the form and call onSubmit with an empty data object.
+          if (eventType.toUpperCase() === EmbeddedFlowEventType.Submit) {
+            options.onSubmit(component, formData, shouldSkipValidation);
+          } else {
+            resetForm();
+            options.onSubmit(component, {}, shouldSkipValidation);
+          }
         }
       };
 
@@ -415,6 +433,7 @@ const createAuthComponentFromFlow = (
           color={component.variant?.toLowerCase() === 'primary' ? 'primary' : 'secondary'}
           startIcon={startIconEl}
           endIcon={endIconEl}
+          type={buttonType}
         >
           {buttonText || 'Submit'}
         </Button>
@@ -520,6 +539,7 @@ const createAuthComponentFromFlow = (
               formErrors,
               isLoading,
               isFormValid,
+              resetForm,
               onInputChange,
               authType,
               {
@@ -672,6 +692,7 @@ const createAuthComponentFromFlow = (
               formErrors,
               isLoading,
               isFormValid,
+              resetForm,
               onInputChange,
               authType,
               {
@@ -736,6 +757,7 @@ export const renderSignInComponents = (
   formErrors: Record<string, string>,
   isLoading: boolean,
   isFormValid: boolean,
+  resetForm: () => void,
   onInputChange: (name: string, value: string) => void,
   options?: {
     /** @internal */
@@ -767,6 +789,7 @@ export const renderSignInComponents = (
         formErrors,
         isLoading,
         isFormValid,
+        resetForm,
         onInputChange,
         'signin',
         {
@@ -787,6 +810,7 @@ export const renderSignUpComponents = (
   formErrors: Record<string, string>,
   isLoading: boolean,
   isFormValid: boolean,
+  resetForm: () => void,
   onInputChange: (name: string, value: string) => void,
   options?: {
     /** @internal */
@@ -816,6 +840,7 @@ export const renderSignUpComponents = (
         formErrors,
         isLoading,
         isFormValid,
+        resetForm,
         onInputChange,
         'signup',
         {
@@ -836,6 +861,7 @@ export const renderRecoveryComponents = (
   formErrors: Record<string, string>,
   isLoading: boolean,
   isFormValid: boolean,
+  resetForm: () => void,
   onInputChange: (name: string, value: string) => void,
   options?: {
     /** @internal */
@@ -867,6 +893,7 @@ export const renderRecoveryComponents = (
         formErrors,
         isLoading,
         isFormValid,
+        resetForm,
         onInputChange,
         'recovery',
         {
@@ -888,6 +915,7 @@ export const renderInviteUserComponents = (
   formErrors: Record<string, string>,
   isLoading: boolean,
   isFormValid: boolean,
+  resetForm: () => void,
   onInputChange: (name: string, value: string) => void,
   options?: {
     /** @internal */
@@ -923,6 +951,7 @@ export const renderInviteUserComponents = (
         formErrors,
         isLoading,
         isFormValid,
+        resetForm,
         onInputChange,
         'signup',
         {

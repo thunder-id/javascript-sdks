@@ -357,6 +357,7 @@ const BaseSignInContent: FC<BaseSignInProps> = ({
     setTouched: setFormTouched,
     validateForm,
     touchAllFields,
+    reset: resetForm,
   } = form;
 
   /**
@@ -471,6 +472,7 @@ const BaseSignInContent: FC<BaseSignInProps> = ({
         formErrors,
         isLoading,
         isFormValid,
+        resetForm,
         handleInputChange,
         {
           _customRenderers: customRenderers,

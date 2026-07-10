@@ -144,6 +144,7 @@ const createAuthComponentFromFlow = (
   formErrors: Record<string, string>,
   isLoading: boolean,
   isFormValid: boolean,
+  resetForm: () => void,
   onInputChange: (name: string, value: string) => void,
   options: {
     additionalData?: Record<string, any>;
@@ -200,7 +201,17 @@ const createAuthComponentFromFlow = (
       const buttonText: string = resolve(component.label);
       const componentVariant: string = component.variant || '';
 
-      const shouldSkipValidation: boolean = eventType.toUpperCase() === EmbeddedFlowEventType.Trigger;
+      const shouldSkipValidation: boolean = eventType.toUpperCase() !== EmbeddedFlowEventType.Submit;
+
+      // Determine the button type based on the event type. Default to 'submit' if not recognized.
+      const buttonTypeEnum = {
+        [EmbeddedFlowEventType.Submit]: 'submit',
+        [EmbeddedFlowEventType.Reset]: 'reset',
+        [EmbeddedFlowEventType.Cancel]: 'button',
+        [EmbeddedFlowEventType.Trigger]: 'button',
+        [EmbeddedFlowEventType.Back]: 'button',
+      };
+      const buttonType: HTMLButtonElement['type'] = buttonTypeEnum[eventType.toUpperCase()] || 'submit';
 
       const handleClick = (): void => {
         if (options.onSubmit) {
@@ -234,7 +245,13 @@ const createAuthComponentFromFlow = (
             formData['consent_decisions'] = JSON.stringify(decisions);
           }
 
-          options.onSubmit(component, formData, shouldSkipValidation);
+          // For submit events, pass the form data to the onSubmit callback. For other event types, reset the form and call onSubmit with an empty data object.
+          if (eventType.toUpperCase() === EmbeddedFlowEventType.Submit) {
+            options.onSubmit(component, formData, shouldSkipValidation);
+          } else {
+            resetForm();
+            options.onSubmit(component, {}, shouldSkipValidation);
+          }
         }
       };
 
@@ -288,6 +305,7 @@ const createAuthComponentFromFlow = (
           onClick: handleClick,
           startIcon: startIconVNode ?? undefined,
           variant: component.variant?.toLowerCase() === 'primary' ? 'solid' : 'outline',
+          type: buttonType,
         },
         {default: () => buttonText || 'Submit'},
       );
@@ -350,6 +368,7 @@ const createAuthComponentFromFlow = (
               formErrors,
               isLoading,
               isFormValid,
+              resetForm,
               onInputChange,
               {
                 ...options,
@@ -420,6 +439,7 @@ const createAuthComponentFromFlow = (
               formErrors,
               isLoading,
               isFormValid,
+              resetForm,
               onInputChange,
               {
                 ...options,
@@ -466,6 +486,7 @@ export const renderSignInComponents = (
   formErrors: Record<string, string>,
   isLoading: boolean,
   isFormValid: boolean,
+  resetForm: () => void,
   onInputChange: (name: string, value: string) => void,
   options?: {
     additionalData?: Record<string, any>;
@@ -489,6 +510,7 @@ export const renderSignInComponents = (
         formErrors,
         isLoading,
         isFormValid,
+        resetForm,
         onInputChange,
         {
           ...options,
@@ -509,6 +531,7 @@ export const renderSignUpComponents = (
   formErrors: Record<string, string>,
   isLoading: boolean,
   isFormValid: boolean,
+  resetForm: () => void,
   onInputChange: (name: string, value: string) => void,
   options?: {
     additionalData?: Record<string, any>;
@@ -532,6 +555,7 @@ export const renderSignUpComponents = (
         formErrors,
         isLoading,
         isFormValid,
+        resetForm,
         onInputChange,
         {
           ...options,
@@ -552,6 +576,7 @@ export const renderInviteUserComponents = (
   formErrors: Record<string, string>,
   isLoading: boolean,
   isFormValid: boolean,
+  resetForm: () => void,
   onInputChange: (name: string, value: string) => void,
   options?: {
     additionalData?: Record<string, any>;
@@ -575,6 +600,7 @@ export const renderInviteUserComponents = (
         formErrors,
         isLoading,
         isFormValid,
+        resetForm,
         onInputChange,
         {
           ...options,

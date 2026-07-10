@@ -967,6 +967,7 @@ const BaseSignUpContent: FC<BaseSignUpProps> = ({
         formErrors,
         isLoading,
         isFormValid,
+        resetForm,
         handleInputChange,
         {
           _customRenderers: customRenderers,

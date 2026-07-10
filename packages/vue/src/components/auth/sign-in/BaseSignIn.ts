@@ -286,6 +286,23 @@ const BaseSignIn: Component = defineComponent({
       }
     };
 
+    /**
+     *
+     * Reset the formvalues
+     */
+    const resetForm = (): void => {
+      const fields: FieldDefinition[] = extractFormFields(props.components || []);
+      const freshValues: Record<string, string> = {};
+      fields.forEach((f: FieldDefinition) => {
+        freshValues[f.name] = '';
+      });
+      formValues.value = freshValues;
+      touchedFields.value = {};
+      isSubmitting.value = false;
+      apiError.value = null;
+      clearMessages();
+    };
+
     const renderComponents = (): VNode[] =>
       renderSignInComponents(
         props.components || [],
@@ -294,6 +311,7 @@ const BaseSignIn: Component = defineComponent({
         formErrors.value,
         isLoading.value,
         isFormValid.value,
+        resetForm,
         handleInputChange,
         {
           additionalData: props.additionalData,
