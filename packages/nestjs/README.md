@@ -54,6 +54,8 @@ export class AuthController {
     if (tokens.accessToken || tokens.idToken) {
       res.redirect('/');
     }
+    // If no tokens were returned, signIn has already redirected the
+    // response to the ThunderID sign-in page.
   }
 
   @Get('logout')

@@ -52,6 +52,17 @@ describe('ThunderIDGuard', () => {
   });
 });
 
+describe('ThunderIDService.isSignOutSuccess', () => {
+  it('handles string, array, and missing state query values', () => {
+    const service = Object.create(ThunderIDService.prototype) as ThunderIDService;
+    const requestWithState = (state: unknown): ThunderIDRequest => ({query: {state}}) as unknown as ThunderIDRequest;
+
+    expect(service.isSignOutSuccess(requestWithState('sign_out_success'))).toBe(true);
+    expect(service.isSignOutSuccess(requestWithState(['sign_out_success', 'other']))).toBe(false);
+    expect(service.isSignOutSuccess(requestWithState(undefined))).toBe(false);
+  });
+});
+
 describe('ThunderIDModule', () => {
   it('forRoot registers the config provider, service, and guard globally', () => {
     const config = {clientId: 'client-1'} as unknown as ThunderIDNestConfig;

@@ -43,6 +43,8 @@ import {ThunderIDNestConfig} from './models/config';
  *   async login(@Req() req: Request, @Res() res: Response) {
  *     const tokens = await this.thunderID.signIn(req, res);
  *     if (tokens.accessToken || tokens.idToken) res.redirect('/');
+ *     // If no tokens were returned, signIn has already redirected the
+ *     // response to the ThunderID sign-in page.
  *   }
  * }
  * ```
@@ -69,11 +71,18 @@ class ThunderIDService {
   private ensureInitialized(req: express.Request): Promise<boolean> {
     if (this.initPromise === undefined) {
       const origin = `${req.protocol}://${req.get('host')}`;
-      this.initPromise = this.client.initialize({
-        ...this.config,
-        afterSignInUrl: this.config.afterSignInUrl ?? `${origin}/login`,
-        afterSignOutUrl: this.config.afterSignOutUrl ?? `${origin}/logout`,
-      });
+      this.initPromise = this.client
+        .initialize({
+          ...this.config,
+          afterSignInUrl: this.config.afterSignInUrl ?? `${origin}/login`,
+          afterSignOutUrl: this.config.afterSignOutUrl ?? `${origin}/logout`,
+        })
+        .catch((error: unknown) => {
+          // Clear the cached promise so a transient startup failure doesn't
+          // break the service until restart.
+          this.initPromise = undefined;
+          throw error;
+        });
     }
     return this.initPromise;
   }
@@ -123,7 +132,8 @@ class ThunderIDService {
 
   /** Whether the request is the identity provider's redirect back after a completed sign-out. */
   public isSignOutSuccess(req: express.Request): boolean {
-    return req.query['state'] === 'sign_out_success';
+    const state: unknown = req.query['state'];
+    return typeof state === 'string' && state === 'sign_out_success';
   }
 
   /** Whether the request carries a valid ThunderID session. */
