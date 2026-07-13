@@ -651,6 +651,7 @@ const BaseSignUpContent: FC<BaseSignUpProps> = ({
 
           try {
             const continueResponse: any = await onSubmit!(payload);
+            await setChallengeToken(continueResponse.challengeToken ?? null);
             onFlowChange?.(continueResponse);
 
             if (continueResponse.flowStatus === EmbeddedSignUpFlowStatus.Error) {
@@ -730,6 +731,7 @@ const BaseSignUpContent: FC<BaseSignUpProps> = ({
 
                 try {
                   const continueResponse: any = await onSubmit!(payload);
+                  await setChallengeToken(continueResponse.challengeToken ?? null);
                   onFlowChange?.(continueResponse);
 
                   if (continueResponse.flowStatus === EmbeddedSignUpFlowStatus.Error) {
