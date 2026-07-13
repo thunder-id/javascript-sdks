@@ -34,9 +34,10 @@ import {
   ConsentPurposeDecision,
   ConsentAttributeElement,
   OrganizationUnitListResponse,
+  PrefixOption,
 } from '@thunderid/browser';
 import DOMPurify from 'dompurify';
-import {cloneElement, CSSProperties, ReactElement} from 'react';
+import {ChangeEvent, cloneElement, CSSProperties, ReactElement} from 'react';
 import {
   ComponentRenderer,
   ComponentRenderContext,
@@ -60,7 +61,9 @@ import CopyableText from '../../primitives/CopyableText/CopyableText';
 import DatePicker from '../../primitives/DatePicker/DatePicker';
 import Divider from '../../primitives/Divider/Divider';
 import flowIconRegistry from '../../primitives/Icons/flowIconRegistry';
+import AffixedField from '../../primitives/AffixedField/AffixedField';
 import Select from '../../primitives/Select/Select';
+import {affixPostfixKey, affixPrefixKey} from '../../../utils/composeAffixedInputs';
 import Typography from '../../primitives/Typography/Typography';
 import {TypographyVariant} from '../../primitives/Typography/Typography.styles';
 
@@ -212,6 +215,8 @@ const createAuthComponentFromFlow = (
     /** Translation function for resolving {{t(...)}} expressions at render time */
     t?: UseTranslation['t'];
     variant?: any;
+    /** Vendor namespace used to derive affix sentinel keys for prefix/postfix-bearing inputs. */
+    vendor?: string;
   } = {},
 ): ReactElement | null => {
   const theme: any = options._theme;
@@ -256,6 +261,53 @@ const createAuthComponentFromFlow = (
       const isTouched: boolean = touchedFields[identifier] || false;
       const error: string = isTouched ? formErrors[identifier] : undefined!;
       const fieldType: string = getFieldType(component.type);
+
+      // Prefix/postfix are accepted on any text-family input. When either is present,
+      // route to AffixedField so the leading affix renders and submit-time composition
+      // is picked up by composeAffixedInputs via the sentinel keys.
+      // Both string.length and Array.length are defined, so a single truthy+length
+      // check covers `prefixes?: string | PrefixOption[]`.
+      const hasPrefixes: boolean = !!component.prefixes && component.prefixes.length > 0;
+      const hasPostfix: boolean = typeof component.postfix === 'string' && component.postfix.length > 0;
+
+      if (hasPrefixes || hasPostfix) {
+        const prefixStateKey: string = affixPrefixKey(identifier, options.vendor);
+        const postfixStateKey: string = affixPostfixKey(identifier, options.vendor);
+        const defaultPrefixValue: string = hasPrefixes
+          ? typeof component.prefixes === 'string'
+            ? component.prefixes
+            : (component.prefixes as PrefixOption[])[0].value
+          : '';
+        const selectedPrefix: string = formValues[prefixStateKey] ?? defaultPrefixValue;
+
+        return (
+          <AffixedField
+            key={key}
+            className={cx(options.inputClassName, component.classes)}
+            id={component.id}
+            label={resolve(component.label) || ''}
+            name={identifier}
+            placeholder={resolve(component.placeholder) || ''}
+            required={component.required || false}
+            error={error}
+            value={value}
+            type={fieldType}
+            prefixes={component.prefixes}
+            prefixValue={selectedPrefix}
+            onChange={(e: ChangeEvent<HTMLInputElement>): void => onInputChange(identifier, e.target.value)}
+            onBlur={(): void => options.onInputBlur?.(identifier)}
+            onPrefixChange={(newPrefix: string): void => onInputChange(prefixStateKey, newPrefix)}
+            onFocus={(): void => {
+              if (hasPrefixes && formValues[prefixStateKey] === undefined) {
+                onInputChange(prefixStateKey, defaultPrefixValue);
+              }
+              if (hasPostfix && formValues[postfixStateKey] === undefined) {
+                onInputChange(postfixStateKey, component.postfix!);
+              }
+            }}
+          />
+        );
+      }
 
       const field: any = createField({
         className: cx(options.inputClassName, component.classes),
@@ -756,6 +808,8 @@ export const renderSignInComponents = (
     /** Translation function for resolving {{t(...)}} expressions at render time */
     t?: UseTranslation['t'];
     variant?: any;
+    /** Vendor namespace used to derive affix sentinel keys for prefix/postfix-bearing inputs. */
+    vendor?: string;
   },
 ): ReactElement[] =>
   components
@@ -805,6 +859,8 @@ export const renderSignUpComponents = (
     /** Translation function for resolving {{t(...)}} expressions at render time */
     t?: UseTranslation['t'];
     variant?: any;
+    /** Vendor namespace used to derive affix sentinel keys for prefix/postfix-bearing inputs. */
+    vendor?: string;
   },
 ): ReactElement[] =>
   components
@@ -856,6 +912,8 @@ export const renderRecoveryComponents = (
     /** Translation function for resolving {{t(...)}} expressions at render time */
     t?: UseTranslation['t'];
     variant?: any;
+    /** Vendor namespace used to derive affix sentinel keys for prefix/postfix-bearing inputs. */
+    vendor?: string;
   },
 ): ReactElement[] =>
   components
@@ -912,6 +970,8 @@ export const renderInviteUserComponents = (
     /** Translation function for resolving {{t(...)}} expressions at render time */
     t?: UseTranslation['t'];
     variant?: any;
+    /** Vendor namespace used to derive affix sentinel keys for prefix/postfix-bearing inputs. */
+    vendor?: string;
   },
 ): ReactElement[] =>
   components

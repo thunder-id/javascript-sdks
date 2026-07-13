@@ -402,6 +402,10 @@ export interface EmbeddedFlowComponent {
    */
   placeholder?: string;
 
+  postfix?: string;
+
+  prefixes?: string | PrefixOption[];
+
   /**
    * Reference identifier for the component (e.g., field name, action ref)
    */
@@ -506,6 +510,17 @@ export interface FieldError {
   identifier: string;
   /** The failing rule's message (i18n key or literal string). */
   message: string;
+}
+
+export interface PrefixOption {
+  /** The value of the prefix option (e.g., country code, currency symbol). */
+  value: string;
+  /** Display label for the prefix option (e.g., "India (+91)"). */
+  label: string;
+  /** Optional maximum length constraint for input when this prefix is selected. */
+  maxLength?: number;
+  /** Optional regex pattern for validating input when this prefix is selected. */
+  regex?: string;
 }
 
 /**

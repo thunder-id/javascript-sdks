@@ -38,6 +38,7 @@ import useTheme from '../../../../contexts/Theme/useTheme';
 import useThunderID from '../../../../contexts/ThunderID/useThunderID';
 import {FormField, useForm} from '../../../../hooks/useForm';
 import useTranslation from '../../../../hooks/useTranslation';
+import composeAffixedInputs from '../../../../utils/composeAffixedInputs';
 import {extractErrorMessage} from '../../../../utils/flowTransformer';
 import AlertPrimitive from '../../../primitives/Alert/Alert';
 // eslint-disable-next-line import/no-named-as-default
@@ -257,7 +258,7 @@ const BaseSignInContent: FC<BaseSignInProps> = ({
   isTimeoutDisabled = false,
   serverFieldErrors = null,
 }: BaseSignInProps): ReactElement => {
-  const {meta} = useThunderID();
+  const {meta, vendor} = useThunderID();
   const {theme} = useTheme();
   const customRenderers: ComponentRendererMap = useContext(ComponentRendererContext);
   const {t} = useTranslation();
@@ -439,12 +440,16 @@ const BaseSignInContent: FC<BaseSignInProps> = ({
     clearMessages();
 
     try {
+      const composedData: Record<string, any> | undefined = data
+        ? composeAffixedInputs(data as Record<string, string>, vendor)
+        : undefined;
+
       // Filter out empty or undefined input values
       const filteredInputs: Record<string, any> = {};
-      if (data) {
-        Object.keys(data).forEach((key: any) => {
-          if (data[key] !== undefined && data[key] !== null && data[key] !== '') {
-            filteredInputs[key] = data[key];
+      if (composedData) {
+        Object.keys(composedData).forEach((key: any) => {
+          if (composedData[key] !== undefined && composedData[key] !== null && composedData[key] !== '') {
+            filteredInputs[key] = composedData[key];
           }
         });
       }
@@ -523,6 +528,7 @@ const BaseSignInContent: FC<BaseSignInProps> = ({
           size,
           t,
           variant,
+          vendor,
         },
       ),
     [
@@ -538,6 +544,7 @@ const BaseSignInContent: FC<BaseSignInProps> = ({
       isLoading,
       size,
       variant,
+      vendor,
       inputClasses,
       buttonClasses,
       handleInputBlur,

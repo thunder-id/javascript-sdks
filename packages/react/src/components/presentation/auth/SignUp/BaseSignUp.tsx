@@ -41,6 +41,7 @@ import useTheme from '../../../../contexts/Theme/useTheme';
 import useThunderID from '../../../../contexts/ThunderID/useThunderID';
 import {useForm, FormField} from '../../../../hooks/useForm';
 import useTranslation from '../../../../hooks/useTranslation';
+import composeAffixedInputs from '../../../../utils/composeAffixedInputs';
 import {normalizeFlowResponse, extractErrorMessage} from '../../../../utils/flowTransformer';
 import getAuthComponentHeadings from '../../../../utils/getAuthComponentHeadings';
 import {handlePasskeyRegistration} from '../../../../utils/passkey';
@@ -286,7 +287,7 @@ const BaseSignUpContent: FC<BaseSignUpProps> = ({
   const customRenderers: ComponentRendererMap = useContext(ComponentRendererContext);
   const {t} = useTranslation();
   const {subtitle: flowSubtitle, title: flowTitle, messages: flowMessages, addMessage, clearMessages} = useFlow();
-  const {meta, isInitialized: isSdkInitialized, getStorageManager} = useThunderID();
+  const {meta, isInitialized: isSdkInitialized, getStorageManager, vendor} = useThunderID();
   const styles: any = useStyles(theme, colorScheme);
 
   const [isLoading, setIsLoading] = useState(false);
@@ -796,10 +797,14 @@ const BaseSignUpContent: FC<BaseSignUpProps> = ({
     clearMessages();
 
     try {
+      const composedData: Record<string, any> | undefined = data
+        ? composeAffixedInputs(data as Record<string, string>, vendor)
+        : undefined;
+
       // Filter out empty or undefined input values
       const filteredInputs: Record<string, any> = {};
-      if (data) {
-        Object.entries(data).forEach(([key, value]: [string, any]) => {
+      if (composedData) {
+        Object.entries(composedData).forEach(([key, value]: [string, any]) => {
           if (value !== null && value !== undefined && value !== '') {
             filteredInputs[key] = value;
           }
@@ -978,6 +983,7 @@ const BaseSignUpContent: FC<BaseSignUpProps> = ({
           onSubmit: handleSubmit,
           size,
           variant,
+          vendor,
         },
       ),
     [
@@ -990,6 +996,7 @@ const BaseSignUpContent: FC<BaseSignUpProps> = ({
       size,
       theme,
       variant,
+      vendor,
       inputClasses,
       buttonClasses,
       handleSubmit,
