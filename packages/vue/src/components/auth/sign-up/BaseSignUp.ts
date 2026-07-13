@@ -273,6 +273,23 @@ const BaseSignUp: Component = defineComponent({
       return {fieldErrors: errors, isValid: valid};
     };
 
+    /**
+     *
+     * Reset the formvalues
+     */
+    const resetForm = (): void => {
+      const fields: FieldDefinition[] = extractFormFields(props.components || []);
+      const freshValues: Record<string, string> = {};
+      fields.forEach((f: FieldDefinition) => {
+        freshValues[f.name] = '';
+      });
+      formValues.value = freshValues;
+      touchedFields.value = {};
+      apiError.value = null;
+      formErrors.value = {};
+      isFormValid.value = true;
+    };
+
     // ── Input handlers ──
 
     const handleInputChange = (name: string, value: string): void => {
@@ -650,6 +667,7 @@ const BaseSignUp: Component = defineComponent({
               formErrors.value,
               isLoading.value,
               isFormValid.value,
+              resetForm,
               handleInputChange,
               {
                 buttonClassName: props.buttonClassName,

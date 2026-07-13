@@ -408,6 +408,7 @@ const BaseRecoveryContent: FC<BaseRecoveryProps> = ({
         formErrors,
         isLoading,
         isFormValid,
+        resetForm,
         handleInputChange,
         {
           _customRenderers: customRenderers,

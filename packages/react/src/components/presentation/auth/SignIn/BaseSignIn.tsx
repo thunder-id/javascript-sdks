@@ -376,6 +376,7 @@ const BaseSignInContent: FC<BaseSignInProps> = ({
     clearErrors: clearFormErrors,
     validateForm,
     touchAllFields,
+    reset: resetForm,
   } = form;
 
   // Project server-side fieldErrors into form state. `setTouchedFields` is used instead
@@ -514,6 +515,7 @@ const BaseSignInContent: FC<BaseSignInProps> = ({
         formErrors,
         isLoading,
         isFormValid,
+        resetForm,
         handleInputChange,
         {
           _customRenderers: customRenderers,

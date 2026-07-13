@@ -257,6 +257,18 @@ const BaseAcceptInvite: Component = defineComponent({
       return {errors, isValid: Object.keys(errors).length === 0};
     };
 
+    /**
+     *
+     * Reset the formvalues
+     */
+    const resetForm = (): void => {
+      formValues.value = {};
+      formErrors.value = {};
+      touchedFields.value = {};
+      apiError.value = null;
+      isFormValid.value = true;
+    };
+
     // ── Submit handler ──
 
     const handleSubmit = async (component: any, data?: Record<string, any>): Promise<void> => {
@@ -504,6 +516,7 @@ const BaseAcceptInvite: Component = defineComponent({
               formErrors.value,
               isLoading.value,
               isFormValid.value,
+              resetForm,
               handleInputChange,
               {
                 meta,

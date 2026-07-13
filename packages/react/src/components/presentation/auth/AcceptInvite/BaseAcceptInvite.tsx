@@ -662,6 +662,15 @@ const BaseAcceptInvite: FC<BaseAcceptInviteProps> = ({
   );
 
   /**
+   * reset form values, errors, and touched fields to initial state
+   */
+  const resetForm = useCallback(() => {
+    setFormValues({});
+    setFormErrors({});
+    setTouchedFields({});
+  }, []);
+
+  /**
    * Validate invite token on component mount.
    */
   useEffect(() => {
@@ -880,6 +889,7 @@ const BaseAcceptInvite: FC<BaseAcceptInviteProps> = ({
                 formErrors,
                 isLoading,
                 isFormValid,
+                resetForm,
                 handleInputChange,
                 {
                   _customRenderers: customRenderers,

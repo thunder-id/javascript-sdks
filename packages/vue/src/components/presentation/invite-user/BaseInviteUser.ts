@@ -324,6 +324,18 @@ const BaseInviteUser: Component = defineComponent({
       initializationAttempted = false;
     };
 
+    /**
+     *
+     * Reset the formvalues
+     */
+    const resetForm = (): void => {
+      formValues.value = {};
+      formErrors.value = {};
+      touchedFields.value = {};
+      apiError.value = null;
+      isFormValid.value = true;
+    };
+
     // ── Flow initialization ──
 
     watch(
@@ -494,6 +506,7 @@ const BaseInviteUser: Component = defineComponent({
               formErrors.value,
               isLoading.value,
               isFormValid.value,
+              resetForm,
               handleInputChange,
               {
                 meta,

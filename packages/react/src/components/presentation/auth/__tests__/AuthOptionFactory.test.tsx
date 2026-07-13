@@ -40,6 +40,7 @@ const renderInto = (
     false,
     true,
     () => undefined,
+    () => undefined,
     {onSubmit},
   );
   return render(<div>{elements}</div>);
