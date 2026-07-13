@@ -25,7 +25,7 @@ import {
   FlowMetadataResponse,
   Preferences,
 } from '@thunderid/browser';
-import {FC, useState, useCallback, useContext, ReactElement, ReactNode} from 'react';
+import {FC, useEffect, useMemo, useState, useCallback, useContext, ReactElement, ReactNode} from 'react';
 import useStyles from './BaseSignIn.styles';
 import ComponentRendererContext, {
   ComponentRendererMap,
@@ -236,10 +236,19 @@ export interface BaseSignInProps {
 }
 
 /**
+ * Stable empty-array reference used as the default for the optional `components`
+ * prop. A shared constant (rather than an inline `[]` default) keeps the reference
+ * identity stable across renders, so the memoized `formFields` below is not
+ * invalidated every render when a consumer omits `components`.
+ * See thunder-id/thunderid#3697.
+ */
+const EMPTY_COMPONENTS: EmbeddedFlowComponent[] = [];
+
+/**
  * Internal component that consumes FlowContext and renders the sign-in UI.
  */
 const BaseSignInContent: FC<BaseSignInProps> = ({
-  components = [],
+  components = EMPTY_COMPONENTS,
   onSubmit,
   onError,
   error: externalError,
@@ -338,7 +347,12 @@ const BaseSignInContent: FC<BaseSignInProps> = ({
     [t],
   );
 
-  const formFields: FormField[] = components ? extractFormFields(components) : [];
+  // Memoize the derived field list so its identity is stable across renders.
+  // Without this, a fresh array is created on every render, which cascades through
+  // `useForm` (getFieldConfig -> validateField -> setTouched), re-firing the
+  // server-error effect below on every render and causing an infinite update loop
+  // ("Maximum update depth exceeded"). See thunder-id/thunderid#3697.
+  const formFields: FormField[] = useMemo(() => extractFormFields(components), [components, extractFormFields]);
 
   const form: ReturnType<typeof useForm> = useForm<Record<string, string>>({
     fields: formFields,

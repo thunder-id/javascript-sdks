@@ -461,10 +461,13 @@ const BaseSignUpContent: FC<BaseSignUpProps> = ({
     [t],
   );
 
-  const formFields: any = useMemo(
-    () => ((currentFlow?.data as any)?.components ? extractFormFields((currentFlow!.data as any).components) : []),
-    [currentFlow, extractFormFields],
-  );
+  // Memoize the derived field list so its identity is stable across renders and
+  // does not cascade through `useForm` into an infinite update loop. See
+  // thunder-id/thunderid#3697.
+  const formFields: FormField[] = useMemo(() => {
+    const flowComponents: any = (currentFlow?.data as any)?.components;
+    return flowComponents ? extractFormFields(flowComponents) : [];
+  }, [currentFlow, extractFormFields]);
 
   const form: any = useForm<Record<string, string>>({
     fields: formFields,

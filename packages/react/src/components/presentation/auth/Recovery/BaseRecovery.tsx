@@ -28,7 +28,7 @@ import {
   Preferences,
   FlowMetadataResponse,
 } from '@thunderid/browser';
-import {FC, ReactElement, ReactNode, useContext, useEffect, useState, useCallback, useRef} from 'react';
+import {FC, ReactElement, ReactNode, useContext, useEffect, useMemo, useState, useCallback, useRef} from 'react';
 import ComponentRendererContext, {
   ComponentRendererMap,
 } from '../../../../contexts/ComponentRenderer/ComponentRendererContext';
@@ -226,7 +226,13 @@ const BaseRecoveryContent: FC<BaseRecoveryProps> = ({
     [t],
   );
 
-  const formFields: any = currentFlow?.data?.components ? extractFormFields(currentFlow.data.components) : [];
+  // Memoize the derived field list so its identity is stable across renders and
+  // does not cascade through `useForm` into an infinite update loop. See
+  // thunder-id/thunderid#3697.
+  const formFields: FormField[] = useMemo(
+    () => (currentFlow?.data?.components ? extractFormFields(currentFlow.data.components) : []),
+    [currentFlow, extractFormFields],
+  );
 
   const form: any = useForm<Record<string, string>>({
     fields: formFields,
