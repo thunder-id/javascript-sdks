@@ -71,6 +71,7 @@ export type {
   ValidationRule,
   ValidationRuleType,
   FieldError,
+  PrefixOption,
 } from './models/embedded-flow';
 export {EmbeddedSignInFlowStatus, EmbeddedSignInFlowType} from './models/embedded-signin-flow';
 export type {
