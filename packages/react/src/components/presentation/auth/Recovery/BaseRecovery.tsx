@@ -28,7 +28,7 @@ import {
   Preferences,
   FlowMetadataResponse,
 } from '@thunderid/browser';
-import {FC, ReactElement, ReactNode, useContext, useEffect, useState, useCallback, useRef} from 'react';
+import {FC, ReactElement, ReactNode, useContext, useEffect, useMemo, useState, useCallback, useRef} from 'react';
 import ComponentRendererContext, {
   ComponentRendererMap,
 } from '../../../../contexts/ComponentRenderer/ComponentRendererContext';
@@ -226,7 +226,10 @@ const BaseRecoveryContent: FC<BaseRecoveryProps> = ({
     [t],
   );
 
-  const formFields: any = currentFlow?.data?.components ? extractFormFields(currentFlow.data.components) : [];
+  const formFields: any = useMemo(
+    () => (currentFlow?.data?.components ? extractFormFields(currentFlow.data.components) : []),
+    [currentFlow, extractFormFields],
+  );
 
   const form: any = useForm<Record<string, string>>({
     fields: formFields,
@@ -243,6 +246,7 @@ const BaseRecoveryContent: FC<BaseRecoveryProps> = ({
     isValid: isFormValid,
     setValue: setFormValue,
     setTouched: setFormTouched,
+    setTouchedFields,
     setErrors: setFormErrors,
     clearErrors: clearFormErrors,
     validateForm,
@@ -250,10 +254,9 @@ const BaseRecoveryContent: FC<BaseRecoveryProps> = ({
     reset: resetForm,
   } = form;
 
-  /**
-   * Project server-side validation errors from the most recent flow response into the
-   * form's `errors` state. See BaseSignIn for the same pattern.
-   */
+  // Project server-side fieldErrors from the flow response into form state.
+  // `setTouchedFields` avoids re-running client-side validation that would wipe
+  // server errors when the client rules happen to pass.
   useEffect(() => {
     clearFormErrors();
     const responseFieldErrors: FieldError[] | undefined = (currentFlow?.data as any)?.fieldErrors;
@@ -261,14 +264,16 @@ const BaseRecoveryContent: FC<BaseRecoveryProps> = ({
       return;
     }
     const errors: Record<string, string> = {};
+    const touched: Record<string, boolean> = {};
     for (const fe of responseFieldErrors) {
       if (!(fe.identifier in errors)) {
         errors[fe.identifier] = fe.message;
+        touched[fe.identifier] = true;
       }
     }
+    setTouchedFields(touched);
     setFormErrors(errors);
-    Object.keys(errors).forEach((field: string) => setFormTouched(field, true));
-  }, [currentFlow, setFormErrors, setFormTouched, clearFormErrors]);
+  }, [currentFlow, setFormErrors, setTouchedFields, clearFormErrors]);
 
   const setupFormFields: any = useCallback(
     (flowResponse: EmbeddedRecoveryFlowResponse) => {

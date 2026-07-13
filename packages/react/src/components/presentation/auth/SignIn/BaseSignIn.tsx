@@ -24,8 +24,9 @@ import {
   FieldError,
   FlowMetadataResponse,
   Preferences,
+  buildValidatorFromRules,
 } from '@thunderid/browser';
-import {FC, useState, useCallback, useContext, ReactElement, ReactNode} from 'react';
+import {FC, useEffect, useMemo, useState, useCallback, useContext, ReactElement, ReactNode} from 'react';
 import useStyles from './BaseSignIn.styles';
 import ComponentRendererContext, {
   ComponentRendererMap,
@@ -254,6 +255,7 @@ const BaseSignInContent: FC<BaseSignInProps> = ({
   children,
   additionalData = {},
   isTimeoutDisabled = false,
+  serverFieldErrors = null,
 }: BaseSignInProps): ReactElement => {
   const {meta} = useThunderID();
   const {theme} = useTheme();
@@ -302,9 +304,12 @@ const BaseSignInContent: FC<BaseSignInProps> = ({
             component.type === 'PASSWORD_INPUT' ||
             component.type === 'EMAIL_INPUT' ||
             component.type === 'PHONE_INPUT' ||
-            component.type === 'OTP_INPUT'
+            component.type === 'OTP_INPUT' ||
+            component.type === 'SELECT' ||
+            component.type === 'DATE_INPUT'
           ) {
             const identifier: string = component.ref;
+            const ruleValidator = buildValidatorFromRules(component.validation);
             fields.push({
               initialValue: '',
               name: identifier,
@@ -320,6 +325,13 @@ const BaseSignInContent: FC<BaseSignInProps> = ({
                   !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)
                 ) {
                   return t('field.email.invalid');
+                }
+                // Run declarative rules from meta.components[].validation.
+                if (ruleValidator && value) {
+                  const ruleMessage = ruleValidator(value);
+                  if (ruleMessage) {
+                    return t(ruleMessage);
+                  }
                 }
 
                 return null;
@@ -338,7 +350,10 @@ const BaseSignInContent: FC<BaseSignInProps> = ({
     [t],
   );
 
-  const formFields: FormField[] = components ? extractFormFields(components) : [];
+  const formFields: FormField[] = useMemo(
+    () => (components ? extractFormFields(components) : []),
+    [components, extractFormFields],
+  );
 
   const form: ReturnType<typeof useForm> = useForm<Record<string, string>>({
     fields: formFields,
@@ -355,9 +370,32 @@ const BaseSignInContent: FC<BaseSignInProps> = ({
     isValid: isFormValid,
     setValue: setFormValue,
     setTouched: setFormTouched,
+    setTouchedFields,
+    setErrors: setFormErrors,
+    clearErrors: clearFormErrors,
     validateForm,
     touchAllFields,
   } = form;
+
+  // Project server-side fieldErrors into form state. `setTouchedFields` is used instead
+  // of `setTouched` so client-side `validateField` doesn't wipe server errors when the
+  // client rules happen to pass.
+  useEffect(() => {
+    clearFormErrors();
+    if (!serverFieldErrors || serverFieldErrors.length === 0) {
+      return;
+    }
+    const errors: Record<string, string> = {};
+    const touched: Record<string, boolean> = {};
+    for (const fe of serverFieldErrors) {
+      if (!(fe.identifier in errors)) {
+        errors[fe.identifier] = fe.message;
+        touched[fe.identifier] = true;
+      }
+    }
+    setTouchedFields(touched);
+    setFormErrors(errors);
+  }, [serverFieldErrors, setFormErrors, setTouchedFields, clearFormErrors]);
 
   /**
    * Handle input value changes.
