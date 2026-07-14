@@ -69,7 +69,7 @@ const UserProfile: Component = defineComponent({
   },
   setup(props: UserProfileProps, {slots}: SetupContext): () => VNode {
     const {baseUrl, instanceId} = useThunderID();
-    const {flattenedProfile, profile, schemas, onUpdateProfile} = useUser();
+    const {flattenedProfile, profile, onUpdateProfile} = useUser();
     const {t} = useI18n();
 
     const error: Ref<string | null> = ref<string | null>(null);
@@ -109,7 +109,6 @@ const UserProfile: Component = defineComponent({
           hideFields: props.hideFields,
           onUpdate: handleProfileUpdate,
           profile: profile?.value?.profile ?? flattenedProfile?.value,
-          schemas: schemas?.value,
           showAvatar: props.showAvatar,
           showFields: props.showFields,
           title: props.title,

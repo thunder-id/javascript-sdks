@@ -17,12 +17,13 @@
  */
 
 import ThunderIDAPIError from '../errors/ThunderIDAPIError';
-import {Schema} from '../models/scim2-schema';
+import {User} from '../models/user';
+import processUserUsername from '../utils/processUsername';
 
 /**
- * Configuration for the getSchemas request
+ * Configuration for the getUsersMe request
  */
-export interface GetSchemasConfig extends Omit<RequestInit, 'method'> {
+export interface GetUsersMeConfig extends Omit<RequestInit, 'method'> {
   /**
    * The base path of the API endpoint.
    */
@@ -39,21 +40,21 @@ export interface GetSchemasConfig extends Omit<RequestInit, 'method'> {
 }
 
 /**
- * Retrieves the SCIM2 schemas from the specified endpoint.
+ * Retrieves the user profile information from the specified /users/me endpoint.
  *
  * @param config - Request configuration object.
- * @returns A promise that resolves with the SCIM2 schemas information.
+ * @returns A promise that resolves with the user profile information.
  * @example
  * ```typescript
  * // Using default fetch
  * try {
- *   const schemas = await getSchemas({
- *     url: "https://localhost:8090/scim2/Schemas",
+ *   const userProfile = await getUsersMe({
+ *     url: "https://localhost:8090/users/me",
  *   });
- *   console.log(schemas);
+ *   console.log(userProfile);
  * } catch (error) {
  *   if (error instanceof ThunderIDAPIError) {
- *     console.error('Failed to get schemas:', error.message);
+ *     console.error('Failed to get user profile:', error.message);
  *   }
  * }
  * ```
@@ -62,8 +63,8 @@ export interface GetSchemasConfig extends Omit<RequestInit, 'method'> {
  * ```typescript
  * // Using custom fetcher (e.g., axios-based httpClient)
  * try {
- *   const schemas = await getSchemas({
- *     url: "https://localhost:8090/scim2/Schemas",
+ *   const userProfile = await getUsersMe({
+ *     url: "https://localhost:8090/users/me",
  *     fetcher: async (url, config) => {
  *       const response = await httpClient({
  *         url,
@@ -81,22 +82,22 @@ export interface GetSchemasConfig extends Omit<RequestInit, 'method'> {
  *       } as Response;
  *     }
  *   });
- *   console.log(schemas);
+ *   console.log(userProfile);
  * } catch (error) {
  *   if (error instanceof ThunderIDAPIError) {
- *     console.error('Failed to get schemas:', error.message);
+ *     console.error('Failed to get user profile:', error.message);
  *   }
  * }
  * ```
  */
-const getSchemas = async ({url, baseUrl, fetcher, ...requestConfig}: GetSchemasConfig): Promise<Schema[]> => {
+const getUsersMe = async ({url, baseUrl, fetcher, ...requestConfig}: GetUsersMeConfig): Promise<User> => {
   try {
     // eslint-disable-next-line no-new
     new URL((url ?? baseUrl)!);
   } catch (error) {
     throw new ThunderIDAPIError(
       `Invalid URL provided. ${error?.toString()}`,
-      'getSchemas-ValidationError-001',
+      'getUsersMe-ValidationError-001',
       'javascript',
       400,
       'The provided `url` or `baseUrl` path does not adhere to the URL schema.',
@@ -104,7 +105,7 @@ const getSchemas = async ({url, baseUrl, fetcher, ...requestConfig}: GetSchemasC
   }
 
   const fetchFn: typeof fetch = fetcher || fetch;
-  const resolvedUrl: string = url ?? `${baseUrl}/scim2/Schemas`;
+  const resolvedUrl: string = url ?? `${baseUrl}/users/me`;
 
   const requestInit: RequestInit = {
     ...requestConfig,
@@ -124,15 +125,22 @@ const getSchemas = async ({url, baseUrl, fetcher, ...requestConfig}: GetSchemasC
 
       throw new ThunderIDAPIError(
         errorText,
-        'getSchemas-ResponseError-001',
+        'getUsersMe-ResponseError-001',
         'javascript',
         response.status,
         response.statusText,
-        'Failed to fetch SCIM2 schemas',
+        'Failed to fetch user profile',
       );
     }
 
-    return (await response.json()) as Schema[];
+    const user: User = (await response.json()) as User;
+    const attributes: Record<string, unknown> = (user['attributes'] as Record<string, unknown>) ?? {};
+    const processedUser: User = {
+      ...user,
+      ...attributes,
+    };
+
+    return processUserUsername(processedUser);
   } catch (error) {
     if (error instanceof ThunderIDAPIError) {
       throw error;
@@ -140,7 +148,7 @@ const getSchemas = async ({url, baseUrl, fetcher, ...requestConfig}: GetSchemasC
 
     throw new ThunderIDAPIError(
       `Network or parsing error: ${error instanceof Error ? error.message : 'Unknown error'}`,
-      'getSchemas-NetworkError-001',
+      'getUsersMe-NetworkError-001',
       'javascript',
       0,
       'Network Error',
@@ -148,4 +156,4 @@ const getSchemas = async ({url, baseUrl, fetcher, ...requestConfig}: GetSchemasC
   }
 };
 
-export default getSchemas;
+export default getUsersMe;

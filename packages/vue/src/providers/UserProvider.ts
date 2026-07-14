@@ -16,7 +16,7 @@
  * under the License.
  */
 
-import {Schema, UpdateMeProfileConfig, User, UserProfile} from '@thunderid/browser';
+import {UpdateMeProfileConfig, User, UserProfile} from '@thunderid/browser';
 import {
   computed,
   defineComponent,
@@ -60,7 +60,7 @@ const UserProvider: Component = defineComponent({
     profile: {default: null, type: Object as PropType<UserProfile | null>},
     /** Re-fetch the user profile from the server. */
     revalidateProfile: {default: async () => {}, type: Function as PropType<() => Promise<void>>},
-    /** Update the user profile via SCIM2 PATCH. */
+    /** Update the user profile via PATCH. */
     updateProfile: {
       default: undefined,
       type: Function as PropType<
@@ -72,18 +72,16 @@ const UserProvider: Component = defineComponent({
     },
   },
   setup(props: UserProviderProps, {slots}: SetupContext): () => VNode {
-    // Derive flattenedProfile and schemas from the single profile prop,
+    // Derive flattenedProfile from the single profile prop,
     // matching the same pattern as the React SDK's UserProvider.
     const profileRef: Ref<UserProfile | null> = computed(() => props.profile);
     const flattenedProfileRef: Ref<User | null> = computed(() => props.profile?.flattenedProfile ?? null);
-    const schemasRef: Ref<Schema[] | null> = computed(() => props.profile?.schemas ?? null);
 
     const context: UserContextValue = {
       flattenedProfile: flattenedProfileRef as unknown as Readonly<Ref<User | null>>,
       onUpdateProfile: props.onUpdateProfile ?? ((): void => {}),
       profile: profileRef as unknown as Readonly<Ref<UserProfile | null>>,
       revalidateProfile: props.revalidateProfile,
-      schemas: schemasRef as unknown as Readonly<Ref<Schema[] | null>>,
       updateProfile:
         props.updateProfile ??
         (async (): Promise<{data: {user: User}; error: string; success: boolean}> => ({

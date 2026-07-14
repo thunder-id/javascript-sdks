@@ -38,7 +38,6 @@ const getUserProfileAction = async (
         userProfile: {
           flattenedProfile: {},
           profile: {},
-          schemas: [],
         },
       },
       error: 'Failed to get user profile',

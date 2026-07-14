@@ -18,11 +18,9 @@
 
 import {
   ThunderIDBrowserClient,
-  flattenUserSchema,
   generateFlattenedUserProfile,
   UserProfile,
   User,
-  generateUserProfile,
   SignUpOptions,
   ThunderIDRuntimeError,
   executeEmbeddedSignUpFlow,
@@ -39,8 +37,7 @@ import {
   EmbeddedSignUpFlowStatus,
   StorageManager,
 } from '@thunderid/browser';
-import getSchemas from './api/getSchemas';
-import getScim2Me from './api/getScim2Me';
+import getUsersMe from './api/getUsersMe';
 import {ThunderIDVueConfig} from './models/config';
 
 /**
@@ -107,10 +104,9 @@ class ThunderIDVueClient<T extends ThunderIDVueConfig = ThunderIDVueConfig> exte
         baseUrl = configData?.baseUrl;
       }
 
-      const profile: User = await getScim2Me({baseUrl});
-      const schemas: any = await getSchemas({baseUrl});
+      const profile: User = await getUsersMe({baseUrl});
 
-      return generateUserProfile(profile, flattenUserSchema(schemas));
+      return profile;
     } catch (error) {
       return extractUserClaimsFromIdToken(await this.getDecodedIdToken());
     }
@@ -134,15 +130,11 @@ class ThunderIDVueClient<T extends ThunderIDVueConfig = ThunderIDVueConfig> exte
           baseUrl = configData?.baseUrl;
         }
 
-        const profile: User = await getScim2Me({baseUrl, instanceId: this.getInstanceId()});
-        const schemas: any = await getSchemas({baseUrl, instanceId: this.getInstanceId()});
-
-        const processedSchemas: any = flattenUserSchema(schemas);
+        const profile: User = await getUsersMe({baseUrl, instanceId: this.getInstanceId()});
 
         const output: UserProfile = {
-          flattenedProfile: generateFlattenedUserProfile(profile, processedSchemas),
+          flattenedProfile: generateFlattenedUserProfile(profile),
           profile,
-          schemas: processedSchemas,
         };
 
         return output;
@@ -150,7 +142,6 @@ class ThunderIDVueClient<T extends ThunderIDVueConfig = ThunderIDVueConfig> exte
         return {
           flattenedProfile: extractUserClaimsFromIdToken(await this.getDecodedIdToken()),
           profile: extractUserClaimsFromIdToken(await this.getDecodedIdToken()),
-          schemas: [],
         };
       }
     });

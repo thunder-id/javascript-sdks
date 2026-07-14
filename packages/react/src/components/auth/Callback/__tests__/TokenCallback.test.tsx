@@ -15,19 +15,20 @@
  * under the License.
  */
 
-import {render, waitFor} from '@testing-library/react';
-import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
+import {render, waitFor, cleanup} from '@testing-library/react';
+import {afterEach, beforeEach, describe, expect, it, vi, Mock} from 'vitest';
+import ThunderIDContext, {ThunderIDContextProps} from '../../../../contexts/ThunderID/ThunderIDContext';
 import {TokenCallback} from '../TokenCallback';
 
-const mockSignIn: any = vi.fn();
-const mockSignUp: any = vi.fn();
-const mockSetTemporaryDataParameter: any = vi.fn();
-const mockRemoveTemporaryDataParameter: any = vi.fn();
+const mockSignIn = vi.fn() as Mock;
+const mockSignUp = vi.fn() as Mock;
+const mockSetTemporaryDataParameter = vi.fn() as Mock;
+const mockRemoveTemporaryDataParameter = vi.fn() as Mock;
 
-const mockGetHybridDataParameter: any = vi.fn();
-const mockRemoveHybridDataParameter: any = vi.fn();
+const mockGetHybridDataParameter = vi.fn() as Mock;
+const mockRemoveHybridDataParameter = vi.fn() as Mock;
 
-const thunderIDContext: any = {
+const thunderIDContext: ThunderIDContextProps = {
   afterSignInUrl: undefined,
   getStorageManager: vi.fn(() =>
     Promise.resolve({
@@ -41,11 +42,7 @@ const thunderIDContext: any = {
   isLoading: false,
   signIn: mockSignIn,
   signUp: mockSignUp,
-};
-
-vi.mock('../../../contexts/ThunderID/useThunderID', () => ({
-  default: () => thunderIDContext,
-}));
+} as unknown as ThunderIDContextProps;
 
 describe('TokenCallback', () => {
   beforeEach(() => {
@@ -55,12 +52,13 @@ describe('TokenCallback', () => {
   });
 
   afterEach(() => {
+    cleanup();
     sessionStorage.clear();
     window.history.replaceState({}, '', '/');
   });
 
   it('verifies the token as an authentication flow when type=AUTHENTICATION is present', async () => {
-    const onNavigate: any = vi.fn();
+    const onNavigate = vi.fn();
     mockSignIn.mockResolvedValue({
       executionId: 'next-exec',
       flowStatus: 'INCOMPLETE',
@@ -72,7 +70,11 @@ describe('TokenCallback', () => {
       '/callback?id=exec-1&applicationId=app-1&token=secret-token&type=AUTHENTICATION',
     );
 
-    render(<TokenCallback onNavigate={onNavigate} />);
+    render(
+      <ThunderIDContext.Provider value={thunderIDContext}>
+        <TokenCallback onNavigate={onNavigate} />
+      </ThunderIDContext.Provider>,
+    );
 
     await waitFor(() => {
       expect(mockSignIn).toHaveBeenCalledWith({
@@ -90,7 +92,7 @@ describe('TokenCallback', () => {
   });
 
   it('verifies the token as a registration flow when type=REGISTRATION is present', async () => {
-    const onNavigate: any = vi.fn();
+    const onNavigate = vi.fn();
     mockSignUp.mockResolvedValue({
       executionId: 'next-exec',
       flowStatus: 'INCOMPLETE',
@@ -98,7 +100,11 @@ describe('TokenCallback', () => {
     });
     window.history.replaceState({}, '', '/callback?id=exec-1&applicationId=app-1&token=secret-token&type=REGISTRATION');
 
-    render(<TokenCallback onNavigate={onNavigate} />);
+    render(
+      <ThunderIDContext.Provider value={thunderIDContext}>
+        <TokenCallback onNavigate={onNavigate} />
+      </ThunderIDContext.Provider>,
+    );
 
     await waitFor(() => {
       expect(mockSignUp).toHaveBeenCalledWith({
@@ -116,11 +122,15 @@ describe('TokenCallback', () => {
   });
 
   it('redirects to sign-in with an error when required parameters are missing', async () => {
-    const onError: any = vi.fn();
-    const onNavigate: any = vi.fn();
+    const onError = vi.fn();
+    const onNavigate = vi.fn();
     window.history.replaceState({}, '', '/callback?id=exec-1');
 
-    render(<TokenCallback onError={onError} onNavigate={onNavigate} />);
+    render(
+      <ThunderIDContext.Provider value={thunderIDContext}>
+        <TokenCallback onError={onError} onNavigate={onNavigate} />
+      </ThunderIDContext.Provider>,
+    );
 
     await waitFor(() => {
       expect(onError).toHaveBeenCalledWith(
@@ -135,12 +145,16 @@ describe('TokenCallback', () => {
   });
 
   it('redirects to sign-in with an error when verification fails', async () => {
-    const onError: any = vi.fn();
-    const onNavigate: any = vi.fn();
+    const onError = vi.fn();
+    const onNavigate = vi.fn();
     mockSignIn.mockRejectedValue(new Error('Invalid token'));
     window.history.replaceState({}, '', '/callback?id=exec-1&token=secret-token');
 
-    render(<TokenCallback onError={onError} onNavigate={onNavigate} />);
+    render(
+      <ThunderIDContext.Provider value={thunderIDContext}>
+        <TokenCallback onError={onError} onNavigate={onNavigate} />
+      </ThunderIDContext.Provider>,
+    );
 
     await waitFor(() => {
       expect(onError).toHaveBeenCalledWith(expect.objectContaining({message: 'Invalid token'}));

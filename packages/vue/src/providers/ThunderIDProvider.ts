@@ -239,7 +239,6 @@ const ThunderIDProvider: Component = defineComponent({
         const profileData: UserProfile = {
           flattenedProfile: claims,
           profile: claims,
-          schemas: [],
         };
         userProfile.value = profileData;
 
@@ -477,12 +476,8 @@ const ThunderIDProvider: Component = defineComponent({
                               onUpdateProfile: (updatedUser: User): void => {
                                 user.value = updatedUser;
                                 userProfile.value = {
-                                  flattenedProfile: generateFlattenedUserProfile(
-                                    updatedUser,
-                                    userProfile.value?.schemas ?? [],
-                                  ),
+                                  flattenedProfile: generateFlattenedUserProfile(updatedUser),
                                   profile: updatedUser,
-                                  schemas: userProfile.value?.schemas ?? [],
                                 };
                               },
                               profile: userProfile.value,
@@ -494,7 +489,6 @@ const ThunderIDProvider: Component = defineComponent({
                                   userProfile.value = {
                                     flattenedProfile: claims,
                                     profile: claims,
-                                    schemas: [],
                                   };
                                 } catch {
                                   // silent

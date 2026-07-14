@@ -288,6 +288,7 @@ const ThunderIDClientProvider: FC<PropsWithChildren<ThunderIDClientProviderProps
       isLoading,
       isSignedIn,
       organizationHandle,
+      preferences,
       refreshToken,
       scopes,
       signIn: handleSignIn,
@@ -297,14 +298,25 @@ const ThunderIDClientProvider: FC<PropsWithChildren<ThunderIDClientProviderProps
       signUpUrl,
       user,
     }),
-    [baseUrl, user, isSignedIn, isLoading, signInUrl, signUpUrl, applicationId, organizationHandle, scopes],
+    [
+      baseUrl,
+      user,
+      isSignedIn,
+      isLoading,
+      signInUrl,
+      signUpUrl,
+      applicationId,
+      organizationHandle,
+      scopes,
+      preferences,
+    ],
   );
 
   const handleProfileUpdate = (payload: User): void => {
     setUser(payload);
     setUserProfile((prev: UserProfile) => ({
       ...prev,
-      flattenedProfile: generateFlattenedUserProfile(payload, prev?.schemas),
+      flattenedProfile: generateFlattenedUserProfile(payload),
       profile: payload,
     }));
   };

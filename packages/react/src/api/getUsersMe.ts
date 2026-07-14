@@ -21,14 +21,14 @@ import {
   HttpResponse,
   FetchHttpClient,
   HttpRequestConfig,
-  getScim2Me as baseGetScim2Me,
-  GetScim2MeConfig as BaseGetScim2MeConfig,
+  getUsersMe as baseGetUsersMe,
+  GetUsersMeConfig as BaseGetUsersMeConfig,
 } from '@thunderid/browser';
 
 /**
- * Configuration for the getScim2Me request (React-specific)
+ * Configuration for the getUsersMe request (React-specific)
  */
-export interface GetScim2MeConfig extends Omit<BaseGetScim2MeConfig, 'fetcher'> {
+export interface GetUsersMeConfig extends Omit<BaseGetUsersMeConfig, 'fetcher'> {
   /**
    * Optional custom fetcher function. If not provided, the ThunderID SPA client's httpClient will be used
    * which is a wrapper around axios http.request
@@ -41,7 +41,7 @@ export interface GetScim2MeConfig extends Omit<BaseGetScim2MeConfig, 'fetcher'> 
 }
 
 /**
- * Retrieves the user profile information from the specified SCIM2 /Me endpoint.
+ * Retrieves the user profile information from the specified /users/me endpoint.
  * This function uses the ThunderID SPA client's httpClient by default, but allows for custom fetchers.
  *
  * @param requestConfig - Request configuration object.
@@ -50,8 +50,8 @@ export interface GetScim2MeConfig extends Omit<BaseGetScim2MeConfig, 'fetcher'> 
  * ```typescript
  * // Using default ThunderID SPA client httpClient
  * try {
- *   const userProfile = await getScim2Me({
- *     url: "https://localhost:8090/scim2/Me",
+ *   const userProfile = await getUsersMe({
+ *     url: "https://localhost:8090/users/me",
  *   });
  *   console.log(userProfile);
  * } catch (error) {
@@ -65,8 +65,8 @@ export interface GetScim2MeConfig extends Omit<BaseGetScim2MeConfig, 'fetcher'> 
  * ```typescript
  * // Using custom fetcher
  * try {
- *   const userProfile = await getScim2Me({
- *     url: "https://localhost:8090/scim2/Me",
+ *   const userProfile = await getUsersMe({
+ *     url: "https://localhost:8090/users/me",
  *     fetcher: customFetchFunction
  *   });
  *   console.log(userProfile);
@@ -77,7 +77,7 @@ export interface GetScim2MeConfig extends Omit<BaseGetScim2MeConfig, 'fetcher'> 
  * }
  * ```
  */
-const getScim2Me = async ({fetcher, instanceId = 0, ...requestConfig}: GetScim2MeConfig): Promise<User> => {
+const getUsersMe = async ({fetcher, instanceId = 0, ...requestConfig}: GetUsersMeConfig): Promise<User> => {
   const defaultFetcher = async (url: string, config: RequestInit): Promise<Response> => {
     const httpClient: FetchHttpClient = FetchHttpClient.getInstance(instanceId);
     const response: HttpResponse<any> = await httpClient.request({
@@ -95,10 +95,10 @@ const getScim2Me = async ({fetcher, instanceId = 0, ...requestConfig}: GetScim2M
     } as Response;
   };
 
-  return baseGetScim2Me({
+  return baseGetUsersMe({
     ...requestConfig,
     fetcher: fetcher || defaultFetcher,
   });
 };
 
-export default getScim2Me;
+export default getUsersMe;

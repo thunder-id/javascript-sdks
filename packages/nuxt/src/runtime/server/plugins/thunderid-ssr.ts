@@ -49,12 +49,12 @@ function resolveCallbackUrl(event: H3Event): string {
  *    switches `resolvedBaseUrl` to `${baseUrl}/o` when the user is acting
  *    within an organisation.
  * 4. In parallel (gated by `preferences`):
- *    - Fetches user + SCIM2 user profile  (`preferences.user.fetchUserProfile !== false`)
+ *    - Fetches user + user profile  (`preferences.user.fetchUserProfile !== false`)
  * 5. Writes the full {@link ThunderIDSSRData} to `event.context[vendor].ssr`
  *    (default vendor: `'thunderid'`) so the Nuxt plugin can seed `useState`
  *    keys for zero-cost hydration.
  *
- * Each fetch is individually wrapped in try/catch so a broken SCIM
+ * Each fetch is individually wrapped in try/catch so a broken profile
  * call never crashes SSR — the client layer can recover via the existing
  * `/api/auth/*` routes.
  */
@@ -163,7 +163,7 @@ export default defineNitroPlugin((nitro: {hooks: {hook: Function}}) => {
       // Always fetch the basic user object (needed for ThunderIDAuthState.user)
       client.getUser(session.sessionId),
 
-      // SCIM2 user profile (flattened + schemas)
+      // User profile (flattened)
       shouldFetchProfile ? client.getUserProfile(session.sessionId) : Promise.resolve(null),
     ]);
 
@@ -171,7 +171,7 @@ export default defineNitroPlugin((nitro: {hooks: {hook: Function}}) => {
       log.debug('Failed to fetch user:', userResult.reason);
     }
     if (userProfileResult.status === 'rejected') {
-      log.warn('Failed to fetch user profile (SCIM2):', userProfileResult.reason);
+      log.warn('Failed to fetch user profile:', userProfileResult.reason);
     }
 
     // ── 5. Write to event context ──────────────────────────────────────────

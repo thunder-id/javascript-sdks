@@ -26,6 +26,7 @@ import {
   User,
   UserProfile,
   getFlowMeta,
+  extractUserClaimsFromIdToken,
 } from '@thunderid/node';
 import {ThunderIDProviderProps} from '@thunderid/react';
 import {FC, PropsWithChildren, ReactElement} from 'react';
@@ -136,8 +137,17 @@ const ThunderIDServerProvider: FC<PropsWithChildren<ThunderIDServerProviderProps
   let userProfile: UserProfile = {
     flattenedProfile: {},
     profile: {},
-    schemas: [],
   };
+
+  const resolvedPreferences = {
+    ...config?.preferences,
+    ..._config.preferences,
+    user: {
+      ...config?.preferences?.user,
+      ..._config.preferences?.user,
+    },
+  };
+
   if (signedIn) {
     let updatedBaseUrl: string | undefined = config?.baseUrl;
 
@@ -157,7 +167,7 @@ const ThunderIDServerProvider: FC<PropsWithChildren<ThunderIDServerProviderProps
     }
 
     // Check if user profile fetching is enabled (default: true)
-    const shouldFetchUserProfile: boolean = config?.preferences?.user?.fetchUserProfile !== false;
+    const shouldFetchUserProfile: boolean = resolvedPreferences?.user?.fetchUserProfile !== false;
 
     if (shouldFetchUserProfile) {
       try {
@@ -175,7 +185,19 @@ const ThunderIDServerProvider: FC<PropsWithChildren<ThunderIDServerProviderProps
         user = userResponse.data?.user || {};
         userProfile = userProfileResponse.data?.userProfile ?? userProfile;
       } catch (error) {
-        logger.warn('[ThunderIDServerProvider] Failed to fetch user profile from SCIM2:', error?.toString());
+        logger.warn('[ThunderIDServerProvider] Failed to fetch user profile from /users/me:', error?.toString());
+      }
+    } else {
+      try {
+        const decodedIdToken: IdToken = await thunderIDClient.getDecodedIdToken(sessionId);
+        const claims = extractUserClaimsFromIdToken(decodedIdToken);
+        user = claims;
+        userProfile = {
+          flattenedProfile: claims,
+          profile: claims,
+        };
+      } catch (error) {
+        logger.warn('[ThunderIDServerProvider] Failed to extract user claims from ID token:', error?.toString());
       }
     }
   }
@@ -194,7 +216,7 @@ const ThunderIDServerProvider: FC<PropsWithChildren<ThunderIDServerProviderProps
       handleOAuthCallback={handleOAuthCallbackAction}
       signInUrl={config?.signInUrl}
       signUpUrl={config?.signUpUrl}
-      preferences={config?.preferences}
+      preferences={resolvedPreferences}
       clientId={config?.clientId}
       user={user}
       userProfile={userProfile}

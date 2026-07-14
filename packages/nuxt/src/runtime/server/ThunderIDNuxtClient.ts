@@ -161,7 +161,7 @@ class ThunderIDNuxtClient extends ThunderIDNodeClient<ThunderIDNuxtConfig> {
 
   override async getUserProfile(sessionId: string): Promise<UserProfile> {
     const user: User = await this.getUser(sessionId);
-    return {flattenedProfile: user, profile: user, schemas: []};
+    return {flattenedProfile: user, profile: user};
   }
 
   override async updateUserProfile(config: UpdateMeProfileConfig, sessionId: string): Promise<User> {

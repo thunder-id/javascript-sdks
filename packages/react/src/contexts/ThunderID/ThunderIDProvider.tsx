@@ -40,6 +40,7 @@ import FlowMetaProvider from '../FlowMeta/FlowMetaProvider';
 import I18nProvider from '../I18n/I18nProvider';
 import ThemeProvider from '../Theme/ThemeProvider';
 import UserProvider from '../User/UserProvider';
+import getUsersMe from '../../api/getUsersMe';
 
 const logger: ReturnType<typeof createPackageComponentLogger> = createPackageComponentLogger(
   '@thunderid/react',
@@ -131,18 +132,28 @@ const ThunderIDProvider: FC<PropsWithChildren<ThunderIDProviderProps>> = ({
         setBaseUrl(resolvedBaseUrl);
       }
 
-      // TEMPORARY: SCIM2 and Organizations endpoints are not yet supported.
+      const shouldFetchProfile: boolean = preferences?.user?.fetchUserProfile !== false;
       const claims: User = extractUserClaimsFromIdToken(decodedToken) as User;
-      setUser(claims);
+      let profileData = claims;
+      const currentSignInStatus: boolean = await client.isSignedIn();
+
+      if (currentSignInStatus && shouldFetchProfile) {
+        try {
+          const fetchedProfile = await getUsersMe({baseUrl: resolvedBaseUrl, instanceId});
+          profileData = {...claims, ...fetchedProfile};
+        } catch (err) {
+          logger.warn('Failed to fetch user profile from /users/me:', err);
+        }
+      }
+
+      setUser(profileData);
       setUserProfile({
-        flattenedProfile: claims,
-        profile: claims,
-        schemas: [],
+        flattenedProfile: generateFlattenedUserProfile(profileData, []),
+        profile: profileData,
       });
 
       // CRITICAL: Update sign-in status BEFORE setting loading to false
       // This prevents the race condition where ProtectedRoute sees isLoading=false but isSignedIn=false
-      const currentSignInStatus: boolean = await client.isSignedIn();
       setIsSignedInSync(currentSignInStatus);
     } catch (error) {
       // TODO: Add an error log.
@@ -200,7 +211,7 @@ const ThunderIDProvider: FC<PropsWithChildren<ThunderIDProviderProps>> = ({
 
     (async (): Promise<void> => {
       // Sync session state whenever sign-in completes (both redirect and embedded V2 flows).
-      // Pass the user returned by the SDK's sign-in flow so SCIM2/Me result is not discarded.
+      // Pass the user returned by the SDK's sign-in flow so users/me result is not discarded.
       await client.on('sign-in', async () => {
         await updateSession();
       });
@@ -367,8 +378,7 @@ const ThunderIDProvider: FC<PropsWithChildren<ThunderIDProviderProps>> = ({
   const handleProfileUpdate = (payload: User): void => {
     setUser(payload);
     setUserProfile((prev: UserProfile | null) => ({
-      schemas: prev?.schemas ?? [],
-      flattenedProfile: generateFlattenedUserProfile(payload, prev?.schemas ?? []),
+      flattenedProfile: generateFlattenedUserProfile(payload),
       profile: payload,
     }));
   };
@@ -459,6 +469,7 @@ const ThunderIDProvider: FC<PropsWithChildren<ThunderIDProviderProps>> = ({
       isSignedIn: isSignedInSync,
       organizationChain,
       organizationHandle: config?.organizationHandle,
+      preferences,
       reInitialize,
       recover,
       signIn,
@@ -501,6 +512,7 @@ const ThunderIDProvider: FC<PropsWithChildren<ThunderIDProviderProps>> = ({
       getStorageManager,
       instanceId,
       organizationChain,
+      preferences,
       recover,
       reInitialize,
       request,

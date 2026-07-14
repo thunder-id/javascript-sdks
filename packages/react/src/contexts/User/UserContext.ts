@@ -16,7 +16,7 @@
  * under the License.
  */
 
-import {User, Schema, UpdateMeProfileConfig} from '@thunderid/browser';
+import {User, UpdateMeProfileConfig} from '@thunderid/browser';
 import {Context, createContext} from 'react';
 
 /**
@@ -27,7 +27,6 @@ export interface UserContextProps {
   onUpdateProfile: (payload: User) => void;
   profile: User | null;
   revalidateProfile: () => Promise<void>;
-  schemas: Schema[] | null;
   updateProfile: (
     requestConfig: UpdateMeProfileConfig,
     sessionId?: string,
@@ -42,7 +41,6 @@ const UserContext: Context<UserContextProps | null> = createContext<null | UserC
   onUpdateProfile: () => null,
   profile: null,
   revalidateProfile: () => null as unknown as Promise<void>,
-  schemas: null,
   updateProfile: () => null as unknown as Promise<{data: {user: User}; error: string; success: boolean}>,
 });
 
