@@ -169,6 +169,17 @@ export interface FlowMetaThemeColorScheme {
 }
 
 /**
+ * Size configuration in the v2 theme.
+ *
+ * @experimental This API may change in future versions
+ */
+export interface FlowMetaThemeSize {
+  small?: string;
+  medium?: string;
+  large?: string;
+}
+
+/**
  * Shape / geometry configuration in the v2 theme.
  *
  * @experimental This API may change in future versions
@@ -215,6 +226,17 @@ export interface FlowMetaTheme {
 
   /** Typography configuration for the theme */
   typography?: FlowMetaThemeTypography;
+
+  /** Border configuration for the theme */
+  border?: {width: string; color: string; style: string};
+
+  /** Shadow configuration for the theme */
+  shadows?: FlowMetaThemeSize;
+
+  /** Spacing configuration for the theme */
+  spacing?: {unit: number};
+
+  borderRadius?: FlowMetaThemeSize;
 }
 
 /**

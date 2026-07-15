@@ -76,6 +76,7 @@ const buildThemeConfigFromFlowMeta = (
   }
 
   return {
+    ...flowMetaTheme,
     ...(flowMetaTheme.direction ? {direction: flowMetaTheme.direction} : {}),
     ...(borderRadiusStr
       ? {
