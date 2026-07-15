@@ -55,7 +55,7 @@ export class DefaultCrypto implements Crypto<Uint8Array> {
     clockTolerance?: number,
     validateJwtIssuer = true,
   ): Promise<boolean> {
-    const key: jose.KeyLike | Uint8Array = await jose.importJWK(jwk as jose.JWK);
+    const key: jose.CryptoKey | Uint8Array = await jose.importJWK(jwk as jose.JWK);
 
     await jose.jwtVerify(idToken, key, {
       algorithms,
