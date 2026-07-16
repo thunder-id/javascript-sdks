@@ -229,6 +229,14 @@ export interface BaseSignUpProps {
   preferences?: Preferences;
 
   /**
+   * When a field has been blurred at least once, re-run validation on every subsequent
+   * keystroke so a rendered error clears the moment the value becomes valid. Doesn't
+   * affect fields that have never been blurred — the user isn't shown errors while
+   * initially typing. Default `false` preserves prior behavior.
+   */
+  revalidateOnChangeAfterBlur?: boolean;
+
+  /**
    *  Whether to redirect after sign-up.
    */
   shouldRedirectAfterSignUp?: boolean;
@@ -282,6 +290,7 @@ const BaseSignUpContent: FC<BaseSignUpProps> = ({
   children,
   showTitle = true,
   showSubtitle = true,
+  revalidateOnChangeAfterBlur = false,
 }: BaseSignUpProps): ReactElement => {
   const {theme, colorScheme} = useTheme();
   const customRenderers: ComponentRendererMap = useContext(ComponentRendererContext);
@@ -471,6 +480,7 @@ const BaseSignUpContent: FC<BaseSignUpProps> = ({
     fields: formFields,
     initialValues: {},
     requiredMessage: t('validations.required.field.error'),
+    revalidateOnChangeAfterBlur,
     validateOnBlur: true,
     validateOnChange: false,
   });

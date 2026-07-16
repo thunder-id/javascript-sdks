@@ -135,6 +135,14 @@ export interface SignInProps {
   preferences?: Preferences;
 
   /**
+   * When a field has been blurred at least once, re-run validation on every subsequent
+   * keystroke so a rendered error clears the moment the value becomes valid. Doesn't
+   * affect fields that have never been blurred — the user isn't shown errors while
+   * initially typing. Default `false` preserves prior behavior.
+   */
+  revalidateOnChangeAfterBlur?: boolean;
+
+  /**
    * Size variant for the component.
    */
   size?: 'small' | 'medium' | 'large';
@@ -226,6 +234,7 @@ const SignIn: FC<SignInProps> = ({
   onError,
   variant,
   children,
+  revalidateOnChangeAfterBlur,
 }: SignInProps): ReactElement => {
   const {applicationId, afterSignInUrl, signIn, isInitialized, isLoading, meta, getStorageManager, scopes, vendor} =
     useThunderID();
@@ -435,19 +444,25 @@ const SignIn: FC<SignInProps> = ({
   };
 
   /**
-   * Handle terminal flow responses (Error and Complete) shared by initializeFlow and handleSubmit.
-   * Throws on an Error status so the caller's catch block can propagate it to BaseSignIn.
-   * Returns true when a Complete status was handled (caller should return), false otherwise.
+   * Handle ERROR and COMPLETE responses. Returns true if fully handled.
+   * ERROR + executionId: recoverable — session preserved for retry.
+   * ERROR + no executionId: terminal — clear state and surface the error.
    */
   const handleTerminalResponse = async (response: EmbeddedSignInFlowResponse): Promise<boolean> => {
-    // Handle Error flow status - flow has failed and is invalidated
     if (response.flowStatus === EmbeddedSignInFlowStatus.Error) {
+      if (response.executionId) {
+        // Recoverable: session still alive. Show inline error without firing onError.
+        setExecutionId(response.executionId);
+        await setChallengeToken(response.challengeToken ?? null);
+        setIsFlowInitialized(true);
+        setFlowError(new Error(extractErrorMessage(response, t)));
+        return true;
+      }
+      // Terminal: backend invalidated the session — clear all state.
       await clearFlowState();
-      const err: any = new Error(extractErrorMessage(response, t));
-      setError(err);
+      setError(new Error(extractErrorMessage(response, t)));
       cleanupFlowUrlParams();
-      // Throw the error so it's caught by the catch block and propagated to BaseSignIn
-      throw err;
+      return true;
     }
 
     if (response.flowStatus === EmbeddedSignInFlowStatus.Complete) {
@@ -588,6 +603,11 @@ const SignIn: FC<SignInProps> = ({
       // session lets the backend return COMPLETE immediately with no UI components. Without
       // this the UI would fall through with no components and spin forever.
       if (await handleTerminalResponse(response)) {
+        // Only reset the init gate for unrecoverable Error responses so the user can retry;
+        // Complete-without-redirect would otherwise kick off a fresh flow unintentionally.
+        if (response.flowStatus === EmbeddedSignInFlowStatus.Error && !response.executionId) {
+          initializationAttemptedRef.current = false;
+        }
         return;
       }
 
@@ -814,6 +834,11 @@ const SignIn: FC<SignInProps> = ({
         return;
       }
 
+      // Handle terminal flow statuses before normalization.
+      if (await handleTerminalResponse(response)) {
+        return;
+      }
+
       const {
         executionId: normalizedExecutionId,
         components: normalizedComponents,
@@ -826,11 +851,6 @@ const SignIn: FC<SignInProps> = ({
         },
         meta,
       );
-
-      // Handle terminal flow statuses (Error throws, Complete redirects and returns true).
-      if (await handleTerminalResponse(response)) {
-        return;
-      }
 
       // Always update challenge token on any INCOMPLETE response — token rotates every step.
       await setChallengeToken(response.challengeToken ?? null);
@@ -1004,6 +1024,7 @@ const SignIn: FC<SignInProps> = ({
       size={size}
       variant={variant}
       preferences={preferences}
+      revalidateOnChangeAfterBlur={revalidateOnChangeAfterBlur}
       serverFieldErrors={serverFieldErrors}
     />
   );

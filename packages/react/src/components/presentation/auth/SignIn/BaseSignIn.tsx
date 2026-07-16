@@ -227,6 +227,14 @@ export interface BaseSignInProps {
   serverFieldErrors?: FieldError[] | null;
 
   /**
+   * When a field has been blurred at least once, re-run validation on every subsequent
+   * keystroke so a rendered error clears the moment the value becomes valid. Doesn't
+   * affect fields that have never been blurred — the user isn't shown errors while
+   * initially typing. Default `false` preserves prior behavior.
+   */
+  revalidateOnChangeAfterBlur?: boolean;
+
+  /**
    * Size variant for the component.
    */
   size?: 'small' | 'medium' | 'large';
@@ -257,6 +265,7 @@ const BaseSignInContent: FC<BaseSignInProps> = ({
   additionalData = {},
   isTimeoutDisabled = false,
   serverFieldErrors = null,
+  revalidateOnChangeAfterBlur = false,
 }: BaseSignInProps): ReactElement => {
   const {meta, vendor} = useThunderID();
   const {theme} = useTheme();
@@ -269,6 +278,20 @@ const BaseSignInContent: FC<BaseSignInProps> = ({
   const [apiError, setApiError] = useState<Error | null>(null);
 
   const isLoading: boolean = externalIsLoading || isSubmitting;
+
+  /**
+   * Component type for which forms validation will be applicable
+   */
+  const acceptableType = [
+    'TEXT_INPUT',
+    'PASSWORD_INPUT',
+    'EMAIL_INPUT',
+    'PHONE_INPUT',
+    'OTP_INPUT',
+    'SELECT',
+    'DATE_INPUT',
+    'CUSTOM',
+  ];
 
   /**
    * Handle error responses and extract meaningful error messages
@@ -300,15 +323,7 @@ const BaseSignInContent: FC<BaseSignInProps> = ({
 
       const processComponents = (comps: EmbeddedFlowComponent[]): any => {
         comps.forEach((component: any) => {
-          if (
-            component.type === 'TEXT_INPUT' ||
-            component.type === 'PASSWORD_INPUT' ||
-            component.type === 'EMAIL_INPUT' ||
-            component.type === 'PHONE_INPUT' ||
-            component.type === 'OTP_INPUT' ||
-            component.type === 'SELECT' ||
-            component.type === 'DATE_INPUT'
-          ) {
+          if (acceptableType.includes(component.type)) {
             const identifier: string = component.ref;
             const ruleValidator = buildValidatorFromRules(component.validation);
             fields.push({
@@ -360,6 +375,7 @@ const BaseSignInContent: FC<BaseSignInProps> = ({
     fields: formFields,
     initialValues: {},
     requiredMessage: t('validations.required.field.error'),
+    revalidateOnChangeAfterBlur,
     validateOnBlur: true,
     validateOnChange: false,
   });
