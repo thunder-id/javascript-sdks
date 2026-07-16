@@ -1,6 +1,6 @@
 packages:
   - packages/*
-  - samples/*
+  - samples/*/*
 
 minimumReleaseAgeExclude:
   # JUSTIFICATION: Temporary exclusion due to recent release. TODO: Remove after the time passes.
