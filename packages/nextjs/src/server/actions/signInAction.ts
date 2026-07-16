@@ -106,56 +106,46 @@ const signInAction = async (
     const response: any = await client.signIn(payload, request!, sessionId);
 
     if (response.flowStatus === EmbeddedSignInFlowStatus.Complete) {
-      const signInResult: Record<string, unknown> = await client.signIn(
-        {
-          code: response?.authData?.code,
-          session_state: response?.authData?.session_state,
-          state: response?.authData?.state,
-        } as any,
-        {},
-        sessionId,
+      // On the V2 platform, a completed embedded flow (without a preceding `/authorize` redirect,
+      // i.e. no `authId`) returns a self-contained JWT `assertion` rather than an authorization
+      // code to exchange. This mirrors how @thunderid/react and @thunderid/vue treat it: the
+      // assertion is used directly as the bearer session token.
+      if (!response.assertion) {
+        throw new Error('[signInAction] Flow completed without an assertion.');
+      }
+
+      const idToken: IdToken = await client.getDecodedIdToken(sessionId, response.assertion);
+      const userIdFromToken: string = (idToken.sub as string | undefined) ?? sessionId;
+      const organizationId: string | undefined = (idToken['user_org'] || idToken['organization_id']) as
+        | string
+        | undefined;
+      const scopes: string = (idToken['scope'] as string | undefined) ?? '';
+      const iat: number = (idToken['iat'] as number | undefined) ?? Math.floor(Date.now() / 1000);
+      const exp: number = (idToken['exp'] as number | undefined) ?? iat + 3600;
+      const expiresIn: number = Math.max(exp - iat, 0);
+
+      const config: ThunderIDNextConfig = await client.getConfiguration();
+      const sessionCookieExpiryTime: number = SessionManager.resolveSessionCookieExpiry(
+        config.sessionCookie?.expiryTime,
       );
 
-      if (signInResult) {
-        const idToken: IdToken = await client.getDecodedIdToken(
-          sessionId,
-          (signInResult['idToken'] || signInResult['id_token']) as string,
-        );
-        const userIdFromToken: string = (idToken.sub || signInResult['sub'] || sessionId) as string;
-        const {accessToken}: {accessToken: string} = signInResult as {accessToken: string};
-        const refreshToken: string = (signInResult['refreshToken'] as string | undefined) ?? '';
-        const scopes: string = signInResult['scope'] as string;
-        const organizationId: string | undefined = (idToken['user_org'] || idToken['organization_id']) as
-          | string
-          | undefined;
-        const rawExpiresIn: unknown = signInResult['expiresIn'] ?? signInResult['expires_in'];
-        const expiresIn = Number(rawExpiresIn);
-        if (Number.isNaN(expiresIn)) {
-          throw new Error(`[signInAction] Invalid expiresIn value received: ${rawExpiresIn}`);
-        }
-        const config: ThunderIDNextConfig = await client.getConfiguration();
-        const sessionCookieExpiryTime: number = SessionManager.resolveSessionCookieExpiry(
-          config.sessionCookie?.expiryTime,
-        );
+      const sessionToken: string = await SessionManager.createSessionToken(
+        response.assertion,
+        userIdFromToken,
+        sessionId,
+        scopes,
+        expiresIn,
+        '',
+        organizationId,
+      );
 
-        const sessionToken: string = await SessionManager.createSessionToken(
-          accessToken,
-          userIdFromToken,
-          sessionId,
-          scopes,
-          expiresIn,
-          refreshToken,
-          organizationId,
-        );
+      cookieStore.set(
+        SessionManager.getSessionCookieName(),
+        sessionToken,
+        SessionManager.getSessionCookieOptions(sessionCookieExpiryTime),
+      );
 
-        cookieStore.set(
-          SessionManager.getSessionCookieName(),
-          sessionToken,
-          SessionManager.getSessionCookieOptions(sessionCookieExpiryTime),
-        );
-
-        cookieStore.delete(SessionManager.getTempSessionCookieName());
-      }
+      cookieStore.delete(SessionManager.getTempSessionCookieName());
 
       const afterSignInUrl: string = await (await client.getStorageManager()).getConfigDataParameter('afterSignInUrl');
       return {data: {afterSignInUrl: String(afterSignInUrl)}, success: true};
@@ -163,8 +153,14 @@ const signInAction = async (
 
     return {data: response as Record<string, unknown>, success: true};
   } catch (error) {
-    logger.error(`[signInAction] Error during sign-in: ${error instanceof Error ? error.message : String(error)}`);
-    return {error: String(error), success: false};
+    const message =
+      error instanceof Error
+        ? error.message
+        : typeof (error as any)?.message === 'string'
+          ? (error as any).message
+          : String(error);
+    logger.error(`[signInAction] Error during sign-in: ${message}`);
+    return {error: message, success: false};
   }
 };
 

@@ -35,6 +35,14 @@ export interface FlowMetaProviderProps {
    * @default true
    */
   enabled?: boolean;
+
+  /**
+   * Flow metadata resolved ahead of time (e.g. fetched server-side during SSR) and used to seed
+   * the provider's state. When present, the provider skips its own initial client-side fetch —
+   * avoiding a redundant request and the flash of untranslated i18n keys while that fetch is in
+   * flight — but still fetches normally on subsequent changes (e.g. an explicit language switch).
+   */
+  initialMeta?: FlowMetadataResponse | null;
 }
 
 /**
@@ -63,12 +71,13 @@ export interface FlowMetaProviderProps {
 const FlowMetaProvider: FC<PropsWithChildren<FlowMetaProviderProps>> = ({
   children,
   enabled = true,
+  initialMeta = null,
 }: PropsWithChildren<FlowMetaProviderProps>): ReactElement => {
   const {baseUrl, applicationId, isInitialized} = useThunderID();
   const i18nContext: I18nContextValue = useI18n();
 
-  const [meta, setMeta] = useState<FlowMetadataResponse | null>(null);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [meta, setMeta] = useState<FlowMetadataResponse | null>(initialMeta);
+  const [isLoading, setIsLoading] = useState<boolean>(!initialMeta);
   const [error, setError] = useState<Error | null>(null);
   const [pendingLanguage, setPendingLanguage] = useState<string | null>(null);
 
@@ -80,6 +89,7 @@ const FlowMetaProvider: FC<PropsWithChildren<FlowMetaProviderProps>> = ({
   //   2. Rapid dependency changes (e.g. baseUrl stabilising) that produce two
   //      effect firings before the first fetch completes.
   const lastFetchedRef: RefObject<(() => Promise<void>) | null> = useRef<(() => Promise<void>) | null>(null);
+  const initialMetaConsumedRef: RefObject<boolean> = useRef(false);
   const fetchFlowMeta: () => Promise<void> = useCallback(async (): Promise<void> => {
     if (!enabled) {
       setMeta(null);
@@ -161,6 +171,17 @@ const FlowMetaProvider: FC<PropsWithChildren<FlowMetaProviderProps>> = ({
   }, [pendingLanguage, i18nContext?.setLanguage]);
 
   useEffect(() => {
+    if (!initialMetaConsumedRef.current) {
+      initialMetaConsumedRef.current = true;
+
+      if (initialMeta) {
+        // Seeded from SSR (or another caller) — skip the redundant first client-side fetch.
+        // Later dependency changes (e.g. an explicit language switch) still fetch normally.
+        lastFetchedRef.current = fetchFlowMeta;
+        return;
+      }
+    }
+
     if (lastFetchedRef.current === fetchFlowMeta) {
       // Same reference as the last dispatch — this is a StrictMode re-mount
       // or an effect re-fire with unchanged deps. Skip to avoid a duplicate fetch.
@@ -169,6 +190,7 @@ const FlowMetaProvider: FC<PropsWithChildren<FlowMetaProviderProps>> = ({
 
     lastFetchedRef.current = fetchFlowMeta;
     fetchFlowMeta();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fetchFlowMeta]);
 
   // When meta loads with i18n translations, inject them into the i18n system.

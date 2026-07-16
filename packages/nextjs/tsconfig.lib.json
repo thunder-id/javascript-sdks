@@ -4,7 +4,6 @@
     "declaration": true,
     "declarationMap": true,
     "outDir": "dist",
-    "declarationDir": "dist/types",
     "types": ["node"]
   },
   "exclude": [

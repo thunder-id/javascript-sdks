@@ -34,10 +34,10 @@ describe('ErrorCode', () => {
     expect(ErrorCode.OpenRedirectBlocked).toBe('security/open-redirect-blocked');
   });
 
-  it('has at least 16 distinct values', () => {
+  it('has at least 14 distinct values', () => {
     const values = Object.values(ErrorCode);
     const unique = new Set(values);
-    expect(unique.size).toBeGreaterThanOrEqual(16);
+    expect(unique.size).toBeGreaterThanOrEqual(14);
     for (const v of values) {
       expect(typeof v).toBe('string');
       expect(v.length).toBeGreaterThan(0);

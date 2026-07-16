@@ -20,23 +20,11 @@ import {Theme} from '@thunderid/browser';
 import {Context, createContext} from 'react';
 
 export interface ThemeContextValue {
-  /**
-   * Error from branding theme fetch, if any
-   */
-  brandingError?: Error | null;
   colorScheme: 'light' | 'dark';
   /**
    * The text direction for the UI.
    */
   direction: 'ltr' | 'rtl';
-  /**
-   * Whether branding inheritance is enabled
-   */
-  inheritFromBranding?: boolean;
-  /**
-   * Whether branding theme is currently loading
-   */
-  isBrandingLoading?: boolean;
   theme: Theme;
   toggleTheme: () => void;
 }

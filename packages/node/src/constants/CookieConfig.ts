@@ -16,12 +16,40 @@
  * under the License.
  */
 
-import {VendorConstants} from '@thunderid/javascript';
+import {getVendorPrefix} from '@thunderid/javascript';
 
 class CookieConfig {
-  static readonly SESSION_COOKIE_NAME: string = `__${VendorConstants.VENDOR_PREFIX}__session`;
+  /**
+   * Builds the session cookie name for a given vendor namespace.
+   * @param vendor - Vendor/brand namespace. Defaults to `VendorConstants.VENDOR_PREFIX` ('thunderid').
+   */
+  static getSessionCookieName(vendor?: string): string {
+    return `__${getVendorPrefix(vendor)}__session`;
+  }
 
-  static readonly TEMP_SESSION_COOKIE_NAME: string = `__${VendorConstants.VENDOR_PREFIX}__temp.session`;
+  /**
+   * Builds the temporary session cookie name for a given vendor namespace.
+   * @param vendor - Vendor/brand namespace. Defaults to `VendorConstants.VENDOR_PREFIX` ('thunderid').
+   */
+  static getTempSessionCookieName(vendor?: string): string {
+    return `__${getVendorPrefix(vendor)}__temp.session`;
+  }
+
+  /**
+   * Resolves the session cookie name, honoring an explicit `sessionCookie.name`
+   * override before falling back to the vendor-derived default.
+   */
+  static resolveSessionCookieName(vendor?: string, overrideName?: string): string {
+    return overrideName ?? CookieConfig.getSessionCookieName(vendor);
+  }
+
+  /**
+   * Resolves the temporary session cookie name, honoring an explicit
+   * `sessionCookie.name`-derived override before falling back to the vendor-derived default.
+   */
+  static resolveTempSessionCookieName(vendor?: string, overrideName?: string): string {
+    return overrideName ?? CookieConfig.getTempSessionCookieName(vendor);
+  }
 
   static readonly DEFAULT_MAX_AGE: number = 3600;
 

@@ -39,7 +39,7 @@ await esmBundle.close();
 
 const cjsBundle = await rolldown(commonOptions);
 await cjsBundle.write({
-  file: 'dist/cjs/index.js',
+  file: 'dist/cjs/index.cjs',
   format: 'cjs',
   sourcemap: true,
 });

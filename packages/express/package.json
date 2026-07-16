@@ -1,6 +1,6 @@
 {
   "name": "@thunderid/express",
-  "version": "0.2.3",
+  "version": "0.5.1",
   "description": "Express.js SDK for ThunderID",
   "keywords": [
     "thunderid",
@@ -16,10 +16,10 @@
   "type": "module",
   "main": "dist/index.js",
   "module": "dist/index.js",
-  "commonjs": "dist/cjs/index.js",
+  "commonjs": "dist/cjs/index.cjs",
   "exports": {
     "import": "./dist/index.js",
-    "require": "./dist/cjs/index.js"
+    "require": "./dist/cjs/index.cjs"
   },
   "files": [
     "dist",

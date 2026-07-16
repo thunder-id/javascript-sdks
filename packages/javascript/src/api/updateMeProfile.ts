@@ -34,7 +34,7 @@ export interface UpdateMeProfileConfig extends Omit<RequestInit, 'method' | 'bod
    */
   fetcher?: (url: string, config: RequestInit) => Promise<Response>;
   /**
-   * The value object to patch (SCIM2 PATCH value)
+   * The value object to patch (PATCH value)
    */
   payload: any;
   /**
@@ -44,7 +44,7 @@ export interface UpdateMeProfileConfig extends Omit<RequestInit, 'method' | 'bod
 }
 
 /**
- * Updates the user profile information at the specified SCIM2 Me endpoint.
+ * Updates the user profile information at the specified /users/me endpoint.
  *
  * @param config - Configuration object with URL, payload and optional request config.
  * @returns A promise that resolves with the updated user profile information.
@@ -52,8 +52,8 @@ export interface UpdateMeProfileConfig extends Omit<RequestInit, 'method' | 'bod
  * ```typescript
  * // Using default fetch
  * await updateMeProfile({
- *   url: "https://localhost:8090/scim2/Me",
- *   payload: { "urn:scim:wso2:schema": { mobileNumbers: ["0777933830"] } }
+ *   url: "https://localhost:8090/users/me",
+ *   payload: { mobileNumbers: ["0777933830"] }
  * });
  * ```
  *
@@ -61,8 +61,8 @@ export interface UpdateMeProfileConfig extends Omit<RequestInit, 'method' | 'bod
  * ```typescript
  * // Using custom fetcher (e.g., axios-based httpClient)
  * await updateMeProfile({
- *   url: "https://localhost:8090/scim2/Me",
- *   payload: { "urn:scim:wso2:schema": { mobileNumbers: ["0777933830"] } },
+ *   url: "https://localhost:8090/users/me",
+ *   payload: { mobileNumbers: ["0777933830"] },
  *   fetcher: async (url, config) => {
  *     const response = await httpClient({
  *       url,
@@ -103,27 +103,21 @@ const updateMeProfile = async ({
     );
   }
 
-  const data: Record<string, unknown> = {
-    Operations: [
-      {
-        op: 'replace',
-        value: payload,
-      },
-    ],
-    schemas: ['urn:ietf:params:scim:api:messages:2.0:PatchOp'],
+  const data = {
+    attributes: payload,
   };
 
   const fetchFn: typeof fetch = fetcher || fetch;
-  const resolvedUrl: string = url ?? `${baseUrl}/scim2/Me`;
+  const resolvedUrl: string = url ?? `${baseUrl}/users/me`;
 
   const requestInit: RequestInit = {
-    method: 'PATCH',
     ...requestConfig,
+    method: 'PUT',
     body: JSON.stringify(data),
     headers: {
       ...requestConfig.headers,
       Accept: 'application/json',
-      'Content-Type': 'application/scim+json',
+      'Content-Type': 'application/json',
     },
   };
 
@@ -143,11 +137,17 @@ const updateMeProfile = async ({
       );
     }
 
-    // Match the read path (`getScim2Me`) — strip the userstore prefix
+    // Match the read path (`getUsersMe`) — strip the userstore prefix
     // (e.g. "DEFAULT/") so consumers receive a clean `userName`. Without
     // this, the optimistic-update path would put the prefixed value into
     // local state and the UI would flip to "DEFAULT/<email>" after a save.
-    return processUserUsername((await response.json()) as User);
+    const user: User = (await response.json()) as User;
+    const attributes: Record<string, unknown> = (user['attributes'] as Record<string, unknown>) ?? {};
+    const processedUser: User = {
+      ...user,
+      ...attributes,
+    };
+    return processUserUsername(processedUser);
   } catch (error) {
     if (error instanceof ThunderIDAPIError) {
       throw error;

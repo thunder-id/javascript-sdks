@@ -34,6 +34,12 @@ const captureRequestBody = (): Record<string, unknown> => {
   return JSON.parse(requestInit.body as string) as Record<string, unknown>;
 };
 
+const captureRequestHeaders = (): Record<string, string> => {
+  const calls = (fetch as ReturnType<typeof vi.fn>).mock.calls;
+  const requestInit = calls[calls.length - 1][1] as RequestInit;
+  return requestInit.headers as Record<string, string>;
+};
+
 describe('executeEmbeddedSignInFlow', (): void => {
   beforeEach((): void => {
     vi.resetAllMocks();
@@ -131,6 +137,37 @@ describe('executeEmbeddedSignInFlow', (): void => {
       const body = captureRequestBody();
       expect(body).not.toHaveProperty('scopes');
       expect(body).not.toHaveProperty('inputs');
+    });
+  });
+
+  describe('Flow-Secret header', (): void => {
+    it('sends the Flow Secret header on a new flow start', async (): Promise<void> => {
+      await executeEmbeddedSignInFlow({
+        flowSecret: 'flow-secret-123',
+        payload: {applicationId: 'app-1', flowType: 'AUTHENTICATION'},
+        url: URL,
+      });
+
+      expect(captureRequestHeaders()).toMatchObject({'Flow-Secret': 'flow-secret-123'});
+    });
+
+    it('does NOT send the Flow Secret header on a step submission', async (): Promise<void> => {
+      await executeEmbeddedSignInFlow({
+        flowSecret: 'flow-secret-123',
+        payload: {action: 'submit', executionId: 'exec-abc', inputs: {password: 'secret', username: 'user'}},
+        url: URL,
+      });
+
+      expect(captureRequestHeaders()).not.toHaveProperty('Flow-Secret');
+    });
+
+    it('does NOT send the Flow Secret header when no flowSecret is provided', async (): Promise<void> => {
+      await executeEmbeddedSignInFlow({
+        payload: {applicationId: 'app-1', flowType: 'AUTHENTICATION'},
+        url: URL,
+      });
+
+      expect(captureRequestHeaders()).not.toHaveProperty('Flow-Secret');
     });
   });
 

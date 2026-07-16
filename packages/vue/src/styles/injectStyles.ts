@@ -34,15 +34,12 @@
  * `document.documentElement`, which wins over the `:root` stylesheet rule.
  */
 
+import {getVendorPrefix} from '@thunderid/browser';
 import ANIMATIONS_CSS from './animations.css';
 import DEFAULTS_CSS from './defaults.css';
 
 // Primitives
-import CREATE_ORGANIZATION_CSS from '../components/presentation/create-organization/CreateOrganization.css';
 import LANGUAGE_SWITCHER_CSS from '../components/presentation/language-switcher/LanguageSwitcher.css';
-import ORGANIZATION_LIST_CSS from '../components/presentation/organization-list/OrganizationList.css';
-import ORGANIZATION_PROFILE_CSS from '../components/presentation/organization-profile/OrganizationProfile.css';
-import ORGANIZATION_SWITCHER_CSS from '../components/presentation/organization-switcher/OrganizationSwitcher.css';
 import USER_DROPDOWN_CSS from '../components/presentation/user-dropdown/UserDropdown.css';
 import USER_PROFILE_CSS from '../components/presentation/user-profile/UserProfile.css';
 import ALERT_CSS from '../components/primitives/Alert/Alert.css';
@@ -60,8 +57,6 @@ import TEXT_FIELD_CSS from '../components/primitives/TextField/TextField.css';
 import TYPOGRAPHY_CSS from '../components/primitives/Typography/Typography.css';
 
 // Presentation
-
-const STYLE_ID = 'thunderid-vue-styles';
 
 /**
  * Assembled CSS for all ThunderID Vue components.
@@ -89,10 +84,6 @@ const STYLES: string = [
   LOGO_CSS,
   SPINNER_CSS,
   // Presentation
-  ORGANIZATION_LIST_CSS,
-  ORGANIZATION_SWITCHER_CSS,
-  ORGANIZATION_PROFILE_CSS,
-  CREATE_ORGANIZATION_CSS,
   LANGUAGE_SWITCHER_CSS,
   USER_DROPDOWN_CSS,
   USER_PROFILE_CSS,
@@ -101,13 +92,19 @@ const STYLES: string = [
 /**
  * Injects ThunderID Vue component styles into the document `<head>` once.
  * Subsequent calls are no-ops (idempotent).
+ *
+ * @param vendor - Vendor/brand namespace used to derive the dedupe `<style>` element id
+ * (e.g. `${vendor}-vue-styles`). Defaults to `VendorConstants.VENDOR_PREFIX`.
  */
-export function injectStyles(): void {
+export function injectStyles(vendor?: string): void {
   if (typeof document === 'undefined') return;
-  if (document.getElementById(STYLE_ID)) return;
+
+  const styleId: string = `${getVendorPrefix(vendor)}-vue-styles`;
+
+  if (document.getElementById(styleId)) return;
 
   const style: HTMLStyleElement = document.createElement('style');
-  style.id = STYLE_ID;
+  style.id = styleId;
   style.textContent = STYLES;
   document.head.appendChild(style);
 }

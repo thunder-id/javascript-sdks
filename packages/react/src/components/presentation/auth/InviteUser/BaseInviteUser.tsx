@@ -554,6 +554,17 @@ const BaseInviteUser: FC<BaseInviteUserProps> = ({
   }, []);
 
   /**
+   * reset form values, errors, and touched fields to initial state
+   */
+  const resetForm = useCallback(() => {
+    setFormValues({});
+    setFormErrors({});
+    setTouchedFields({});
+    setApiError(null);
+    setIsFormValid(true);
+  }, []);
+
+  /**
    * Initialize the flow on component mount.
    */
   useEffect(() => {
@@ -647,6 +658,7 @@ const BaseInviteUser: FC<BaseInviteUserProps> = ({
         formErrors,
         isLoading,
         isFormValid,
+        resetForm,
         handleInputChange,
         {
           _customRenderers: customRenderers,

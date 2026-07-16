@@ -273,6 +273,23 @@ const BaseSignUp: Component = defineComponent({
       return {fieldErrors: errors, isValid: valid};
     };
 
+    /**
+     *
+     * Reset the formvalues
+     */
+    const resetForm = (): void => {
+      const fields: FieldDefinition[] = extractFormFields(props.components || []);
+      const freshValues: Record<string, string> = {};
+      fields.forEach((f: FieldDefinition) => {
+        freshValues[f.name] = '';
+      });
+      formValues.value = freshValues;
+      touchedFields.value = {};
+      apiError.value = null;
+      formErrors.value = {};
+      isFormValid.value = true;
+    };
+
     // ── Input handlers ──
 
     const handleInputChange = (name: string, value: string): void => {
@@ -529,9 +546,13 @@ const BaseSignUp: Component = defineComponent({
     watch(
       () => [props.isInitialized, isFlowInitialized.value] as [boolean, boolean],
       ([initialized, flowInit]: [boolean, boolean]) => {
-        // Skip if URL has OAuth code params
-        const urlParams: URLSearchParams = new URL(window.location.href).searchParams;
-        if (urlParams.get('code') || urlParams.get('state')) return;
+        // Skip if URL has OAuth code params. `window` is unavailable during SSR
+        // (e.g. Nuxt) — initialization simply proceeds and the check re-runs
+        // once this watch re-evaluates on the client.
+        if (typeof window !== 'undefined') {
+          const urlParams: URLSearchParams = new URL(window.location.href).searchParams;
+          if (urlParams.get('code') || urlParams.get('state')) return;
+        }
 
         if (initialized && !flowInit && !initializationAttempted) {
           initializationAttempted = true;
@@ -646,6 +667,7 @@ const BaseSignUp: Component = defineComponent({
               formErrors.value,
               isLoading.value,
               isFormValid.value,
+              resetForm,
               handleInputChange,
               {
                 buttonClassName: props.buttonClassName,

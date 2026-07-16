@@ -24,10 +24,7 @@ import {
   SignUpOptions,
   ThunderIDRuntimeError,
   executeEmbeddedSignInFlow,
-  Organization,
   IdToken,
-  deriveOrganizationHandleFromBaseUrl,
-  AllOrganizationsApiResponse,
   extractUserClaimsFromIdToken,
   TokenResponse,
   HttpRequestConfig,
@@ -40,8 +37,6 @@ import {
   EmbeddedSignInFlowStatus,
   EmbeddedSignUpFlowStatus,
 } from '@thunderid/browser';
-import getAllOrganizations from './api/getAllOrganizations';
-import getMeOrganizations from './api/getMeOrganizations';
 import {ThunderIDReactConfig} from './models/config';
 
 class ThunderIDReactClient<T extends ThunderIDReactConfig = ThunderIDReactConfig> extends ThunderIDBrowserClient<T> {
@@ -68,16 +63,9 @@ class ThunderIDReactClient<T extends ThunderIDReactConfig = ThunderIDReactConfig
   }
 
   override initialize(config: ThunderIDReactConfig): Promise<boolean> {
-    let resolvedOrganizationHandle: string | undefined = config?.organizationHandle;
-
-    if (!resolvedOrganizationHandle) {
-      resolvedOrganizationHandle = deriveOrganizationHandleFromBaseUrl(config?.baseUrl);
-    }
-
     return this.withLoading(async () => {
       this._initializeConfig = {
         ...config,
-        organizationHandle: resolvedOrganizationHandle,
         periodicTokenRefresh:
           config?.tokenLifecycle?.refreshToken?.autoRefresh ?? (config as any)?.periodicTokenRefresh,
       } as any;
@@ -130,109 +118,6 @@ class ThunderIDReactClient<T extends ThunderIDReactConfig = ThunderIDReactConfig
         profile: claims,
         schemas: [],
       };
-    });
-  }
-
-  override async getMyOrganizations(options?: any): Promise<Organization[]> {
-    try {
-      let baseUrl: string = options?.baseUrl;
-
-      if (!baseUrl) {
-        const configData: any = await this.getStorageManager().getConfigData();
-        baseUrl = configData?.baseUrl;
-      }
-
-      return await getMeOrganizations({baseUrl, instanceId: this.getInstanceId()});
-    } catch (error) {
-      throw new ThunderIDRuntimeError(
-        `Failed to fetch the user's associated organizations: ${
-          error instanceof Error ? error.message : String(error)
-        }`,
-        'ThunderIDReactClient-getMyOrganizations-RuntimeError-001',
-        'react',
-        'An error occurred while fetching associated organizations of the signed-in user.',
-      );
-    }
-  }
-
-  override async getAllOrganizations(options?: any): Promise<AllOrganizationsApiResponse> {
-    try {
-      let baseUrl: string = options?.baseUrl;
-
-      if (!baseUrl) {
-        const configData: any = await this.getStorageManager().getConfigData();
-        baseUrl = configData?.baseUrl;
-      }
-
-      return await getAllOrganizations({baseUrl, instanceId: this.getInstanceId()});
-    } catch (error) {
-      throw new ThunderIDRuntimeError(
-        `Failed to fetch all organizations: ${error instanceof Error ? error.message : String(error)}`,
-        'ThunderIDReactClient-getAllOrganizations-RuntimeError-001',
-        'react',
-        'An error occurred while fetching all the organizations associated with the user.',
-      );
-    }
-  }
-
-  override async getCurrentOrganization(): Promise<Organization | null> {
-    try {
-      return await this.withLoading(async () => {
-        const idToken: IdToken = await this.getDecodedIdToken();
-        return {
-          id: idToken?.org_id ?? '',
-          name: idToken?.org_name ?? '',
-          orgHandle: idToken?.org_handle ?? '',
-        };
-      });
-    } catch (error) {
-      throw new ThunderIDRuntimeError(
-        `Failed to fetch the current organization: ${error instanceof Error ? error.message : String(error)}`,
-        'ThunderIDReactClient-getCurrentOrganization-RuntimeError-001',
-        'react',
-        'An error occurred while fetching the current organization of the signed-in user.',
-      );
-    }
-  }
-
-  override async switchOrganization(organization: Organization): Promise<TokenResponse | Response> {
-    return this.withLoading(async () => {
-      try {
-        const configData: any = await this.getStorageManager().getConfigData();
-        const sourceInstanceId: number | undefined = configData?.organizationChain?.sourceInstanceId;
-
-        if (!organization.id) {
-          throw new ThunderIDRuntimeError(
-            'Organization ID is required for switching organizations',
-            'react-ThunderIDReactClient-SwitchOrganizationError-001',
-            'react',
-            'The organization object must contain a valid ID to perform the organization switch.',
-          );
-        }
-
-        const exchangeConfig: TokenExchangeRequestConfig = {
-          attachToken: false,
-          data: {
-            client_id: '{{clientId}}',
-            grant_type: 'organization_switch',
-            scope: '{{scopes}}',
-            switching_organization: organization.id,
-            token: '{{accessToken}}',
-          },
-          id: 'organization-switch',
-          returnsSession: true,
-          signInRequired: sourceInstanceId === undefined,
-        };
-
-        return (await super.exchangeToken(exchangeConfig)) as TokenResponse | Response;
-      } catch (error) {
-        throw new ThunderIDRuntimeError(
-          `Failed to switch organization: ${error.message || error}`,
-          'react-ThunderIDReactClient-SwitchOrganizationError-003',
-          'react',
-          'An error occurred while switching to the specified organization. Please try again.',
-        );
-      }
     });
   }
 
@@ -339,14 +224,7 @@ class ThunderIDReactClient<T extends ThunderIDReactConfig = ThunderIDReactConfig
     const firstArg: any = args[0];
     const baseUrl: string = config?.baseUrl ?? '';
 
-    const authIdFromUrl: string = new URL(window.location.href).searchParams.get('authId') ?? '';
-    const authIdFromStorage: string =
-      ((await this.getStorageManager().getHybridDataParameter('authId')) as string) ?? '';
-    const authId: string = authIdFromUrl || authIdFromStorage;
-
-    if (authIdFromUrl && !authIdFromStorage) {
-      await this.getStorageManager().setHybridDataParameter('authId', authIdFromUrl);
-    }
+    const authId: string = new URL(window.location.href).searchParams.get('authId') ?? '';
 
     const response: any = await executeEmbeddedSignUpFlow({
       authId,

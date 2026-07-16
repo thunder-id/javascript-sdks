@@ -26,7 +26,7 @@ import {
   Preferences,
   buildValidatorFromRules,
 } from '@thunderid/browser';
-import {FC, useEffect, useState, useCallback, useContext, ReactElement, ReactNode} from 'react';
+import {FC, useEffect, useMemo, useState, useCallback, useContext, ReactElement, ReactNode} from 'react';
 import useStyles from './BaseSignIn.styles';
 import ComponentRendererContext, {
   ComponentRendererMap,
@@ -38,6 +38,7 @@ import useTheme from '../../../../contexts/Theme/useTheme';
 import useThunderID from '../../../../contexts/ThunderID/useThunderID';
 import {FormField, useForm} from '../../../../hooks/useForm';
 import useTranslation from '../../../../hooks/useTranslation';
+import composeAffixedInputs from '../../../../utils/composeAffixedInputs';
 import {extractErrorMessage} from '../../../../utils/flowTransformer';
 import AlertPrimitive from '../../../primitives/Alert/Alert';
 // eslint-disable-next-line import/no-named-as-default
@@ -61,12 +62,7 @@ export interface BaseSignInRenderProps {
   error?: Error | null;
 
   /**
-   * Field validation errors keyed by component ref. Populated from BOTH:
-   *  - Client-side rule evaluation (component.validation rules in meta.components)
-   *  - Server-side validation failures (data.fieldErrors in the flow response)
-   * When the server returns multiple failing rules for one field, only the first
-   * message is exposed here. The full FieldError[] array is available on the raw
-   * response object (and is reflected into the BaseSignIn `serverFieldErrors` prop).
+   * Field validation errors
    */
   fieldErrors: Record<string, string>;
 
@@ -217,6 +213,11 @@ export interface BaseSignInProps {
   preferences?: Preferences;
 
   /**
+   * HTML id attribute for the form container.
+   */
+  id?: string;
+
+  /**
    * Field-level validation errors returned by the server in `data.fieldErrors` on the
    * most recent flow response. The component collapses these into the form's
    * `fieldErrors` state (first error per field wins), surfacing them through the same
@@ -244,6 +245,7 @@ const BaseSignInContent: FC<BaseSignInProps> = ({
   onSubmit,
   onError,
   error: externalError,
+  id,
   className = '',
   inputClassName = '',
   buttonClassName = '',
@@ -256,7 +258,7 @@ const BaseSignInContent: FC<BaseSignInProps> = ({
   isTimeoutDisabled = false,
   serverFieldErrors = null,
 }: BaseSignInProps): ReactElement => {
-  const {meta} = useThunderID();
+  const {meta, vendor} = useThunderID();
   const {theme} = useTheme();
   const customRenderers: ComponentRendererMap = useContext(ComponentRendererContext);
   const {t} = useTranslation();
@@ -325,9 +327,7 @@ const BaseSignInContent: FC<BaseSignInProps> = ({
                 ) {
                   return t('field.email.invalid');
                 }
-                // Evaluate declarative validation rules from meta.components[].validation.
-                // The composed validator returns the first failing rule's message (i18n key or
-                // literal string) so it can be passed straight to the i18n layer for display.
+                // Run declarative rules from meta.components[].validation.
                 if (ruleValidator && value) {
                   const ruleMessage = ruleValidator(value);
                   if (ruleMessage) {
@@ -351,7 +351,10 @@ const BaseSignInContent: FC<BaseSignInProps> = ({
     [t],
   );
 
-  const formFields: FormField[] = components ? extractFormFields(components) : [];
+  const formFields: FormField[] = useMemo(
+    () => (components ? extractFormFields(components) : []),
+    [components, extractFormFields],
+  );
 
   const form: ReturnType<typeof useForm> = useForm<Record<string, string>>({
     fields: formFields,
@@ -368,36 +371,33 @@ const BaseSignInContent: FC<BaseSignInProps> = ({
     isValid: isFormValid,
     setValue: setFormValue,
     setTouched: setFormTouched,
+    setTouchedFields,
     setErrors: setFormErrors,
     clearErrors: clearFormErrors,
     validateForm,
     touchAllFields,
+    reset: resetForm,
   } = form;
 
-  /**
-   * Project server-side validation errors (from `data.fieldErrors`) into the form's
-   * `errors` state so they surface through the same render-prop / UI as client-side
-   * errors. When the server returns multiple failing rules for one field, only the
-   * first message is shown — matching the SDK's single-string-per-field contract.
-   * The full FieldError[] remains available via the `serverFieldErrors` prop.
-   *
-   * Also marks each affected field as `touched` so the error renders immediately —
-   * `useForm` only shows errors for touched fields by default.
-   */
+  // Project server-side fieldErrors into form state. `setTouchedFields` is used instead
+  // of `setTouched` so client-side `validateField` doesn't wipe server errors when the
+  // client rules happen to pass.
   useEffect(() => {
     clearFormErrors();
     if (!serverFieldErrors || serverFieldErrors.length === 0) {
       return;
     }
     const errors: Record<string, string> = {};
+    const touched: Record<string, boolean> = {};
     for (const fe of serverFieldErrors) {
       if (!(fe.identifier in errors)) {
         errors[fe.identifier] = fe.message;
+        touched[fe.identifier] = true;
       }
     }
+    setTouchedFields(touched);
     setFormErrors(errors);
-    Object.keys(errors).forEach((field: string) => setFormTouched(field, true));
-  }, [serverFieldErrors, setFormErrors, setFormTouched, clearFormErrors]);
+  }, [serverFieldErrors, setFormErrors, setTouchedFields, clearFormErrors]);
 
   /**
    * Handle input value changes.
@@ -441,12 +441,16 @@ const BaseSignInContent: FC<BaseSignInProps> = ({
     clearMessages();
 
     try {
+      const composedData: Record<string, any> | undefined = data
+        ? composeAffixedInputs(data as Record<string, string>, vendor)
+        : undefined;
+
       // Filter out empty or undefined input values
       const filteredInputs: Record<string, any> = {};
-      if (data) {
-        Object.keys(data).forEach((key: any) => {
-          if (data[key] !== undefined && data[key] !== null && data[key] !== '') {
-            filteredInputs[key] = data[key];
+      if (composedData) {
+        Object.keys(composedData).forEach((key: any) => {
+          if (composedData[key] !== undefined && composedData[key] !== null && composedData[key] !== '') {
+            filteredInputs[key] = composedData[key];
           }
         });
       }
@@ -511,6 +515,7 @@ const BaseSignInContent: FC<BaseSignInProps> = ({
         formErrors,
         isLoading,
         isFormValid,
+        resetForm,
         handleInputChange,
         {
           _customRenderers: customRenderers,
@@ -525,6 +530,7 @@ const BaseSignInContent: FC<BaseSignInProps> = ({
           size,
           t,
           variant,
+          vendor,
         },
       ),
     [
@@ -540,6 +546,7 @@ const BaseSignInContent: FC<BaseSignInProps> = ({
       isLoading,
       size,
       variant,
+      vendor,
       inputClasses,
       buttonClasses,
       handleInputBlur,
@@ -572,7 +579,7 @@ const BaseSignInContent: FC<BaseSignInProps> = ({
     };
 
     return (
-      <div className={containerClasses} data-testid="thunderid-signin">
+      <div id={id} className={containerClasses} data-testid="thunderid-signin">
         {children(renderProps)}
       </div>
     );
@@ -581,7 +588,12 @@ const BaseSignInContent: FC<BaseSignInProps> = ({
   // Default UI rendering
   if (isLoading) {
     return (
-      <CardPrimitive className={cx(containerClasses, styles.card)} data-testid="thunderid-signin" variant={variant}>
+      <CardPrimitive
+        id={id}
+        className={cx(containerClasses, styles.card)}
+        data-testid="thunderid-signin"
+        variant={variant}
+      >
         <CardPrimitive.Content>
           <div style={{display: 'flex', justifyContent: 'center', padding: '2rem'}}>
             <Spinner />
@@ -593,7 +605,12 @@ const BaseSignInContent: FC<BaseSignInProps> = ({
 
   if (!components || components.length === 0) {
     return (
-      <CardPrimitive className={cx(containerClasses, styles.card)} data-testid="thunderid-signin" variant={variant}>
+      <CardPrimitive
+        id={id}
+        className={cx(containerClasses, styles.card)}
+        data-testid="thunderid-signin"
+        variant={variant}
+      >
         <CardPrimitive.Content>
           <AlertPrimitive variant="warning">
             <Typography variant="body1">{t('errors.signin.components.not.available')}</Typography>
@@ -604,7 +621,12 @@ const BaseSignInContent: FC<BaseSignInProps> = ({
   }
 
   return (
-    <CardPrimitive className={cx(containerClasses, styles.card)} data-testid="thunderid-signin" variant={variant}>
+    <CardPrimitive
+      id={id}
+      className={cx(containerClasses, styles.card)}
+      data-testid="thunderid-signin"
+      variant={variant}
+    >
       <CardPrimitive.Content>
         {externalError && (
           <div className={styles.flowMessagesContainer}>

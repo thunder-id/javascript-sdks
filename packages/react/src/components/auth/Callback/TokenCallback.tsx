@@ -56,7 +56,7 @@ export const TokenCallback: FC<TokenCallbackProps> = ({
   signUpPath = '/signup',
 }: TokenCallbackProps) => {
   const processingRef: any = useRef(false);
-  const {isInitialized, isLoading, signIn, signUp, getStorageManager} = useThunderID();
+  const {isInitialized, isLoading, signIn, signUp, getStorageManager, vendor} = useThunderID();
 
   const navigate = (path: string): void => {
     if (onNavigate) {
@@ -82,7 +82,7 @@ export const TokenCallback: FC<TokenCallbackProps> = ({
     const state: string = redirectUrlObj.searchParams.get('state') || crypto.randomUUID();
 
     sessionStorage.setItem(
-      `thunderid_oauth_${state}`,
+      `${vendor}_oauth_${state}`,
       JSON.stringify({
         path: isRegistrationFlow ? signUpPath : signInPath,
         timestamp: Date.now(),
@@ -110,7 +110,7 @@ export const TokenCallback: FC<TokenCallbackProps> = ({
   };
 
   const redirectWithError = (error: Error, isRegistrationFlow?: boolean): void => {
-    sessionStorage.removeItem('thunderid_execution_id');
+    sessionStorage.removeItem(`${vendor}_execution_id`);
 
     onError?.(error);
 
@@ -161,7 +161,7 @@ export const TokenCallback: FC<TokenCallbackProps> = ({
         if (response.type === EmbeddedSignInFlowType.Redirection) {
           const redirectURL: string | undefined = response.data?.redirectURL || response?.redirectURL;
           const nextExecutionId: string = response.executionId || executionId;
-          sessionStorage.setItem('thunderid_execution_id', nextExecutionId);
+          sessionStorage.setItem(`${vendor}_execution_id`, nextExecutionId);
 
           if (redirectURL) {
             initiateOAuthRedirect(redirectURL, isRegistrationFlow);
@@ -172,7 +172,7 @@ export const TokenCallback: FC<TokenCallbackProps> = ({
         if (response.flowStatus === EmbeddedSignInFlowStatus.Complete) {
           const redirectUrl: string | undefined = response?.redirectUrl || response?.redirect_uri;
 
-          sessionStorage.removeItem('thunderid_execution_id');
+          sessionStorage.removeItem(`${vendor}_execution_id`);
           await storageManager.removeHybridDataParameter('authId');
 
           onSuccess?.({
@@ -198,7 +198,7 @@ export const TokenCallback: FC<TokenCallbackProps> = ({
         }
 
         const nextExecutionId: string = response.executionId || executionId;
-        sessionStorage.setItem('thunderid_execution_id', nextExecutionId);
+        sessionStorage.setItem(`${vendor}_execution_id`, nextExecutionId);
 
         if (response.challengeToken) {
           await storageManager.setTemporaryDataParameter('challengeToken', response.challengeToken);
@@ -229,6 +229,7 @@ export const TokenCallback: FC<TokenCallbackProps> = ({
     signUp,
     signInPath,
     signUpPath,
+    vendor,
   ]);
 
   return null;

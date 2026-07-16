@@ -18,23 +18,11 @@
 
 export {default as useThunderID} from './contexts/ThunderID/useThunderID';
 
-export {default as Organization} from './components/presentation/Organization/Organization';
-export {OrganizationProps} from './components/presentation/Organization/Organization';
-
-export {default as CreateOrganization} from './components/presentation/CreateOrganization/CreateOrganization';
-export {CreateOrganizationProps} from './components/presentation/CreateOrganization/CreateOrganization';
-
-export {default as OrganizationProfile} from './components/presentation/OrganizationProfile/OrganizationProfile';
-export {OrganizationProfileProps} from './components/presentation/OrganizationProfile/OrganizationProfile';
-
-export {default as OrganizationSwitcher} from './components/presentation/OrganizationSwitcher/OrganizationSwitcher';
-export {OrganizationSwitcherProps} from './components/presentation/OrganizationSwitcher/OrganizationSwitcher';
-
 export {default as SignedIn} from './components/control/SignedIn/SignedIn';
-export {SignedInProps} from './components/control/SignedIn/SignedIn';
+export type {SignedInProps} from './components/control/SignedIn/SignedIn';
 
 export {default as SignedOut} from './components/control/SignedOut/SignedOut';
-export {SignedOutProps} from './components/control/SignedOut/SignedOut';
+export type {SignedOutProps} from './components/control/SignedOut/SignedOut';
 
 export {default as SignInButton} from './components/actions/SignInButton/SignInButton';
 export type {SignInButtonProps} from './components/actions/SignInButton/SignInButton';
@@ -56,6 +44,9 @@ export type {SignUpProps} from './components/presentation/SignUp/SignUp';
 
 export {default as UserDropdown} from './components/presentation/UserDropdown/UserDropdown';
 export type {UserDropdownProps} from './components/presentation/UserDropdown/UserDropdown';
+
+export {default as UserAvatar} from './components/presentation/UserAvatar/UserAvatar';
+export type {UserAvatarProps} from './components/presentation/UserAvatar/UserAvatar';
 
 export {default as UserProfile} from './components/presentation/UserProfile/UserProfile';
 export type {UserProfileProps} from './components/presentation/UserProfile/UserProfile';

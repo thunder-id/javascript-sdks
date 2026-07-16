@@ -19,15 +19,11 @@
 /**
  * @deprecated Use `ThunderIDRuntimeError` for runtime errors and `ThunderIDAPIError` for API errors.
  */
-export class ThunderIDAuthException {
-  public name: string;
-
+export class ThunderIDAuthException extends Error {
   public code: string | undefined;
 
-  public message: string;
-
   public constructor(code: string, name: string, message: string) {
-    this.message = message;
+    super(message);
     this.name = name;
     this.code = code;
     Object.setPrototypeOf(this, new.target.prototype);

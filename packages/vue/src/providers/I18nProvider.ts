@@ -25,6 +25,7 @@ import {
   TranslationBundleConstants,
   getDefaultI18nBundles,
   normalizeTranslations,
+  getVendorPrefix,
 } from '@thunderid/browser';
 import {
   computed,
@@ -46,7 +47,6 @@ import {createVueLogger} from '../utils/logger';
 
 const logger: ReturnType<typeof createVueLogger> = createVueLogger('I18nProvider');
 
-const DEFAULT_STORAGE_KEY = 'thunderid-i18n-language';
 const DEFAULT_URL_PARAM = 'lang';
 
 // ── Storage helpers ──────────────────────────────────────────────────────────
@@ -146,6 +146,7 @@ const detectBrowserLanguage = (): string => {
  */
 interface I18nProviderProps {
   preferences: I18nPreferences | undefined;
+  vendor: string | undefined;
 }
 
 const I18nProvider: Component = defineComponent({
@@ -153,12 +154,17 @@ const I18nProvider: Component = defineComponent({
   props: {
     /** i18n preferences passed down from the ThunderIDProvider config. */
     preferences: {default: undefined, type: Object as PropType<I18nPreferences>},
+    /**
+     * Vendor/brand namespace used to derive the default language storage key
+     * (e.g. `${vendor}-i18n-language`). Passed down from the ThunderIDProvider config.
+     */
+    vendor: {default: undefined, type: String},
   },
   setup(props: I18nProviderProps, {slots}: SetupContext): () => VNode {
     const defaultBundles: Record<string, I18nBundle> = getDefaultI18nBundles();
 
     const storageStrategy: I18nStorageStrategy = props.preferences?.storageStrategy ?? 'cookie';
-    const storageKey: string = props.preferences?.storageKey ?? DEFAULT_STORAGE_KEY;
+    const storageKey: string = props.preferences?.storageKey ?? `${getVendorPrefix(props.vendor)}-i18n-language`;
     const urlParamConfig: string | false =
       props.preferences?.urlParam === undefined ? DEFAULT_URL_PARAM : props.preferences.urlParam;
 

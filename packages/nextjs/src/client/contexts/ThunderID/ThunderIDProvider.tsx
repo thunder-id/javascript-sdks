@@ -19,17 +19,14 @@
 'use client';
 
 import {
-  AllOrganizationsApiResponse,
   EmbeddedFlowExecuteRequestConfig,
+  FlowMetadataResponse,
   generateFlattenedUserProfile,
-  Organization,
   UpdateMeProfileConfig,
   User,
   UserProfile,
-  BrandingPreference,
-  TokenResponse,
-  CreateOrganizationPayload,
   ThunderIDRuntimeError,
+  getVendorPrefix,
 } from '@thunderid/node';
 import {
   I18nProvider,
@@ -37,9 +34,9 @@ import {
   FlowProvider,
   UserProvider,
   ThemeProvider,
+  ThunderIDContext as ReactThunderIDContext,
+  ThunderIDContextProps as ReactThunderIDContextProps,
   ThunderIDProviderProps,
-  OrganizationProvider,
-  BrandingProvider,
   getActiveTheme,
 } from '@thunderid/react';
 import {ReadonlyURLSearchParams} from 'next/dist/client/components/navigation.react-server';
@@ -56,25 +53,23 @@ import logger from '../../../utils/logger';
 export type ThunderIDClientProviderProps = Partial<Omit<ThunderIDProviderProps, 'baseUrl' | 'clientId'>> &
   Pick<ThunderIDProviderProps, 'baseUrl' | 'clientId'> & {
     applicationId: ThunderIDContextProps['applicationId'];
-    brandingPreference?: BrandingPreference | null;
     clearSession: () => Promise<void>;
-    createOrganization: (payload: CreateOrganizationPayload, sessionId: string) => Promise<Organization>;
-    currentOrganization: Organization;
-    getAllOrganizations: (options?: any, sessionId?: string) => Promise<AllOrganizationsApiResponse>;
     handleOAuthCallback: (
       code: string,
       state: string,
       sessionState?: string,
     ) => Promise<{error?: string; redirectUrl?: string; success: boolean}>;
+    /**
+     * Flow metadata fetched server-side ahead of time, seeding `FlowMetaProvider` so it can skip
+     * its own initial client-side fetch (avoiding a flash of untranslated i18n keys).
+     */
+    initialMeta?: FlowMetadataResponse | null;
     isSignedIn: boolean;
-    myOrganizations: Organization[];
     organizationHandle: ThunderIDContextProps['organizationHandle'];
     refreshToken: () => Promise<RefreshResult>;
-    revalidateMyOrganizations?: (sessionId?: string) => Promise<Organization[]>;
     signIn: ThunderIDContextProps['signIn'];
     signOut: ThunderIDContextProps['signOut'];
     signUp: ThunderIDContextProps['signUp'];
-    switchOrganization: (organization: Organization, sessionId?: string) => Promise<TokenResponse | Response>;
     updateProfile: (
       requestConfig: UpdateMeProfileConfig,
       sessionId?: string,
@@ -92,23 +87,18 @@ const ThunderIDClientProvider: FC<PropsWithChildren<ThunderIDClientProviderProps
   signOut,
   signUp,
   handleOAuthCallback,
-  createOrganization,
   preferences,
   isSignedIn,
   signInUrl,
   signUpUrl,
   user: _user,
   userProfile: _userProfile,
-  currentOrganization,
   updateProfile,
   applicationId,
   organizationHandle,
   scopes,
-  myOrganizations,
-  revalidateMyOrganizations,
-  getAllOrganizations,
-  switchOrganization,
-  brandingPreference,
+  vendor,
+  initialMeta = null,
 }: PropsWithChildren<ThunderIDClientProviderProps>) => {
   const reRenderCheckRef: RefObject<boolean> = useRef(false);
   const router: AppRouterInstance = useRouter();
@@ -203,8 +193,11 @@ const ThunderIDClientProvider: FC<PropsWithChildren<ThunderIDClientProviderProps
     const result: any = await signIn(payload, request);
 
     // Redirect based flow URL is sent as `signInUrl` in the response.
+    // Use window.location.href instead of router.push() — the OAuth authorization
+    // endpoint is on an external server, and router.push() would send RSC fetch
+    // headers that the identity provider doesn't understand, causing a CORS error.
     if (result?.data?.signInUrl) {
-      router.push(result.data.signInUrl);
+      window.location.href = result.data.signInUrl;
 
       return undefined;
     }
@@ -295,6 +288,7 @@ const ThunderIDClientProvider: FC<PropsWithChildren<ThunderIDClientProviderProps
       isLoading,
       isSignedIn,
       organizationHandle,
+      preferences,
       refreshToken,
       scopes,
       signIn: handleSignIn,
@@ -304,46 +298,115 @@ const ThunderIDClientProvider: FC<PropsWithChildren<ThunderIDClientProviderProps
       signUpUrl,
       user,
     }),
-    [baseUrl, user, isSignedIn, isLoading, signInUrl, signUpUrl, applicationId, organizationHandle, scopes],
+    [
+      baseUrl,
+      user,
+      isSignedIn,
+      isLoading,
+      signInUrl,
+      signUpUrl,
+      applicationId,
+      organizationHandle,
+      scopes,
+      preferences,
+    ],
   );
 
   const handleProfileUpdate = (payload: User): void => {
     setUser(payload);
     setUserProfile((prev: UserProfile) => ({
       ...prev,
-      flattenedProfile: generateFlattenedUserProfile(payload, prev?.schemas),
+      flattenedProfile: generateFlattenedUserProfile(payload),
       profile: payload,
     }));
   };
 
+  // Bridge into @thunderid/react's own ThunderIDContext. Internal react components rendered by
+  // BaseSignIn/BaseSignUp — most notably FlowMetaProvider, which fetches `/flow/meta` and injects
+  // its i18n bundle — call react's `useThunderID()` directly. Without this bridge they'd only see
+  // react's context default (applicationId/baseUrl undefined, isInitialized false), so the meta
+  // fetch would never fire and flow labels would render as untranslated i18n keys. Fields with no
+  // nextjs equivalent (token/http helpers meant for direct browser API calls) are stubbed out,
+  // since nextjs routes those operations through server actions instead.
+  const unsupported = (name: string): (() => Promise<never>) => {
+    return () =>
+      Promise.reject(
+        new ThunderIDRuntimeError(
+          `\`${name}\` is not supported in @thunderid/nextjs.`,
+          `ThunderIDClientProvider-${name}-NotSupportedError-001`,
+          'nextjs',
+        ),
+      );
+  };
+
+  const reactContextValue: ReactThunderIDContextProps = useMemo(
+    () => ({
+      afterSignInUrl: undefined,
+      applicationId,
+      baseUrl,
+      clearSession,
+      clientId: undefined,
+      discovery: {wellKnown: null},
+      exchangeToken: unsupported('exchangeToken'),
+      getAccessToken: unsupported('getAccessToken'),
+      getDecodedIdToken: unsupported('getDecodedIdToken'),
+      getIdToken: unsupported('getIdToken'),
+      getStorageManager: () => Promise.resolve(null),
+      http: {
+        request: unsupported('http.request'),
+        requestAll: unsupported('http.requestAll'),
+      },
+      instanceId: 0,
+      isInitialized: !isLoading,
+      isLoading,
+      isMetaLoading: false,
+      isSignedIn,
+      meta: initialMeta ?? null,
+      organizationHandle,
+      reInitialize: unsupported('reInitialize'),
+      recover: unsupported('recover'),
+      resolveFlowTemplateLiterals: (text: string | undefined): string => text ?? '',
+      scopes,
+      signIn: handleSignIn,
+      signInSilently: unsupported('signInSilently'),
+      signInUrl,
+      signOut: handleSignOut,
+      signUp: handleSignUp,
+      signUpUrl,
+      user,
+      vendor: getVendorPrefix(vendor),
+    }),
+    [
+      applicationId,
+      baseUrl,
+      clearSession,
+      isLoading,
+      isSignedIn,
+      organizationHandle,
+      scopes,
+      signInUrl,
+      signUpUrl,
+      user,
+      initialMeta,
+      vendor,
+    ],
+  );
+
   return (
     <ThunderIDContext.Provider value={contextValue}>
-      <I18nProvider preferences={preferences?.i18n}>
-        <FlowMetaProvider enabled={preferences?.resolveFromMeta !== false}>
-          <BrandingProvider brandingPreference={brandingPreference}>
-            <ThemeProvider
-              theme={preferences?.theme?.overrides}
-              mode={getActiveTheme(preferences?.theme?.mode as any)}
-              inheritFromBranding
-            >
+      <ReactThunderIDContext.Provider value={reactContextValue}>
+        <I18nProvider preferences={preferences?.i18n}>
+          <FlowMetaProvider enabled={preferences?.resolveFromMeta !== false} initialMeta={initialMeta}>
+            <ThemeProvider theme={preferences?.theme?.overrides} mode={getActiveTheme(preferences?.theme?.mode as any)}>
               <FlowProvider>
                 <UserProvider profile={userProfile} onUpdateProfile={handleProfileUpdate} updateProfile={updateProfile}>
-                  <OrganizationProvider
-                    createOrganization={createOrganization}
-                    getAllOrganizations={getAllOrganizations}
-                    myOrganizations={myOrganizations}
-                    currentOrganization={currentOrganization}
-                    onOrganizationSwitch={switchOrganization as any}
-                    revalidateMyOrganizations={revalidateMyOrganizations as any}
-                  >
-                    {children}
-                  </OrganizationProvider>
+                  {children}
                 </UserProvider>
               </FlowProvider>
             </ThemeProvider>
-          </BrandingProvider>
-        </FlowMetaProvider>
-      </I18nProvider>
+          </FlowMetaProvider>
+        </I18nProvider>
+      </ReactThunderIDContext.Provider>
     </ThunderIDContext.Provider>
   );
 };

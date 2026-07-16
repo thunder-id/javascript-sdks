@@ -16,12 +16,15 @@
  * under the License.
  */
 
+import {VendorConstants} from '@thunderid/node';
 import type {H3Event} from 'h3';
-import type {ThunderIDSessionPayload, ThunderIDSSRData} from '../../types';
+import type {ThunderIDNuxtConfig, ThunderIDSessionPayload, ThunderIDSSRData} from '../../types';
+import {useRuntimeConfig} from '#imports';
 
 /**
- * The typed shape of `event.context.thunderid` set by the ThunderID Nitro plugin
- * on every SSR request.
+ * The typed shape of `event.context[vendor]` (default vendor: `'thunderid'`,
+ * i.e. `event.context.thunderid`) set by the ThunderID Nitro plugin on every
+ * SSR request.
  */
 export interface ThunderIDEventContext {
   /** Convenience boolean derived from the session presence. */
@@ -33,7 +36,11 @@ export interface ThunderIDEventContext {
 }
 
 /**
- * Typed accessor for `event.context.thunderid`.
+ * Typed accessor for `event.context[vendor]` (default: `event.context.thunderid`).
+ *
+ * Resolves the vendor namespace from `runtimeConfig.public.thunderid.vendor`
+ * (falling back to `'thunderid'`) so this always reads the same key the
+ * ThunderID Nitro plugin (`thunderid-ssr.ts`) writes to.
  *
  * Returns null when called before the ThunderID SSR plugin has populated
  * the context (e.g. in non-Nuxt Nitro routes that run before the plugin).
@@ -50,5 +57,10 @@ export interface ThunderIDEventContext {
  * ```
  */
 export function getThunderIDContext(event: H3Event): ThunderIDEventContext | null {
-  return (event.context.thunderid as ThunderIDEventContext | undefined) ?? null;
+  const publicConfig: ThunderIDNuxtConfig | undefined = useRuntimeConfig(event).public.thunderid as
+    | ThunderIDNuxtConfig
+    | undefined;
+  const vendor: string = publicConfig?.vendor ?? VendorConstants.VENDOR_PREFIX;
+
+  return ((event.context as Record<string, unknown>)[vendor] as ThunderIDEventContext | undefined) ?? null;
 }

@@ -42,6 +42,10 @@ export interface FieldConfig {
    */
   error?: string;
   /**
+   * HTML id to apply to the rendered field.
+   */
+  id?: string;
+  /**
    * Display name for the field.
    */
   label: string;
@@ -146,6 +150,7 @@ export const createField = (config: FieldConfig): ReactElement => {
     disabled = false,
     error,
     className,
+    id,
     options = [],
     touched = false,
     placeholder,
@@ -158,6 +163,7 @@ export const createField = (config: FieldConfig): ReactElement => {
     'data-testid': `thunderid-signin-${name}`,
     disabled,
     error: validationError,
+    id,
     label,
     name,
     onBlur,

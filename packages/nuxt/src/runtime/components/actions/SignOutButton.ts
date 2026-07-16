@@ -70,6 +70,7 @@ const SignOutButton: Component = defineComponent({
         BaseSignOutButton,
         {
           class: attrs.class,
+          id: attrs.id,
           isLoading: isLoading.value,
           onClick: handleSignOut,
           style: attrs.style,

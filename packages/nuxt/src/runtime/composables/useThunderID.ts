@@ -17,7 +17,7 @@
  */
 
 import {navigateTo, useState, useRuntimeConfig} from '#app';
-import {EmbeddedSignInFlowStatus, getRedirectBasedSignUpUrl} from '@thunderid/browser';
+import {EmbeddedSignInFlowStatus, EmbeddedSignUpFlowStatus, getRedirectBasedSignUpUrl} from '@thunderid/browser';
 import {useThunderID as useThunderIDVue, type ThunderIDContext} from '@thunderid/vue';
 import type {Ref} from 'vue';
 import type {ThunderIDAuthState} from '../types';
@@ -126,6 +126,27 @@ export function useThunderID(): ThunderIDContext {
    */
   const signUp = async (...args: any[]): Promise<any> => {
     const payload: unknown = args[0];
+
+    // Embedded-flow path: arg0 is a non-null object with a `flowType` key
+    // (see `ThunderIDSignUp`'s `handleInitialize`/`handleOnSubmit`).
+    const isEmbedded: boolean = typeof payload === 'object' && payload !== null && 'flowType' in payload;
+
+    if (isEmbedded) {
+      const res: {data: any; success: boolean} = await $fetch<{data: any; success: boolean}>('/api/auth/signup', {
+        body: {payload},
+        method: 'POST',
+      });
+
+      // Flow complete — the server route replies with `{ afterSignUpUrl }`
+      // (no `flowStatus`). Synthesize one so `BaseSignUp`'s completion check
+      // (`response.flowStatus === Complete`) fires and `<ThunderIDSignUp>`'s
+      // `handleComplete` drives the post-registration redirect.
+      if (res.data?.afterSignUpUrl) {
+        return {afterSignUpUrl: res.data.afterSignUpUrl, flowStatus: EmbeddedSignUpFlowStatus.Complete};
+      }
+
+      return res.data;
+    }
 
     // Redirect flow.
     const cfg: {

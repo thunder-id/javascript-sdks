@@ -206,14 +206,16 @@ export const BaseUserDropdown: FC<BaseUserDropdownProps> = ({
         variant="text"
         size="medium"
         data-testid="thunderid-user-dropdown-trigger"
+        startIcon={
+          <Avatar
+            imageUrl={getMappedUserProfileValue('picture', mergedMappings, user)}
+            name={getDisplayName(mergedMappings, user)}
+            size={avatarSize}
+            alt={`${getDisplayName(mergedMappings, user)}'s avatar`}
+          />
+        }
         {...getReferenceProps()}
       >
-        <Avatar
-          imageUrl={getMappedUserProfileValue('picture', mergedMappings, user)}
-          name={getDisplayName(mergedMappings, user)}
-          size={avatarSize}
-          alt={`${getDisplayName(mergedMappings, user)}'s avatar`}
-        />
         {showTriggerLabel && (
           <Typography
             variant="body2"

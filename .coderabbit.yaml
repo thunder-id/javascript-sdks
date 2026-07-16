@@ -1,0 +1,50 @@
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+language: en-US
+
+reviews:
+  request_changes_workflow: false
+  high_level_summary: true
+  poem: false
+
+  path_instructions:
+    - path: "packages/**/*.{ts,tsx}"
+      instructions: |
+        Flag any hardcoded occurrence of the literal `thunderid`/`ThunderID`/`THUNDERID` (any casing) used to
+        build a runtime key or name — storage keys, cookie/session names, CSS class prefixes,
+        `useState`/composable keys, log tags, DOM `id`/`data-*` attributes, and similar.
+
+        Do not flag the package's entry point — the main client class, provider component, or a file whose
+        purpose IS to represent the SDK itself (e.g. `ThunderIDClient`, `ThunderIDProvider`,
+        `ThunderIDBrowserClient`). That's a fixed identity, not a per-tenant value.
+
+        For everything else, ask: **"Should this read from the `vendor` config / `getVendorPrefix()` util
+        instead of hardcoding the vendor name?"** The best fix is avoiding the vendor name entirely when the
+        brand prefix isn't load-bearing. When a brand-scoped namespace is genuinely required, it should resolve
+        through `getVendorPrefix(vendor)` (from `@thunderid/javascript`, re-exported via
+        `@thunderid/browser`/`@thunderid/node`) rather than a literal string or a repeated inline
+        `vendor ?? 'thunderid'` fallback.
+
+    - path: "packages/**/*.{ts,tsx}"
+      instructions: |
+        This is a layered monorepo: `@thunderid/javascript` is the framework-agnostic core; `@thunderid/browser`
+        and `@thunderid/node` build on it; framework packages (`react`, `vue`, `nextjs`, `nuxt`, `express`,
+        `react-router`, `tanstack-router`) build on those. If this change adds a utility/helper/constant that
+        duplicates logic already present in another package, or that more than one framework package would
+        plausibly need, ask: **"Should this live lower in the package hierarchy (e.g. `@thunderid/javascript`)
+        and be re-exported instead?"**
+
+  auto_review:
+    enabled: true
+    ignore_title_keywords:
+      - "WIP"
+      - "DO NOT MERGE"
+    base_branches:
+      - main
+
+  path_filters:
+    - "!**/dist/**"
+    - "!**/node_modules/**"
+    - "!**/*.d.ts"
+    - "!**/.next/**"
+    - "!**/.nuxt/**"
+    - "!**/.output/**"

@@ -38,7 +38,6 @@ export interface UserProviderProps {
  *
  * This provider:
  * - Fetches user profile data from the ME endpoint
- * - Retrieves SCIM2 schemas for profile structure
  * - Generates both nested and flattened user profiles
  * - Provides functions for refreshing and updating user data
  * - Handles loading states and errors
@@ -74,7 +73,6 @@ const UserProvider: FC<PropsWithChildren<UserProviderProps>> = ({
       onUpdateProfile,
       profile: profile?.profile,
       revalidateProfile,
-      schemas: profile?.schemas,
       updateProfile,
     }),
     [profile, onUpdateProfile, revalidateProfile, updateProfile],

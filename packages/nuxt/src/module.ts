@@ -28,6 +28,7 @@ import {
   extendViteConfig,
 } from '@nuxt/kit';
 import type {Nuxt} from '@nuxt/schema';
+import {VendorConstants} from '@thunderid/node';
 import {defu} from 'defu';
 import type {ThunderIDNuxtConfig, ThunderIDSessionPayload, ThunderIDSSRData} from './runtime/types';
 
@@ -61,6 +62,7 @@ export default defineNuxtModule<ThunderIDNuxtConfig>({
         clientId: process.env.NUXT_PUBLIC_THUNDERID_CLIENT_ID,
         signInUrl: process.env.NUXT_PUBLIC_THUNDERID_SIGN_IN_URL,
         signUpUrl: process.env.NUXT_PUBLIC_THUNDERID_SIGN_UP_URL,
+        vendor: process.env.NUXT_PUBLIC_THUNDERID_VENDOR,
       },
       // Layer 2: nuxt.config.ts options
       userOptions,
@@ -69,6 +71,7 @@ export default defineNuxtModule<ThunderIDNuxtConfig>({
         afterSignInUrl: '/',
         afterSignOutUrl: '/',
         scopes: ['openid', 'profile'],
+        vendor: VendorConstants.VENDOR_PREFIX,
       },
     );
 
@@ -106,6 +109,7 @@ export default defineNuxtModule<ThunderIDNuxtConfig>({
         signInUrl: publicConfig.signInUrl,
         signUpUrl: publicConfig.signUpUrl,
         tokenRequest: publicConfig.tokenRequest,
+        vendor: publicConfig.vendor,
       },
     ) as {
       afterSignInUrl: string;
@@ -119,6 +123,7 @@ export default defineNuxtModule<ThunderIDNuxtConfig>({
       signInUrl?: string;
       signUpUrl?: string;
       tokenRequest?: ThunderIDNuxtConfig['tokenRequest'];
+      vendor: string;
     };
 
     // Ensure clientSecret never leaks to public config
@@ -174,35 +179,6 @@ export default defineNuxtModule<ThunderIDNuxtConfig>({
         method: 'patch' as const,
         route: '/api/auth/user/profile',
       },
-      // ── Organisations ─────────────────────────────────────────────────
-      {
-        handler: resolve('./runtime/server/routes/auth/organizations/index.get'),
-        route: '/api/auth/organizations',
-      },
-      {
-        handler: resolve('./runtime/server/routes/auth/organizations/index.post'),
-        method: 'post' as const,
-        route: '/api/auth/organizations',
-      },
-      {
-        handler: resolve('./runtime/server/routes/auth/organizations/me.get'),
-        route: '/api/auth/organizations/me',
-      },
-      {
-        handler: resolve('./runtime/server/routes/auth/organizations/current.get'),
-        route: '/api/auth/organizations/current',
-      },
-      {
-        handler: resolve('./runtime/server/routes/auth/organizations/id.get'),
-        route: '/api/auth/organizations/:id',
-      },
-      {
-        handler: resolve('./runtime/server/routes/auth/organizations/switch.post'),
-        method: 'post' as const,
-        route: '/api/auth/organizations/switch',
-      },
-      // ── Branding ──────────────────────────────────────────────────────
-      {handler: resolve('./runtime/server/routes/auth/branding/branding.get'), route: '/api/auth/branding'},
     ];
 
     serverRoutes.forEach((sr: ServerRoute): void => {
@@ -227,11 +203,9 @@ export default defineNuxtModule<ThunderIDNuxtConfig>({
       {from: resolve('./runtime/composables/useThunderID'), name: 'useThunderID'},
       // Composables from @thunderid/vue — auto-imported directly, no local wrappers
       {from: '@thunderid/vue', name: 'useUser'},
-      {from: '@thunderid/vue', name: 'useOrganization'},
       {from: '@thunderid/vue', name: 'useFlow'},
       {from: '@thunderid/vue', name: 'useFlowMeta'},
       {from: '@thunderid/vue', name: 'useTheme'},
-      {from: '@thunderid/vue', name: 'useBranding'},
       // useI18n aliased to `useThunderIDI18n` to avoid collision with @nuxtjs/i18n
       {as: 'useThunderIDI18n', from: '@thunderid/vue', name: 'useI18n'},
       // Middleware factory
@@ -239,7 +213,7 @@ export default defineNuxtModule<ThunderIDNuxtConfig>({
     ]);
 
     // Register the Nuxt-specific root component that mounts the full Vue
-    // provider tree (I18nProvider, BrandingProvider, ThemeProvider, etc.).
+    // provider tree (I18nProvider, ThemeProvider, etc.).
     // Users wrap their `app.vue` with `<ThunderIDRoot>` — matching the way
     // Next.js users wrap their app with `<ThunderIDServerProvider>`.
     addComponent({
@@ -257,9 +231,9 @@ export default defineNuxtModule<ThunderIDNuxtConfig>({
     // This mirrors the Next.js SDK pattern where Base components come from
     // @thunderid/react and host-specific containers live in the Next.js package.
     //
-    // NOTE: Composables (useUser, useOrganization, useTheme, useBranding,
-    // useFlow, useI18n) remain direct re-exports from @thunderid/vue via
-    // addImports above — only the components need Nuxt wrappers.
+    // NOTE: Composables (useUser, useTheme, useFlow, useI18n) remain direct
+    // re-exports from @thunderid/vue via addImports above — only the components
+    // need Nuxt wrappers.
 
     // ── Control flow ────────────────────────────────────────────────────────
     addComponent({filePath: resolve('./runtime/components/control/SignedIn'), name: 'ThunderIDSignedIn'});
@@ -279,25 +253,6 @@ export default defineNuxtModule<ThunderIDNuxtConfig>({
     addComponent({filePath: resolve('./runtime/components/user/User'), name: 'ThunderIDUser'});
     addComponent({filePath: resolve('./runtime/components/user/UserProfile'), name: 'ThunderIDUserProfile'});
     addComponent({filePath: resolve('./runtime/components/user/UserDropdown'), name: 'ThunderIDUserDropdown'});
-
-    // ── Organization ─────────────────────────────────────────────────────────
-    addComponent({filePath: resolve('./runtime/components/organization/Organization'), name: 'ThunderIDOrganization'});
-    addComponent({
-      filePath: resolve('./runtime/components/organization/OrganizationProfile'),
-      name: 'ThunderIDOrganizationProfile',
-    });
-    addComponent({
-      filePath: resolve('./runtime/components/organization/OrganizationSwitcher'),
-      name: 'ThunderIDOrganizationSwitcher',
-    });
-    addComponent({
-      filePath: resolve('./runtime/components/organization/OrganizationList'),
-      name: 'ThunderIDOrganizationList',
-    });
-    addComponent({
-      filePath: resolve('./runtime/components/organization/CreateOrganization'),
-      name: 'ThunderIDCreateOrganization',
-    });
 
     // ── Auth callback ────────────────────────────────────────────────────────
     addComponent({filePath: resolve('./runtime/components/auth/Callback'), name: 'ThunderIDCallback'});

@@ -29,7 +29,7 @@ import {
   buildValidatorFromRules,
   Preferences,
 } from '@thunderid/browser';
-import {FC, ReactElement, ReactNode, useCallback, useContext, useEffect, useRef, useState} from 'react';
+import {FC, ReactElement, ReactNode, useCallback, useContext, useEffect, useMemo, useRef, useState} from 'react';
 import useStyles from './BaseSignUp.styles';
 import ComponentRendererContext, {
   ComponentRendererMap,
@@ -41,6 +41,7 @@ import useTheme from '../../../../contexts/Theme/useTheme';
 import useThunderID from '../../../../contexts/ThunderID/useThunderID';
 import {useForm, FormField} from '../../../../hooks/useForm';
 import useTranslation from '../../../../hooks/useTranslation';
+import composeAffixedInputs from '../../../../utils/composeAffixedInputs';
 import {normalizeFlowResponse, extractErrorMessage} from '../../../../utils/flowTransformer';
 import getAuthComponentHeadings from '../../../../utils/getAuthComponentHeadings';
 import {handlePasskeyRegistration} from '../../../../utils/passkey';
@@ -173,6 +174,11 @@ export interface BaseSignUpProps {
   errorClassName?: string;
 
   /**
+   * HTML id attribute for the form container.
+   */
+  id?: string;
+
+  /**
    * Custom CSS class name for form inputs.
    */
   inputClassName?: string;
@@ -264,6 +270,7 @@ const BaseSignUpContent: FC<BaseSignUpProps> = ({
   onFlowChange,
   onComplete,
   error: externalError,
+  id,
   className = '',
   inputClassName = '',
   buttonClassName = '',
@@ -280,7 +287,7 @@ const BaseSignUpContent: FC<BaseSignUpProps> = ({
   const customRenderers: ComponentRendererMap = useContext(ComponentRendererContext);
   const {t} = useTranslation();
   const {subtitle: flowSubtitle, title: flowTitle, messages: flowMessages, addMessage, clearMessages} = useFlow();
-  const {meta, isInitialized: isSdkInitialized, getStorageManager} = useThunderID();
+  const {meta, isInitialized: isSdkInitialized, getStorageManager, vendor} = useThunderID();
   const styles: any = useStyles(theme, colorScheme);
 
   const [isLoading, setIsLoading] = useState(false);
@@ -455,9 +462,10 @@ const BaseSignUpContent: FC<BaseSignUpProps> = ({
     [t],
   );
 
-  const formFields: any = (currentFlow?.data as any)?.components
-    ? extractFormFields((currentFlow!.data as any).components)
-    : [];
+  const formFields: any = useMemo(
+    () => ((currentFlow?.data as any)?.components ? extractFormFields((currentFlow!.data as any).components) : []),
+    [currentFlow, extractFormFields],
+  );
 
   const form: any = useForm<Record<string, string>>({
     fields: formFields,
@@ -474,6 +482,7 @@ const BaseSignUpContent: FC<BaseSignUpProps> = ({
     isValid: isFormValid,
     setValue: setFormValue,
     setTouched: setFormTouched,
+    setTouchedFields,
     setErrors: setFormErrors,
     clearErrors: clearFormErrors,
     validateForm,
@@ -481,11 +490,9 @@ const BaseSignUpContent: FC<BaseSignUpProps> = ({
     reset: resetForm,
   } = form;
 
-  /**
-   * Project server-side validation errors from the most recent flow response into the
-   * form's `errors` state. See BaseSignIn for the same pattern: first error per field
-   * wins, and the affected fields are marked touched so the error renders immediately.
-   */
+  // Project server-side fieldErrors from the flow response into form state.
+  // `setTouchedFields` avoids re-running client-side validation that would wipe
+  // server errors when the client rules happen to pass.
   useEffect(() => {
     clearFormErrors();
     const responseFieldErrors: FieldError[] | undefined = (currentFlow?.data as any)?.fieldErrors;
@@ -493,14 +500,16 @@ const BaseSignUpContent: FC<BaseSignUpProps> = ({
       return;
     }
     const errors: Record<string, string> = {};
+    const touched: Record<string, boolean> = {};
     for (const fe of responseFieldErrors) {
       if (!(fe.identifier in errors)) {
         errors[fe.identifier] = fe.message;
+        touched[fe.identifier] = true;
       }
     }
+    setTouchedFields(touched);
     setFormErrors(errors);
-    Object.keys(errors).forEach((field: string) => setFormTouched(field, true));
-  }, [currentFlow, setFormErrors, setFormTouched, clearFormErrors]);
+  }, [currentFlow, setFormErrors, setTouchedFields, clearFormErrors]);
 
   /**
    * Setup form fields based on the current flow.
@@ -643,6 +652,7 @@ const BaseSignUpContent: FC<BaseSignUpProps> = ({
 
           try {
             const continueResponse: any = await onSubmit!(payload);
+            await setChallengeToken(continueResponse.challengeToken ?? null);
             onFlowChange?.(continueResponse);
 
             if (continueResponse.flowStatus === EmbeddedSignUpFlowStatus.Error) {
@@ -722,6 +732,7 @@ const BaseSignUpContent: FC<BaseSignUpProps> = ({
 
                 try {
                   const continueResponse: any = await onSubmit!(payload);
+                  await setChallengeToken(continueResponse.challengeToken ?? null);
                   onFlowChange?.(continueResponse);
 
                   if (continueResponse.flowStatus === EmbeddedSignUpFlowStatus.Error) {
@@ -788,10 +799,14 @@ const BaseSignUpContent: FC<BaseSignUpProps> = ({
     clearMessages();
 
     try {
+      const composedData: Record<string, any> | undefined = data
+        ? composeAffixedInputs(data as Record<string, string>, vendor)
+        : undefined;
+
       // Filter out empty or undefined input values
       const filteredInputs: Record<string, any> = {};
-      if (data) {
-        Object.entries(data).forEach(([key, value]: [string, any]) => {
+      if (composedData) {
+        Object.entries(composedData).forEach(([key, value]: [string, any]) => {
           if (value !== null && value !== undefined && value !== '') {
             filteredInputs[key] = value;
           }
@@ -960,6 +975,7 @@ const BaseSignUpContent: FC<BaseSignUpProps> = ({
         formErrors,
         isLoading,
         isFormValid,
+        resetForm,
         handleInputChange,
         {
           _customRenderers: customRenderers,
@@ -970,6 +986,7 @@ const BaseSignUpContent: FC<BaseSignUpProps> = ({
           onSubmit: handleSubmit,
           size,
           variant,
+          vendor,
         },
       ),
     [
@@ -982,6 +999,7 @@ const BaseSignUpContent: FC<BaseSignUpProps> = ({
       size,
       theme,
       variant,
+      vendor,
       inputClasses,
       buttonClasses,
       handleSubmit,
@@ -1098,12 +1116,16 @@ const BaseSignUpContent: FC<BaseSignUpProps> = ({
       values: formValues,
     };
 
-    return <div className={containerClasses}>{children(renderProps)}</div>;
+    return (
+      <div id={id} className={containerClasses}>
+        {children(renderProps)}
+      </div>
+    );
   }
 
   if (!isFlowInitialized && isLoading) {
     return (
-      <CardPrimitive className={cx(containerClasses, styles.card)} variant={variant}>
+      <CardPrimitive id={id} className={cx(containerClasses, styles.card)} variant={variant}>
         <CardPrimitive.Content>
           <div className={styles.loadingContainer}>
             <Spinner size="medium" />
@@ -1115,7 +1137,7 @@ const BaseSignUpContent: FC<BaseSignUpProps> = ({
 
   if (!currentFlow) {
     return (
-      <CardPrimitive className={cx(containerClasses, styles.card)} variant={variant}>
+      <CardPrimitive id={id} className={cx(containerClasses, styles.card)} variant={variant}>
         <CardPrimitive.Content>
           <AlertPrimitive variant="error" className={errorClasses}>
             <AlertPrimitive.Title>{t('errors.heading')}</AlertPrimitive.Title>
@@ -1137,7 +1159,7 @@ const BaseSignUpContent: FC<BaseSignUpProps> = ({
   );
 
   return (
-    <CardPrimitive className={cx(containerClasses, styles.card)} variant={variant}>
+    <CardPrimitive id={id} className={cx(containerClasses, styles.card)} variant={variant}>
       {(showTitle || showSubtitle) && (
         <CardPrimitive.Header className={styles.header}>
           {showTitle && (

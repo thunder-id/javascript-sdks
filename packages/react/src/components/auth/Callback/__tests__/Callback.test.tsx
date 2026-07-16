@@ -15,7 +15,7 @@
  * under the License.
  */
 
-import {render, screen} from '@testing-library/react';
+import {render, screen, cleanup} from '@testing-library/react';
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
 import {Callback} from '../Callback';
 
@@ -33,6 +33,7 @@ describe('Callback', () => {
   });
 
   afterEach(() => {
+    cleanup();
     window.history.replaceState({}, '', '/');
   });
 

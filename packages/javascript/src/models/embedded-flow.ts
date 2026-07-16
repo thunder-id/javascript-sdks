@@ -35,6 +35,13 @@ export enum EmbeddedFlowResponseType {
  */
 export interface EmbeddedFlowExecuteRequestConfigBase<T = any> extends Partial<Request> {
   baseUrl?: string;
+  /**
+   * Flow Secret authenticating a backend/server-side application when it initiates a new native
+   * flow directly. When set, it is sent in the `Flow-Secret` request header, and only on a new
+   * flow initiation (a payload carrying `applicationId` and `flowType`) — never on continuation
+   * requests. Not applicable to public clients or redirect-based applications.
+   */
+  flowSecret?: string;
   payload?: T;
   url?: string;
 }
@@ -245,6 +252,23 @@ export enum EmbeddedFlowEventType {
 }
 
 /**
+ * Optional action wiring for otherwise-passive components such as RICH_TEXT. When
+ * set on a RICH_TEXT component, sentinel-marked anchors (`<a data-action-ref="...">`)
+ * inside the sanitized HTML dispatch a flow action instead of navigating.
+ *
+ * @experimental This interface may change in future versions
+ */
+export interface EmbeddedFlowComponentAction {
+  /** Reference of the flow action to dispatch when the sentinel anchor is clicked. */
+  ref: string;
+  /**
+   * Event type controlling submission semantics. `TRIGGER` bypasses client-side
+   * validation; `SUBMIT` runs validation. Defaults to `SUBMIT` when omitted.
+   */
+  eventType?: EmbeddedFlowEventType | string;
+}
+
+/**
  * Enhanced component interface for embedded flow components.
  *
  * This interface provides better support for modern form handling and user experience.
@@ -269,6 +293,14 @@ export enum EmbeddedFlowEventType {
  */
 export interface EmbeddedFlowComponent {
   /**
+   * Optional flow-action wiring for otherwise-passive components. On RICH_TEXT
+   * components, sentinel-marked anchors (`<a data-action-ref="...">`) inside the
+   * sanitized HTML dispatch this action. When absent, the component remains pure
+   * display.
+   */
+  action?: EmbeddedFlowComponentAction;
+
+  /**
    * Alignment of children along the cross axis (for Stack components).
    */
   align?: string;
@@ -277,6 +309,11 @@ export interface EmbeddedFlowComponent {
    * Alternative text for Image components.
    */
   alt?: string;
+
+  /**
+   * Space-separated list of CSS class names to apply to the rendered element.
+   */
+  classes?: string;
 
   /**
    * Icon color, CSS color value (for Icon components).
@@ -364,6 +401,10 @@ export interface EmbeddedFlowComponent {
    * Provides helpful hints to users about expected input format.
    */
   placeholder?: string;
+
+  postfix?: string;
+
+  prefixes?: string | PrefixOption[];
 
   /**
    * Reference identifier for the component (e.g., field name, action ref)
@@ -469,6 +510,17 @@ export interface FieldError {
   identifier: string;
   /** The failing rule's message (i18n key or literal string). */
   message: string;
+}
+
+export interface PrefixOption {
+  /** The value of the prefix option (e.g., country code, currency symbol). */
+  value: string;
+  /** Display label for the prefix option (e.g., "India (+91)"). */
+  label: string;
+  /** Optional maximum length constraint for input when this prefix is selected. */
+  maxLength?: number;
+  /** Optional regex pattern for validating input when this prefix is selected. */
+  regex?: string;
 }
 
 /**

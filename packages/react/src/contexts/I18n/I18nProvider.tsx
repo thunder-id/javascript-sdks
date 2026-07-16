@@ -26,6 +26,7 @@ import {
   TranslationBundleConstants,
   getDefaultI18nBundles,
   normalizeTranslations,
+  getVendorPrefix,
 } from '@thunderid/browser';
 import {FC, PropsWithChildren, ReactElement, useCallback, useEffect, useMemo, useState} from 'react';
 import I18nContext, {I18nContextValue} from './I18nContext';
@@ -35,7 +36,6 @@ const logger: ReturnType<typeof createPackageComponentLogger> = createPackageCom
   'I18nProvider',
 );
 
-const DEFAULT_STORAGE_KEY = 'thunderid-i18n-language';
 const DEFAULT_URL_PARAM = 'lang';
 
 export interface I18nProviderProps {
@@ -43,6 +43,13 @@ export interface I18nProviderProps {
    * The i18n preferences from the ThunderIDProvider
    */
   preferences?: I18nPreferences;
+
+  /**
+   * Vendor/brand namespace used to derive the default language storage key
+   * (e.g. `${vendor}-i18n-language`). Resolved from the SDK config's `vendor` option.
+   * @default 'thunderid'
+   */
+  vendor?: string;
 }
 
 const detectBrowserLanguage = (): string => {
@@ -135,12 +142,13 @@ const detectUrlParamLanguage = (paramName: string): string | null => {
 const I18nProvider: FC<PropsWithChildren<I18nProviderProps>> = ({
   children,
   preferences,
+  vendor,
 }: PropsWithChildren<I18nProviderProps>): ReactElement => {
   // Get default bundles from the browser package
   const defaultBundles: Record<string, I18nBundle> = getDefaultI18nBundles();
 
   const storageStrategy: I18nStorageStrategy = preferences?.storageStrategy ?? 'cookie';
-  const storageKey: string = preferences?.storageKey ?? DEFAULT_STORAGE_KEY;
+  const storageKey: string = preferences?.storageKey ?? `${getVendorPrefix(vendor)}-i18n-language`;
   const urlParamConfig: string | false = preferences?.urlParam === undefined ? DEFAULT_URL_PARAM : preferences.urlParam;
 
   const resolvedCookieDomain: string | undefined = useMemo((): string | undefined => {

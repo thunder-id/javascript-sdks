@@ -1,6 +1,6 @@
 {
   "name": "@thunderid/nextjs",
-  "version": "0.2.1",
+  "version": "0.5.1",
   "description": "Next.js SDK for ThunderID",
   "keywords": [
     "thunderid",
@@ -15,24 +15,14 @@
   "author": "WSO2",
   "license": "Apache-2.0",
   "type": "module",
-  "main": "dist/cjs/index.cjs",
-  "module": "dist/index.js",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
-      "import": "./dist/index.js",
-      "require": "./dist/cjs/index.cjs"
+      "import": "./dist/index.js"
     },
     "./server": {
       "types": "./dist/server/index.d.ts",
-      "import": "./dist/server/index.js",
-      "require": "./dist/cjs/server/index.cjs"
-    },
-    "./middleware": {
-      "types": "./dist/middleware.d.ts",
-      "edge-light": "./dist/middleware.js",
-      "import": "./dist/middleware.js",
-      "require": "./dist/cjs/middleware.cjs"
+      "import": "./dist/server/index.js"
     }
   },
   "files": [
@@ -47,7 +37,7 @@
     "directory": "packages/nextjs"
   },
   "scripts": {
-    "build": "pnpm clean:dist &&  rolldown -c rolldown.config.js && tsc -p tsconfig.lib.json --emitDeclarationOnly --outDir dist",
+    "build": "pnpm clean:dist && rolldown -c rolldown.config.js && tsc -p tsconfig.lib.json --emitDeclarationOnly --outDir dist",
     "clean": "pnpm clean:node_modules && pnpm clean:dist",
     "clean:dist": "rimraf dist",
     "clean:node_modules": "rimraf node_modules",

@@ -33,7 +33,6 @@ import {
   computed,
   defineComponent,
   h,
-  inject,
   onBeforeUnmount,
   onMounted,
   provide,
@@ -47,11 +46,8 @@ import {
   type SetupContext,
   type VNode,
 } from 'vue';
-import {BRANDING_KEY, THEME_KEY} from '../keys';
-import type {BrandingContextValue, ThemeContextValue} from '../models/contexts';
-import {createVueLogger} from '../utils/logger';
-
-const logger: ReturnType<typeof createVueLogger> = createVueLogger('ThemeProvider');
+import {THEME_KEY} from '../keys';
+import type {ThemeContextValue} from '../models/contexts';
 
 /**
  * ThemeProvider manages theme state and provides it to child components via `useTheme()`.
@@ -60,20 +56,17 @@ const logger: ReturnType<typeof createVueLogger> = createVueLogger('ThemeProvide
  * - Fixed color schemes (`light` | `dark`)
  * - System preference detection (`system`)
  * - CSS-class-based detection (`class`)
- * - Branding-driven mode (`branding`) — inherits the active theme from `BrandingProvider`
- * - Merging server branding theme with local overrides
  * - CSS variable injection onto `document.documentElement`
  *
  * @example
  * ```vue
- * <ThemeProvider mode="system" :inherit-from-branding="true">
+ * <ThemeProvider mode="system">
  *   <App />
  * </ThemeProvider>
  * ```
  */
 interface ThemeProviderProps {
   detection: BrowserThemeDetection;
-  inheritFromBranding: boolean;
   mode: ThemeMode | 'branding';
   theme: RecursivePartial<ThemeConfig> | undefined;
 }
@@ -83,8 +76,6 @@ const ThemeProvider: Component = defineComponent({
   props: {
     /** Theme detection configuration (for 'class' or 'system' mode). */
     detection: {default: () => ({}), type: Object as PropType<BrowserThemeDetection>},
-    /** Whether to inherit theme from ThunderID branding preference. */
-    inheritFromBranding: {default: true as ThemePreferences['inheritFromBranding'], type: Boolean},
     /**
      * The theme mode:
      * - `'light'` | `'dark'`: Fixed color scheme.
@@ -100,9 +91,6 @@ const ThemeProvider: Component = defineComponent({
     theme: {default: undefined, type: Object as PropType<RecursivePartial<ThemeConfig>>},
   },
   setup(props: ThemeProviderProps, {slots}: SetupContext): () => VNode {
-    // Try to consume branding context – it is optional (BrandingProvider may not be mounted)
-    const brandingContext: BrandingContextValue | null = inject(BRANDING_KEY, null);
-
     const initColorScheme = (): 'light' | 'dark' => {
       if (props.mode === 'light' || props.mode === 'dark') return props.mode;
       if (props.mode === 'branding') return detectThemeMode('system', props.detection);
@@ -111,58 +99,9 @@ const ThemeProvider: Component = defineComponent({
 
     const colorScheme: Ref<'light' | 'dark'> = ref(initColorScheme());
 
-    // Update color scheme when branding's active theme is available
-    watch(
-      () => (brandingContext as any)?.activeTheme.value,
-      (brandingActiveTheme: string | 'light' | 'dark' | undefined): void => {
-        if (!props.inheritFromBranding || !brandingActiveTheme) return;
-        if (props.mode === 'branding') {
-          colorScheme.value = brandingActiveTheme as 'light' | 'dark';
-        } else if (props.mode === 'system' && !(brandingContext as any)?.isLoading.value) {
-          colorScheme.value = brandingActiveTheme as 'light' | 'dark';
-        }
-      },
-    );
-
-    // Warn if inheritFromBranding is true but no BrandingProvider is present
-    if (props.inheritFromBranding && !brandingContext) {
-      logger.warn(
-        'ThemeProvider: inheritFromBranding is enabled but BrandingProvider is not available. ' +
-          'Make sure to wrap your app with BrandingProvider or ThunderIDProvider.',
-      );
-    }
-
-    // Merge branding theme with user-provided overrides
     const finalThemeConfig: Ref<RecursivePartial<ThemeConfig> | undefined> = computed<
       RecursivePartial<ThemeConfig> | undefined
-    >(() => {
-      const themeConfig: RecursivePartial<ThemeConfig> | undefined = props.theme;
-      const brandingTheme: RecursivePartial<ThemeConfig> | null | undefined = props.inheritFromBranding
-        ? (brandingContext as any)?.theme.value
-        : null;
-
-      if (!brandingTheme) return themeConfig;
-
-      const brandingThemeConfig: RecursivePartial<ThemeConfig> = {
-        borderRadius: brandingTheme.borderRadius,
-        colors: brandingTheme.colors,
-        components: brandingTheme.components,
-        images: brandingTheme.images,
-        shadows: brandingTheme.shadows,
-        spacing: brandingTheme.spacing,
-      };
-
-      return {
-        ...brandingThemeConfig,
-        ...themeConfig,
-        borderRadius: {...brandingThemeConfig.borderRadius, ...themeConfig?.borderRadius},
-        colors: {...brandingThemeConfig.colors, ...themeConfig?.colors},
-        components: {...brandingThemeConfig.components, ...themeConfig?.components},
-        images: {...brandingThemeConfig.images, ...themeConfig?.images},
-        shadows: {...brandingThemeConfig.shadows, ...themeConfig?.shadows},
-        spacing: {...brandingThemeConfig.spacing, ...themeConfig?.spacing},
-      };
-    });
+    >(() => props.theme);
 
     const resolvedTheme: Ref<Theme> = computed<Theme>(() =>
       createTheme(finalThemeConfig.value, colorScheme.value === 'dark'),
@@ -217,9 +156,7 @@ const ThemeProvider: Component = defineComponent({
           classObserver = createClassObserver(targetElement, handleThemeChange, props.detection);
         }
       } else if (props.mode === 'system') {
-        if (!props.inheritFromBranding || !(brandingContext as any)?.activeTheme.value) {
-          mediaQuery = createMediaQueryListener(handleThemeChange);
-        }
+        mediaQuery = createMediaQueryListener(handleThemeChange);
       }
     });
 
@@ -231,11 +168,8 @@ const ThemeProvider: Component = defineComponent({
     });
 
     const context: ThemeContextValue = {
-      brandingError: brandingContext?.error ?? readonly(ref(null)),
       colorScheme: readonly(colorScheme),
       direction: readonly(direction) as Readonly<Ref<'ltr' | 'rtl'>>,
-      inheritFromBranding: props.inheritFromBranding,
-      isBrandingLoading: brandingContext?.isLoading ?? readonly(ref(false)),
       theme: shallowReadonly(resolvedTheme),
       toggleTheme,
     };

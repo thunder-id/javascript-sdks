@@ -18,16 +18,17 @@
 
 'use client';
 
-import {Schema, User} from '@thunderid/node';
-import {BaseUserProfile, BaseUserProfileProps, useUser} from '@thunderid/react';
-import {FC, ReactElement} from 'react';
+import {deepMerge, User} from '@thunderid/node';
+import {BaseUserProfile, BaseUserProfileProps, useUser, useTranslation} from '@thunderid/react';
+import {FC, ReactElement, useState} from 'react';
+import useThunderID from '../../../contexts/ThunderID/useThunderID';
 import getSessionId from '../../../../server/actions/getSessionId';
 
 /**
  * Props for the UserProfile component.
  * Extends BaseUserProfileProps but makes the user prop optional since it will be obtained from useThunderID
  */
-export type UserProfileProps = Omit<BaseUserProfileProps, 'user' | 'profile' | 'flattenedProfile' | 'schemas'>;
+export type UserProfileProps = Omit<BaseUserProfileProps, 'user' | 'profile' | 'flattenedProfile'>;
 
 /**
  * UserProfile component displays the authenticated user's profile information in a
@@ -52,23 +53,53 @@ export type UserProfileProps = Omit<BaseUserProfileProps, 'user' | 'profile' | '
  * />
  * ```
  */
-const UserProfile: FC<UserProfileProps> = ({...rest}: UserProfileProps): ReactElement => {
-  const {profile, flattenedProfile, schemas, onUpdateProfile, updateProfile} = useUser();
+const UserProfile: FC<UserProfileProps> = ({preferences, editable = true, ...rest}: UserProfileProps): ReactElement => {
+  const {preferences: contextPreferences} = useThunderID();
+  const {profile, flattenedProfile, onUpdateProfile, updateProfile} = useUser();
+  const resolvedPreferences = {
+    ...contextPreferences,
+    ...preferences,
+    user: {
+      ...contextPreferences?.user,
+      ...preferences?.user,
+    },
+  };
+  const {t} = useTranslation(resolvedPreferences?.i18n);
+  const isEditableProfile: boolean = resolvedPreferences?.user?.fetchUserProfile === false ? false : editable;
+
+  const [error, setError] = useState<string | null>(null);
 
   const handleProfileUpdate = async (payload: any): Promise<void> => {
+    setError(null);
+
+    const updatedAttributes = deepMerge((profile?.['attributes'] as Record<string, unknown>) ?? {}, payload);
+
+    Object.keys(updatedAttributes).forEach((key) => {
+      if (updatedAttributes[key] === undefined || updatedAttributes[key] === null) {
+        delete updatedAttributes[key];
+      }
+    });
+
     const result: {data: {user: User}; error: string; success: boolean} = await updateProfile(
-      payload,
+      {payload: updatedAttributes},
       await getSessionId(),
     );
-    onUpdateProfile(result?.data?.user);
+
+    if (result.success) {
+      onUpdateProfile(result.data.user);
+    } else {
+      setError(result.error || t('user.profile.update.generic.error'));
+    }
   };
 
   return (
     <BaseUserProfile
       profile={profile!}
       flattenedProfile={flattenedProfile!}
-      schemas={schemas!}
-      onUpdate={handleProfileUpdate}
+      editable={isEditableProfile}
+      onUpdate={isEditableProfile ? handleProfileUpdate : undefined}
+      error={error}
+      preferences={resolvedPreferences}
       {...rest}
     />
   );

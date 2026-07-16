@@ -26,7 +26,7 @@ export type {ThunderIDNuxtConfig, ThunderIDSessionPayload, ThunderIDAuthState} f
 // `useThunderID`. The rest are re-exports of `@thunderid/vue` composables —
 // their contexts are mounted by `<ThunderIDRoot>` (see runtime/components).
 export {useThunderID} from './runtime/composables/useThunderID';
-export {useUser, useOrganization, useFlow, useFlowMeta, useTheme, useBranding} from '@thunderid/vue';
+export {useUser, useFlow, useFlowMeta, useTheme} from '@thunderid/vue';
 export {useI18n as useThunderIDI18n} from '@thunderid/vue';
 
 // ── Components ─────────────────────────────────────────────────────────────

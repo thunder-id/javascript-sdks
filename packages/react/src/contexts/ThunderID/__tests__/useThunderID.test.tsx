@@ -17,7 +17,6 @@
  */
 
 import {cleanup, render, screen} from '@testing-library/react';
-import {Organization} from '@thunderid/browser';
 import {afterEach, describe, expect, it, vi} from 'vitest';
 import ThunderIDContext, {ThunderIDContextProps} from '../ThunderIDContext';
 import useThunderID from '../useThunderID';
@@ -42,7 +41,6 @@ function createMockContext(overrides: Partial<ThunderIDContextProps> = {}): Thun
     isMetaLoading: false,
     isSignedIn: false,
     meta: null,
-    organization: null as unknown as Organization,
     organizationHandle: undefined,
     reInitialize: vi.fn(),
     recover: vi.fn(),
@@ -55,7 +53,6 @@ function createMockContext(overrides: Partial<ThunderIDContextProps> = {}): Thun
     signUp: vi.fn(),
     signUpUrl: undefined,
     storage: undefined,
-    switchOrganization: vi.fn(),
     user: null,
     ...overrides,
   } as unknown as ThunderIDContextProps;

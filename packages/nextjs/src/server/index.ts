@@ -22,3 +22,8 @@ export {default as thunderid} from './thunderid';
 
 export {default as ThunderIDProvider} from './ThunderIDProvider.js';
 export * from './ThunderIDProvider.js';
+
+export {default as thunderIDProxy} from './proxy/thunderIDProxy';
+export * from './proxy/thunderIDProxy';
+
+export {default as createRouteMatcher} from './proxy/createRouteMatcher';

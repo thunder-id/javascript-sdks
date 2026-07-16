@@ -1,0 +1,47 @@
+{
+  "info": {
+    "name": "ThunderID Express Quickstart",
+    "description": "Sample requests for the ThunderID Express API quickstart. Public endpoints work as-is; protected endpoints need an `accessToken` collection variable — grab one from http://localhost:3000/token after signing in through the sample app, or run the OAuth 2.0 flow yourself against your ThunderID instance.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {"key": "baseUrl", "value": "http://localhost:3000"},
+    {"key": "thunderIdBaseUrl", "value": "https://localhost:8090"},
+    {"key": "accessToken", "value": ""}
+  ],
+  "item": [
+    {
+      "name": "Public endpoint",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {"raw": "{{baseUrl}}/api/public", "host": ["{{baseUrl}}"], "path": ["api", "public"]}
+      }
+    },
+    {
+      "name": "Protected resource",
+      "request": {
+        "method": "GET",
+        "header": [{"key": "Authorization", "value": "Bearer {{accessToken}}"}],
+        "url": {"raw": "{{baseUrl}}/api/protected", "host": ["{{baseUrl}}"], "path": ["api", "protected"]}
+      }
+    },
+    {
+      "name": "Current user (userinfo)",
+      "request": {
+        "method": "GET",
+        "header": [{"key": "Authorization", "value": "Bearer {{accessToken}}"}],
+        "url": {"raw": "{{baseUrl}}/api/me", "host": ["{{baseUrl}}"], "path": ["api", "me"]}
+      }
+    },
+    {
+      "name": "ThunderID userinfo (direct)",
+      "request": {
+        "method": "GET",
+        "header": [{"key": "Authorization", "value": "Bearer {{accessToken}}"}],
+        "url": {"raw": "{{thunderIdBaseUrl}}/oauth2/userinfo", "host": ["{{thunderIdBaseUrl}}"], "path": ["oauth2", "userinfo"]},
+        "description": "Calls ThunderID directly, bypassing the sample app, to show what /api/me is proxying."
+      }
+    }
+  ]
+}

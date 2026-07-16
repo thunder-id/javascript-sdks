@@ -27,6 +27,7 @@ export interface ComponentRenderContext {
   isFormValid: boolean;
   isLoading: boolean;
   meta?: FlowMetadataResponse | null;
+  resetForm?: () => void;
   onInputBlur?: (name: string) => void;
   onInputChange: (name: string, value: string) => void;
   onSubmit?: (component: EmbeddedFlowComponent, data?: Record<string, any>, skipValidation?: boolean) => void;

@@ -24,6 +24,7 @@ type TextFieldProps = Readonly<{
   disabled: boolean;
   error: string | undefined;
   helperText: string | undefined;
+  id: string | undefined;
   label: string | undefined;
   modelValue: string;
   name: string | undefined;
@@ -39,6 +40,7 @@ const TextField: Component = defineComponent({
     disabled: {default: false, type: Boolean},
     error: {default: undefined, type: String},
     helperText: {default: undefined, type: String},
+    id: {default: undefined, type: String},
     label: {default: undefined, type: String},
     modelValue: {default: '', type: String},
     name: {default: undefined, type: String},
@@ -76,7 +78,7 @@ const TextField: Component = defineComponent({
               'label',
               {
                 class: withVendorCSSClassPrefix('text-field__label'),
-                for: props.name,
+                for: props.id ?? props.name,
               },
               [
                 props.label,
@@ -89,7 +91,7 @@ const TextField: Component = defineComponent({
           class: withVendorCSSClassPrefix('text-field__input'),
           'data-testid': attrs['data-testid'],
           disabled: props.disabled,
-          id: props.name,
+          id: props.id ?? props.name,
           name: props.name,
           onBlur: () => emit('blur'),
           onInput: (e: Event) => emit('update:modelValue', (e.target as HTMLInputElement).value),

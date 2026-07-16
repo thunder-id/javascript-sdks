@@ -16,12 +16,12 @@
  * under the License.
  */
 
-import {css} from '@emotion/css';
+import {css, cx} from '@emotion/css';
 import {
   FieldType,
   FlowMetadataResponse,
-  OrganizationUnitListResponse,
   EmbeddedFlowComponent,
+  EmbeddedFlowComponentAction,
   EmbeddedFlowComponentType,
   EmbeddedFlowTextVariant,
   EmbeddedFlowEventType,
@@ -33,10 +33,11 @@ import {
   ConsentDecisions,
   ConsentPurposeDecision,
   ConsentAttributeElement,
+  OrganizationUnitListResponse,
+  PrefixOption,
 } from '@thunderid/browser';
 import DOMPurify from 'dompurify';
-import {cloneElement, CSSProperties, ReactElement} from 'react';
-import {OrganizationUnitPicker} from './OrganizationUnitPicker';
+import {ChangeEvent, cloneElement, CSSProperties, ReactElement} from 'react';
 import {
   ComponentRenderer,
   ComponentRenderContext,
@@ -60,7 +61,9 @@ import CopyableText from '../../primitives/CopyableText/CopyableText';
 import DatePicker from '../../primitives/DatePicker/DatePicker';
 import Divider from '../../primitives/Divider/Divider';
 import flowIconRegistry from '../../primitives/Icons/flowIconRegistry';
+import AffixedField from '../../primitives/AffixedField/AffixedField';
 import Select from '../../primitives/Select/Select';
+import {affixPostfixKey, affixPrefixKey} from '../../../utils/composeAffixedInputs';
 import Typography from '../../primitives/Typography/Typography';
 import {TypographyVariant} from '../../primitives/Typography/Typography.styles';
 
@@ -187,6 +190,7 @@ const createAuthComponentFromFlow = (
   formErrors: Record<string, string>,
   isLoading: boolean,
   isFormValid: boolean,
+  resetForm: () => void,
   onInputChange: (name: string, value: string) => void,
   authType: AuthType,
   options: {
@@ -199,12 +203,6 @@ const createAuthComponentFromFlow = (
     buttonClassName?: string;
     /** Current consent purpose being rendered. Set by CONSENT_PURPOSE block iteration. */
     currentConsentPurpose?: ConsentPurposeData;
-    /** Function to fetch child organization units. Used by OU_SELECT component type. */
-    fetchOrganizationUnitChildren?: (
-      parentId: string,
-      limit: number,
-      offset: number,
-    ) => Promise<OrganizationUnitListResponse>;
     inStack?: boolean;
     inputClassName?: string;
     /** Flag to determine if the step timeline has expired */
@@ -218,6 +216,8 @@ const createAuthComponentFromFlow = (
     /** Translation function for resolving {{t(...)}} expressions at render time */
     t?: UseTranslation['t'];
     variant?: any;
+    /** Vendor namespace used to derive affix sentinel keys for prefix/postfix-bearing inputs. */
+    vendor?: string;
   } = {},
 ): ReactElement | null => {
   const theme: any = options._theme;
@@ -236,6 +236,7 @@ const createAuthComponentFromFlow = (
       isFormValid,
       isLoading,
       meta: options.meta,
+      resetForm,
       onInputBlur: options.onInputBlur,
       onInputChange,
       onSubmit: options.onSubmit,
@@ -263,9 +264,57 @@ const createAuthComponentFromFlow = (
       const error: string = isTouched ? formErrors[identifier] : undefined!;
       const fieldType: string = getFieldType(component.type);
 
+      // Prefix/postfix are accepted on any text-family input. When either is present,
+      // route to AffixedField so the leading affix renders and submit-time composition
+      // is picked up by composeAffixedInputs via the sentinel keys.
+      // Both string.length and Array.length are defined, so a single truthy+length
+      // check covers `prefixes?: string | PrefixOption[]`.
+      const hasPrefixes: boolean = !!component.prefixes && component.prefixes.length > 0;
+      const hasPostfix: boolean = typeof component.postfix === 'string' && component.postfix.length > 0;
+
+      if (hasPrefixes || hasPostfix) {
+        const prefixStateKey: string = affixPrefixKey(identifier, options.vendor);
+        const postfixStateKey: string = affixPostfixKey(identifier, options.vendor);
+        const defaultPrefixValue: string = hasPrefixes
+          ? typeof component.prefixes === 'string'
+            ? component.prefixes
+            : (component.prefixes as PrefixOption[])[0].value
+          : '';
+        const selectedPrefix: string = formValues[prefixStateKey] ?? defaultPrefixValue;
+
+        return (
+          <AffixedField
+            key={key}
+            className={cx(options.inputClassName, component.classes)}
+            id={component.id}
+            label={resolve(component.label) || ''}
+            name={identifier}
+            placeholder={resolve(component.placeholder) || ''}
+            required={component.required || false}
+            error={error}
+            value={value}
+            type={fieldType}
+            prefixes={component.prefixes}
+            prefixValue={selectedPrefix}
+            onChange={(e: ChangeEvent<HTMLInputElement>): void => onInputChange(identifier, e.target.value)}
+            onBlur={(): void => options.onInputBlur?.(identifier)}
+            onPrefixChange={(newPrefix: string): void => onInputChange(prefixStateKey, newPrefix)}
+            onFocus={(): void => {
+              if (hasPrefixes && formValues[prefixStateKey] === undefined) {
+                onInputChange(prefixStateKey, defaultPrefixValue);
+              }
+              if (hasPostfix && formValues[postfixStateKey] === undefined) {
+                onInputChange(postfixStateKey, component.postfix!);
+              }
+            }}
+          />
+        );
+      }
+
       const field: any = createField({
-        className: options.inputClassName,
+        className: cx(options.inputClassName, component.classes),
         error,
+        id: component.id,
         label: resolve(component.label) || '',
         name: identifier,
         onBlur: () => options.onInputBlur?.(identifier),
@@ -286,8 +335,9 @@ const createAuthComponentFromFlow = (
       const error: string = isTouched ? formErrors[identifier] : undefined!;
 
       const field: any = createField({
-        className: options.inputClassName,
+        className: cx(options.inputClassName, component.classes),
         error,
+        id: component.id,
         label: resolve(component.label) || '',
         name: identifier,
         onBlur: () => options.onInputBlur?.(identifier),
@@ -308,7 +358,17 @@ const createAuthComponentFromFlow = (
       const componentVariant: string = component.variant || '';
 
       // Only validate on submit type events.
-      const shouldSkipValidation: boolean = eventType.toUpperCase() === EmbeddedFlowEventType.Trigger;
+      const shouldSkipValidation: boolean = eventType.toUpperCase() !== EmbeddedFlowEventType.Submit;
+
+      // Determine the button type based on the event type. Default to 'submit' if not recognized.
+      const buttonTypeEnum = {
+        [EmbeddedFlowEventType.Submit]: 'submit',
+        [EmbeddedFlowEventType.Reset]: 'reset',
+        [EmbeddedFlowEventType.Cancel]: 'button',
+        [EmbeddedFlowEventType.Trigger]: 'button',
+        [EmbeddedFlowEventType.Back]: 'button',
+      };
+      const buttonType: HTMLButtonElement['type'] = buttonTypeEnum[eventType.toUpperCase()] ?? 'submit';
 
       const handleClick = (): any => {
         if (options.onSubmit) {
@@ -346,32 +406,47 @@ const createAuthComponentFromFlow = (
             formData['consent_decisions'] = JSON.stringify(decisions);
           }
 
-          options.onSubmit(component, formData, shouldSkipValidation);
+          // For submit events, pass the form data to the onSubmit callback. For other event types, reset the form and call onSubmit with an empty data object.
+          if (eventType.toUpperCase() === EmbeddedFlowEventType.Submit) {
+            options.onSubmit(component, formData, shouldSkipValidation);
+          } else {
+            resetForm();
+            options.onSubmit(component, {}, shouldSkipValidation);
+          }
         }
       };
 
       // Render branded social login buttons for known action IDs
 
+      const socialButtonClassName: string = cx(options.buttonClassName, component.classes);
+
       if (matchesSocialProvider(actionId, eventType, buttonText, 'google', authType, componentVariant)) {
-        return <GoogleButton key={key} onClick={handleClick} className={options.buttonClassName} />;
+        return <GoogleButton key={key} id={component.id} onClick={handleClick} className={socialButtonClassName} />;
       }
       if (matchesSocialProvider(actionId, eventType, buttonText, 'github', authType, componentVariant)) {
-        return <GitHubButton key={key} onClick={handleClick} className={options.buttonClassName} />;
+        return <GitHubButton key={key} id={component.id} onClick={handleClick} className={socialButtonClassName} />;
       }
       if (matchesSocialProvider(actionId, eventType, buttonText, 'facebook', authType, componentVariant)) {
-        return <FacebookButton key={key} onClick={handleClick} className={options.buttonClassName} />;
+        return <FacebookButton key={key} id={component.id} onClick={handleClick} className={socialButtonClassName} />;
       }
       if (matchesSocialProvider(actionId, eventType, buttonText, 'microsoft', authType, componentVariant)) {
-        return <MicrosoftButton key={key} onClick={handleClick} className={options.buttonClassName} />;
+        return <MicrosoftButton key={key} id={component.id} onClick={handleClick} className={socialButtonClassName} />;
       }
       if (matchesSocialProvider(actionId, eventType, buttonText, 'linkedin', authType, componentVariant)) {
-        return <LinkedInButton key={key} onClick={handleClick} className={options.buttonClassName} />;
+        return <LinkedInButton key={key} id={component.id} onClick={handleClick} className={socialButtonClassName} />;
       }
       if (matchesSocialProvider(actionId, eventType, buttonText, 'ethereum', authType, componentVariant)) {
-        return <SignInWithEthereumButton key={key} onClick={handleClick} className={options.buttonClassName} />;
+        return (
+          <SignInWithEthereumButton
+            key={key}
+            id={component.id}
+            onClick={handleClick}
+            className={socialButtonClassName}
+          />
+        );
       }
       if (actionId === 'prompt_mobile' || eventType === 'prompt_mobile') {
-        return <SmsOtpButton key={key} onClick={handleClick} className={options.buttonClassName} />;
+        return <SmsOtpButton key={key} id={component.id} onClick={handleClick} className={socialButtonClassName} />;
       }
 
       const startIconEl: ReactElement | null = component.startIcon ? (
@@ -396,6 +471,7 @@ const createAuthComponentFromFlow = (
         <Button
           fullWidth
           key={key}
+          id={component.id}
           onClick={handleClick}
           disabled={
             isLoading ||
@@ -403,12 +479,13 @@ const createAuthComponentFromFlow = (
             options.isTimeoutDisabled ||
             (component as any).config?.disabled
           }
-          className={options.buttonClassName}
+          className={cx(options.buttonClassName, component.classes)}
           data-testid="thunderid-signin-submit"
           variant={component.variant?.toLowerCase() === 'primary' ? 'solid' : 'outline'}
           color={component.variant?.toLowerCase() === 'primary' ? 'primary' : 'secondary'}
           startIcon={startIconEl}
           endIcon={endIconEl}
+          type={buttonType}
         >
           {buttonText || 'Submit'}
         </Button>
@@ -420,6 +497,8 @@ const createAuthComponentFromFlow = (
       return (
         <Typography
           key={key}
+          id={component.id}
+          className={component.classes}
           variant={variant}
           style={{
             marginBottom: 2,
@@ -451,6 +530,7 @@ const createAuthComponentFromFlow = (
       return (
         <Select
           key={key}
+          id={component.id}
           name={identifier}
           label={resolve(component.label) || ''}
           placeholder={resolve(component.placeholder)}
@@ -460,7 +540,7 @@ const createAuthComponentFromFlow = (
           error={error}
           onChange={(e: any): void => onInputChange(identifier, e.target.value)}
           onBlur={(): any => options.onInputBlur?.(identifier)}
-          className={options.inputClassName}
+          className={cx(options.inputClassName, component.classes)}
         />
       );
     }
@@ -474,6 +554,7 @@ const createAuthComponentFromFlow = (
       return (
         <DatePicker
           key={key}
+          id={component.id}
           name={identifier}
           label={resolve(component.label) || ''}
           placeholder={resolve(component.placeholder)}
@@ -483,29 +564,14 @@ const createAuthComponentFromFlow = (
           error={error}
           onChange={(e: any): void => onInputChange(identifier, e.target.value)}
           onBlur={(): any => options.onInputBlur?.(identifier)}
-          className={options.inputClassName}
+          className={cx(options.inputClassName, component.classes)}
         />
       );
     }
 
     case EmbeddedFlowComponentType.OuSelect: {
-      const identifier: string = component.ref ?? component.id;
-      const rootOuId: string | undefined = options.additionalData?.['rootOuId'] as string | undefined;
-
-      if (!rootOuId || !options.fetchOrganizationUnitChildren) {
-        logger.warn('OU_SELECT requires additionalData.rootOuId and fetchOrganizationUnitChildren. Skipping render.');
-        return null;
-      }
-
-      return (
-        <OrganizationUnitPicker
-          key={key}
-          rootOuId={rootOuId}
-          selectedOuId={formValues[identifier] || null}
-          onSelect={(ouId: string) => onInputChange(identifier, ouId)}
-          fetchChildren={options.fetchOrganizationUnitChildren}
-        />
-      );
+      logger.warn('OU_SELECT component type is not supported. Skipping render.');
+      return null;
     }
 
     case EmbeddedFlowComponentType.Block: {
@@ -525,6 +591,7 @@ const createAuthComponentFromFlow = (
               formErrors,
               isLoading,
               isFormValid,
+              resetForm,
               onInputChange,
               authType,
               {
@@ -536,7 +603,7 @@ const createAuthComponentFromFlow = (
           .filter(Boolean);
 
         return (
-          <form id={component.id} key={key} style={formStyles}>
+          <form id={component.id} key={key} className={component.classes} style={formStyles}>
             {blockComponents}
           </form>
         );
@@ -545,10 +612,69 @@ const createAuthComponentFromFlow = (
     }
 
     case EmbeddedFlowComponentType.RichText: {
+      const richTextAction: EmbeddedFlowComponentAction | undefined = component.action;
+
+      const dispatchRichTextAction = (): void => {
+        if (!richTextAction || !options.onSubmit) {
+          return;
+        }
+        const eventTypeValue = String(richTextAction.eventType ?? EmbeddedFlowEventType.Submit);
+        const shouldSkipValidation: boolean = eventTypeValue.toUpperCase() === String(EmbeddedFlowEventType.Trigger);
+        const syntheticAction: EmbeddedFlowComponent = {
+          eventType: eventTypeValue,
+          id: `${component.id}_action`,
+          ref: richTextAction.ref,
+          type: EmbeddedFlowComponentType.Action,
+        };
+        const formData: Record<string, string> = {};
+        Object.keys(formValues).forEach((field: string) => {
+          formData[field] = formValues[field];
+        });
+        options.onSubmit(syntheticAction, formData, shouldSkipValidation);
+      };
+
+      // Sentinel-anchor contract: only anchors carrying `data-action-ref` equal to
+      // richTextAction.ref dispatch the action. Anchors without the sentinel (or with
+      // a non-matching one) are treated as ordinary links and are ignored here.
+      const isMatchingSentinelAnchor = (anchor: HTMLAnchorElement): boolean =>
+        anchor.getAttribute('data-action-ref') === richTextAction?.ref;
+
+      const handleRichTextClick: React.MouseEventHandler<HTMLDivElement> | undefined = richTextAction
+        ? (event: React.MouseEvent<HTMLDivElement>): void => {
+            const anchor: HTMLAnchorElement | null = (event.target as HTMLElement).closest('a');
+            if (!anchor || !isMatchingSentinelAnchor(anchor)) {
+              return;
+            }
+            event.preventDefault();
+            dispatchRichTextAction();
+          }
+        : undefined;
+
+      const handleRichTextKeyDown: React.KeyboardEventHandler<HTMLDivElement> | undefined = richTextAction
+        ? (event: React.KeyboardEvent<HTMLDivElement>): void => {
+            if (event.key !== 'Enter' && event.key !== ' ') {
+              return;
+            }
+            const anchor: HTMLAnchorElement | null = (event.target as HTMLElement).closest('a');
+            if (!anchor || !isMatchingSentinelAnchor(anchor)) {
+              return;
+            }
+            event.preventDefault();
+            dispatchRichTextAction();
+          }
+        : undefined;
+
       return (
+        // Sentinel anchors are made keyboard-operable via the container's onKeyDown
+        // (Enter/Space activate the matching anchor). Authors should ensure the anchor
+        // is focusable (`href` or `tabIndex`); the click+keydown delegation covers both
+        // pointer and keyboard activation once focus lands on the anchor.
+        // eslint-disable-next-line jsx-a11y/no-static-element-interactions
         <div
           key={key}
           className={richTextClass}
+          onClick={handleRichTextClick}
+          onKeyDown={handleRichTextKeyDown}
           // Manually sanitizes with `DOMPurify`.
           // IMPORTANT: DO NOT REMOVE OR MODIFY THIS SANITIZATION STEP.
           dangerouslySetInnerHTML={{__html: DOMPurify.sanitize(resolveEmojiUrisInHtml(resolve(component.label)))}}
@@ -618,6 +744,7 @@ const createAuthComponentFromFlow = (
               formErrors,
               isLoading,
               isFormValid,
+              resetForm,
               onInputChange,
               authType,
               {
@@ -630,7 +757,7 @@ const createAuthComponentFromFlow = (
         : [];
 
       return (
-        <div key={key} style={stackStyle}>
+        <div key={key} id={component.id} className={component.classes} style={stackStyle}>
           {stackChildren}
         </div>
       );
@@ -682,6 +809,7 @@ export const renderSignInComponents = (
   formErrors: Record<string, string>,
   isLoading: boolean,
   isFormValid: boolean,
+  resetForm: () => void,
   onInputChange: (name: string, value: string) => void,
   options?: {
     /** @internal */
@@ -702,6 +830,8 @@ export const renderSignInComponents = (
     /** Translation function for resolving {{t(...)}} expressions at render time */
     t?: UseTranslation['t'];
     variant?: any;
+    /** Vendor namespace used to derive affix sentinel keys for prefix/postfix-bearing inputs. */
+    vendor?: string;
   },
 ): ReactElement[] =>
   components
@@ -713,6 +843,7 @@ export const renderSignInComponents = (
         formErrors,
         isLoading,
         isFormValid,
+        resetForm,
         onInputChange,
         'signin',
         {
@@ -733,6 +864,7 @@ export const renderSignUpComponents = (
   formErrors: Record<string, string>,
   isLoading: boolean,
   isFormValid: boolean,
+  resetForm: () => void,
   onInputChange: (name: string, value: string) => void,
   options?: {
     /** @internal */
@@ -751,6 +883,8 @@ export const renderSignUpComponents = (
     /** Translation function for resolving {{t(...)}} expressions at render time */
     t?: UseTranslation['t'];
     variant?: any;
+    /** Vendor namespace used to derive affix sentinel keys for prefix/postfix-bearing inputs. */
+    vendor?: string;
   },
 ): ReactElement[] =>
   components
@@ -762,6 +896,7 @@ export const renderSignUpComponents = (
         formErrors,
         isLoading,
         isFormValid,
+        resetForm,
         onInputChange,
         'signup',
         {
@@ -782,6 +917,7 @@ export const renderRecoveryComponents = (
   formErrors: Record<string, string>,
   isLoading: boolean,
   isFormValid: boolean,
+  resetForm: () => void,
   onInputChange: (name: string, value: string) => void,
   options?: {
     /** @internal */
@@ -802,6 +938,8 @@ export const renderRecoveryComponents = (
     /** Translation function for resolving {{t(...)}} expressions at render time */
     t?: UseTranslation['t'];
     variant?: any;
+    /** Vendor namespace used to derive affix sentinel keys for prefix/postfix-bearing inputs. */
+    vendor?: string;
   },
 ): ReactElement[] =>
   components
@@ -813,6 +951,7 @@ export const renderRecoveryComponents = (
         formErrors,
         isLoading,
         isFormValid,
+        resetForm,
         onInputChange,
         'recovery',
         {
@@ -834,6 +973,7 @@ export const renderInviteUserComponents = (
   formErrors: Record<string, string>,
   isLoading: boolean,
   isFormValid: boolean,
+  resetForm: () => void,
   onInputChange: (name: string, value: string) => void,
   options?: {
     /** @internal */
@@ -843,7 +983,7 @@ export const renderInviteUserComponents = (
     /** Additional data from the flow response */
     additionalData?: Record<string, any>;
     buttonClassName?: string;
-    /** Function to fetch child organization units. Used by OU_SELECT component type. */
+    /** Function to fetch child organization units for OU_SELECT components. */
     fetchOrganizationUnitChildren?: (
       parentId: string,
       limit: number,
@@ -858,6 +998,8 @@ export const renderInviteUserComponents = (
     /** Translation function for resolving {{t(...)}} expressions at render time */
     t?: UseTranslation['t'];
     variant?: any;
+    /** Vendor namespace used to derive affix sentinel keys for prefix/postfix-bearing inputs. */
+    vendor?: string;
   },
 ): ReactElement[] =>
   components
@@ -869,6 +1011,7 @@ export const renderInviteUserComponents = (
         formErrors,
         isLoading,
         isFormValid,
+        resetForm,
         onInputChange,
         'signup',
         {

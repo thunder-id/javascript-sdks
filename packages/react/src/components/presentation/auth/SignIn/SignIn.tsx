@@ -227,7 +227,7 @@ const SignIn: FC<SignInProps> = ({
   variant,
   children,
 }: SignInProps): ReactElement => {
-  const {applicationId, afterSignInUrl, signIn, isInitialized, isLoading, meta, getStorageManager, scopes} =
+  const {applicationId, afterSignInUrl, signIn, isInitialized, isLoading, meta, getStorageManager, scopes, vendor} =
     useThunderID();
   const {t} = useTranslation(preferences?.i18n);
 
@@ -262,9 +262,9 @@ const SignIn: FC<SignInProps> = ({
   const setExecutionId = (executionId: string | null): void => {
     setCurrentExecutionId(executionId);
     if (executionId) {
-      sessionStorage.setItem('thunderid_execution_id', executionId);
+      sessionStorage.setItem(`${vendor}_execution_id`, executionId);
     } else {
-      sessionStorage.removeItem('thunderid_execution_id');
+      sessionStorage.removeItem(`${vendor}_execution_id`);
     }
   };
 
@@ -427,10 +427,66 @@ const SignIn: FC<SignInProps> = ({
         const urlParams: any = getUrlParams();
         await handleAuthId(urlParams.authId);
 
-        initiateOAuthRedirect(redirectURL);
+        initiateOAuthRedirect(redirectURL, vendor);
         return true;
       }
     }
+    return false;
+  };
+
+  /**
+   * Handle terminal flow responses (Error and Complete) shared by initializeFlow and handleSubmit.
+   * Throws on an Error status so the caller's catch block can propagate it to BaseSignIn.
+   * Returns true when a Complete status was handled (caller should return), false otherwise.
+   */
+  const handleTerminalResponse = async (response: EmbeddedSignInFlowResponse): Promise<boolean> => {
+    // Handle Error flow status - flow has failed and is invalidated
+    if (response.flowStatus === EmbeddedSignInFlowStatus.Error) {
+      await clearFlowState();
+      const err: any = new Error(extractErrorMessage(response, t));
+      setError(err);
+      cleanupFlowUrlParams();
+      // Throw the error so it's caught by the catch block and propagated to BaseSignIn
+      throw err;
+    }
+
+    if (response.flowStatus === EmbeddedSignInFlowStatus.Complete) {
+      // Get redirectUrl from response (from /oauth2/auth/callback) or fall back to afterSignInUrl
+      const redirectUrl: any = (response as any)?.redirectUrl || (response as any)?.redirect_uri;
+      const finalRedirectUrl: any = redirectUrl || afterSignInUrl;
+
+      // Clear submitting state before redirect
+      setIsSubmitting(false);
+
+      // Clear all OAuth-related storage on successful completion
+      setExecutionId(null);
+      await setChallengeToken(null);
+      setIsFlowInitialized(false);
+      sessionStorage.removeItem(`${vendor}_execution_id`);
+      try {
+        const storageManager: any = await getStorageManager();
+        await storageManager?.removeHybridDataParameter?.('authId');
+      } catch {
+        logger.warn('Failed to clear authId from hybrid storage after completion.');
+      }
+
+      // Clean up OAuth URL params before redirect
+      cleanupOAuthUrlParams(true);
+
+      if (onSuccess) {
+        onSuccess({
+          redirectUrl: finalRedirectUrl,
+          ...(response.data || {}),
+        });
+      }
+
+      if (finalRedirectUrl && window?.location) {
+        window.location.href = finalRedirectUrl;
+      }
+
+      return true;
+    }
+
     return false;
   };
 
@@ -455,7 +511,7 @@ const SignIn: FC<SignInProps> = ({
     // sessionStorage so the in-progress flow can be resumed instead of starting a new flow.
     // This is required for authorization_code apps where direct new-flow initiation is blocked
     // server-side and the flow must be initiated through the OAuth /authorize endpoint.
-    const storedExecutionId: any = !urlParams.executionId ? sessionStorage.getItem('thunderid_execution_id') : null;
+    const storedExecutionId: any = !urlParams.executionId ? sessionStorage.getItem(`${vendor}_execution_id`) : null;
     const resumeExecutionId: any = urlParams.executionId || storedExecutionId;
 
     if (!resumeExecutionId && !effectiveApplicationId) {
@@ -525,6 +581,13 @@ const SignIn: FC<SignInProps> = ({
       }
 
       if (await handleRedirection(response)) {
+        return;
+      }
+
+      // Handle a flow that completes (or errors) on the very first step — e.g. a reused SSO
+      // session lets the backend return COMPLETE immediately with no UI components. Without
+      // this the UI would fall through with no components and spin forever.
+      if (await handleTerminalResponse(response)) {
         return;
       }
 
@@ -764,50 +827,8 @@ const SignIn: FC<SignInProps> = ({
         meta,
       );
 
-      // Handle Error flow status - flow has failed and is invalidated
-      if (response.flowStatus === EmbeddedSignInFlowStatus.Error) {
-        await clearFlowState();
-        const err: any = new Error(extractErrorMessage(response, t));
-        setError(err);
-        cleanupFlowUrlParams();
-        // Throw the error so it's caught by the catch block and propagated to BaseSignIn
-        throw err;
-      }
-
-      if (response.flowStatus === EmbeddedSignInFlowStatus.Complete) {
-        // Get redirectUrl from response (from /oauth2/auth/callback) or fall back to afterSignInUrl
-        const redirectUrl: any = (response as any)?.redirectUrl || (response as any)?.redirect_uri;
-        const finalRedirectUrl: any = redirectUrl || afterSignInUrl;
-
-        // Clear submitting state before redirect
-        setIsSubmitting(false);
-
-        // Clear all OAuth-related storage on successful completion
-        setExecutionId(null);
-        await setChallengeToken(null);
-        setIsFlowInitialized(false);
-        sessionStorage.removeItem('thunderid_execution_id');
-        try {
-          const storageManager: any = await getStorageManager();
-          await storageManager?.removeHybridDataParameter?.('authId');
-        } catch {
-          logger.warn('Failed to clear authId from hybrid storage after completion.');
-        }
-
-        // Clean up OAuth URL params before redirect
-        cleanupOAuthUrlParams(true);
-
-        if (onSuccess) {
-          onSuccess({
-            redirectUrl: finalRedirectUrl,
-            ...(response.data || {}),
-          });
-        }
-
-        if (finalRedirectUrl && window?.location) {
-          window.location.href = finalRedirectUrl;
-        }
-
+      // Handle terminal flow statuses (Error throws, Complete redirects and returns true).
+      if (await handleTerminalResponse(response)) {
         return;
       }
 
@@ -857,6 +878,7 @@ const SignIn: FC<SignInProps> = ({
 
   useOAuthCallback({
     currentExecutionId,
+    executionIdStorageKey: `${vendor}_execution_id`,
     isInitialized: isInitialized && !isLoading && isStorageReady,
     isSubmitting,
     onError: (err: any) => {

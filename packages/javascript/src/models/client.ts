@@ -18,7 +18,6 @@
 
 import type {CIBAInitiateOptions, CIBAInitiateResponse, CIBAPollOptions} from './ciba';
 import {SignInOptions, SignOutOptions, SignUpOptions} from './config';
-import {Organization, AllOrganizationsApiResponse} from './organization';
 import {Storage} from './store';
 import {TokenExchangeRequestConfig, TokenResponse} from './token';
 import {User, UserProfile} from './user';
@@ -62,31 +61,10 @@ export interface ThunderIDClient<T> {
   getAccessToken(sessionId?: string): Promise<string>;
 
   /**
-   * Gets all organizations available to the user.
-   * @param options - Optional parameters for the request.
-   * @param sessionId - Optional session ID to be used for the request.
-   */
-  getAllOrganizations(options?: any, sessionId?: string): Promise<AllOrganizationsApiResponse>;
-
-  /**
    * Gets the client configuration.
    * @returns The client configuration.
    */
   getConfiguration(): T;
-
-  /**
-   * Gets the current organization of the user.
-   *
-   * @returns The current organization if available, otherwise null.
-   */
-  getCurrentOrganization(sessionId?: string): Promise<Organization | null>;
-
-  /**
-   * Gets the current signed-in user's associated organizations.
-   *
-   * @returns Associated organizations.
-   */
-  getMyOrganizations(options?: any, sessionId?: string): Promise<Organization[]>;
 
   /**
    * Gets user information from the session.
@@ -219,13 +197,6 @@ export interface ThunderIDClient<T> {
    * @returns Promise resolving when sign-up is complete.
    */
   signUp(options?: SignUpOptions): Promise<void>;
-
-  /**
-   * Switches the current organization to the specified one.
-   * @param organization - The organization to switch to.
-   * @returns A promise that resolves when the switch is complete.
-   */
-  switchOrganization(organization: Organization, sessionId?: string): Promise<TokenResponse | Response>;
 
   /**
    * Updates the user profile with the provided payload.

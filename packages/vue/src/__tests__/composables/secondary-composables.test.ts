@@ -20,19 +20,12 @@ import {mount} from '@vue/test-utils';
 
 import {describe, expect, it, vi} from 'vitest';
 import {defineComponent, h, ref} from 'vue';
-import useBranding from '../../composables/useBranding';
 import useFlow from '../../composables/useFlow';
 import useFlowMeta from '../../composables/useFlowMeta';
 import useI18n from '../../composables/useI18n';
 import useTheme from '../../composables/useTheme';
-import {FLOW_KEY, FLOW_META_KEY, THEME_KEY, BRANDING_KEY, I18N_KEY} from '../../keys';
-import type {
-  FlowContextValue,
-  FlowMetaContextValue,
-  ThemeContextValue,
-  BrandingContextValue,
-  I18nContextValue,
-} from '../../models/contexts';
+import {FLOW_KEY, FLOW_META_KEY, THEME_KEY, I18N_KEY} from '../../keys';
+import type {FlowContextValue, FlowMetaContextValue, ThemeContextValue, I18nContextValue} from '../../models/contexts';
 
 describe('useFlow', () => {
   it('should return the FlowContextValue when called inside a provider', () => {
@@ -157,49 +150,6 @@ describe('useTheme', () => {
     expect(() => {
       mount(TestChild);
     }).toThrow('[ThunderID] useTheme() was called outside of <ThunderIDProvider>');
-  });
-});
-
-describe('useBranding', () => {
-  it('should return the BrandingContextValue when called inside a provider', () => {
-    const mockContext: Partial<BrandingContextValue> = {
-      brandingPreference: ref(null) as any,
-      theme: ref(null) as any,
-      isLoading: ref(false) as any,
-      error: ref(null) as any,
-      refetch: vi.fn(),
-    };
-    let result: BrandingContextValue | undefined;
-
-    const TestChild = defineComponent({
-      setup() {
-        result = useBranding();
-        return () => h('div', 'test');
-      },
-    });
-
-    mount(TestChild, {
-      global: {
-        provide: {
-          [BRANDING_KEY as symbol]: mockContext,
-        },
-      },
-    });
-
-    expect(result).toBeDefined();
-  });
-
-  it('should throw an error when called outside of ThunderIDProvider', () => {
-    const TestChild = defineComponent({
-      setup() {
-        useBranding();
-        return () => h('div', 'test');
-      },
-    });
-
-    expect(() => {
-      mount(TestChild);
-    }).toThrow('[ThunderID] useBranding() was called outside of <ThunderIDProvider>');
   });
 });
 

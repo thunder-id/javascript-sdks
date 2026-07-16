@@ -25,7 +25,7 @@ const USERSTORE_PREFIX_REGEX = /^[A-Z_][A-Z0-9_]*\//;
 
 /**
  * Removes userstore prefixes from a username if they exist.
- * This is commonly used to clean usernames returned from SCIM2 endpoints
+ * This is commonly used to clean usernames returned from profile endpoints
  * that include userstore prefixes like "DEFAULT/", "ASGARDEO_USER/", "PRIMARY/", etc.
  *
  * @param username - The username string to process
@@ -59,7 +59,7 @@ export const removeUserstorePrefix = (username?: string): string => {
 
 /**
  * Processes a user object to remove userstore prefixes from username fields.
- * This is a helper function for processing user objects returned from SCIM2 endpoints.
+ * This is a helper function for processing user objects returned from profile endpoints.
  * Handles various username field variations: username, userName, and user_name.
  *
  * @param user - The user object to process

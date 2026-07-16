@@ -56,6 +56,10 @@ export interface TypographyProps {
    */
   gutterBottom?: boolean;
   /**
+   * HTML id attribute
+   */
+  id?: string;
+  /**
    * Whether the text should be displayed inline
    */
   inline?: boolean;

@@ -20,22 +20,24 @@ import {AuthClientConfig} from './models/config';
 import {OIDCDiscoveryApiResponse} from './models/oidc-discovery';
 import {SessionData} from './models/session';
 import {Stores, Storage, TemporaryStore, HybridStore, TemporaryStoreValue} from './models/store';
+import VendorConstants from './constants/VendorConstants';
 import logger from './utils/logger';
 
 type PartialData<T> = Partial<
   AuthClientConfig<T> | OIDCDiscoveryApiResponse | SessionData | TemporaryStore | HybridStore
 >;
 
-export const THUNDERID_SESSION_ACTIVE = 'thunderid-session-active';
-
 class StorageManager<T> {
   protected id: string;
 
   protected store: Storage;
 
-  public constructor(instanceID: string, store: Storage) {
+  protected vendor: string;
+
+  public constructor(instanceID: string, store: Storage, vendor: string = VendorConstants.VENDOR_PREFIX) {
     this.id = instanceID;
     this.store = store;
+    this.vendor = vendor;
   }
 
   protected async setDataInBulk(key: string, data: PartialData<T>): Promise<void> {
@@ -93,7 +95,7 @@ class StorageManager<T> {
 
   protected static isLocalStorageAvailable(): boolean {
     try {
-      const testValue = '__THUNDERID_AUTH_CORE_LOCAL_STORAGE_TEST__';
+      const testValue = '__AUTH_SDK_STORAGE_TEST__';
 
       localStorage.setItem(testValue, testValue);
       localStorage.removeItem(testValue);
@@ -208,17 +210,19 @@ class StorageManager<T> {
   public setSessionStatus(status: string): void {
     // Using local storage to store the session status as it is required to be available across tabs.
     if (StorageManager.isLocalStorageAvailable()) {
-      localStorage.setItem(`${THUNDERID_SESSION_ACTIVE}`, status);
+      localStorage.setItem(`${this.vendor}-session-active`, status);
     }
   }
 
   public getSessionStatus(): string {
-    return StorageManager.isLocalStorageAvailable() ? (localStorage.getItem(`${THUNDERID_SESSION_ACTIVE}`) ?? '') : '';
+    return StorageManager.isLocalStorageAvailable()
+      ? (localStorage.getItem(`${this.vendor}-session-active`) ?? '')
+      : '';
   }
 
   public removeSessionStatus(): void {
     if (StorageManager.isLocalStorageAvailable()) {
-      localStorage.removeItem(`${THUNDERID_SESSION_ACTIVE}`);
+      localStorage.removeItem(`${this.vendor}-session-active`);
     }
   }
 

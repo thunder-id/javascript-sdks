@@ -16,8 +16,6 @@
  * under the License.
  */
 
-import {Schema} from './scim2-schema';
-
 export interface KnownUser {
   displayName?: string;
   email?: string;
@@ -33,5 +31,4 @@ export interface User extends KnownUser {
 export interface UserProfile {
   flattenedProfile: User;
   profile: User;
-  schemas: Schema[];
 }

@@ -16,8 +16,9 @@
  * under the License.
  */
 
-import {navigate as browserNavigate} from '@thunderid/browser';
-import {FC, useEffect, useRef} from 'react';
+import {navigate as browserNavigate, getVendorPrefix} from '@thunderid/browser';
+import {FC, useContext, useEffect, useRef} from 'react';
+import ThunderIDContext from '../../../contexts/ThunderID/ThunderIDContext';
 
 /**
  * Props for Callback component
@@ -55,6 +56,11 @@ export interface OAuthCallbackProps {
 export const OAuthCallback: FC<OAuthCallbackProps> = ({onNavigate, onError}: OAuthCallbackProps) => {
   // Prevent double execution in React Strict Mode
   const processingRef: any = useRef(false);
+
+  // Read the vendor prefix directly from context (rather than the throwing useThunderID hook)
+  // so this component keeps working standalone, without a ThunderIDProvider ancestor.
+  const thunderIDContext = useContext(ThunderIDContext);
+  const vendor: string = getVendorPrefix(thunderIDContext?.vendor);
 
   // Resolve navigation: use provided onNavigate (router-aware) or fall back to browser navigate utility
   const navigate = (path: string): void => {
@@ -98,7 +104,7 @@ export const OAuthCallback: FC<OAuthCallbackProps> = ({onNavigate, onError}: OAu
           throw new Error('Missing OAuth state parameter - possible security issue');
         }
 
-        const storedData: string | null = sessionStorage.getItem(`thunderid_oauth_${state}`);
+        const storedData: string | null = sessionStorage.getItem(`${vendor}_oauth_${state}`);
         if (!storedData) {
           // If state not found, might be an error callback - try to handle gracefully
           if (oauthError) {
@@ -124,12 +130,12 @@ export const OAuthCallback: FC<OAuthCallbackProps> = ({onNavigate, onError}: OAu
         // 3. Validate state freshness
         const MAX_STATE_AGE = 600000; // 10 minutes
         if (Date.now() - timestamp > MAX_STATE_AGE) {
-          sessionStorage.removeItem(`thunderid_oauth_${state}`);
+          sessionStorage.removeItem(`${vendor}_oauth_${state}`);
           throw new Error('OAuth state expired - please try again');
         }
 
         // 4. Clean up state
-        sessionStorage.removeItem(`thunderid_oauth_${state}`);
+        sessionStorage.removeItem(`${vendor}_oauth_${state}`);
 
         // 5. Handle OAuth error response
         if (oauthError) {
@@ -178,7 +184,7 @@ export const OAuthCallback: FC<OAuthCallbackProps> = ({onNavigate, onError}: OAu
     };
 
     processOAuthCallback();
-  }, [onNavigate, onError]);
+  }, [onNavigate, onError, vendor]);
 
   // Headless component - no UI, just processing logic
   return null;

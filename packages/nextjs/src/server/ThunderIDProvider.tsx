@@ -18,15 +18,19 @@
 
 'use server';
 
-import {BrandingPreference, ThunderIDRuntimeError, IdToken, Organization, User, UserProfile} from '@thunderid/node';
+import {
+  ThunderIDRuntimeError,
+  FlowMetadataResponse,
+  FlowMetaType,
+  IdToken,
+  User,
+  UserProfile,
+  getFlowMeta,
+  extractUserClaimsFromIdToken,
+} from '@thunderid/node';
 import {ThunderIDProviderProps} from '@thunderid/react';
 import {FC, PropsWithChildren, ReactElement} from 'react';
 import clearSession from './actions/clearSession';
-import createOrganization from './actions/createOrganization';
-import getAllOrganizations from './actions/getAllOrganizations';
-import getBrandingPreference from './actions/getBrandingPreference';
-import getCurrentOrganizationAction from './actions/getCurrentOrganizationAction';
-import getMyOrganizations from './actions/getMyOrganizations';
 import getSessionId from './actions/getSessionId';
 import getSessionPayload from './actions/getSessionPayload';
 import getUserAction from './actions/getUserAction';
@@ -37,7 +41,6 @@ import refreshToken from './actions/refreshToken';
 import signInAction from './actions/signInAction';
 import signOutAction from './actions/signOutAction';
 import signUpAction from './actions/signUpAction';
-import switchOrganization from './actions/switchOrganization';
 import updateUserProfileAction from './actions/updateUserProfileAction';
 import getClient from './getClient';
 import ThunderIDClientProvider from '../client/contexts/ThunderID/ThunderIDProvider.js';
@@ -112,6 +115,19 @@ const ThunderIDServerProvider: FC<PropsWithChildren<ThunderIDServerProviderProps
     return <></>;
   }
 
+  // Fetch flow metadata (design config + i18n bundle) server-side so `FlowMetaProvider` can seed
+  // its state and skip a redundant client-side fetch — avoiding a flash of untranslated i18n keys
+  // (e.g. raw `signin.forms.credentials.title`) while embedded flow components first render.
+  let flowMeta: FlowMetadataResponse | null = null;
+  try {
+    flowMeta = await getFlowMeta({
+      baseUrl: config?.baseUrl,
+      ...(config?.applicationId ? {id: config.applicationId, type: FlowMetaType.App} : {}),
+    });
+  } catch (error) {
+    logger.warn('[ThunderIDServerProvider] Failed to fetch flow metadata:', error?.toString());
+  }
+
   // Try to get session information from JWT first, then fall back to legacy
   const sessionPayload: SessionTokenPayload | undefined = await getSessionPayload();
   const sessionId: string = sessionPayload?.sessionId || (await getSessionId()) || '';
@@ -121,15 +137,16 @@ const ThunderIDServerProvider: FC<PropsWithChildren<ThunderIDServerProviderProps
   let userProfile: UserProfile = {
     flattenedProfile: {},
     profile: {},
-    schemas: [],
   };
-  let currentOrganization: Organization = {
-    id: '',
-    name: '',
-    orgHandle: '',
+
+  const resolvedPreferences = {
+    ...config?.preferences,
+    ..._config.preferences,
+    user: {
+      ...config?.preferences?.user,
+      ..._config.preferences?.user,
+    },
   };
-  let myOrganizations: Organization[] = [];
-  let brandingPreference: BrandingPreference | null = null;
 
   if (signedIn) {
     let updatedBaseUrl: string | undefined = config?.baseUrl;
@@ -150,9 +167,7 @@ const ThunderIDServerProvider: FC<PropsWithChildren<ThunderIDServerProviderProps
     }
 
     // Check if user profile fetching is enabled (default: true)
-    const shouldFetchUserProfile: boolean = config?.preferences?.user?.fetchUserProfile !== false;
-    // Check if organization fetching is enabled (default: true)
-    const shouldFetchOrganizations: boolean = config?.preferences?.user?.fetchOrganizations !== false;
+    const shouldFetchUserProfile: boolean = resolvedPreferences?.user?.fetchUserProfile !== false;
 
     if (shouldFetchUserProfile) {
       try {
@@ -170,46 +185,20 @@ const ThunderIDServerProvider: FC<PropsWithChildren<ThunderIDServerProviderProps
         user = userResponse.data?.user || {};
         userProfile = userProfileResponse.data?.userProfile ?? userProfile;
       } catch (error) {
-        logger.warn('[ThunderIDServerProvider] Failed to fetch user profile from SCIM2:', error?.toString());
+        logger.warn('[ThunderIDServerProvider] Failed to fetch user profile from /users/me:', error?.toString());
       }
-    }
-
-    if (shouldFetchOrganizations) {
+    } else {
       try {
-        const currentOrganizationResponse: {
-          data: {organization?: Organization; user?: Record<string, unknown>};
-          error: string | null;
-          success: boolean;
-        } = await getCurrentOrganizationAction(sessionId);
-
-        if (sessionId) {
-          myOrganizations = await getMyOrganizations({}, sessionId);
-        } else {
-          logger.warn('[ThunderIDServerProvider] No session ID available, skipping organization fetch');
-        }
-
-        currentOrganization = currentOrganizationResponse?.data?.organization!;
+        const decodedIdToken: IdToken = await thunderIDClient.getDecodedIdToken(sessionId);
+        const claims = extractUserClaimsFromIdToken(decodedIdToken);
+        user = claims;
+        userProfile = {
+          flattenedProfile: claims,
+          profile: claims,
+        };
       } catch (error) {
-        logger.warn('[ThunderIDServerProvider] Failed to fetch organization info:', error?.toString());
+        logger.warn('[ThunderIDServerProvider] Failed to extract user claims from ID token:', error?.toString());
       }
-    }
-  }
-
-  // Fetch branding preference if branding is enabled in config
-  if (config?.preferences?.theme?.inheritFromBranding !== false) {
-    try {
-      brandingPreference = await getBrandingPreference(
-        {
-          baseUrl: config?.baseUrl!,
-          locale: 'en-US',
-          name: config.applicationId || config.organizationHandle,
-          type: config.applicationId ? 'APP' : 'ORG',
-        },
-        sessionId,
-      );
-    } catch (error) {
-      // eslint-disable-next-line no-console
-      console.warn('[ThunderIDServerProvider] Failed to fetch branding preference:', error);
     }
   }
 
@@ -218,6 +207,7 @@ const ThunderIDServerProvider: FC<PropsWithChildren<ThunderIDServerProviderProps
       organizationHandle={config?.organizationHandle}
       applicationId={config?.applicationId}
       baseUrl={config?.baseUrl}
+      initialMeta={flowMeta}
       signIn={signInAction}
       clearSession={clearSession}
       refreshToken={refreshToken}
@@ -226,18 +216,12 @@ const ThunderIDServerProvider: FC<PropsWithChildren<ThunderIDServerProviderProps
       handleOAuthCallback={handleOAuthCallbackAction}
       signInUrl={config?.signInUrl}
       signUpUrl={config?.signUpUrl}
-      preferences={config?.preferences}
+      preferences={resolvedPreferences}
       clientId={config?.clientId}
       user={user}
-      currentOrganization={currentOrganization}
       userProfile={userProfile}
       updateProfile={updateUserProfileAction}
       isSignedIn={signedIn}
-      myOrganizations={myOrganizations}
-      getAllOrganizations={getAllOrganizations}
-      switchOrganization={switchOrganization}
-      brandingPreference={brandingPreference}
-      createOrganization={createOrganization}
     >
       {children}
     </ThunderIDClientProvider>

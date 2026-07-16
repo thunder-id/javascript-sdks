@@ -3,7 +3,7 @@
 # SDKs at the same dependency level run concurrently; push conflicts are
 # handled by a retry-with-rebase loop in the publish step.
 
-name: 🧩 Release SDKs
+name: 🚀 Release
 
 on:
   workflow_dispatch:
@@ -146,7 +146,7 @@ jobs:
           echo "version=$(node -p "require('./package.json').version")" >> $GITHUB_OUTPUT
 
       - name: 🔨 Build
-        run: pnpm nx run @thunderid/javascript:build
+        run: pnpm turbo run build --filter=@thunderid/javascript
 
       - name: 📤 Commit, Tag & Push
         run: |
@@ -168,6 +168,14 @@ jobs:
         working-directory: packages/javascript
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: 🚀 Create GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.THUNDERID_AUTOMATION_BOT }}
+        run: |
+          gh release create "sdk/javascript/v${{ steps.bump.outputs.version }}" \
+            --title "ThunderID JavaScript SDK v${{ steps.bump.outputs.version }}" \
+            --generate-notes
 
   # ── Level 1: depends on javascript ─────────────────────────────────────────
   release-browser:
@@ -204,7 +212,7 @@ jobs:
           echo "version=$(node -p "require('./package.json').version")" >> $GITHUB_OUTPUT
 
       - name: 🔨 Build
-        run: pnpm nx run @thunderid/browser:build
+        run: pnpm turbo run build --filter=@thunderid/browser
 
       - name: 📤 Commit, Tag & Push
         run: |
@@ -226,6 +234,22 @@ jobs:
         working-directory: packages/browser
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: 📦 Pack Sample
+        id: pack
+        uses: ./.github/actions/pack-sample
+        with:
+          sdk: browser
+          version: ${{ steps.bump.outputs.version }}
+
+      - name: 🚀 Create GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.THUNDERID_AUTOMATION_BOT }}
+        run: |
+          gh release create "sdk/browser/v${{ steps.bump.outputs.version }}" \
+            --title "ThunderID Browser SDK v${{ steps.bump.outputs.version }}" \
+            --generate-notes \
+            "${{ steps.pack.outputs.archive }}"
 
   release-node:
     name: 🟢 Release @thunderid/node
@@ -261,7 +285,7 @@ jobs:
           echo "version=$(node -p "require('./package.json').version")" >> $GITHUB_OUTPUT
 
       - name: 🔨 Build
-        run: pnpm nx run @thunderid/node:build
+        run: pnpm turbo run build --filter=@thunderid/node
 
       - name: 📤 Commit, Tag & Push
         run: |
@@ -283,6 +307,14 @@ jobs:
         working-directory: packages/node
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: 🚀 Create GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.THUNDERID_AUTOMATION_BOT }}
+        run: |
+          gh release create "sdk/node/v${{ steps.bump.outputs.version }}" \
+            --title "ThunderID Node SDK v${{ steps.bump.outputs.version }}" \
+            --generate-notes
 
   # ── Level 2: depends on browser / node ─────────────────────────────────────
   release-express:
@@ -319,7 +351,7 @@ jobs:
           echo "version=$(node -p "require('./package.json').version")" >> $GITHUB_OUTPUT
 
       - name: 🔨 Build
-        run: pnpm nx run @thunderid/express:build
+        run: pnpm turbo run build --filter=@thunderid/express
 
       - name: 📤 Commit, Tag & Push
         run: |
@@ -341,6 +373,22 @@ jobs:
         working-directory: packages/express
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: 📦 Pack Sample
+        id: pack
+        uses: ./.github/actions/pack-sample
+        with:
+          sdk: express
+          version: ${{ steps.bump.outputs.version }}
+
+      - name: 🚀 Create GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.THUNDERID_AUTOMATION_BOT }}
+        run: |
+          gh release create "sdk/express/v${{ steps.bump.outputs.version }}" \
+            --title "ThunderID Express SDK v${{ steps.bump.outputs.version }}" \
+            --generate-notes \
+            "${{ steps.pack.outputs.archive }}"
 
   release-react:
     name: ⚛️ Release @thunderid/react
@@ -376,7 +424,7 @@ jobs:
           echo "version=$(node -p "require('./package.json').version")" >> $GITHUB_OUTPUT
 
       - name: 🔨 Build
-        run: pnpm nx run @thunderid/react:build
+        run: pnpm turbo run build --filter=@thunderid/react
 
       - name: 📤 Commit, Tag & Push
         run: |
@@ -398,6 +446,22 @@ jobs:
         working-directory: packages/react
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: 📦 Pack Sample
+        id: pack
+        uses: ./.github/actions/pack-sample
+        with:
+          sdk: react
+          version: ${{ steps.bump.outputs.version }}
+
+      - name: 🚀 Create GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.THUNDERID_AUTOMATION_BOT }}
+        run: |
+          gh release create "sdk/react/v${{ steps.bump.outputs.version }}" \
+            --title "ThunderID React SDK v${{ steps.bump.outputs.version }}" \
+            --generate-notes \
+            "${{ steps.pack.outputs.archive }}"
 
   release-vue:
     name: 🟩 Release @thunderid/vue
@@ -433,7 +497,7 @@ jobs:
           echo "version=$(node -p "require('./package.json').version")" >> $GITHUB_OUTPUT
 
       - name: 🔨 Build
-        run: pnpm nx run @thunderid/vue:build
+        run: pnpm turbo run build --filter=@thunderid/vue
 
       - name: 📤 Commit, Tag & Push
         run: |
@@ -456,8 +520,24 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
-  release-svelte:
-    name: 🧡 Release @thunderid/svelte
+      - name: 📦 Pack Sample
+        id: pack
+        uses: ./.github/actions/pack-sample
+        with:
+          sdk: vue
+          version: ${{ steps.bump.outputs.version }}
+
+      - name: 🚀 Create GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.THUNDERID_AUTOMATION_BOT }}
+        run: |
+          gh release create "sdk/vue/v${{ steps.bump.outputs.version }}" \
+            --title "ThunderID Vue SDK v${{ steps.bump.outputs.version }}" \
+            --generate-notes \
+            "${{ steps.pack.outputs.archive }}"
+
+  release-sveltekit:
+    name: 🧡 Release @thunderid/sveltekit
     needs: [validate, release-browser]
     if: ${{ always() && needs.validate.result == 'success' && (needs.release-browser.result == 'success' || needs.release-browser.result == 'skipped') && github.event.inputs.sdk_svelte == 'true' }}
     runs-on: ubuntu-latest
@@ -485,31 +565,31 @@ jobs:
       - name: 🏷️ Bump Version
         id: bump
         run: |
-          cd packages/svelte
+          cd packages/sveltekit
           pnpm version ${{ github.event.inputs.bump_type }} --no-git-tag-version
           echo "version=$(node -p "require('./package.json').version")" >> $GITHUB_OUTPUT
 
       - name: 🔨 Build
-        run: pnpm nx run @thunderid/svelte:build
+        run: pnpm turbo run build --filter=@thunderid/sveltekit
 
       - name: 📤 Commit, Tag & Push
         run: |
           git config user.name "${{ env.RELEASE_GIT_USER_NAME }}"
           git config user.email "${{ env.RELEASE_GIT_USER_EMAIL }}"
-          git add packages/svelte/package.json
-          git diff --cached --quiet || git commit -m "[Release] @thunderid/svelte@${{ steps.bump.outputs.version }}"
+          git add packages/sveltekit/package.json
+          git diff --cached --quiet || git commit -m "[Release] @thunderid/sveltekit@${{ steps.bump.outputs.version }}"
           for i in $(seq 1 5); do
             git pull --rebase origin ${{ github.ref_name }}
             git push origin HEAD:${{ github.ref_name }} && break
             [ "$i" -eq 5 ] && exit 1
             sleep $((i * 3))
           done
-          git tag "sdk/svelte/v${{ steps.bump.outputs.version }}"
-          git push origin "sdk/svelte/v${{ steps.bump.outputs.version }}"
+          git tag "sdk/sveltekit/v${{ steps.bump.outputs.version }}"
+          git push origin "sdk/sveltekit/v${{ steps.bump.outputs.version }}"
 
       - name: 📦 Publish to npm
         run: pnpm publish --no-git-checks --access public --provenance
-        working-directory: packages/svelte
+        working-directory: packages/sveltekit
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
@@ -548,7 +628,7 @@ jobs:
           echo "version=$(node -p "require('./package.json').version")" >> $GITHUB_OUTPUT
 
       - name: 🔨 Build
-        run: pnpm nx run @thunderid/react-router:build
+        run: pnpm turbo run build --filter=@thunderid/react-router
 
       - name: 📤 Commit, Tag & Push
         run: |
@@ -570,6 +650,14 @@ jobs:
         working-directory: packages/react-router
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: 🚀 Create GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.THUNDERID_AUTOMATION_BOT }}
+        run: |
+          gh release create "sdk/react-router/v${{ steps.bump.outputs.version }}" \
+            --title "ThunderID React Router SDK v${{ steps.bump.outputs.version }}" \
+            --generate-notes
 
   release-tanstack-router:
     name: 🔱 Release @thunderid/tanstack-router
@@ -605,7 +693,7 @@ jobs:
           echo "version=$(node -p "require('./package.json').version")" >> $GITHUB_OUTPUT
 
       - name: 🔨 Build
-        run: pnpm nx run @thunderid/tanstack-router:build
+        run: pnpm turbo run build --filter=@thunderid/tanstack-router
 
       - name: 📤 Commit, Tag & Push
         run: |
@@ -627,6 +715,14 @@ jobs:
         working-directory: packages/tanstack-router
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: 🚀 Create GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.THUNDERID_AUTOMATION_BOT }}
+        run: |
+          gh release create "sdk/tanstack-router/v${{ steps.bump.outputs.version }}" \
+            --title "ThunderID TanStack Router SDK v${{ steps.bump.outputs.version }}" \
+            --generate-notes
 
   release-nextjs:
     name: ▲ Release @thunderid/nextjs
@@ -662,7 +758,7 @@ jobs:
           echo "version=$(node -p "require('./package.json').version")" >> $GITHUB_OUTPUT
 
       - name: 🔨 Build
-        run: pnpm nx run @thunderid/nextjs:build
+        run: pnpm turbo run build --filter=@thunderid/nextjs
 
       - name: 📤 Commit, Tag & Push
         run: |
@@ -684,6 +780,22 @@ jobs:
         working-directory: packages/nextjs
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: 📦 Pack Sample
+        id: pack
+        uses: ./.github/actions/pack-sample
+        with:
+          sdk: nextjs
+          version: ${{ steps.bump.outputs.version }}
+
+      - name: 🚀 Create GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.THUNDERID_AUTOMATION_BOT }}
+        run: |
+          gh release create "sdk/nextjs/v${{ steps.bump.outputs.version }}" \
+            --title "ThunderID Next.js SDK v${{ steps.bump.outputs.version }}" \
+            --generate-notes \
+            "${{ steps.pack.outputs.archive }}"
 
   release-nuxt:
     name: 💚 Release @thunderid/nuxt
@@ -719,7 +831,7 @@ jobs:
           echo "version=$(node -p "require('./package.json').version")" >> $GITHUB_OUTPUT
 
       - name: 🔨 Build
-        run: pnpm nx run @thunderid/nuxt:build
+        run: pnpm turbo run build --filter=@thunderid/nuxt
 
       - name: 📤 Commit, Tag & Push
         run: |
@@ -741,3 +853,19 @@ jobs:
         working-directory: packages/nuxt
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: 📦 Pack Sample
+        id: pack
+        uses: ./.github/actions/pack-sample
+        with:
+          sdk: nuxt
+          version: ${{ steps.bump.outputs.version }}
+
+      - name: 🚀 Create GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.THUNDERID_AUTOMATION_BOT }}
+        run: |
+          gh release create "sdk/nuxt/v${{ steps.bump.outputs.version }}" \
+            --title "ThunderID Nuxt SDK v${{ steps.bump.outputs.version }}" \
+            --generate-notes \
+            "${{ steps.pack.outputs.archive }}"

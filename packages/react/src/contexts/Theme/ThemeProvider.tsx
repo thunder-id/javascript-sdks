@@ -26,11 +26,6 @@ import FlowMetaContext, {FlowMetaContextValue} from '../FlowMeta/FlowMetaContext
 
 export interface ThemeProviderProps {
   /**
-   * When true, seeds the theme from the nearest BrandingContext if no flow meta theme is available.
-   */
-  inheritFromBranding?: boolean;
-
-  /**
    * Initial color scheme override. Overrides the server default when provided.
    */
   mode?: ThemeMode;
@@ -150,11 +145,8 @@ const ThemeProvider: FC<PropsWithChildren<ThemeProviderProps>> = ({
   }, [direction]);
 
   const value: any = {
-    brandingError: error,
     colorScheme,
     direction,
-    inheritFromBranding: false,
-    isBrandingLoading: isLoading,
     theme,
     toggleTheme,
   };

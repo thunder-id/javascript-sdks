@@ -17,36 +17,30 @@
  */
 
 import {
-  AllOrganizationsApiResponse,
   ThunderIDRuntimeError,
   generateFlattenedUserProfile,
   OIDCDiscoveryApiResponse,
-  Organization,
   SignInOptions,
   User,
   UserProfile,
-  getBrandingPreference,
-  GetBrandingPreferenceConfig,
-  BrandingPreference,
   IdToken,
   extractUserClaimsFromIdToken,
   EmbeddedSignInFlowResponse,
-  TokenResponse,
   createPackageComponentLogger,
+  getVendorPrefix,
 } from '@thunderid/browser';
 import {FC, RefObject, PropsWithChildren, ReactElement, useEffect, useMemo, useRef, useState, useCallback} from 'react';
 import ThunderIDContext from './ThunderIDContext';
 import useBrowserUrl from '../../hooks/useBrowserUrl';
 import {ThunderIDReactConfig} from '../../models/config';
 import ThunderIDReactClient from '../../ThunderIDReactClient';
-import BrandingProvider from '../Branding/BrandingProvider';
 import ComponentRendererProvider from '../ComponentRenderer/ComponentRendererProvider';
 import FlowProvider from '../Flow/FlowProvider';
 import FlowMetaProvider from '../FlowMeta/FlowMetaProvider';
 import I18nProvider from '../I18n/I18nProvider';
-import OrganizationProvider from '../Organization/OrganizationProvider';
 import ThemeProvider from '../Theme/ThemeProvider';
 import UserProvider from '../User/UserProvider';
+import getUsersMe from '../../api/getUsersMe';
 
 const logger: ReturnType<typeof createPackageComponentLogger> = createPackageComponentLogger(
   '@thunderid/react',
@@ -83,13 +77,10 @@ const ThunderIDProvider: FC<PropsWithChildren<ThunderIDProviderProps>> = ({
   const storageManagerRef: any = useRef<any>(null);
   const {hasAuthParams, hasCalledForThisInstance} = useBrowserUrl();
   const [user, setUser] = useState<any | null>(null);
-  const [currentOrganization, setCurrentOrganization] = useState<Organization | null>(null);
-
   const [isSignedInSync, setIsSignedInSync] = useState<boolean>(false);
   const [isInitializedSync, setIsInitializedSync] = useState<boolean>(false);
   const [isLoadingSync, setIsLoadingSync] = useState<boolean>(true);
 
-  const [myOrganizations, setMyOrganizations] = useState<Organization[]>([]);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [baseUrl, setBaseUrl] = useState<string>(initialBaseUrl ?? '');
   const [config, setConfig] = useState<ThunderIDReactConfig>({
@@ -112,21 +103,9 @@ const ThunderIDProvider: FC<PropsWithChildren<ThunderIDProviderProps>> = ({
   const [isUpdatingSession, setIsUpdatingSession] = useState<boolean>(false);
   const [wellKnown, setWellKnown] = useState<OIDCDiscoveryApiResponse | null>(null);
 
-  // Branding state
-  const [brandingPreference, setBrandingPreference] = useState<BrandingPreference | null>(null);
-  const [isBrandingLoading, setIsBrandingLoading] = useState<boolean>(false);
-  const [brandingError, setBrandingError] = useState<Error | null>(null);
-  const [hasFetchedBranding, setHasFetchedBranding] = useState<boolean>(false);
-
   useEffect(() => {
     setBaseUrl(initialBaseUrl ?? '');
-    // Reset branding state when baseUrl changes
-    if (initialBaseUrl !== baseUrl) {
-      setHasFetchedBranding(false);
-      setBrandingPreference(null);
-      setBrandingError(null);
-    }
-  }, [initialBaseUrl, baseUrl]);
+  }, [initialBaseUrl]);
 
   useEffect(() => {
     (async (): Promise<void> => {
@@ -153,18 +132,28 @@ const ThunderIDProvider: FC<PropsWithChildren<ThunderIDProviderProps>> = ({
         setBaseUrl(resolvedBaseUrl);
       }
 
-      // TEMPORARY: SCIM2 and Organizations endpoints are not yet supported.
+      const shouldFetchProfile: boolean = preferences?.user?.fetchUserProfile !== false;
       const claims: User = extractUserClaimsFromIdToken(decodedToken) as User;
-      setUser(claims);
+      let profileData = claims;
+      const currentSignInStatus: boolean = await client.isSignedIn();
+
+      if (currentSignInStatus && shouldFetchProfile) {
+        try {
+          const fetchedProfile = await getUsersMe({baseUrl: resolvedBaseUrl, instanceId});
+          profileData = {...claims, ...fetchedProfile};
+        } catch (err) {
+          logger.warn('Failed to fetch user profile from /users/me:', err);
+        }
+      }
+
+      setUser(profileData);
       setUserProfile({
-        flattenedProfile: claims,
-        profile: claims,
-        schemas: [],
+        flattenedProfile: generateFlattenedUserProfile(profileData, []),
+        profile: profileData,
       });
 
       // CRITICAL: Update sign-in status BEFORE setting loading to false
       // This prevents the race condition where ProtectedRoute sees isLoading=false but isSignedIn=false
-      const currentSignInStatus: boolean = await client.isSignedIn();
       setIsSignedInSync(currentSignInStatus);
     } catch (error) {
       // TODO: Add an error log.
@@ -222,7 +211,7 @@ const ThunderIDProvider: FC<PropsWithChildren<ThunderIDProviderProps>> = ({
 
     (async (): Promise<void> => {
       // Sync session state whenever sign-in completes (both redirect and embedded V2 flows).
-      // Pass the user returned by the SDK's sign-in flow so SCIM2/Me result is not discarded.
+      // Pass the user returned by the SDK's sign-in flow so users/me result is not discarded.
       await client.on('sign-in', async () => {
         await updateSession();
       });
@@ -268,7 +257,9 @@ const ThunderIDProvider: FC<PropsWithChildren<ThunderIDProviderProps>> = ({
           const urlParams: URLSearchParams = currentUrl.searchParams;
           const code: string | null = urlParams.get('code');
           const executionIdFromUrl: string | null = urlParams.get('executionId');
-          const storedExecutionId: string | null = sessionStorage.getItem('thunderid_execution_id');
+          const storedExecutionId: string | null = sessionStorage.getItem(
+            `${getVendorPrefix(config.vendor)}_execution_id`,
+          );
 
           if (code && !executionIdFromUrl && !storedExecutionId) {
             await signIn();
@@ -366,66 +357,6 @@ const ThunderIDProvider: FC<PropsWithChildren<ThunderIDProviderProps>> = ({
     };
   }, [client, isLoadingSync, isSignedInSync, isUpdatingSession]);
 
-  // Branding fetch function
-  const fetchBranding: () => Promise<void> = useCallback(async (): Promise<void> => {
-    if (!baseUrl) {
-      return;
-    }
-
-    // Prevent multiple calls if already fetching
-    if (isBrandingLoading) {
-      return;
-    }
-
-    setIsBrandingLoading(true);
-    setBrandingError(null);
-
-    try {
-      const getBrandingConfig: GetBrandingPreferenceConfig = {
-        baseUrl,
-        locale: preferences?.i18n?.language,
-        // Add other branding config options as needed
-      };
-
-      const brandingData: BrandingPreference = await getBrandingPreference(getBrandingConfig);
-      setBrandingPreference(brandingData);
-      setHasFetchedBranding(true);
-    } catch (err) {
-      const errorMessage: Error = err instanceof Error ? err : new Error('Failed to fetch branding preference');
-      setBrandingError(errorMessage);
-      setBrandingPreference(null);
-      setHasFetchedBranding(true); // Mark as fetched even on error to prevent retries
-    } finally {
-      setIsBrandingLoading(false);
-    }
-  }, [baseUrl, preferences?.i18n?.language]);
-
-  // Refetch branding function
-  const refetchBranding: () => Promise<void> = useCallback(async (): Promise<void> => {
-    setHasFetchedBranding(false); // Reset the flag to allow refetching
-    await fetchBranding();
-  }, [fetchBranding]);
-
-  // Auto-fetch branding when initialized and configured
-  useEffect(() => {
-    // TEMPORARY: Branding preference is not yet supported.
-    return;
-
-    // Only fetch branding when explicitly enabled via preferences.theme.inheritFromBranding
-    const shouldFetchBranding: boolean = preferences?.theme?.inheritFromBranding === true;
-
-    if (shouldFetchBranding && isInitializedSync && baseUrl && !hasFetchedBranding && !isBrandingLoading) {
-      fetchBranding();
-    }
-  }, [
-    preferences?.theme?.inheritFromBranding,
-    isInitializedSync,
-    baseUrl,
-    hasFetchedBranding,
-    isBrandingLoading,
-    fetchBranding,
-  ]);
-
   const signInSilently = async (options?: SignInOptions): Promise<User | boolean> => {
     try {
       setIsUpdatingSession(true);
@@ -444,35 +375,10 @@ const ThunderIDProvider: FC<PropsWithChildren<ThunderIDProviderProps>> = ({
     }
   };
 
-  const switchOrganization = async (organization: Organization): Promise<TokenResponse | Response> => {
-    try {
-      setIsUpdatingSession(true);
-      setIsLoadingSync(true);
-      const response: TokenResponse | Response = await client.switchOrganization(organization);
-
-      if (await client.isSignedIn()) {
-        await updateSession();
-      }
-
-      return response;
-    } catch (error) {
-      throw new ThunderIDRuntimeError(
-        `Failed to switch organization: ${error instanceof Error ? error.message : String(JSON.stringify(error))}`,
-        'thunderid-switchOrganization-Error',
-        'react',
-        'An error occurred while switching to the specified organization.',
-      );
-    } finally {
-      setIsUpdatingSession(false);
-      setIsLoadingSync(client.isLoading());
-    }
-  };
-
   const handleProfileUpdate = (payload: User): void => {
     setUser(payload);
     setUserProfile((prev: UserProfile | null) => ({
-      schemas: prev?.schemas ?? [],
-      flattenedProfile: generateFlattenedUserProfile(payload, prev?.schemas ?? []),
+      flattenedProfile: generateFlattenedUserProfile(payload),
       profile: payload,
     }));
   };
@@ -561,9 +467,9 @@ const ThunderIDProvider: FC<PropsWithChildren<ThunderIDProviderProps>> = ({
       isInitialized: isInitializedSync,
       isLoading: isLoadingSync,
       isSignedIn: isSignedInSync,
-      organization: currentOrganization,
       organizationChain,
       organizationHandle: config?.organizationHandle,
+      preferences,
       reInitialize,
       recover,
       signIn,
@@ -574,13 +480,14 @@ const ThunderIDProvider: FC<PropsWithChildren<ThunderIDProviderProps>> = ({
       signOut,
       signUp,
       signUpUrl,
-      switchOrganization,
       syncSession,
       user,
+      vendor: getVendorPrefix(config.vendor),
     }),
     [
       applicationId,
       config?.organizationHandle,
+      config.vendor,
       config.afterSignInUrl,
       config.scopes,
       signInUrl,
@@ -591,7 +498,6 @@ const ThunderIDProvider: FC<PropsWithChildren<ThunderIDProviderProps>> = ({
       isInitializedSync,
       isLoadingSync,
       isSignedInSync,
-      currentOrganization,
       signIn,
       signInSilently,
       user,
@@ -599,7 +505,6 @@ const ThunderIDProvider: FC<PropsWithChildren<ThunderIDProviderProps>> = ({
       signInOptions,
       tokenRequest,
       syncSession,
-      switchOrganization,
       getDecodedIdToken,
       clearSession,
       exchangeToken,
@@ -607,6 +512,7 @@ const ThunderIDProvider: FC<PropsWithChildren<ThunderIDProviderProps>> = ({
       getStorageManager,
       instanceId,
       organizationChain,
+      preferences,
       recover,
       reInitialize,
       request,
@@ -618,38 +524,22 @@ const ThunderIDProvider: FC<PropsWithChildren<ThunderIDProviderProps>> = ({
 
   return (
     <ThunderIDContext.Provider value={value}>
-      <I18nProvider preferences={preferences?.i18n}>
+      <I18nProvider preferences={preferences?.i18n} vendor={getVendorPrefix(config.vendor)}>
         <FlowMetaProvider enabled={preferences?.resolveFromMeta !== false}>
-          <BrandingProvider
-            brandingPreference={brandingPreference}
-            isLoading={isBrandingLoading}
-            error={brandingError}
-            enabled={preferences?.theme?.inheritFromBranding === true}
-            refetch={refetchBranding}
+          <ThemeProvider
+            theme={{
+              ...preferences?.theme?.overrides,
+              direction: preferences?.theme?.direction,
+            }}
           >
-            <ThemeProvider
-              theme={{
-                ...preferences?.theme?.overrides,
-                direction: preferences?.theme?.direction,
-              }}
-            >
-              <FlowProvider>
-                <UserProvider profile={userProfile!} onUpdateProfile={handleProfileUpdate}>
-                  <OrganizationProvider
-                    getAllOrganizations={async (): Promise<AllOrganizationsApiResponse> => client.getAllOrganizations()}
-                    myOrganizations={myOrganizations}
-                    currentOrganization={currentOrganization}
-                    onOrganizationSwitch={switchOrganization}
-                    revalidateMyOrganizations={async (): Promise<Organization[]> => client.getMyOrganizations()}
-                  >
-                    <ComponentRendererProvider renderers={(extensions?.components?.renderers ?? {}) as any}>
-                      {children}
-                    </ComponentRendererProvider>
-                  </OrganizationProvider>
-                </UserProvider>
-              </FlowProvider>
-            </ThemeProvider>
-          </BrandingProvider>
+            <FlowProvider>
+              <UserProvider profile={userProfile!} onUpdateProfile={handleProfileUpdate}>
+                <ComponentRendererProvider renderers={(extensions?.components?.renderers ?? {}) as any}>
+                  {children}
+                </ComponentRendererProvider>
+              </UserProvider>
+            </FlowProvider>
+          </ThemeProvider>
         </FlowMetaProvider>
       </I18nProvider>
     </ThunderIDContext.Provider>

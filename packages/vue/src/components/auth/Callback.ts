@@ -16,8 +16,10 @@
  * under the License.
  */
 
-import {navigate as browserNavigate} from '@thunderid/browser';
-import {type Component, defineComponent, onMounted} from 'vue';
+import {navigate as browserNavigate, getVendorPrefix} from '@thunderid/browser';
+import {type Component, defineComponent, inject, onMounted} from 'vue';
+import {THUNDERID_KEY} from '../../keys';
+import type {ThunderIDContext} from '../../models/contexts';
 import {createVueLogger} from '../../utils/logger';
 
 const logger: ReturnType<typeof createVueLogger> = createVueLogger('Callback');
@@ -45,6 +47,11 @@ const Callback: Component = defineComponent({
     onNavigate: {default: undefined, type: Function as unknown as () => (path: string) => void},
   },
   setup(props: CallbackSetupProps) {
+    // Read the vendor prefix directly from injection (rather than the throwing useThunderID
+    // composable) so this component keeps working standalone, without a ThunderIDProvider ancestor.
+    const thunderIDContext: ThunderIDContext | null = inject(THUNDERID_KEY, null);
+    const vendor: string = getVendorPrefix(thunderIDContext?.vendor);
+
     const navigate = (path: string): void => {
       if (props.onNavigate) {
         props.onNavigate(path);
@@ -84,7 +91,7 @@ const Callback: Component = defineComponent({
           throw new Error('Missing OAuth state parameter - possible security issue');
         }
 
-        const storedData: string | null = sessionStorage.getItem(`thunderid_oauth_${state}`);
+        const storedData: string | null = sessionStorage.getItem(`${vendor}_oauth_${state}`);
         if (!storedData) {
           if (oauthError) {
             const errorMsg: string = errorDescription || oauthError || 'OAuth authentication failed';
@@ -110,12 +117,12 @@ const Callback: Component = defineComponent({
         // 3. Validate state freshness
         const MAX_STATE_AGE = 300000; // 5 minutes
         if (Date.now() - timestamp > MAX_STATE_AGE) {
-          sessionStorage.removeItem(`thunderid_oauth_${state}`);
+          sessionStorage.removeItem(`${vendor}_oauth_${state}`);
           throw new Error('OAuth state expired - please try again');
         }
 
         // 4. Clean up state
-        sessionStorage.removeItem(`thunderid_oauth_${state}`);
+        sessionStorage.removeItem(`${vendor}_oauth_${state}`);
 
         // 5. Handle OAuth error response
         if (oauthError) {

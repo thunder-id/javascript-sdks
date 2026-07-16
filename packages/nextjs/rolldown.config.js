@@ -22,62 +22,36 @@ import {defineConfig} from 'rolldown';
 
 const pkg = JSON.parse(readFileSync('./package.json', 'utf8'));
 
-const external = [...Object.keys(pkg.dependencies || {}), ...Object.keys(pkg.peerDependencies || {})];
+const externalPackages = [...Object.keys(pkg.dependencies || {}), ...Object.keys(pkg.peerDependencies || {})];
+const external = (id) => externalPackages.some((name) => id === name || id.startsWith(`${name}/`));
 
-const nodeOptions = {
+const commonOptions = {
   input: [join('src', 'index.ts'), join('src', 'server', 'index.ts')],
-  preserveModules: true,
   external,
   platform: 'node',
-  target: 'es2020',
-  sourcemap: true,
-};
-
-const edgeOptions = {
-  input: [join('src', 'middleware.ts')],
-  preserveModules: true,
-  external,
-  platform: 'browser',
-  target: 'es2020',
-  sourcemap: true,
 };
 
 export default defineConfig([
-  // ESM build (node)
+  // ESM build
   {
-    ...nodeOptions,
+    ...commonOptions,
     output: {
       dir: 'dist',
       format: 'esm',
+      sourcemap: true,
+      preserveModules: true,
       preserveModulesRoot: 'src',
     },
   },
-  // CommonJS build (node)
+  // CommonJS build
   {
-    ...nodeOptions,
+    ...commonOptions,
     output: {
       dir: join('dist', 'cjs'),
       entryFileNames: '[name].cjs',
       format: 'cjs',
-      preserveModulesRoot: 'src',
-    },
-  },
-  // Edge/middleware ESM build (browser)
-  {
-    ...edgeOptions,
-    output: {
-      dir: 'dist',
-      format: 'esm',
-      preserveModulesRoot: 'src',
-    },
-  },
-  // Edge/middleware CommonJS build (browser)
-  {
-    ...edgeOptions,
-    output: {
-      dir: join('dist', 'cjs'),
-      entryFileNames: '[name].cjs',
-      format: 'cjs',
+      sourcemap: true,
+      preserveModules: true,
       preserveModulesRoot: 'src',
     },
   },

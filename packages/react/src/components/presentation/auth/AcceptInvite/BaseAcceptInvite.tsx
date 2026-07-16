@@ -278,7 +278,7 @@ const BaseAcceptInvite: FC<BaseAcceptInviteProps> = ({
   showTitle = true,
   showSubtitle = true,
 }: BaseAcceptInviteProps): ReactElement => {
-  const {meta, isInitialized, getStorageManager} = useThunderID();
+  const {meta, isInitialized, getStorageManager, vendor} = useThunderID();
   const {t} = useTranslation(preferences?.i18n);
   const {theme} = useTheme();
   const customRenderers: ComponentRendererMap = useContext(ComponentRendererContext);
@@ -415,6 +415,7 @@ const BaseAcceptInvite: FC<BaseAcceptInviteProps> = ({
    */
   useOAuthCallback({
     currentExecutionId: executionId ?? null,
+    executionIdStorageKey: `${vendor}_execution_id`,
     isInitialized: isStorageReady,
     onComplete: () => {
       setIsValidatingToken(false);
@@ -610,7 +611,7 @@ const BaseAcceptInvite: FC<BaseAcceptInviteProps> = ({
           const redirectURL: any = response.data?.redirectURL || response?.redirectURL;
           if (redirectURL && typeof window !== 'undefined') {
             // Initiate OAuth redirect with secure state management
-            initiateOAuthRedirect(redirectURL);
+            initiateOAuthRedirect(redirectURL, vendor);
             return;
           }
         }
@@ -661,6 +662,15 @@ const BaseAcceptInvite: FC<BaseAcceptInviteProps> = ({
   );
 
   /**
+   * reset form values, errors, and touched fields to initial state
+   */
+  const resetForm = useCallback(() => {
+    setFormValues({});
+    setFormErrors({});
+    setTouchedFields({});
+  }, []);
+
+  /**
    * Validate invite token on component mount.
    */
   useEffect(() => {
@@ -693,7 +703,7 @@ const BaseAcceptInvite: FC<BaseAcceptInviteProps> = ({
       try {
         // Store executionId in sessionStorage for OAuth callback
         if (executionId) {
-          sessionStorage.setItem('thunderid_execution_id', executionId);
+          sessionStorage.setItem(`${vendor}_execution_id`, executionId);
         }
 
         // Send the invite token to validate and continue the flow
@@ -879,6 +889,7 @@ const BaseAcceptInvite: FC<BaseAcceptInviteProps> = ({
                 formErrors,
                 isLoading,
                 isFormValid,
+                resetForm,
                 handleInputChange,
                 {
                   _customRenderers: customRenderers,

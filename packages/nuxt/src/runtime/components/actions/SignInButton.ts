@@ -83,6 +83,7 @@ const SignInButton: Component = defineComponent({
         BaseSignInButton,
         {
           class: attrs.class,
+          id: attrs.id,
           isLoading: isLoading.value,
           onClick: handleSignIn,
           style: attrs.style,

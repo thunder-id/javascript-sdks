@@ -18,7 +18,6 @@
 
 import {ThunderIDRuntimeError, TokenResponse, logger as Logger} from '@thunderid/node';
 import express from 'express';
-import {SESSION_COOKIE_NAME} from '../constants/CookieConfig';
 import {ThunderIDExpressConfig} from '../models/config';
 import ThunderIDExpressClient from '../ThunderIDExpressClient';
 
@@ -143,7 +142,8 @@ const handleSignOut = (): express.RequestHandler => {
       return;
     }
 
-    const sessionId: string | undefined = req.cookies?.[SESSION_COOKIE_NAME];
+    const cookieName = client.getSessionCookieName();
+    const sessionId: string | undefined = req.cookies?.[cookieName];
 
     if (!sessionId) {
       onError(
@@ -156,7 +156,7 @@ const handleSignOut = (): express.RequestHandler => {
     try {
       const signOutURL: string = await client.signOut(sessionId);
       if (signOutURL) {
-        res.cookie(SESSION_COOKIE_NAME, null, {maxAge: 0});
+        res.cookie(cookieName, null, {maxAge: 0});
         res.redirect(signOutURL);
       }
     } catch (e: any) {

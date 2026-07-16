@@ -51,6 +51,10 @@ export interface FormControlProps {
    */
   helperTextMarginLeft?: string;
   /**
+   * HTML id attribute
+   */
+  id?: string;
+  /**
    * Custom container style
    */
   style?: CSSProperties;
@@ -61,6 +65,7 @@ const FormControl: FC<FormControlProps> = ({
   error,
   helperText,
   className,
+  id,
   helperTextAlign = 'left',
   helperTextMarginLeft,
 }: FormControlProps) => {
@@ -68,7 +73,7 @@ const FormControl: FC<FormControlProps> = ({
   const styles: Record<string, string> = useStyles(theme, colorScheme, helperTextAlign, helperTextMarginLeft, !!error);
 
   return (
-    <div className={cx(withVendorCSSClassPrefix(bem('form-control')), styles['formControl'], className)}>
+    <div id={id} className={cx(withVendorCSSClassPrefix(bem('form-control')), styles['formControl'], className)}>
       {children}
       {(error || helperText) && (
         <Typography

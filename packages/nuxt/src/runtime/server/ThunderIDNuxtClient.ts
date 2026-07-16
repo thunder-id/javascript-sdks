@@ -20,25 +20,14 @@ import {
   ThunderIDNodeClient,
   type AuthClientConfig,
   type IdToken,
-  type Organization,
-  type OrganizationDetails,
-  type CreateOrganizationPayload,
   type Storage,
   type TokenExchangeRequestConfig,
   type TokenResponse,
   type User,
   type UserProfile,
   type UpdateMeProfileConfig,
-  type AllOrganizationsApiResponse,
-  getBrandingPreference,
-  getMeOrganizations,
-  getAllOrganizations,
-  createOrganization,
-  getOrganization,
   type ExtendedAuthorizeRequestUrlParams,
   type SignUpOptions,
-  type GetBrandingPreferenceConfig,
-  type BrandingPreference,
 } from '@thunderid/node';
 import type {ThunderIDNuxtConfig, ThunderIDSessionPayload} from '../types';
 
@@ -172,101 +161,11 @@ class ThunderIDNuxtClient extends ThunderIDNodeClient<ThunderIDNuxtConfig> {
 
   override async getUserProfile(sessionId: string): Promise<UserProfile> {
     const user: User = await this.getUser(sessionId);
-    return {flattenedProfile: user, profile: user, schemas: []};
-  }
-
-  override async getCurrentOrganization(sessionId: string): Promise<Organization | null> {
-    try {
-      const idToken: IdToken = await this.getDecodedIdToken(sessionId);
-      if (!idToken?.org_id) {
-        return null;
-      }
-      return {
-        id: idToken.org_id,
-        name: idToken.org_name ?? '',
-        orgHandle: idToken.org_handle ?? '',
-      };
-    } catch {
-      return null;
-    }
-  }
-
-  override async getMyOrganizations(sessionId: string): Promise<Organization[]> {
-    const accessToken: string = await this.getAccessToken(sessionId);
-    const configData: any = this.getStorageManager().getConfigData();
-    const baseUrl: string = (configData?.baseUrl ?? '') as string;
-
-    return getMeOrganizations({
-      baseUrl,
-      headers: {Authorization: `Bearer ${accessToken}`},
-    });
-  }
-
-  async getBrandingPreference(config: GetBrandingPreferenceConfig): Promise<BrandingPreference> {
-    return getBrandingPreference(config);
+    return {flattenedProfile: user, profile: user};
   }
 
   override async updateUserProfile(config: UpdateMeProfileConfig, sessionId: string): Promise<User> {
     throw new Error('Profile updates are not supported for the ThunderID platform.');
-  }
-
-  override async getAllOrganizations(options?: any, sessionId?: string): Promise<AllOrganizationsApiResponse> {
-    const resolvedSessionId: string = sessionId ?? '';
-    const accessToken: string = await this.getAccessToken(resolvedSessionId);
-    const configData: any = this.getStorageManager().getConfigData();
-    const baseUrl: string = (configData?.baseUrl ?? '') as string;
-
-    return getAllOrganizations({
-      baseUrl,
-      headers: {Authorization: `Bearer ${accessToken}`},
-    });
-  }
-
-  async createOrganization(payload: CreateOrganizationPayload, sessionId: string): Promise<Organization> {
-    const accessToken: string = await this.getAccessToken(sessionId);
-    const configData: any = this.getStorageManager().getConfigData();
-    const baseUrl: string = (configData?.baseUrl ?? '') as string;
-
-    return createOrganization({
-      baseUrl,
-      headers: {Authorization: `Bearer ${accessToken}`},
-      payload,
-    });
-  }
-
-  async getOrganization(organizationId: string, sessionId: string): Promise<OrganizationDetails> {
-    const accessToken: string = await this.getAccessToken(sessionId);
-    const configData: any = this.getStorageManager().getConfigData();
-    const baseUrl: string = (configData?.baseUrl ?? '') as string;
-
-    return getOrganization({
-      baseUrl,
-      headers: {Authorization: `Bearer ${accessToken}`},
-      organizationId,
-    });
-  }
-
-  override async switchOrganization(organization: Organization, sessionId: string): Promise<TokenResponse | Response> {
-    if (!organization.id) {
-      throw new Error('Organization ID is required for switching organizations.');
-    }
-
-    const exchangeConfig: TokenExchangeRequestConfig = {
-      attachToken: false,
-      data: {
-        client_id: '{{clientId}}',
-        client_secret: '{{clientSecret}}',
-        grant_type: 'organization_switch',
-        scope: '{{scopes}}',
-        switching_organization: organization.id,
-        token: '{{accessToken}}',
-      },
-      id: 'organization-switch',
-      returnsSession: true,
-      signInRequired: true,
-    };
-
-    return this.exchangeToken(exchangeConfig, sessionId);
   }
 
   public override getStorageManager(): any {

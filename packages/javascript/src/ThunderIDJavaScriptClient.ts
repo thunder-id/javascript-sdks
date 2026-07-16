@@ -19,6 +19,7 @@
 import OIDCDiscoveryConstants from './constants/OIDCDiscoveryConstants';
 import OIDCRequestConstants from './constants/OIDCRequestConstants';
 import PKCEConstants from './constants/PKCEConstants';
+import VendorConstants from './constants/VendorConstants';
 import {DefaultCacheStore} from './DefaultCacheStore';
 import {DefaultCrypto} from './DefaultCrypto';
 import {ThunderIDAuthException} from './errors/exception';
@@ -33,7 +34,6 @@ import {Crypto} from './models/crypto';
 import {ExtendedAuthorizeRequestUrlParams} from './models/oauth-request';
 import {OIDCDiscoveryApiResponse} from './models/oidc-discovery';
 import {OIDCEndpoints} from './models/oidc-endpoints';
-import {AllOrganizationsApiResponse, Organization} from './models/organization';
 import {SessionData, UserSession} from './models/session';
 import {Storage, TemporaryStore} from './models/store';
 import {IdToken, TokenExchangeRequestConfig, TokenResponse} from './models/token';
@@ -98,8 +98,9 @@ class ThunderIDJavaScriptClient<T = Config> implements ThunderIDClient<T> {
     }
 
     const storageKey = clientId ? `instance_${this.instanceIdValue}-${clientId}` : `instance_${this.instanceIdValue}`;
+    const vendor = (fullConfig as any).vendor ?? VendorConstants.VENDOR_PREFIX;
 
-    this.storageManager = new StorageManager<T>(storageKey, store);
+    this.storageManager = new StorageManager<T>(storageKey, store, vendor);
     this.cryptoHelper = new IsomorphicCrypto(this.cryptoUtils);
     this.authHelper = new AuthenticationHelper(this.storageManager, this.cryptoHelper);
     this.configProvider = async (): Promise<AuthClientConfig<T>> => this.storageManager.getConfigData();
@@ -312,22 +313,6 @@ class ThunderIDJavaScriptClient<T = Config> implements ThunderIDClient<T> {
     throw new Error('Method not implemented.');
   }
 
-  public switchOrganization(_organization: Organization, _sessionId?: string): Promise<TokenResponse | Response> {
-    throw new Error('Method not implemented.');
-  }
-
-  public getCurrentOrganization(_sessionId?: string): Promise<Organization | null> {
-    throw new Error('Method not implemented.');
-  }
-
-  public getAllOrganizations(_options?: any, _sessionId?: string): Promise<AllOrganizationsApiResponse> {
-    throw new Error('Method not implemented.');
-  }
-
-  public getMyOrganizations(_options?: any, _sessionId?: string): Promise<Organization[]> {
-    throw new Error('Method not implemented.');
-  }
-
   public getUserProfile(_options?: any): Promise<UserProfile> {
     throw new Error('Method not implemented.');
   }
@@ -359,30 +344,72 @@ class ThunderIDJavaScriptClient<T = Config> implements ThunderIDClient<T> {
       (discovery?.wellKnown?.enabled !== false && baseUrl ? `${baseUrl}${WELL_KNOWN_PATH}` : undefined);
 
     if (resolvedWellKnownEndpoint) {
-      let response: Response;
+      let response: Response | undefined;
 
       try {
         response = await fetch(resolvedWellKnownEndpoint);
-        if (response.status !== 200 || !response.ok) {
-          throw new Error();
+        if (!response.ok || response.status !== 200) {
+          response = undefined;
         }
       } catch {
+        response = undefined;
+      }
+
+      if (response) {
+        let discoveryResolved = false;
+        try {
+          await this.storageManager.setOIDCProviderMetaData(
+            await this.authHelper.resolveEndpoints(await response.json()),
+          );
+          discoveryResolved = true;
+        } catch {
+          // Parsing or endpoint resolution failed; fall through to baseUrl fallback.
+        }
+
+        if (!discoveryResolved) {
+          if (baseUrl) {
+            try {
+              await this.storageManager.setOIDCProviderMetaData(await this.authHelper.resolveEndpointsByBaseURL());
+            } catch (error: unknown) {
+              throw new ThunderIDAuthException(
+                'JS-AUTH_CORE-GOPMD-IV02',
+                'Resolving endpoints failed.',
+                error instanceof Error ? error.message : 'Resolving endpoints by base url failed.',
+              );
+            }
+          } else {
+            throw new ThunderIDAuthException(
+              'JS-AUTH_CORE-GOPMD-HE01',
+              'Invalid well-known response',
+              'The well known endpoint response has been failed with an error.',
+            );
+          }
+        }
+      } else if (baseUrl) {
+        try {
+          await this.storageManager.setOIDCProviderMetaData(await this.authHelper.resolveEndpointsByBaseURL());
+        } catch (error: unknown) {
+          throw new ThunderIDAuthException(
+            'JS-AUTH_CORE-GOPMD-IV02',
+            'Resolving endpoints failed.',
+            error instanceof Error ? error.message : 'Resolving endpoints by base url failed.',
+          );
+        }
+      } else {
         throw new ThunderIDAuthException(
           'JS-AUTH_CORE-GOPMD-HE01',
           'Invalid well-known response',
           'The well known endpoint response has been failed with an error.',
         );
       }
-
-      await this.storageManager.setOIDCProviderMetaData(await this.authHelper.resolveEndpoints(await response.json()));
     } else if (baseUrl) {
       try {
         await this.storageManager.setOIDCProviderMetaData(await this.authHelper.resolveEndpointsByBaseURL());
-      } catch (error: any) {
+      } catch (error: unknown) {
         throw new ThunderIDAuthException(
           'JS-AUTH_CORE-GOPMD-IV02',
           'Resolving endpoints failed.',
-          error ?? 'Resolving endpoints by base url failed.',
+          error instanceof Error ? error.message : 'Resolving endpoints by base url failed.',
         );
       }
     } else {

@@ -1,7 +1,6 @@
 packages:
-  - packages/**
-  - apps/*
-  - samples/**
+  - packages/*
+  - samples/*/*
 
 minimumReleaseAgeExclude:
   # JUSTIFICATION: Temporary exclusion due to recent release. TODO: Remove after the time passes.
@@ -12,8 +11,8 @@ allowBuilds:
   '@parcel/watcher': true
   core-js: true
   esbuild: true
-  nx: true
   sharp: true
+  turbo: true
   unrs-resolver: true
 
 catalog:

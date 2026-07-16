@@ -18,18 +18,14 @@
 
 import {
   ThunderIDBrowserClient,
-  flattenUserSchema,
   generateFlattenedUserProfile,
   UserProfile,
   User,
-  generateUserProfile,
   SignUpOptions,
   ThunderIDRuntimeError,
   executeEmbeddedSignUpFlow,
   executeEmbeddedSignInFlow,
-  Organization,
   IdToken,
-  AllOrganizationsApiResponse,
   extractUserClaimsFromIdToken,
   TokenResponse,
   HttpRequestConfig,
@@ -39,13 +35,9 @@ import {
   EmbeddedSignInFlowResponse,
   EmbeddedSignInFlowStatus,
   EmbeddedSignUpFlowStatus,
-  deriveOrganizationHandleFromBaseUrl,
   StorageManager,
 } from '@thunderid/browser';
-import getAllOrganizations from './api/getAllOrganizations';
-import getMeOrganizations from './api/getMeOrganizations';
-import getSchemas from './api/getSchemas';
-import getScim2Me from './api/getScim2Me';
+import getUsersMe from './api/getUsersMe';
 import {ThunderIDVueConfig} from './models/config';
 
 /**
@@ -76,15 +68,7 @@ class ThunderIDVueClient<T extends ThunderIDVueConfig = ThunderIDVueConfig> exte
   }
 
   override initialize(config: ThunderIDVueConfig): Promise<boolean> {
-    let resolvedOrganizationHandle: string | undefined = config?.organizationHandle;
-
-    if (!resolvedOrganizationHandle) {
-      resolvedOrganizationHandle = deriveOrganizationHandleFromBaseUrl(config?.baseUrl);
-    }
-
-    return this.withLoading(async () =>
-      super.initialize({...config, organizationHandle: resolvedOrganizationHandle} as unknown as T),
-    );
+    return this.withLoading(async () => super.initialize(config as unknown as T));
   }
 
   override reInitialize(config: Partial<ThunderIDVueConfig>): Promise<boolean> {
@@ -120,10 +104,9 @@ class ThunderIDVueClient<T extends ThunderIDVueConfig = ThunderIDVueConfig> exte
         baseUrl = configData?.baseUrl;
       }
 
-      const profile: User = await getScim2Me({baseUrl});
-      const schemas: any = await getSchemas({baseUrl});
+      const profile: User = await getUsersMe({baseUrl});
 
-      return generateUserProfile(profile, flattenUserSchema(schemas));
+      return profile;
     } catch (error) {
       return extractUserClaimsFromIdToken(await this.getDecodedIdToken());
     }
@@ -147,15 +130,11 @@ class ThunderIDVueClient<T extends ThunderIDVueConfig = ThunderIDVueConfig> exte
           baseUrl = configData?.baseUrl;
         }
 
-        const profile: User = await getScim2Me({baseUrl, instanceId: this.getInstanceId()});
-        const schemas: any = await getSchemas({baseUrl, instanceId: this.getInstanceId()});
-
-        const processedSchemas: any = flattenUserSchema(schemas);
+        const profile: User = await getUsersMe({baseUrl, instanceId: this.getInstanceId()});
 
         const output: UserProfile = {
-          flattenedProfile: generateFlattenedUserProfile(profile, processedSchemas),
+          flattenedProfile: generateFlattenedUserProfile(profile),
           profile,
-          schemas: processedSchemas,
         };
 
         return output;
@@ -163,111 +142,7 @@ class ThunderIDVueClient<T extends ThunderIDVueConfig = ThunderIDVueConfig> exte
         return {
           flattenedProfile: extractUserClaimsFromIdToken(await this.getDecodedIdToken()),
           profile: extractUserClaimsFromIdToken(await this.getDecodedIdToken()),
-          schemas: [],
         };
-      }
-    });
-  }
-
-  override async getMyOrganizations(options?: any): Promise<Organization[]> {
-    try {
-      let baseUrl: string = options?.baseUrl;
-
-      if (!baseUrl) {
-        const configData: any = await this.getStorageManager().getConfigData();
-        baseUrl = configData?.baseUrl;
-      }
-
-      return await getMeOrganizations({baseUrl, instanceId: this.getInstanceId()});
-    } catch (error) {
-      throw new ThunderIDRuntimeError(
-        `Failed to fetch the user's associated organizations: ${
-          error instanceof Error ? error.message : String(error)
-        }`,
-        'ThunderIDVueClient-getMyOrganizations-RuntimeError-001',
-        'vue',
-        'An error occurred while fetching associated organizations of the signed-in user.',
-      );
-    }
-  }
-
-  override async getAllOrganizations(options?: any): Promise<AllOrganizationsApiResponse> {
-    try {
-      let baseUrl: string = options?.baseUrl;
-
-      if (!baseUrl) {
-        const configData: any = await this.getStorageManager().getConfigData();
-        baseUrl = configData?.baseUrl;
-      }
-
-      return await getAllOrganizations({baseUrl, instanceId: this.getInstanceId()});
-    } catch (error) {
-      throw new ThunderIDRuntimeError(
-        `Failed to fetch all organizations: ${error instanceof Error ? error.message : String(error)}`,
-        'ThunderIDVueClient-getAllOrganizations-RuntimeError-001',
-        'vue',
-        'An error occurred while fetching all the organizations associated with the user.',
-      );
-    }
-  }
-
-  override async getCurrentOrganization(): Promise<Organization | null> {
-    try {
-      return await this.withLoading(async () => {
-        const idToken: IdToken = await this.getDecodedIdToken();
-        return {
-          id: idToken?.org_id ?? '',
-          name: idToken?.org_name ?? '',
-          orgHandle: idToken?.org_handle ?? '',
-        };
-      });
-    } catch (error) {
-      throw new ThunderIDRuntimeError(
-        `Failed to fetch the current organization: ${error instanceof Error ? error.message : String(error)}`,
-        'ThunderIDVueClient-getCurrentOrganization-RuntimeError-001',
-        'vue',
-        'An error occurred while fetching the current organization of the signed-in user.',
-      );
-    }
-  }
-
-  override async switchOrganization(organization: Organization): Promise<TokenResponse | Response> {
-    return this.withLoading(async () => {
-      try {
-        const configData: any = await this.getStorageManager().getConfigData();
-        const sourceInstanceId: number | undefined = configData?.organizationChain?.sourceInstanceId;
-
-        if (!organization.id) {
-          throw new ThunderIDRuntimeError(
-            'Organization ID is required for switching organizations',
-            'vue-ThunderIDVueClient-SwitchOrganizationError-001',
-            'vue',
-            'The organization object must contain a valid ID to perform the organization switch.',
-          );
-        }
-
-        const exchangeConfig: TokenExchangeRequestConfig = {
-          attachToken: false,
-          data: {
-            client_id: '{{clientId}}',
-            grant_type: 'organization_switch',
-            scope: '{{scopes}}',
-            switching_organization: organization.id,
-            token: '{{accessToken}}',
-          },
-          id: 'organization-switch',
-          returnsSession: true,
-          signInRequired: sourceInstanceId === undefined,
-        };
-
-        return (await super.exchangeToken(exchangeConfig as any)) as unknown as TokenResponse | Response;
-      } catch (error) {
-        throw new ThunderIDRuntimeError(
-          `Failed to switch organization: ${error.message || error}`,
-          'vue-ThunderIDVueClient-SwitchOrganizationError-003',
-          'vue',
-          'An error occurred while switching to the specified organization. Please try again.',
-        );
       }
     });
   }
@@ -370,15 +245,7 @@ class ThunderIDVueClient<T extends ThunderIDVueConfig = ThunderIDVueConfig> exte
     const firstArg: any = args[0];
     const baseUrl: string = configData?.baseUrl || '';
 
-    const authIdFromUrl: string | null = new URL(window.location.href).searchParams.get('authId');
-    const authIdFromStorage: string | null = (await this.getStorageManager().getHybridDataParameter('authId')) as
-      | string
-      | null;
-    const authId: string = authIdFromUrl || authIdFromStorage || '';
-
-    if (authIdFromUrl && !authIdFromStorage) {
-      await this.getStorageManager().setHybridDataParameter('authId', authIdFromUrl);
-    }
+    const authId: string = new URL(window.location.href).searchParams.get('authId') ?? '';
 
     const response: any = await executeEmbeddedSignUpFlow({
       authId,

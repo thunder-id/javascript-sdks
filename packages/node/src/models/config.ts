@@ -45,6 +45,14 @@ export interface SessionCookieConfig {
   sameSite?: 'lax' | 'strict' | 'none';
   /** Whether the cookie requires HTTPS. Default: `false` (dev-friendly). */
   secure?: boolean;
+  /**
+   * Full override of the cookie name. If not set, derived from `vendor`.
+   *
+   * @example
+   * // Use a fully custom cookie name regardless of `vendor`.
+   * { sessionCookie: { name: 'my_app_session' } }
+   */
+  name?: string;
 }
 
 /**
@@ -57,4 +65,10 @@ export type ThunderIDNodeConfig = Config & {
    * so that any server SDK (Node, Express, Next.js, …) inherits the same shape.
    */
   sessionCookie?: SessionCookieConfig;
+  /**
+   * Vendor/brand namespace used to prefix cookie names and other server-side identifiers.
+   * Override this when white-labeling the SDK under a different brand.
+   * @default 'thunderid'
+   */
+  vendor?: string;
 };

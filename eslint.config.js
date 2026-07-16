@@ -23,4 +23,10 @@ export default [
     ignores: ['dist/**', 'build/**', 'node_modules/**', 'coverage/**'],
   },
   ...thunderIdPlugin.configs.typescript,
+  {
+    files: ['samples/**'],
+    rules: {
+      '@thunderid/copyright-header': 'off',
+    },
+  },
 ];
