@@ -19,6 +19,7 @@
 import OIDCDiscoveryConstants from './constants/OIDCDiscoveryConstants';
 import OIDCRequestConstants from './constants/OIDCRequestConstants';
 import PKCEConstants from './constants/PKCEConstants';
+import TokenConstants from './constants/TokenConstants';
 import VendorConstants from './constants/VendorConstants';
 import {DefaultCacheStore} from './DefaultCacheStore';
 import {DefaultCrypto} from './DefaultCrypto';
@@ -36,7 +37,7 @@ import {OIDCDiscoveryApiResponse} from './models/oidc-discovery';
 import {OIDCEndpoints} from './models/oidc-endpoints';
 import {SessionData, UserSession} from './models/session';
 import {Storage, TemporaryStore} from './models/store';
-import {IdToken, TokenExchangeRequestConfig, TokenResponse} from './models/token';
+import {AccessTokenApiResponse, IdToken, TokenExchangeRequestConfig, TokenResponse} from './models/token';
 import {User, UserProfile} from './models/user';
 import StorageManager from './StorageManager';
 import AuthenticationHelper from './utils/AuthenticationHelper';
@@ -182,7 +183,34 @@ class ThunderIDJavaScriptClient<T = Config> implements ThunderIDClient<T> {
   }
 
   public async getAccessToken(sessionId?: string): Promise<string> {
+    const configData = await this.configProvider();
+
+    if (configData.grantType === 'client_credentials') {
+      const sessionData = await this.storageManager.getSessionData(sessionId);
+
+      if (sessionData?.access_token && this.isCachedTokenStillValid(sessionData)) {
+        return sessionData.access_token;
+      }
+
+      const tokenResponse = await this.requestClientCredentialsToken(sessionId);
+
+      return tokenResponse.accessToken;
+    }
+
     return (await this.storageManager.getSessionData(sessionId))?.access_token;
+  }
+
+  private isCachedTokenStillValid(sessionData: SessionData): boolean {
+    if (!sessionData.created_at || !sessionData.expires_in) {
+      return false;
+    }
+
+    const expiresInMs = parseInt(sessionData.expires_in, 10) * 1000;
+
+    return (
+      sessionData.created_at + expiresInMs - TokenConstants.Lifecycle.CLIENT_CREDENTIALS_REFRESH_MARGIN_MS >
+      Date.now()
+    );
   }
 
   public clearSession(sessionId?: string): void {
@@ -744,6 +772,107 @@ class ThunderIDJavaScriptClient<T = Config> implements ThunderIDClient<T> {
     }
 
     return this.authHelper.handleTokenResponse(tokenResponse, userId);
+  }
+
+  /**
+   * Requests a machine-to-machine access token via the `client_credentials` grant
+   * (RFC 6749 §4.4) and caches it under the given session key. Unlike the user-facing
+   * flows, there's no id_token or refresh_token: the service authenticates as itself.
+   */
+  protected async requestClientCredentialsToken(sessionId?: string): Promise<TokenResponse> {
+    if (
+      !(await this.storageManager.getTemporaryDataParameter(
+        OIDCDiscoveryConstants.Storage.StorageKeys.OPENID_PROVIDER_CONFIG_INITIATED,
+      ))
+    ) {
+      await this.loadOpenIDProviderConfiguration(false);
+    }
+
+    const tokenEndpoint: string | undefined = (await this.oidcProviderMetaDataProvider()).token_endpoint;
+    const configData = await this.configProvider();
+
+    if (!tokenEndpoint || tokenEndpoint.trim().length === 0) {
+      throw new ThunderIDAuthException(
+        'JS-AUTH_CORE-RCCT-NF01',
+        'Token endpoint not found.',
+        'No token endpoint was found in the OIDC provider meta data returned by the well-known endpoint ' +
+          'or the token endpoint passed to the SDK is empty.',
+      );
+    }
+
+    const body: URLSearchParams = new URLSearchParams();
+
+    body.set('grant_type', 'client_credentials');
+    body.set('client_id', configData.clientId ?? '');
+
+    const hasSecret = Boolean(configData.clientSecret && configData.clientSecret.trim().length > 0);
+    const tokenEndpointAuthMethod = configData.tokenRequest?.authMethod ?? 'client_secret_basic';
+
+    if (hasSecret && tokenEndpointAuthMethod === 'client_secret_post') {
+      body.set('client_secret', configData.clientSecret!);
+    }
+
+    const scope = Array.isArray(configData.scopes) ? configData.scopes.join(' ') : configData.scopes;
+
+    if (scope) {
+      body.set('scope', scope);
+    }
+
+    if (configData.tokenRequest?.params) {
+      Object.entries(configData.tokenRequest.params).forEach(([key, value]: [string, unknown]) => {
+        body.set(key, value as string);
+      });
+    }
+
+    const tokenRequestHeaders: Record<string, string> = {
+      Accept: 'application/json',
+      'Content-Type': 'application/x-www-form-urlencoded',
+    };
+
+    if (hasSecret && tokenEndpointAuthMethod === 'client_secret_basic') {
+      const credential = `${encodeURIComponent(configData.clientId!)}:${encodeURIComponent(configData.clientSecret!)}`;
+      tokenRequestHeaders['Authorization'] = `Basic ${base64Encode(credential)}`;
+    }
+
+    let tokenResponse: Response;
+
+    try {
+      tokenResponse = await fetch(tokenEndpoint, {
+        body,
+        headers: tokenRequestHeaders,
+        method: 'POST',
+      });
+    } catch (error: any) {
+      throw new ThunderIDAuthException(
+        'JS-AUTH_CORE-RCCT-NE02',
+        'Requesting client credentials token failed.',
+        error ?? 'The request to get the client credentials access token failed.',
+      );
+    }
+
+    if (!tokenResponse.ok) {
+      throw new ThunderIDAuthException(
+        'JS-AUTH_CORE-RCCT-HE03',
+        `Requesting client credentials token failed with ${tokenResponse.statusText}`,
+        (await tokenResponse.json()) as string,
+      );
+    }
+
+    const parsedResponse = (await tokenResponse.json()) as AccessTokenApiResponse;
+
+    parsedResponse.created_at = new Date().getTime();
+
+    await this.storageManager.setSessionData(parsedResponse, sessionId);
+
+    return {
+      accessToken: parsedResponse.access_token,
+      createdAt: parsedResponse.created_at,
+      expiresIn: parsedResponse.expires_in,
+      idToken: parsedResponse.id_token ?? '',
+      refreshToken: parsedResponse.refresh_token ?? '',
+      scope: parsedResponse.scope,
+      tokenType: parsedResponse.token_type,
+    };
   }
 
   protected async revokeAccessToken(userId?: string): Promise<Response | boolean> {

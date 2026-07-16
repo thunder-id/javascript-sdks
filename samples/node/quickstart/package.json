@@ -1,5 +1,5 @@
 {
-  "name": "@thunderid/express-quickstart",
+  "name": "@thunderid/node-quickstart",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -8,8 +8,8 @@
     "dev": "node --env-file-if-exists=.env --watch index.mjs"
   },
   "dependencies": {
-    "@thunderid/express": "workspace:*",
-    "cookie-parser": "^1.4.7",
-    "express": "^4.21.2"
+    "@thunderid/node": "workspace:*",
+    "boxen": "^8.0.1",
+    "picocolors": "^1.1.1"
   }
 }

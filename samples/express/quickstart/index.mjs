@@ -64,17 +64,20 @@ async function getSession(req) {
 function renderConfigNeeded() {
   return layout({
     title: 'Configuration needed',
-    body: `<div class="page">
-      <div class="eyebrow"><span class="eyebrow-dot" style="background:#e88b3a"></span>Setup required</div>
-      <h1 class="page-title">Configuration needed</h1>
-      <p class="page-subtitle">This quickstart can't reach ThunderID yet. Set the following environment
-      variable(s), then restart the server.</p>
-      <ul class="config-list">
-        ${missingEnvVars.map((key) => `<li class="config-list-item">${esc(key)}</li>`).join('')}
-      </ul>
-      <p class="page-subtitle">Copy <code>.env.example</code> to <code>.env</code>, fill in the values from
-      your ThunderID application, then run <code>npm start</code> again.</p>
-    </div>`,
+    body: `<section class="hero">
+      <div class="hero-inner">
+        <div class="hero-mark">${thunderMark(40)}</div>
+        <div class="hero-badge config-badge"><span class="hero-badge-line"></span><span>Setup required</span><span class="hero-badge-line"></span></div>
+        <h1 class="hero-title">Configuration needed</h1>
+        <p class="hero-subtitle">This quickstart can't reach ThunderID yet. Set the following environment
+        variable(s), then restart the server.</p>
+        <ul class="config-list">
+          ${missingEnvVars.map((key) => `<li class="config-list-item">${esc(key)}</li>`).join('')}
+        </ul>
+        <p class="config-hint">Copy <code>.env.example</code> to <code>.env</code>, fill in the values from
+        your ThunderID application, then run <code>npm run dev</code> again.</p>
+      </div>
+    </section>`,
   });
 }
 
