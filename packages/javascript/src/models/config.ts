@@ -268,6 +268,19 @@ export interface BaseConfig<T = unknown> extends WithPreferences, WithExtensions
   mode?: 'redirect' | 'embedded';
 
   /**
+   * The OAuth 2.0 grant type this client uses to obtain access tokens.
+   *
+   * - `'authorization_code'` (default) — standard user sign-in flow. `getAccessToken()`
+   *   only ever reads from the stored session; it never fetches a token on its own.
+   * - `'client_credentials'` — machine-to-machine flow (RFC 6749 §4.4). There's no user
+   *   and no sign-in step: `getAccessToken()` fetches (and transparently caches/refreshes)
+   *   a token for the service itself, using `clientId`/`clientSecret`.
+   *
+   * @default 'authorization_code'
+   */
+  grantType?: 'authorization_code' | 'client_credentials';
+
+  /**
    * Configuration for chaining authentication across multiple organization contexts.
    * Used when you need to authenticate a user in one organization using credentials
    * from another organization context.

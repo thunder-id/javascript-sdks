@@ -44,6 +44,9 @@ const TokenConstants: {
       readonly REFRESH_TOKEN_TIMER: string;
     };
   };
+  readonly Lifecycle: {
+    readonly CLIENT_CREDENTIALS_REFRESH_MARGIN_MS: number;
+  };
 } = {
   /**
    * Token signature validation constants.
@@ -82,6 +85,18 @@ const TokenConstants: {
        */
       REFRESH_TOKEN_TIMER: 'refresh_token_timer',
     },
+  },
+
+  /**
+   * Token lifecycle timing constants.
+   * Contains timing thresholds used to decide when cached tokens should be refreshed.
+   */
+  Lifecycle: {
+    /**
+     * How far ahead of expiry a cached `client_credentials` token is treated as
+     * stale and refreshed.
+     */
+    CLIENT_CREDENTIALS_REFRESH_MARGIN_MS: 30_000,
   },
 } as const;
 
