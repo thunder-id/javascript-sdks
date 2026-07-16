@@ -35,6 +35,7 @@ shared utils). Every other package depends on it, directly or transitively:
 - `@thunderid/nextjs` → `@thunderid/node` + `@thunderid/react`.
 - `@thunderid/nuxt` → `@thunderid/node` + `@thunderid/vue`.
 - `@thunderid/express` → `@thunderid/node`.
+- `@thunderid/sveltekit` → `@thunderid/browser`.
 - `@thunderid/react-router`, `@thunderid/tanstack-router` → `@thunderid/react`.
 
 **Before adding a helper/util/constant to a framework package, check whether it belongs lower in this
@@ -80,6 +81,7 @@ packages/
   nextjs/           Next.js SDK (client + server)
   nuxt/             Nuxt module
   express/          Express middleware
+  sveltekit/        SvelteKit SDK (client + server)
   react-router/     React Router integration
   tanstack-router/  TanStack Router integration
 samples/            Standalone quickstart demo apps, one per framework
