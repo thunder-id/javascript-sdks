@@ -147,7 +147,7 @@ vite.config.ts.timestamp-*
 Thumbs.db
 
 # Test apps
-apps/
+/apps/
 
 # Nx
 .nx/cache
