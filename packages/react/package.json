@@ -1,6 +1,6 @@
 {
   "name": "@thunderid/react",
-  "version": "0.6.0",
+  "version": "0.6.1",
   "description": "React SDK for ThunderID",
   "keywords": [
     "thunderid",
@@ -51,10 +51,10 @@
     "@testing-library/react": "catalog:",
     "@thunderid/eslint-plugin": "catalog:",
     "@thunderid/prettier-config": "catalog:",
-    "@vitest/browser-playwright": "catalog:",
     "@types/node": "catalog:",
     "@types/react": "catalog:",
     "@types/react-dom": "catalog:",
+    "@vitest/browser-playwright": "catalog:",
     "dompurify": "catalog:",
     "eslint": "catalog:",
     "prettier": "catalog:",
