@@ -42,9 +42,6 @@ export function createCallbackHandler(config?: ThunderIDSvelteKitConfig): (event
         let tokenResponse: TokenResponse;
 
         try {
-          const cfgData = await (client as any).configProvider?.();
-          logger.info('callback DEBUG: tokenRequest=' + JSON.stringify(cfgData?.tokenRequest) + ' hasSecret=' + Boolean(cfgData?.clientSecret) + ' authMethod=' + (cfgData?.tokenRequest?.authMethod ?? 'UNSET'));
-
           tokenResponse = await (client as any).requestAccessToken(
             code,
             sessionState ?? '',
