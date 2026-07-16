@@ -60,8 +60,9 @@ const TokenConstants: {
      * - `RS512` - RSASSA-PKCS1-v1_5 using SHA-512
      * - `RS384` - RSASSA-PKCS1-v1_5 using SHA-384
      * - `PS256` - RSASSA-PSS using SHA-256 and MGF1 with SHA-256
+     * - `ML-DSA-44` / `ML-DSA-65` / `ML-DSA-87` - post-quantum ML-DSA (RFC 9864), AKP JWKs
      */
-    SUPPORTED_ALGORITHMS: ['RS256', 'RS512', 'RS384', 'PS256'],
+    SUPPORTED_ALGORITHMS: ['RS256', 'RS512', 'RS384', 'PS256', 'ML-DSA-44', 'ML-DSA-65', 'ML-DSA-87'],
   },
 
   /**

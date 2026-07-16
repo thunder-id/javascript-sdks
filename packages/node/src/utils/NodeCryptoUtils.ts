@@ -52,7 +52,7 @@ class NodeCryptoUtils implements Crypto<Buffer | string> {
     subject: string,
     clockTolerance?: number,
   ): Promise<boolean> {
-    const key: jose.KeyLike | Uint8Array = await jose.importJWK(jwk);
+    const key: jose.CryptoKey | Uint8Array = await jose.importJWK(jwk);
     return jose
       .jwtVerify(idToken, key, {
         algorithms,

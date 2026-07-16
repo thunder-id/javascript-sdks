@@ -21,10 +21,12 @@
  */
 export interface JWKInterface {
   alg: string;
-  e: string;
+  e?: string;
   kid: string;
   kty: string;
-  n: string;
+  n?: string;
+  /** Raw public key bytes (base64url), for AKP JWKs (RFC 9864, e.g. ML-DSA). */
+  pub?: string;
   use: string;
 }
 
