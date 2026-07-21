@@ -17,7 +17,7 @@
  */
 
 import {cx} from '@emotion/css';
-import {withVendorCSSClassPrefix, bem} from '@thunderid/browser';
+import {withVendorCSSClassPrefix, bem, resolveLogoUri, ResolvedLogo} from '@thunderid/browser';
 import {FC} from 'react';
 import useStyles from './Logo.styles';
 import useTheme from '../../../contexts/Theme/useTheme';
@@ -62,19 +62,40 @@ const Logo: FC<LogoProps> = ({className, src, alt, title, size = 'medium'}: Logo
 
   const logoConfig: Record<string, string> | undefined = theme.images?.logo as Record<string, string> | undefined;
 
-  const logoSrc: string | undefined = src || logoConfig?.['url'];
+  const logoSpec: string | undefined = src || logoConfig?.['url'];
 
   const logoAlt: string = alt || logoConfig?.['alt'] || 'Logo';
 
   const logoTitle: string | undefined = title || logoConfig?.['title'];
 
-  if (!logoSrc) {
+  if (!logoSpec) {
     return null;
+  }
+
+  const resolvedLogo: ResolvedLogo = resolveLogoUri(logoSpec, logoAlt);
+
+  if (resolvedLogo.kind === 'emoji') {
+    return (
+      <span
+        role="img"
+        aria-label={logoAlt}
+        title={logoTitle}
+        className={cx(
+          withVendorCSSClassPrefix(bem('logo')),
+          withVendorCSSClassPrefix(bem('logo', size)),
+          styles['emoji'],
+          styles['emojiSize'],
+          className,
+        )}
+      >
+        {resolvedLogo.glyph}
+      </span>
+    );
   }
 
   return (
     <img
-      src={logoSrc}
+      src={resolvedLogo.imgSrc}
       alt={logoAlt}
       title={logoTitle}
       className={cx(

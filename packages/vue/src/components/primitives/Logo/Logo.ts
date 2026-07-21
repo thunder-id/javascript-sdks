@@ -16,7 +16,7 @@
  * under the License.
  */
 
-import {withVendorCSSClassPrefix} from '@thunderid/browser';
+import {withVendorCSSClassPrefix, resolveLogoUri, ResolvedLogo} from '@thunderid/browser';
 import {type Component, type SetupContext, type VNode, defineComponent, h} from 'vue';
 
 type LogoProps = Readonly<{
@@ -38,13 +38,28 @@ const Logo: Component = defineComponent({
   },
   setup(props: LogoProps, {attrs}: SetupContext): () => VNode {
     return (): VNode => {
-      const img: VNode = h('img', {
-        alt: props.alt,
-        class: withVendorCSSClassPrefix('logo__image'),
-        height: props.height,
-        src: props.src,
-        width: props.width,
-      });
+      const resolvedLogo: ResolvedLogo | undefined = props.src ? resolveLogoUri(props.src, props.alt) : undefined;
+
+      const img: VNode =
+        resolvedLogo?.kind === 'emoji'
+          ? h(
+              'span',
+              {
+                'aria-label': props.alt,
+                class: withVendorCSSClassPrefix('logo__emoji'),
+                height: props.height,
+                role: 'img',
+                width: props.width,
+              },
+              [resolvedLogo.glyph],
+            )
+          : h('img', {
+              alt: props.alt,
+              class: withVendorCSSClassPrefix('logo__image'),
+              height: props.height,
+              src: resolvedLogo?.imgSrc,
+              width: props.width,
+            });
 
       if (props.href) {
         return h(

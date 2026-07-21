@@ -47,6 +47,14 @@ const LOGO_CSS = `
   height: auto;
   object-fit: contain;
 }
+
+.thunderid-logo__emoji {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  font-size: 1.75em;
+}
 `;
 
 export default LOGO_CSS;

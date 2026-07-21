@@ -21,7 +21,9 @@ import {ThunderIDAuthException, Crypto, JWKInterface} from '@thunderid/javascrip
 import base64url from 'base64url';
 import sha256 from 'fast-sha256';
 import {createLocalJWKSet, jwtVerify, JWTVerifyOptions} from 'jose';
-import randombytes from 'randombytes';
+
+// `crypto.getRandomValues` throws once a single request exceeds this many bytes.
+const MAX_RANDOM_VALUES_BYTES = 65_536;
 
 /**
  * Browser-side `Crypto` implementation using native Web Crypto APIs and `jose` for JWT verification.
@@ -64,7 +66,13 @@ class SPACryptoUtils implements Crypto<Buffer | string> {
    * @returns A `Buffer` of random bytes.
    */
   public generateRandomBytes(length: number): string | Buffer {
-    return randombytes(length);
+    const bytes: Uint8Array = new Uint8Array(length);
+
+    for (let offset = 0; offset < length; offset += MAX_RANDOM_VALUES_BYTES) {
+      crypto.getRandomValues(bytes.subarray(offset, offset + MAX_RANDOM_VALUES_BYTES));
+    }
+
+    return Buffer.from(bytes);
   }
 
   /**
