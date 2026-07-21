@@ -436,4 +436,71 @@ describe('ThunderIDJavaScriptClient', () => {
       }
     });
   });
+
+  describe('getSignOutUrl()', () => {
+    const END_SESSION = 'https://example.com/oauth2/logout';
+
+    async function initForSignOut(
+      overrides: Record<string, unknown>,
+      meta: Record<string, unknown> = {end_session_endpoint: END_SESSION},
+    ): Promise<ThunderIDJavaScriptClient> {
+      const client = new ThunderIDJavaScriptClient(store, {} as any);
+      await client.initialize({...BASE_CONFIG, afterSignOutUrl: 'https://example.com/console', ...overrides});
+      const sm = (client as any).storageManager;
+      await sm.setOIDCProviderMetaData(meta);
+      await sm.setTemporaryDataParameter('op_config_initiated', true);
+      return client;
+    }
+
+    it('includes id_token_hint and post_logout_redirect_uri when sendIdTokenInLogoutRequest is true', async () => {
+      const client = await initForSignOut({sendIdTokenInLogoutRequest: true});
+      await (client as any).storageManager.setSessionData({id_token: 'test-id-token'});
+
+      const url = new URL(await (client as any).getSignOutUrl());
+
+      expect(`${url.origin}${url.pathname}`).toBe(END_SESSION);
+      expect(url.searchParams.get('id_token_hint')).toBe('test-id-token');
+      expect(url.searchParams.get('post_logout_redirect_uri')).toBe('https://example.com/console');
+      expect(url.searchParams.get('state')).toBe('sign_out_success');
+      expect(url.searchParams.has('client_id')).toBe(false);
+    });
+
+    it('sends client_id instead of id_token_hint when sendIdTokenInLogoutRequest is false', async () => {
+      const client = await initForSignOut({sendIdTokenInLogoutRequest: false});
+
+      const url = new URL(await (client as any).getSignOutUrl());
+
+      expect(url.searchParams.get('client_id')).toBe('test-client');
+      expect(url.searchParams.has('id_token_hint')).toBe(false);
+      expect(url.searchParams.get('post_logout_redirect_uri')).toBe('https://example.com/console');
+    });
+
+    it('throws when the OP advertises no end_session_endpoint', async () => {
+      const client = await initForSignOut(
+        {sendIdTokenInLogoutRequest: true},
+        {token_endpoint: 'https://example.com/oauth2/token'},
+      );
+
+      await expect((client as any).getSignOutUrl()).rejects.toMatchObject({code: 'JS-AUTH_CORE-GSOU-NF01'});
+    });
+
+    it('falls back to client_id when no ID token is available', async () => {
+      const client = await initForSignOut({sendIdTokenInLogoutRequest: true});
+
+      const url = new URL(await (client as any).getSignOutUrl());
+
+      expect(url.searchParams.get('client_id')).toBe('test-client');
+      expect(url.searchParams.has('id_token_hint')).toBe(false);
+    });
+
+    it('sends id_token_hint by default (no explicit flag) when an ID token is available', async () => {
+      const client = await initForSignOut({});
+      await (client as any).storageManager.setSessionData({id_token: 'test-id-token'});
+
+      const url = new URL(await (client as any).getSignOutUrl());
+
+      expect(url.searchParams.get('id_token_hint')).toBe('test-id-token');
+      expect(url.searchParams.has('client_id')).toBe(false);
+    });
+  });
 });
