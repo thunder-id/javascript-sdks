@@ -1,6 +1,6 @@
 {
   "name": "@thunderid/react",
-  "version": "0.8.0",
+  "version": "0.8.1",
   "description": "React SDK for ThunderID",
   "keywords": [
     "thunderid",
