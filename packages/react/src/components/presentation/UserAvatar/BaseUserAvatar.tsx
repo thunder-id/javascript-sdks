@@ -16,11 +16,17 @@
  * under the License.
  */
 
-import {User} from '@thunderid/browser';
-import {FC, JSX} from 'react';
+import {pickAnonymousAvatarName, User} from '@thunderid/browser';
+import {FC, JSX, useMemo} from 'react';
 import {Avatar} from '../../primitives/Avatar/Avatar';
 
 export interface BaseUserAvatarProps {
+  /**
+   * Seed used to deterministically pick the anonymous avatar shown when `user` is `null`
+   * (e.g. a session or device identifier, so the same anonymous session keeps the same
+   * avatar across renders). Falls back to a random pick when omitted.
+   */
+  anonymousAvatarSeed?: string;
   /**
    * Optional CSS class name for the avatar container.
    */
@@ -32,7 +38,8 @@ export interface BaseUserAvatarProps {
   size?: number;
   /**
    * The user object. When provided, the avatar derives the image URL and
-   * initials from the user's profile fields automatically.
+   * initials from the user's profile fields automatically. When `null`, a
+   * curated anonymous avatar is shown instead.
    */
   user: User | null;
 }
@@ -69,10 +76,19 @@ const resolveName = (user: User): string | undefined => {
  * @example
  * ```tsx
  * <BaseUserAvatar user={user} size={48} />
+ * <BaseUserAvatar user={null} anonymousAvatarSeed={sessionId} size={48} />
  * ```
  */
-const BaseUserAvatar: FC<BaseUserAvatarProps> = ({user, size = 40, className}: BaseUserAvatarProps): JSX.Element => {
-  const imageUrl: string | undefined = user ? resolvePicture(user) : undefined;
+const BaseUserAvatar: FC<BaseUserAvatarProps> = ({
+  user,
+  size = 40,
+  className,
+  anonymousAvatarSeed = undefined,
+}: BaseUserAvatarProps): JSX.Element => {
+  const imageUrl: string | undefined = useMemo(() => {
+    if (user) return resolvePicture(user);
+    return `avatar:variant=anonymous_animal,content=${pickAnonymousAvatarName(anonymousAvatarSeed)}`;
+  }, [user, anonymousAvatarSeed]);
   const name: string | undefined = user ? resolveName(user) : undefined;
 
   return <Avatar imageUrl={imageUrl} name={name} size={size} className={className} />;

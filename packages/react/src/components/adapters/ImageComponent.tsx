@@ -16,7 +16,7 @@
  * under the License.
  */
 
-import {extractEmojiFromUri, isEmojiUri} from '@thunderid/browser';
+import {resolveLogoUri, ResolvedLogo} from '@thunderid/browser';
 import {CSSProperties, FC, SyntheticEvent} from 'react';
 import useTheme from '../../contexts/Theme/useTheme';
 import {AdapterProps} from '../../models/adapters';
@@ -45,7 +45,9 @@ const ImageComponent: FC<AdapterProps> = ({component}: AdapterProps) => {
     return null;
   }
 
-  if (isEmojiUri(src)) {
+  const resolvedIcon: ResolvedLogo = resolveLogoUri(src, alt);
+
+  if (resolvedIcon.kind === 'emoji') {
     // Bare numbers (e.g. "48") are valid for <img> width/height attributes but
     // are unit-less and ignored as CSS properties — normalize them to px.
     const toCSSLength = (value: string): string => (/^\d+(\.\d+)?$/.test(value) ? `${value}px` : value);
@@ -83,7 +85,7 @@ const ImageComponent: FC<AdapterProps> = ({component}: AdapterProps) => {
           }}
         >
           <span aria-label={alt} role="img" style={{fontSize: '100cqmin', lineHeight: 1}}>
-            {extractEmojiFromUri(src)}
+            {resolvedIcon.glyph}
           </span>
         </span>
       </div>
@@ -93,7 +95,7 @@ const ImageComponent: FC<AdapterProps> = ({component}: AdapterProps) => {
   return (
     <div key={component.id} style={{textAlign: 'center'}}>
       <img
-        src={src}
+        src={resolvedIcon.imgSrc}
         alt={alt}
         height={height}
         width={width}

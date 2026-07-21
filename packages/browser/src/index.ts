@@ -54,6 +54,22 @@ export {default as navigate} from './utils/navigate';
 export {default as http} from './utils/http';
 export {default as handleWebAuthnAuthentication} from './utils/handleWebAuthnAuthentication';
 export {default as resolveEmojiUrisInHtml} from './utils/resolveEmojiUrisInHtml';
+export {default as isAvatarUri, AVATAR_URI_SCHEME} from './utils/isAvatarUri';
+export {default as extractAvatarParamsFromUri} from './utils/extractAvatarParamsFromUri';
+export type {AvatarParams, AvatarShape, AvatarVariant} from './utils/extractAvatarParamsFromUri';
+export {
+  default as generateAvatarDataUri,
+  deriveAvatarContent,
+  AVATAR_GRADIENT_COUNT,
+} from './utils/generateAvatarDataUri';
+export {default as pickAnonymousAvatarName} from './utils/pickAnonymousAvatarName';
+export {default as pickAnonymousEntityName} from './utils/pickAnonymousEntityName';
+export {ANONYMOUS_ANIMAL_ICONS} from './utils/anonymousAnimalIcons.generated';
+export type {AnonymousAnimalIcon} from './utils/anonymousAnimalIcons.generated';
+export {ANONYMOUS_ENTITY_ICONS} from './utils/anonymousEntityIcons.generated';
+export type {AnonymousEntityIcon} from './utils/anonymousEntityIcons.generated';
+export {default as resolveLogoUri} from './utils/resolveLogoUri';
+export type {ResolvedLogo, ResolvedLogoKind} from './utils/resolveLogoUri';
 
 // Theme
 export {detectThemeMode, createClassObserver, createMediaQueryListener} from './theme/themeDetection';

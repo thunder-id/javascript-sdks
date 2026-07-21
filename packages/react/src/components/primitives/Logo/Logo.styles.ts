@@ -58,7 +58,34 @@ const useStyles = (theme: Theme, colorScheme: string, size: LogoSize): Record<st
       small: smallLogo,
     };
 
+    const baseEmoji: string = css`
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      line-height: 1;
+    `;
+
+    const emojiSizeStyles: Record<LogoSize, string> = {
+      large: css`
+        width: 64px;
+        height: 64px;
+        font-size: 36px;
+      `,
+      medium: css`
+        width: 48px;
+        height: 48px;
+        font-size: 28px;
+      `,
+      small: css`
+        width: 32px;
+        height: 32px;
+        font-size: 20px;
+      `,
+    };
+
     return {
+      emoji: baseEmoji,
+      emojiSize: emojiSizeStyles[size],
       large: largeLogo,
       logo: baseLogo,
       medium: mediumLogo,

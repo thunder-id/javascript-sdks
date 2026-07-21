@@ -255,6 +255,8 @@ export {
   isEmojiUri,
   EMOJI_URI_SCHEME,
   extractEmojiFromUri,
+  resolveLogoUri,
+  type ResolvedLogo,
   resolveMeta,
   resolveFlowTemplateLiterals,
   countryCodeToFlagEmoji,

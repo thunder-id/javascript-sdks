@@ -17,7 +17,7 @@
  */
 
 import {cx} from '@emotion/css';
-import {withVendorCSSClassPrefix, bem} from '@thunderid/browser';
+import {withVendorCSSClassPrefix, bem, resolveLogoUri, ResolvedLogo} from '@thunderid/browser';
 import {FC, JSX, useMemo} from 'react';
 import useStyles from './Avatar.styles';
 import useTheme from '../../../contexts/Theme/useTheme';
@@ -40,7 +40,8 @@ export interface AvatarProps {
    */
   className?: string;
   /**
-   * The URL of the avatar image
+   * The avatar image. Accepts a plain URL, or any `resolveLogoUri`-compatible
+   * spec (`emoji:<glyph>`, or `avatar:shape=...,variant=...,content=...,colors=...,bg=...`).
    */
   imageUrl?: string;
   /**
@@ -74,6 +75,13 @@ export const Avatar: FC<AvatarProps> = ({
 }: AvatarProps): JSX.Element => {
   const {theme, colorScheme}: ReturnType<typeof useTheme> = useTheme();
 
+  const resolvedIcon: ResolvedLogo | undefined = useMemo(
+    () => (imageUrl ? resolveLogoUri(imageUrl, name ?? alt) : undefined),
+    [imageUrl, name, alt],
+  );
+
+  const hasImage: boolean = resolvedIcon?.kind !== 'emoji' && Boolean(resolvedIcon?.imgSrc);
+
   const generateBackgroundColor = (inputString: string): string => {
     const hash: number = inputString.split('').reduce((acc: number, char: string) => {
       const charCode: number = char.charCodeAt(0);
@@ -101,7 +109,7 @@ export const Avatar: FC<AvatarProps> = ({
   };
 
   const backgroundColor: string | undefined = useMemo(() => {
-    if (!name || imageUrl) {
+    if (!name || hasImage) {
       return undefined;
     }
 
@@ -114,7 +122,7 @@ export const Avatar: FC<AvatarProps> = ({
     }
 
     return background;
-  }, [background, name, imageUrl]);
+  }, [background, name, hasImage]);
 
   const styles: ReturnType<typeof useStyles> = useStyles(theme, colorScheme, size, variant, backgroundColor);
 
@@ -130,10 +138,18 @@ export const Avatar: FC<AvatarProps> = ({
       .toUpperCase();
 
   const renderContent = (): JSX.Element | string => {
-    if (imageUrl) {
+    if (resolvedIcon?.kind === 'emoji') {
+      return (
+        <span role="img" aria-label={alt}>
+          {resolvedIcon.glyph}
+        </span>
+      );
+    }
+
+    if (hasImage) {
       return (
         <img
-          src={imageUrl}
+          src={resolvedIcon?.imgSrc}
           alt={alt}
           className={cx(withVendorCSSClassPrefix(bem('avatar', 'image')), styles['image'])}
         />
