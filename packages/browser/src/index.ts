@@ -57,6 +57,7 @@ export {default as resolveEmojiUrisInHtml} from './utils/resolveEmojiUrisInHtml'
 export {default as isAvatarUri, AVATAR_URI_SCHEME} from './utils/isAvatarUri';
 export {default as extractAvatarParamsFromUri} from './utils/extractAvatarParamsFromUri';
 export type {AvatarParams, AvatarShape, AvatarVariant} from './utils/extractAvatarParamsFromUri';
+export {default as buildAvatarSpec} from './utils/buildAvatarSpec';
 export {
   default as generateAvatarDataUri,
   deriveAvatarContent,
