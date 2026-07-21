@@ -1,6 +1,6 @@
 {
   "name": "@thunderid/express",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "description": "Express.js SDK for ThunderID",
   "keywords": [
     "thunderid",
