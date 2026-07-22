@@ -49,6 +49,16 @@ export const ANONYMOUS_ENTITY_ICONS: Record<string, AnonymousEntityIcon> = {
     markup:
       '<path d="M20 85 L20 50 Q20 15 50 15 Q80 15 80 50 L80 85 Z" fill="none" stroke="#FFFFFF" stroke-width="10"/>',
   },
+  bot_head: {
+    color: '#3B7DD8',
+    markup:
+      '<rect x="26" y="30" width="48" height="42" rx="12" fill="#FFFFFF"/>\n<circle cx="40" cy="50" r="5" fill="%COLOR%"/>\n<circle cx="60" cy="50" r="5" fill="%COLOR%"/>\n<rect x="46" y="12" width="8" height="16" fill="#FFFFFF"/>\n<circle cx="50" cy="10" r="5" fill="#FFFFFF"/>\n<rect x="14" y="45" width="8" height="14" rx="3" fill="#FFFFFF"/>\n<rect x="78" y="45" width="8" height="14" rx="3" fill="#FFFFFF"/>',
+  },
+  brain: {
+    color: '#7B3F9E',
+    markup:
+      '<path d="M50 15 Q30 15 28 32 Q14 34 16 50 Q10 58 18 66 Q18 80 34 80 Q38 88 50 85 Q62 88 66 80 Q82 80 82 66 Q90 58 84 50 Q86 34 72 32 Q70 15 50 15 Z" fill="#FFFFFF"/>\n<path d="M50 22 L50 78 M35 35 Q45 45 35 55 Q45 65 35 75 M65 35 Q55 45 65 55 Q55 65 65 75" stroke="%COLOR%" stroke-width="3" fill="none"/>',
+  },
   bridge: {
     color: '#B5892C',
     markup:
@@ -99,6 +109,11 @@ export const ANONYMOUS_ENTITY_ICONS: Record<string, AnonymousEntityIcon> = {
     color: '#E0348E',
     markup:
       '<rect x="26" y="45" width="48" height="38" rx="6" fill="#FFFFFF"/>\n<path d="M34 45 L34 32 Q34 14 50 14 Q66 14 66 32 L66 45" fill="none" stroke="#FFFFFF" stroke-width="8"/>\n<circle cx="50" cy="63" r="6" fill="%COLOR%"/>',
+  },
+  neural_net: {
+    color: '#2E9E9E',
+    markup:
+      '<circle cx="50" cy="20" r="8" fill="#FFFFFF"/>\n<circle cx="22" cy="50" r="8" fill="#FFFFFF"/>\n<circle cx="78" cy="50" r="8" fill="#FFFFFF"/>\n<circle cx="35" cy="82" r="8" fill="#FFFFFF"/>\n<circle cx="65" cy="82" r="8" fill="#FFFFFF"/>\n<path d="M50 20 L22 50 M50 20 L78 50 M22 50 L35 82 M22 50 L65 82 M78 50 L35 82 M78 50 L65 82" stroke="#FFFFFF" stroke-width="3"/>',
   },
   obelisk: {color: '#5B6BC0', markup: '<polygon points="50,8 62,25 62,85 38,85 38,25" fill="#FFFFFF"/>'},
   octagon: {
