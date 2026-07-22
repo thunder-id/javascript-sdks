@@ -70,7 +70,7 @@ describe('resolveLogoUri', () => {
   });
 
   it('bundles the full curated anonymous-entity icon set', () => {
-    expect(Object.keys(ANONYMOUS_ENTITY_ICONS)).toHaveLength(33);
+    expect(Object.keys(ANONYMOUS_ENTITY_ICONS)).toHaveLength(36);
     Object.values(ANONYMOUS_ENTITY_ICONS).forEach((icon) => {
       expect(icon.color).toMatch(/^#[0-9a-fA-F]{6}$/);
       expect(icon.markup.length).toBeGreaterThan(0);
