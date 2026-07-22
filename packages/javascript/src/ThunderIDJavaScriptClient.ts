@@ -189,6 +189,15 @@ class ThunderIDJavaScriptClient<T = Config> implements ThunderIDClient<T> {
     this.authHelper.clearSession(sessionId);
   }
 
+  /**
+   * Async variant of {@link clearSession} that resolves once the session data has been removed from
+   * storage. Await this when the clear must complete before proceeding (for example, before a
+   * full-page sign-out redirect); {@link clearSession} remains a fire-and-forget convenience.
+   */
+  protected clearSessionAsync(sessionId?: string): Promise<void> {
+    return this.authHelper.clearSession(sessionId);
+  }
+
   public async setSession(sessionData: Record<string, unknown>, sessionId?: string): Promise<void> {
     await this.storageManager.setSessionData(sessionData, sessionId);
   }
@@ -623,16 +632,13 @@ class ThunderIDJavaScriptClient<T = Config> implements ThunderIDClient<T> {
 
     queryParams.set('post_logout_redirect_uri', callbackURL);
 
-    if (configData.sendIdTokenInLogoutRequest) {
-      const idToken: string = (await this.storageManager.getSessionData(userId))?.id_token;
+    // Include id_token_hint by default when an ID token is available: OIDC RP-Initiated Logout
+    // recommends it, and some OPs (including ThunderID) require it alongside post_logout_redirect_uri.
+    // Fall back to client_id when no ID token is available. Set sendIdTokenInLogoutRequest: false to
+    // always send client_id instead.
+    const idToken: string = (await this.storageManager.getSessionData(userId))?.id_token;
 
-      if (!idToken || idToken.trim().length === 0) {
-        throw new ThunderIDAuthException(
-          'JS-AUTH_CORE-GSOU-NF02',
-          'ID token not found.',
-          'No ID token could be found. Either the session information is lost or you have not signed in.',
-        );
-      }
+    if (configData.sendIdTokenInLogoutRequest !== false && idToken && idToken.trim().length > 0) {
       queryParams.set('id_token_hint', idToken);
     } else {
       queryParams.set('client_id', configData.clientId ?? '');

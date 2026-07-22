@@ -90,10 +90,29 @@ export interface BaseConfig<T = unknown> extends WithPreferences, WithExtensions
   sendCookiesInRequests?: boolean;
 
   /**
-   * Whether to include the ID token as a hint in the logout request.
-   * When `true`, the `id_token_hint` parameter is sent to the end-session endpoint.
+   * Whether to include the ID token as `id_token_hint` in the RP-initiated logout request.
+   *
+   * By default the `id_token_hint` parameter is sent to the `end_session_endpoint` whenever an ID
+   * token is available (recommended by OIDC RP-Initiated Logout, and required by some OPs alongside
+   * `post_logout_redirect_uri`), falling back to `client_id` otherwise. Set to `false` to always
+   * send `client_id` instead of `id_token_hint`.
+   *
+   * @default true
    */
   sendIdTokenInLogoutRequest?: boolean;
+
+  /**
+   * Whether `signOut()` performs OIDC RP-Initiated Logout at the OP's `end_session_endpoint`.
+   *
+   * Enabled by default: `signOut()` clears the local session and redirects the browser to the
+   * `end_session_endpoint` so the OP can terminate its own session, falling back to a local-only
+   * sign out when no `end_session_endpoint` is advertised or the sign-out URL cannot be built. The
+   * request includes `id_token_hint` automatically when an ID token is available (see
+   * `sendIdTokenInLogoutRequest`). Set to `false` to force a local-only sign out.
+   *
+   * @default true
+   */
+  rpInitiatedLogout?: boolean;
 
   /**
    * Optional URL where the authorization server should redirect after authentication.

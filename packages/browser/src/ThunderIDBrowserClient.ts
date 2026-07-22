@@ -372,19 +372,54 @@ class ThunderIDBrowserClient<T = BrowserAuthConfig> extends ThunderIDJavaScriptC
     afterSignOutParam?: (url: string) => void,
   ): Promise<string> {
     let afterSignOut: ((url: string) => void) | undefined;
+    let sessionId: string | undefined;
 
     if (typeof sessionIdOrAfterSignOut === 'function') {
       afterSignOut = sessionIdOrAfterSignOut;
     } else if (typeof sessionIdOrAfterSignOut === 'string') {
+      sessionId = sessionIdOrAfterSignOut;
       afterSignOut = afterSignOutParam;
     }
 
     const sm = this.getStorageManager();
     const config = await (sm as any).getConfigData();
 
-    // TEMPORARY: Handle sign-out by clearing the session and navigating back to sign-in,
-    // until the OIDC end-session flow is fully supported.
-    this.clearSession();
+    // OIDC RP-Initiated Logout: end the session at the OP's end_session_endpoint. The sign-out URL
+    // (carrying id_token_hint/client_id + post_logout_redirect_uri) is resolved before the local
+    // session is cleared, so the ID token used for the hint is still available. This is the default;
+    // it falls back to a local-only sign out when no end_session_endpoint is advertised or the URL
+    // cannot be built. Set rpInitiatedLogout: false to force a local-only sign out.
+    if (config?.rpInitiatedLogout !== false) {
+      // A cached URL is stored per client at token exchange; when a specific session is targeted, build
+      // a fresh URL instead so the id_token_hint matches that session.
+      let signOutUrl: string = sessionId ? '' : SPAUtils.getSignOutUrl(config.clientId, this._browserInstanceId);
+
+      if (!signOutUrl) {
+        try {
+          signOutUrl = await this.getSignOutUrl(sessionId);
+        } catch (error) {
+          // end_session_endpoint absent or ID token unavailable — fall through to local sign out.
+          logger.debug('Could not build the RP-initiated logout URL; falling back to a local sign out.', error);
+          signOutUrl = '';
+        }
+      }
+
+      if (signOutUrl) {
+        // Await the clear so local tokens are gone before navigating away; clearSession() is otherwise
+        // fire-and-forget and could be cut short by the redirect.
+        await this.clearSessionAsync(sessionId);
+        // Notify the caller before navigating away, mirroring the local-only path below.
+        afterSignOut?.(signOutUrl);
+        location.href = signOutUrl;
+        await SPAUtils.waitTillPageRedirect();
+
+        return signOutUrl;
+      }
+    }
+
+    // Local-only sign out: clear the session and navigate back to sign-in. Used when RP-initiated
+    // logout is disabled, or as a fallback when the OP advertises no end_session_endpoint.
+    this.clearSession(sessionId);
 
     if (config?.signInUrl) {
       navigate(config.signInUrl);
