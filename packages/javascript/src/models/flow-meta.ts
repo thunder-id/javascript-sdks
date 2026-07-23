@@ -185,8 +185,8 @@ export interface FlowMetaThemeSize {
  * @experimental This API may change in future versions
  */
 export interface FlowMetaThemeShape {
-  /** Border radius in pixels applied uniformly across components */
-  borderRadius?: number;
+  /** Border radius: a number (px), a numeric string ("8"), a px string ("8px"), or per-size tokens */
+  borderRadius?: number | string | FlowMetaThemeSize;
 }
 
 /**
@@ -235,8 +235,6 @@ export interface FlowMetaTheme {
 
   /** Spacing configuration for the theme */
   spacing?: {unit: number};
-
-  borderRadius?: FlowMetaThemeSize;
 }
 
 /**

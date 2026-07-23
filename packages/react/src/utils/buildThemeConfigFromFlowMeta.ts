@@ -36,8 +36,28 @@ const buildThemeConfigFromFlowMeta = (
   colorScheme: 'light' | 'dark',
 ): RecursivePartial<ThemeConfig> => {
   const scheme: FlowMetaThemeColorScheme | undefined = flowMetaTheme.colorSchemes?.[colorScheme];
-  const borderRadius: number | undefined = flowMetaTheme.shape?.borderRadius;
-  const borderRadiusStr: string | undefined = borderRadius !== undefined ? `${borderRadius}px` : undefined;
+  const rawBorderRadius = flowMetaTheme.shape?.borderRadius;
+
+  let borderRadiusConfig: {large?: string; medium?: string; small?: string} | undefined;
+
+  // Normalize borderRadius into per-size tokens: if it's already a size object use it directly;
+  // otherwise coerce a bare number or numeric string to a px string and apply it uniformly.
+  if (rawBorderRadius !== undefined) {
+    if (typeof rawBorderRadius === 'object') {
+      const {small, medium, large} = rawBorderRadius;
+      if (small !== undefined || medium !== undefined || large !== undefined) {
+        borderRadiusConfig = {
+          ...(large !== undefined && {large}),
+          ...(medium !== undefined && {medium}),
+          ...(small !== undefined && {small}),
+        };
+      }
+    } else {
+      const trimmed = String(rawBorderRadius).trim();
+      const radiusStr = /^\d+(\.\d+)?$/.test(trimmed) ? `${trimmed}px` : trimmed;
+      borderRadiusConfig = {large: radiusStr, medium: radiusStr, small: radiusStr};
+    }
+  }
 
   // Build only the colors that the server actually provided.
   // Each nested object is constructed incrementally so that absent fields are
@@ -78,15 +98,7 @@ const buildThemeConfigFromFlowMeta = (
   return {
     ...flowMetaTheme,
     ...(flowMetaTheme.direction ? {direction: flowMetaTheme.direction} : {}),
-    ...(borderRadiusStr
-      ? {
-          borderRadius: {
-            large: borderRadiusStr,
-            medium: borderRadiusStr,
-            small: borderRadiusStr,
-          },
-        }
-      : {}),
+    ...(borderRadiusConfig ? {borderRadius: borderRadiusConfig} : {}),
     ...(colors && Object.keys(colors).length > 0 ? {colors} : {}),
     ...(flowMetaTheme.typography?.fontFamily ? {typography: {fontFamily: flowMetaTheme.typography.fontFamily}} : {}),
   };
