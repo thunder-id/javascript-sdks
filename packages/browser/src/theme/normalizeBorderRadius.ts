@@ -50,7 +50,8 @@ const normalizeBorderRadius = (raw: FlowMetaThemeShape['borderRadius']): FlowMet
   }
 
   const trimmed: string = String(raw).trim();
-  const radiusStr: string = /^\d+(\.\d+)?$/.test(trimmed) ? `${trimmed}px` : trimmed;
+  const radiusStr: string =
+    typeof raw === 'number' ? `${raw}px` : /^\d+(\.\d+)?$/.test(trimmed) ? `${trimmed}px` : trimmed;
   return {large: radiusStr, medium: radiusStr, small: radiusStr};
 };
 
