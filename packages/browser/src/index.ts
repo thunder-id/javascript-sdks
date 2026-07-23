@@ -76,6 +76,7 @@ export type {ResolvedLogo, ResolvedLogoKind} from './utils/resolveLogoUri';
 export {detectThemeMode, createClassObserver, createMediaQueryListener} from './theme/themeDetection';
 export type {BrowserThemeDetection} from './theme/themeDetection';
 export {default as getActiveTheme} from './theme/getActiveTheme';
+export {default as normalizeBorderRadius} from './theme/normalizeBorderRadius';
 
 // Re-export everything from the JavaScript SDK
 export * from '@thunderid/javascript';

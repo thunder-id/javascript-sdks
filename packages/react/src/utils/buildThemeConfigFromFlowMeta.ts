@@ -16,7 +16,13 @@
  * under the License.
  */
 
-import {FlowMetaTheme, FlowMetaThemeColorScheme, RecursivePartial, ThemeConfig} from '@thunderid/browser';
+import {
+  FlowMetaTheme,
+  FlowMetaThemeColorScheme,
+  RecursivePartial,
+  ThemeConfig,
+  normalizeBorderRadius,
+} from '@thunderid/browser';
 
 /**
  * Converts a v2 `FlowMetaTheme` into a `RecursivePartial<ThemeConfig>` that
@@ -36,8 +42,7 @@ const buildThemeConfigFromFlowMeta = (
   colorScheme: 'light' | 'dark',
 ): RecursivePartial<ThemeConfig> => {
   const scheme: FlowMetaThemeColorScheme | undefined = flowMetaTheme.colorSchemes?.[colorScheme];
-  const borderRadius: number | undefined = flowMetaTheme.shape?.borderRadius;
-  const borderRadiusStr: string | undefined = borderRadius !== undefined ? `${borderRadius}px` : undefined;
+  const borderRadiusConfig = normalizeBorderRadius(flowMetaTheme.shape?.borderRadius);
 
   // Build only the colors that the server actually provided.
   // Each nested object is constructed incrementally so that absent fields are
@@ -76,16 +81,9 @@ const buildThemeConfigFromFlowMeta = (
   }
 
   return {
+    ...flowMetaTheme,
     ...(flowMetaTheme.direction ? {direction: flowMetaTheme.direction} : {}),
-    ...(borderRadiusStr
-      ? {
-          borderRadius: {
-            large: borderRadiusStr,
-            medium: borderRadiusStr,
-            small: borderRadiusStr,
-          },
-        }
-      : {}),
+    ...(borderRadiusConfig ? {borderRadius: borderRadiusConfig} : {}),
     ...(colors && Object.keys(colors).length > 0 ? {colors} : {}),
     ...(flowMetaTheme.typography?.fontFamily ? {typography: {fontFamily: flowMetaTheme.typography.fontFamily}} : {}),
   };
