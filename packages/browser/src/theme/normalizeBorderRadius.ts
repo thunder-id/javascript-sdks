@@ -16,8 +16,18 @@
  * under the License.
  */
 
-import {FlowMetaThemeShape, FlowMetaThemeSize} from '@thunderid/javascript';
+import {FlowMetaThemeShape} from '@thunderid/javascript';
 
+/**
+ * Size configuration in the v2 theme.
+ *
+ * @experimental This API may change in future versions
+ */
+interface FlowMetaThemeSize {
+  small?: string;
+  medium?: string;
+  large?: string;
+}
 /**
  * Normalizes a raw `shape.borderRadius` value into per-size tokens suitable
  * for `ThemeConfig.borderRadius`.
