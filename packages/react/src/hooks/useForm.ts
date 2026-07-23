@@ -53,11 +53,23 @@ export interface UseFormConfig<T extends Record<string, string>> {
    */
   requiredMessage?: string;
   /**
+   * When a field has been touched (blurred at least once), re-run validation on every
+   * subsequent change so a rendered error clears the moment the value becomes valid.
+   *
+   * Independent of `validateOnChange`: this only affects fields that have already been
+   * blurred, so users don't see errors while initially typing. Default `false` to
+   * preserve prior behavior; enable per-form for a "correct-as-you-type" UX.
+   */
+  revalidateOnChangeAfterBlur?: boolean;
+  /**
    * Whether to validate on blur (default: true)
    */
   validateOnBlur?: boolean;
   /**
-   * Whether to validate on change (default: false)
+   * Whether to validate on change (default: false). When true, every keystroke
+   * triggers validation — including the first, which surfaces errors before the user
+   * has had a chance to finish typing. Prefer `revalidateOnChangeAfterBlur` for the
+   * common "clear the error as the user corrects" UX.
    */
   validateOnChange?: boolean;
   /**
@@ -65,6 +77,26 @@ export interface UseFormConfig<T extends Record<string, string>> {
    */
   validator?: (values: T) => Record<string, string>;
 }
+
+/**
+ * Pure per-field validator. Kept outside `useForm` so `setValue` can validate against
+ * the value it just wrote — inline validation via the closure-based `validateField`
+ * inside the hook would read stale `values` (state is committed asynchronously).
+ */
+const computeFieldError = (
+  value: string,
+  fieldConfig: FormField | undefined,
+  requiredMessage: string,
+): string | null => {
+  if (fieldConfig?.required && (!value || value.trim() === '')) {
+    return requiredMessage;
+  }
+  if (fieldConfig?.validator) {
+    const fieldError: string | null = fieldConfig.validator(value);
+    if (fieldError) return fieldError;
+  }
+  return null;
+};
 
 /**
  * Return type for the useForm hook
@@ -202,6 +234,7 @@ export const useForm = <T extends Record<string, string>>(config: UseFormConfig<
     validator,
     validateOnChange = false,
     validateOnBlur = true,
+    revalidateOnChangeAfterBlur = false,
     requiredMessage = 'This field is required',
   } = config;
 
@@ -217,24 +250,13 @@ export const useForm = <T extends Record<string, string>>(config: UseFormConfig<
     [fields],
   );
 
-  // Validate a single field
+  // Validate a single field against currently-committed state. Used by the blur path
+  // (where `values` is already up-to-date) and by `validateForm`.
   const validateField: (name: keyof T) => string | null = useCallback(
     (name: keyof T): string | null => {
       const value: string = values[name] || '';
       const fieldConfig: FormField | undefined = getFieldConfig(name);
-
-      // Check required validation
-      if (fieldConfig?.required && (!value || value.trim() === '')) {
-        return requiredMessage;
-      }
-
-      // Run custom field validator
-      if (fieldConfig?.validator) {
-        const fieldError: string | null = fieldConfig.validator(value);
-        if (fieldError) return fieldError;
-      }
-
-      return null;
+      return computeFieldError(value, fieldConfig, requiredMessage);
     },
     [values, getFieldConfig, requiredMessage],
   );
@@ -270,7 +292,19 @@ export const useForm = <T extends Record<string, string>>(config: UseFormConfig<
   // Check if form is currently valid
   const isValid: boolean = Object.keys(errors).length === 0;
 
-  // Set a single field value
+  // Set a single field value.
+  //
+  // Validation policy:
+  //  - `validateOnChange: true`               → validate on every keystroke.
+  //  - `revalidateOnChangeAfterBlur: true`    → validate only if the field has
+  //                                             already been touched (blurred once),
+  //                                             so errors clear as the user corrects
+  //                                             without appearing while first typing.
+  //  - both false                             → no on-change validation.
+  //
+  // Validation runs against the NEXT value (the string being written) rather than
+  // going through `validateField` which reads the stale closed-over `values`. This
+  // prevents the one-keystroke-lag bug where the error clears one character late.
   const setValue: (name: keyof T, value: string) => void = useCallback(
     (name: keyof T, value: string): void => {
       setFormValues((prev: T) => ({
@@ -278,21 +312,23 @@ export const useForm = <T extends Record<string, string>>(config: UseFormConfig<
         [name]: value,
       }));
 
-      // Validate on change if enabled
-      if (validateOnChange) {
-        const error: string | null = validateField(name);
-        setFormErrors((prev: Record<keyof T, string>) => {
-          const newErrors: Record<keyof T, string> = {...prev};
-          if (error) {
-            newErrors[name] = error;
-          } else {
-            delete newErrors[name];
-          }
-          return newErrors;
-        });
+      const shouldValidate: boolean = validateOnChange || (revalidateOnChangeAfterBlur && touched[name] === true);
+      if (!shouldValidate) {
+        return;
       }
+
+      const error: string | null = computeFieldError(value, getFieldConfig(name), requiredMessage);
+      setFormErrors((prev: Record<keyof T, string>) => {
+        const newErrors: Record<keyof T, string> = {...prev};
+        if (error) {
+          newErrors[name] = error;
+        } else {
+          delete newErrors[name];
+        }
+        return newErrors;
+      });
     },
-    [validateField, validateOnChange],
+    [validateOnChange, revalidateOnChangeAfterBlur, touched, getFieldConfig, requiredMessage],
   );
 
   // Set multiple field values

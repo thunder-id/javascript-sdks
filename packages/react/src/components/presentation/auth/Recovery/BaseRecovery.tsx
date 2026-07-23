@@ -95,6 +95,13 @@ export interface BaseRecoveryProps {
    * Component-level preferences to override global i18n and theme settings.
    */
   preferences?: Preferences;
+  /**
+   * When a field has been blurred at least once, re-run validation on every subsequent
+   * keystroke so a rendered error clears the moment the value becomes valid. Doesn't
+   * affect fields that have never been blurred — the user isn't shown errors while
+   * initially typing. Default `false` preserves prior behavior.
+   */
+  revalidateOnChangeAfterBlur?: boolean;
   showLogo?: boolean;
   showSubtitle?: boolean;
   showTitle?: boolean;
@@ -125,6 +132,7 @@ const BaseRecoveryContent: FC<BaseRecoveryProps> = ({
   children,
   showTitle = true,
   showSubtitle = true,
+  revalidateOnChangeAfterBlur = false,
 }: BaseRecoveryProps): ReactElement => {
   const {theme, colorScheme} = useTheme();
   const customRenderers: ComponentRendererMap = useContext(ComponentRendererContext);
@@ -236,6 +244,7 @@ const BaseRecoveryContent: FC<BaseRecoveryProps> = ({
     fields: formFields,
     initialValues: {},
     requiredMessage: t('validations.required.field.error'),
+    revalidateOnChangeAfterBlur,
     validateOnBlur: true,
     validateOnChange: false,
   });
