@@ -16,7 +16,13 @@
  * under the License.
  */
 
-import {FlowMetaTheme, FlowMetaThemeColorScheme, RecursivePartial, ThemeConfig, normalizeBorderRadius} from '@thunderid/browser';
+import {
+  FlowMetaTheme,
+  FlowMetaThemeColorScheme,
+  RecursivePartial,
+  ThemeConfig,
+  normalizeBorderRadius,
+} from '@thunderid/browser';
 
 /**
  * Converts a v2 `FlowMetaTheme` into a `RecursivePartial<ThemeConfig>` that
