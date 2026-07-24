@@ -1,0 +1,75 @@
+{
+  "name": "@thunderid/nestjs",
+  "version": "0.1.0",
+  "description": "NestJS SDK for ThunderID",
+  "keywords": [
+    "thunderid",
+    "nestjs",
+    "server"
+  ],
+  "homepage": "https://github.com/thunder-id/javascript-sdks/tree/main/packages/nestjs#readme",
+  "bugs": {
+    "url": "https://github.com/thunder-id/thunderid/issues"
+  },
+  "author": "WSO2",
+  "license": "Apache-2.0",
+  "type": "module",
+  "main": "dist/index.js",
+  "module": "dist/index.js",
+  "commonjs": "dist/cjs/index.cjs",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/cjs/index.cjs"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "types": "dist/index.d.ts",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/thunder-id/javascript-sdks",
+    "directory": "packages/nestjs"
+  },
+  "scripts": {
+    "build": "pnpm clean:dist &&  rolldown -c rolldown.config.js && tsc -p tsconfig.lib.json --emitDeclarationOnly --outDir dist",
+    "clean": "pnpm clean:node_modules && pnpm clean:dist",
+    "clean:dist": "rimraf dist",
+    "clean:node_modules": "rimraf node_modules",
+    "format:check": "prettier --check --cache .",
+    "format:fix": "prettier --write --cache .",
+    "lint": "eslint . --ext .js,.jsx,.ts,.tsx,.cjs,.mjs",
+    "lint:fix": "eslint . --fix --ext .js,.jsx,.ts,.tsx,.cjs,.mjs",
+    "test": "vitest run --passWithNoTests",
+    "typecheck": "tsc -p tsconfig.lib.json"
+  },
+  "devDependencies": {
+    "@nestjs/common": "^11.0.0",
+    "@thunderid/eslint-plugin": "catalog:",
+    "@thunderid/prettier-config": "catalog:",
+    "@types/cookie-parser": "^1.4.8",
+    "@types/express": "^5.0.6",
+    "@types/node": "22.15.3",
+    "eslint": "catalog:",
+    "prettier": "catalog:",
+    "reflect-metadata": "^0.2.2",
+    "rimraf": "catalog:",
+    "rolldown": "catalog:",
+    "rxjs": "^7.8.1",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  },
+  "dependencies": {
+    "@thunderid/express": "workspace:^"
+  },
+  "peerDependencies": {
+    "@nestjs/common": ">=10.0.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}
