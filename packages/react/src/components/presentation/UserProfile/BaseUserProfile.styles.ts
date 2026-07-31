@@ -17,7 +17,7 @@
  */
 
 import {css} from '@emotion/css';
-import {Theme, withVendorCSSClassPrefix} from '@thunderid/browser';
+import {ElevatedSurfaceTokens, getElevatedSurfaceTokens, Theme, withVendorCSSClassPrefix} from '@thunderid/browser';
 import {useMemo} from 'react';
 
 /**
@@ -78,6 +78,8 @@ const useStyles = (theme: Theme, colorScheme: string): Record<string, string> =>
   `;
 
   return useMemo(() => {
+    const surface: ElevatedSurfaceTokens = getElevatedSurfaceTokens(theme);
+
     const root: string = css`
       padding: calc(${theme.vars.spacing.unit} * 4);
       min-width: 600px;
@@ -86,8 +88,10 @@ const useStyles = (theme: Theme, colorScheme: string): Record<string, string> =>
     `;
 
     const card: string = css`
-      background: ${theme.vars.colors.background.surface};
-      border-radius: ${theme.vars.borderRadius.large};
+      background: ${surface.background};
+      border-radius: ${surface.borderRadius};
+      box-shadow: ${surface.boxShadow};
+      border: ${surface.border};
     `;
 
     const header: string = css`
@@ -243,6 +247,7 @@ const useStyles = (theme: Theme, colorScheme: string): Record<string, string> =>
     theme.vars.colors.border,
     theme.vars.borderRadius.large,
     theme.vars.borderRadius.medium,
+    theme.vars.shadows.large,
     theme.vars.spacing.unit,
     theme.vars.typography.fontFamily,
     colorScheme,

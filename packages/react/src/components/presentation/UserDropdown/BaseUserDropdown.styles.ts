@@ -17,7 +17,7 @@
  */
 
 import {css} from '@emotion/css';
-import {Theme} from '@thunderid/browser';
+import {ElevatedSurfaceTokens, getElevatedSurfaceTokens, Theme} from '@thunderid/browser';
 import {useMemo} from 'react';
 
 /**
@@ -28,6 +28,8 @@ import {useMemo} from 'react';
  */
 const useStyles = (theme: Theme, colorScheme: string): Record<string, string> =>
   useMemo(() => {
+    const surface: ElevatedSurfaceTokens = getElevatedSurfaceTokens(theme);
+
     const trigger: string = css`
       display: inline-flex;
       align-items: center;
@@ -70,12 +72,10 @@ const useStyles = (theme: Theme, colorScheme: string): Record<string, string> =>
     `;
 
     const dropdownContent: string = css`
-      background: ${theme.vars.colors.background.surface};
-      border-radius: ${theme.vars.borderRadius.large};
-      box-shadow:
-        0 4px 6px -1px rgba(0, 0, 0, 0.1),
-        0 2px 4px -1px rgba(0, 0, 0, 0.06);
-      border: 1px solid ${theme.vars.colors.border};
+      background: ${surface.background};
+      border-radius: ${surface.borderRadius};
+      box-shadow: ${surface.boxShadow};
+      border: ${surface.border};
       font-family: ${theme.vars.typography.fontFamily};
       min-width: 250px;
       max-width: 600px;
@@ -222,6 +222,7 @@ const useStyles = (theme: Theme, colorScheme: string): Record<string, string> =>
     theme.vars.colors.action?.hover,
     theme.vars.borderRadius.medium,
     theme.vars.borderRadius.large,
+    theme.vars.shadows.large,
     theme.vars.spacing.unit,
     theme.vars.typography.fontFamily,
     colorScheme,

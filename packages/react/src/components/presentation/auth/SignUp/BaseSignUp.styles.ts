@@ -17,7 +17,7 @@
  */
 
 import {css} from '@emotion/css';
-import {Theme} from '@thunderid/browser';
+import {ElevatedSurfaceTokens, getElevatedSurfaceTokens, Theme} from '@thunderid/browser';
 import {useMemo} from 'react';
 
 /**
@@ -28,6 +28,8 @@ import {useMemo} from 'react';
  */
 const useStyles = (theme: Theme, colorScheme: string): Record<string, string> =>
   useMemo(() => {
+    const surface: ElevatedSurfaceTokens = getElevatedSurfaceTokens(theme);
+
     const signUp: string = css`
       min-width: 420px;
       margin: 0 auto;
@@ -35,10 +37,12 @@ const useStyles = (theme: Theme, colorScheme: string): Record<string, string> =>
     `;
 
     const card: string = css`
-      background: ${theme.vars.colors.background.surface};
-      border-radius: ${theme.vars.borderRadius.large};
+      background: ${surface.background};
+      border-radius: ${surface.borderRadius};
+      box-shadow: ${surface.boxShadow};
       gap: calc(${theme.vars.spacing.unit} * 2);
       min-width: 420px;
+      padding: ${surface.padding};
     `;
 
     const logoContainer: string = css`
@@ -180,6 +184,7 @@ const useStyles = (theme: Theme, colorScheme: string): Record<string, string> =>
     theme.vars.colors.text.primary,
     theme.vars.colors.text.secondary,
     theme.vars.borderRadius.large,
+    theme.vars.shadows.large,
     theme.vars.spacing.unit,
     theme.vars.typography.fontFamily,
     colorScheme,

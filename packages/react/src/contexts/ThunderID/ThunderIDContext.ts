@@ -209,6 +209,12 @@ export type ThunderIDContextProps = {
 
   signUpUrl: string | undefined;
 
+  /**
+   * Whether to show the "Powered by ThunderID" attribution badge on pre-login authentication
+   * surfaces. Resolved from the `showAttribution` config option, defaulting to `true`.
+   */
+  showAttribution?: boolean;
+
   user: any;
 
   /**
@@ -257,6 +263,7 @@ const ThunderIDContext: Context<ThunderIDContextProps | null> = createContext<nu
   signOut: () => Promise.resolve({} as any),
   signUp: () => Promise.resolve({} as any),
   signUpUrl: undefined,
+  showAttribution: undefined,
   user: null,
   vendor: VendorConstants.VENDOR_PREFIX,
 });

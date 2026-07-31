@@ -42,6 +42,7 @@ const translations: I18nTranslations = {
   'elements.display.divider.or_separator': 'OR',
   'elements.display.copyable_text.copy': 'Copy',
   'elements.display.copyable_text.copied': 'Copied!',
+  'elements.display.attribution.powered_by': 'Powered by',
 
   /* Fields */
   'elements.fields.generic.placeholder': 'Enter your {field}',

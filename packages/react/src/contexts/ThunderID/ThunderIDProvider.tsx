@@ -70,6 +70,7 @@ const ThunderIDProvider: FC<PropsWithChildren<ThunderIDProviderProps>> = ({
   syncSession,
   instanceId = 0,
   organizationChain,
+  showAttribution,
   ...rest
 }: PropsWithChildren<ThunderIDProviderProps>): ReactElement => {
   const reRenderCheckRef: RefObject<boolean> = useRef(false);
@@ -488,12 +489,14 @@ const ThunderIDProvider: FC<PropsWithChildren<ThunderIDProviderProps>> = ({
       signOut,
       signUp,
       signUpUrl,
+      showAttribution,
       syncSession,
       user,
       vendor: getVendorPrefix(config.vendor),
     }),
     [
       applicationId,
+      showAttribution,
       config?.organizationHandle,
       config.vendor,
       config.afterSignInUrl,

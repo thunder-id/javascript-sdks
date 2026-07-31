@@ -39,6 +39,7 @@ import useFlow from '../../../../contexts/Flow/useFlow';
 import ComponentPreferencesContext from '../../../../contexts/I18n/ComponentPreferencesContext';
 import useTheme from '../../../../contexts/Theme/useTheme';
 import useThunderID from '../../../../contexts/ThunderID/useThunderID';
+import useAttribution from '../../../../hooks/useAttribution';
 import {useForm, FormField} from '../../../../hooks/useForm';
 import useTranslation from '../../../../hooks/useTranslation';
 import composeAffixedInputs from '../../../../utils/composeAffixedInputs';
@@ -46,6 +47,7 @@ import {normalizeFlowResponse, extractErrorMessage} from '../../../../utils/flow
 import getAuthComponentHeadings from '../../../../utils/getAuthComponentHeadings';
 import {handlePasskeyRegistration} from '../../../../utils/passkey';
 import AlertPrimitive from '../../../primitives/Alert/Alert';
+import Attribution from '../../../primitives/Attribution/Attribution';
 // eslint-disable-next-line import/no-named-as-default
 import CardPrimitive, {CardProps} from '../../../primitives/Card/Card';
 import Logo from '../../../primitives/Logo/Logo';
@@ -255,6 +257,13 @@ export interface BaseSignUpProps {
    * Whether to show the title.
    */
   showTitle?: boolean;
+
+  /**
+   * Whether to show the "Powered by ThunderID" attribution badge.
+   * Overrides the root `ThunderIDProvider`'s `showAttribution` config option for this instance.
+   * @default true
+   */
+  showAttribution?: boolean;
 
   /**
    * Size variant for the component.
@@ -1224,6 +1233,22 @@ const BaseSignUpContent: FC<BaseSignUpProps> = ({
  * This component handles both the presentation layer and sign-up flow logic.
  * It accepts API functions as props to maintain framework independence.
  */
+const BaseSignUpWithAttribution: FC<BaseSignUpProps> = ({
+  showAttribution,
+  ...rest
+}: BaseSignUpProps): ReactElement => {
+  const resolvedShowAttribution: boolean = useAttribution(showAttribution);
+
+  return (
+    <div style={{position: 'relative'}}>
+      <FlowProvider>
+        <BaseSignUpContent {...rest} />
+      </FlowProvider>
+      {resolvedShowAttribution && <Attribution />}
+    </div>
+  );
+};
+
 const BaseSignUp: FC<BaseSignUpProps> = ({preferences, showLogo = true, ...rest}: BaseSignUpProps): ReactElement => {
   const {theme, colorScheme} = useTheme();
   const styles: any = useStyles(theme, colorScheme);
@@ -1235,9 +1260,7 @@ const BaseSignUp: FC<BaseSignUpProps> = ({preferences, showLogo = true, ...rest}
           <Logo size="large" />
         </div>
       )}
-      <FlowProvider>
-        <BaseSignUpContent showLogo={showLogo} {...rest} />
-      </FlowProvider>
+      <BaseSignUpWithAttribution showLogo={showLogo} {...rest} />
     </div>
   );
 

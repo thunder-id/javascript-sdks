@@ -65,6 +65,8 @@ export * from './hooks/useBrowserUrl';
 export {default as useTranslation} from './hooks/useTranslation';
 export * from './hooks/useTranslation';
 
+export {default as useAttribution} from './hooks/useAttribution';
+
 export {normalizeFlowResponse, extractErrorMessage} from './utils/flowTransformer';
 
 export {default as useForm} from './hooks/useForm';
@@ -224,6 +226,9 @@ export * from './components/primitives/Divider/Divider';
 
 export {default as Logo} from './components/primitives/Logo/Logo';
 export * from './components/primitives/Logo/Logo';
+
+export {default as Attribution} from './components/primitives/Attribution/Attribution';
+export * from './components/primitives/Attribution/Attribution';
 
 export {default as Spinner} from './components/primitives/Spinner/Spinner';
 export * from './components/primitives/Spinner/Spinner';

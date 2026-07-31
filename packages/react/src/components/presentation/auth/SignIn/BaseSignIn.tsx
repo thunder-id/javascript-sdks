@@ -36,11 +36,13 @@ import useFlow from '../../../../contexts/Flow/useFlow';
 import ComponentPreferencesContext from '../../../../contexts/I18n/ComponentPreferencesContext';
 import useTheme from '../../../../contexts/Theme/useTheme';
 import useThunderID from '../../../../contexts/ThunderID/useThunderID';
+import useAttribution from '../../../../hooks/useAttribution';
 import {FormField, useForm} from '../../../../hooks/useForm';
 import useTranslation from '../../../../hooks/useTranslation';
 import composeAffixedInputs from '../../../../utils/composeAffixedInputs';
 import {extractErrorMessage} from '../../../../utils/flowTransformer';
 import AlertPrimitive from '../../../primitives/Alert/Alert';
+import Attribution from '../../../primitives/Attribution/Attribution';
 // eslint-disable-next-line import/no-named-as-default
 import CardPrimitive, {CardProps} from '../../../primitives/Card/Card';
 import Spinner from '../../../primitives/Spinner/Spinner';
@@ -238,6 +240,13 @@ export interface BaseSignInProps {
    * Size variant for the component.
    */
   size?: 'small' | 'medium' | 'large';
+
+  /**
+   * Whether to show the "Powered by ThunderID" attribution badge.
+   * Overrides the root `ThunderIDProvider`'s `showAttribution` config option for this instance.
+   * @default true
+   */
+  showAttribution?: boolean;
 
   /**
    * Theme variant for the component.
@@ -719,12 +728,24 @@ const BaseSignInContent: FC<BaseSignInProps> = ({
  * </BaseSignIn>
  * ```
  */
-const BaseSignIn: FC<BaseSignInProps> = ({preferences, ...rest}: BaseSignInProps): ReactElement => {
-  const content: ReactElement = (
-    <FlowProvider>
-      <BaseSignInContent {...rest} />
-    </FlowProvider>
+const BaseSignInWithAttribution: FC<BaseSignInProps> = ({
+  showAttribution,
+  ...rest
+}: BaseSignInProps): ReactElement => {
+  const resolvedShowAttribution: boolean = useAttribution(showAttribution);
+
+  return (
+    <div style={{position: 'relative'}}>
+      <FlowProvider>
+        <BaseSignInContent {...rest} />
+      </FlowProvider>
+      {resolvedShowAttribution && <Attribution />}
+    </div>
   );
+};
+
+const BaseSignIn: FC<BaseSignInProps> = ({preferences, ...rest}: BaseSignInProps): ReactElement => {
+  const content: ReactElement = <BaseSignInWithAttribution {...rest} />;
 
   if (!preferences) return content;
 

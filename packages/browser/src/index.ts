@@ -77,6 +77,21 @@ export {detectThemeMode, createClassObserver, createMediaQueryListener} from './
 export type {BrowserThemeDetection} from './theme/themeDetection';
 export {default as getActiveTheme} from './theme/getActiveTheme';
 export {default as normalizeBorderRadius} from './theme/normalizeBorderRadius';
+export {getElevatedSurfaceTokens} from './theme/elevatedSurface';
+export type {ElevatedSurfaceTokens} from './theme/elevatedSurface';
+
+// Branding — shared design system tokens/logic for framework SDKs (react, vue, ...)
+export {
+  ATTRIBUTION_BADGE_COLORS,
+  ATTRIBUTION_BLOCK,
+  ATTRIBUTION_CONTENT_CLASS,
+  ATTRIBUTION_LABEL_CLASS,
+  ATTRIBUTION_LAYOUT,
+  ATTRIBUTION_LOGO_CLASS,
+  ATTRIBUTION_LOGO_SVG_MARKUP,
+  buildAttributionCss,
+} from './branding/attributionDesign';
+export {default as resolveShowAttribution} from './branding/resolveShowAttribution';
 
 // Re-export everything from the JavaScript SDK
 export * from '@thunderid/javascript';

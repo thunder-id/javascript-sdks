@@ -37,12 +37,14 @@ import useFlow from '../../../../contexts/Flow/useFlow';
 import ComponentPreferencesContext from '../../../../contexts/I18n/ComponentPreferencesContext';
 import useTheme from '../../../../contexts/Theme/useTheme';
 import useThunderID from '../../../../contexts/ThunderID/useThunderID';
+import useAttribution from '../../../../hooks/useAttribution';
 import {useForm, FormField} from '../../../../hooks/useForm';
 import useTranslation from '../../../../hooks/useTranslation';
 import composeAffixedInputs from '../../../../utils/composeAffixedInputs';
 import {normalizeFlowResponse, extractErrorMessage} from '../../../../utils/flowTransformer';
 import getAuthComponentHeadings from '../../../../utils/getAuthComponentHeadings';
 import AlertPrimitive from '../../../primitives/Alert/Alert';
+import Attribution from '../../../primitives/Attribution/Attribution';
 import CardPrimitive, {CardProps} from '../../../primitives/Card/Card';
 import Logo from '../../../primitives/Logo/Logo';
 import Spinner from '../../../primitives/Spinner/Spinner';
@@ -105,6 +107,12 @@ export interface BaseRecoveryProps {
   showLogo?: boolean;
   showSubtitle?: boolean;
   showTitle?: boolean;
+  /**
+   * Whether to show the "Powered by ThunderID" attribution badge.
+   * Overrides the root `ThunderIDProvider`'s `showAttribution` config option for this instance.
+   * @default true
+   */
+  showAttribution?: boolean;
   size?: 'small' | 'medium' | 'large';
   variant?: CardProps['variant'];
 }
@@ -629,6 +637,22 @@ const BaseRecoveryContent: FC<BaseRecoveryProps> = ({
  * BaseRecovery component for ThunderIDV2 that provides an embedded account/password recovery flow.
  * Accepts API functions as props to maintain framework independence.
  */
+const BaseRecoveryWithAttribution: FC<BaseRecoveryProps> = ({
+  showAttribution,
+  ...rest
+}: BaseRecoveryProps): ReactElement => {
+  const resolvedShowAttribution: boolean = useAttribution(showAttribution);
+
+  return (
+    <div style={{position: 'relative'}}>
+      <FlowProvider>
+        <BaseRecoveryContent {...rest} />
+      </FlowProvider>
+      {resolvedShowAttribution && <Attribution />}
+    </div>
+  );
+};
+
 const BaseRecovery: FC<BaseRecoveryProps> = ({
   preferences,
   showLogo = true,
@@ -644,9 +668,7 @@ const BaseRecovery: FC<BaseRecoveryProps> = ({
           <Logo size="large" />
         </div>
       )}
-      <FlowProvider>
-        <BaseRecoveryContent showLogo={showLogo} {...rest} />
-      </FlowProvider>
+      <BaseRecoveryWithAttribution showLogo={showLogo} {...rest} />
     </div>
   );
 
