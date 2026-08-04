@@ -141,15 +141,15 @@ export async function verifyTempSessionToken(
 /**
  * Session cookie name.
  */
-export function getSessionCookieName(): string {
-  return CookieConfig.SESSION_COOKIE_NAME;
+export function getSessionCookieName(vendor?: string): string {
+  return CookieConfig.getSessionCookieName(vendor);
 }
 
 /**
  * Temp session cookie name.
  */
-export function getTempSessionCookieName(): string {
-  return CookieConfig.TEMP_SESSION_COOKIE_NAME;
+export function getTempSessionCookieName(vendor?: string): string {
+  return CookieConfig.getTempSessionCookieName(vendor);
 }
 
 /**
