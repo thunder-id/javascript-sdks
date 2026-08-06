@@ -176,6 +176,7 @@ export {default as resolveFlowTemplateLiterals} from './utils/resolveFlowTemplat
 export {default as countryCodeToFlagEmoji} from './utils/countryCodeToFlagEmoji';
 export {default as resolveLocaleDisplayName} from './utils/resolveLocaleDisplayName';
 export {default as resolveLocaleEmoji} from './utils/resolveLocaleEmoji';
+export {default as getBaseLanguage} from './utils/getBaseLanguage';
 export {default as buildValidatorFromRules} from './utils/buildValidatorFromRules';
 export {default as evaluateValidationRule, DEFAULT_VALIDATION_MESSAGE_KEYS} from './utils/evaluateValidationRule';
 export {default as processOpenIDScopes} from './utils/processOpenIDScopes';

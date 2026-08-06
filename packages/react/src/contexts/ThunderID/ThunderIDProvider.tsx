@@ -59,6 +59,7 @@ const ThunderIDProvider: FC<PropsWithChildren<ThunderIDProviderProps>> = ({
   ...rest
 }: PropsWithChildren<ThunderIDProviderProps>): ReactElement => {
   const reRenderCheckRef: RefObject<boolean> = useRef(false);
+
   const client: ThunderIDReactClient = useMemo(() => new ThunderIDReactClient(instanceId), [instanceId]);
   const storageManagerRef: any = useRef<any>(null);
   const {hasAuthParams, hasCalledForThisInstance} = useBrowserUrl();
