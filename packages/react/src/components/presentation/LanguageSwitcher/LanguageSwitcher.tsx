@@ -1,7 +1,7 @@
 // Copyright 2026 The ThunderID Authors
 // SPDX-License-Identifier: Apache-2.0
 
-import {resolveLocaleDisplayName, resolveLocaleEmoji} from '@thunderid/browser';
+import {getBaseLanguage, resolveLocaleDisplayName, resolveLocaleEmoji} from '@thunderid/browser';
 import {FC, ReactElement, ReactNode, useEffect, useMemo} from 'react';
 import BaseLanguageSwitcher, {LanguageOption, LanguageSwitcherRenderProps} from './BaseLanguageSwitcher';
 import useFlowMeta from '../../../contexts/FlowMeta/useFlowMeta';
@@ -89,22 +89,45 @@ const LanguageSwitcher: FC<LanguageSwitcherProps> = ({children, className}: Lang
     [effectiveLanguageCodes],
   );
 
-  // If the detected language isn't supported by the server, fall back to the first available language.
+  // If the detected language isn't supported by the server, fall back to English (matched by base
+  // language, e.g. browser "en-US" against server "en"), or the first available language if the
+  // server doesn't offer English either.
   useEffect(() => {
-    if (availableLanguageCodes.length > 0 && !availableLanguageCodes.includes(currentLanguage)) {
-      switchLanguage(availableLanguageCodes[0]);
+    if (availableLanguageCodes.length === 0) {
+      return;
     }
+    const currentBase: string = getBaseLanguage(currentLanguage);
+    const isSupported: boolean = availableLanguageCodes.some(
+      (code: string): boolean => getBaseLanguage(code) === currentBase,
+    );
+    if (isSupported) {
+      return;
+    }
+    const englishCode: string | undefined = availableLanguageCodes.find(
+      (code: string): boolean => getBaseLanguage(code) === 'en',
+    );
+    switchLanguage(englishCode ?? availableLanguageCodes[0]);
   }, [availableLanguageCodes, currentLanguage, switchLanguage]);
 
+  // `currentLanguage` may be region-qualified (e.g. "en-US") while `languages[].code` entries are
+  // bare (e.g. "en") — pass down whichever option's code shares its base language, so BaseLanguageSwitcher
+  // can find a match instead of falling back to the raw, unlabeled code.
+  const displayLanguage: string = useMemo(() => {
+    const match: LanguageOption | undefined = languages.find(
+      (option: LanguageOption): boolean => getBaseLanguage(option.code) === getBaseLanguage(currentLanguage),
+    );
+    return match?.code ?? currentLanguage;
+  }, [languages, currentLanguage]);
+  
   const handleLanguageChange = (language: string): void => {
-    if (language !== currentLanguage) {
+    if (language !== displayLanguage) {
       switchLanguage(language);
     }
   };
 
   return (
     <BaseLanguageSwitcher
-      currentLanguage={currentLanguage}
+      currentLanguage={displayLanguage}
       isLoading={isLoading}
       languages={languages}
       onLanguageChange={handleLanguageChange}
