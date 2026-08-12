@@ -255,7 +255,7 @@ const BaseSignInContent: FC<BaseSignInProps> = ({
   const {meta, vendor} = useThunderID();
   const {theme} = useTheme();
   const customRenderers: ComponentRendererMap = useContext(ComponentRendererContext);
-  const {t} = useTranslation();
+  const {t, currentLanguage} = useTranslation();
   const {subtitle: flowSubtitle, title: flowTitle, messages: flowMessages, addMessage, clearMessages} = useFlow();
   const styles: any = useStyles(theme, theme.vars.colors.text.primary);
 
@@ -319,6 +319,13 @@ const BaseSignInContent: FC<BaseSignInProps> = ({
                 if (component.required && (!value || value.trim() === '')) {
                   return t('validations.required.field.error');
                 }
+                // Run declarative rules from meta.components[].validation.
+                if (ruleValidator && value) {
+                  const ruleMessage = ruleValidator(value);
+                  if (ruleMessage) {
+                    return t(ruleMessage);
+                  }
+                }
                 // Add email validation if it's an email field
                 if (
                   (component.type === 'EMAIL_INPUT' || component.variant === 'EMAIL') &&
@@ -326,13 +333,6 @@ const BaseSignInContent: FC<BaseSignInProps> = ({
                   !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)
                 ) {
                   return t('field.email.invalid');
-                }
-                // Run declarative rules from meta.components[].validation.
-                if (ruleValidator && value) {
-                  const ruleMessage = ruleValidator(value);
-                  if (ruleMessage) {
-                    return t(ruleMessage);
-                  }
                 }
 
                 return null;
@@ -378,6 +378,7 @@ const BaseSignInContent: FC<BaseSignInProps> = ({
     validateForm,
     touchAllFields,
     reset: resetForm,
+    revalidateTouchedFields,
   } = form;
 
   // Project server-side fieldErrors into form state. `setTouchedFields` is used instead
@@ -399,6 +400,12 @@ const BaseSignInContent: FC<BaseSignInProps> = ({
     setTouchedFields(touched);
     setFormErrors(errors);
   }, [serverFieldErrors, setFormErrors, setTouchedFields, clearFormErrors]);
+
+  // Re-translate displayed validation errors when the UI language changes.
+  // revalidateTouchedFields is stable, so this effect fires only on language change.
+  useEffect(() => {
+    revalidateTouchedFields();
+  }, [currentLanguage, revalidateTouchedFields]);
 
   /**
    * Handle input value changes.

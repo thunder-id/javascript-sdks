@@ -427,6 +427,13 @@ const BaseSignUpContent: FC<BaseSignUpProps> = ({
                 if (component.required && (!value || value.trim() === '')) {
                   return t('validations.required.field.error');
                 }
+                // Evaluate declarative validation rules from meta.components[].validation.
+                if (ruleValidator && value) {
+                  const ruleMessage = ruleValidator(value);
+                  if (ruleMessage) {
+                    return t(ruleMessage);
+                  }
+                }
                 // Add email validation if it's an email field
                 if (
                   (component.type === EmbeddedFlowComponentType.EmailInput || component.variant === 'EMAIL') &&
@@ -434,13 +441,6 @@ const BaseSignUpContent: FC<BaseSignUpProps> = ({
                   !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)
                 ) {
                   return t('field.email.invalid');
-                }
-                // Evaluate declarative validation rules from meta.components[].validation.
-                if (ruleValidator && value) {
-                  const ruleMessage = ruleValidator(value);
-                  if (ruleMessage) {
-                    return t(ruleMessage);
-                  }
                 }
 
                 return null;

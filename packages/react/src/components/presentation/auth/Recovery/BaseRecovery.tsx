@@ -189,19 +189,20 @@ const BaseRecoveryContent: FC<BaseRecoveryProps> = ({
                 if (component.required && (!value || value.trim() === '')) {
                   return t('validations.required.field.error');
                 }
-                if (
-                  (component.type === EmbeddedFlowComponentType.EmailInput || component.variant === 'EMAIL') &&
-                  value &&
-                  !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)
-                ) {
-                  return t('field.email.invalid');
-                }
                 // Evaluate declarative validation rules from meta.components[].validation.
                 if (ruleValidator && value) {
                   const ruleMessage = ruleValidator(value);
                   if (ruleMessage) {
                     return t(ruleMessage);
                   }
+                }
+                // Add email validation if it's an email field
+                if (
+                  (component.type === EmbeddedFlowComponentType.EmailInput || component.variant === 'EMAIL') &&
+                  value &&
+                  !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)
+                ) {
+                  return t('field.email.invalid');
                 }
                 return null;
               },
