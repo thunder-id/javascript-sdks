@@ -42,8 +42,6 @@ export async function createSessionToken(
     /** Unix timestamp (seconds) when the access token expires. */
     accessTokenExpiresAt?: number;
     expirySeconds?: number;
-    /** Raw ID token string. */
-    idToken?: string;
     organizationId?: string;
     /** Refresh token for silent re-auth. */
     refreshToken?: string;
@@ -58,7 +56,6 @@ export async function createSessionToken(
   return new SignJWT({
     accessToken: params.accessToken,
     accessTokenExpiresAt: params.accessTokenExpiresAt,
-    idToken: params.idToken,
     organizationId: params.organizationId,
     refreshToken: params.refreshToken,
     scopes: params.scopes,
@@ -201,7 +198,6 @@ export async function issueSessionCookie(
     {
       accessToken: tokenResponse.accessToken,
       accessTokenExpiresAt,
-      idToken: tokenResponse.idToken || undefined,
       organizationId,
       refreshToken: tokenResponse.refreshToken || undefined,
       scopes: tokenResponse.scope || '',

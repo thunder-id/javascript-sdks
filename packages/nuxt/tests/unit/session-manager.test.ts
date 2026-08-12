@@ -141,7 +141,7 @@ describe('createTempSessionToken / verifyTempSessionToken', () => {
   });
 });
 
-describe('createSessionToken — Phase 2 fields (accessTokenExpiresAt / refreshToken / idToken)', () => {
+describe('createSessionToken — Phase 2 fields (accessTokenExpiresAt / refreshToken)', () => {
   it('round-trips accessTokenExpiresAt', async () => {
     const expiresAt = Math.floor(Date.now() / 1000) + 3600;
     const token = await createSessionToken(
@@ -158,7 +158,6 @@ describe('createSessionToken — Phase 2 fields (accessTokenExpiresAt / refreshT
     const payload = await verifySessionToken(token, TEST_SECRET);
     expect(payload.accessTokenExpiresAt).toBe(expiresAt);
     expect(payload.refreshToken).toBeUndefined();
-    expect(payload.idToken).toBeUndefined();
   });
 
   it('round-trips refreshToken', async () => {
@@ -177,24 +176,7 @@ describe('createSessionToken — Phase 2 fields (accessTokenExpiresAt / refreshT
     expect(payload.refreshToken).toBe('rt_test_value');
   });
 
-  it('round-trips idToken', async () => {
-    const fakeIdToken = 'header.payload.signature';
-    const token = await createSessionToken(
-      {
-        accessToken: 'at',
-        userId: 'u',
-        sessionId: 's',
-        scopes: 'openid',
-        idToken: fakeIdToken,
-      },
-      TEST_SECRET,
-    );
-
-    const payload = await verifySessionToken(token, TEST_SECRET);
-    expect(payload.idToken).toBe(fakeIdToken);
-  });
-
-  it('round-trips all three Phase 2 fields together', async () => {
+  it('round-trips Phase 2 fields together', async () => {
     const expiresAt = Math.floor(Date.now() / 1000) + 1800;
     const token = await createSessionToken(
       {
@@ -205,7 +187,6 @@ describe('createSessionToken — Phase 2 fields (accessTokenExpiresAt / refreshT
         organizationId: 'org-123',
         accessTokenExpiresAt: expiresAt,
         refreshToken: 'rt_full',
-        idToken: 'idt_full',
       },
       TEST_SECRET,
     );
@@ -217,7 +198,6 @@ describe('createSessionToken — Phase 2 fields (accessTokenExpiresAt / refreshT
     expect(payload.organizationId).toBe('org-123');
     expect(payload.accessTokenExpiresAt).toBe(expiresAt);
     expect(payload.refreshToken).toBe('rt_full');
-    expect(payload.idToken).toBe('idt_full');
   });
 
   it('omits Phase 2 fields when not provided (backward-compat)', async () => {
@@ -230,6 +210,5 @@ describe('createSessionToken — Phase 2 fields (accessTokenExpiresAt / refreshT
     const payload = await verifySessionToken(token, TEST_SECRET);
     expect(payload.accessTokenExpiresAt).toBeUndefined();
     expect(payload.refreshToken).toBeUndefined();
-    expect(payload.idToken).toBeUndefined();
   });
 });
