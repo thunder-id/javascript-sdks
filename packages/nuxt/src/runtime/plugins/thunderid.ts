@@ -1,8 +1,7 @@
 // Copyright 2025 The ThunderID Authors
 // SPDX-License-Identifier: Apache-2.0
 
-import {getRedirectBasedSignUpUrl} from '@thunderid/browser';
-import {VendorConstants} from '@thunderid/node';
+import {getRedirectBasedSignUpUrl, getVendorPrefix} from '@thunderid/browser';
 import type {AttributeSchema, UserProfile} from '@thunderid/node';
 import {ThunderIDPlugin, THUNDERID_KEY} from '@thunderid/vue';
 import type {H3Event} from 'h3';
@@ -58,7 +57,7 @@ export default defineNuxtPlugin((nuxtApp: NuxtApp) => {
     vendor?: string;
   };
 
-  const vendor: string = publicConfig.vendor ?? VendorConstants.VENDOR_PREFIX;
+  const vendor: string = getVendorPrefix(publicConfig.vendor);
 
   // Surface misconfiguration in the browser dev console only. The server
   // counterpart is handled by the thunderid-ssr Nitro plugin; doing both

@@ -24,9 +24,16 @@ vi.mock('@thunderid/vue', () => ({
   I18nProvider: {name: 'I18nProvider'},
 }));
 
-vi.mock('@thunderid/browser', () => ({
-  generateFlattenedUserProfile: vi.fn((_user: any, _schemas: any) => ({email: 'updated@example.com'})),
-}));
+// Only `generateFlattenedUserProfile` is stubbed; `getVendorPrefix` delegates to the real
+// implementation so the mock cannot drift from the shared vendor default in VendorConstants.
+vi.mock('@thunderid/browser', async () => {
+  const {getVendorPrefix} = await vi.importActual<typeof import('@thunderid/browser')>('@thunderid/browser');
+
+  return {
+    generateFlattenedUserProfile: vi.fn((_user: any, _schemas: any) => ({email: 'updated@example.com'})),
+    getVendorPrefix,
+  };
+});
 
 // Stub Nuxt composables so the component's setup() can run in pure Node.
 const mockStateStore: Map<string, {value: any}> = new Map();

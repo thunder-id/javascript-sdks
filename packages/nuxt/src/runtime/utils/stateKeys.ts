@@ -1,7 +1,7 @@
 // Copyright 2025 The ThunderID Authors
 // SPDX-License-Identifier: Apache-2.0
 
-import {getVendorPrefix} from '@thunderid/node';
+import {getVendorPrefix} from '@thunderid/browser';
 
 /**
  * Shared `useState` key for the ThunderID auth state (`ThunderIDAuthState`).
