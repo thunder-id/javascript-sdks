@@ -1,7 +1,7 @@
 // Copyright 2025 The ThunderID Authors
 // SPDX-License-Identifier: Apache-2.0
 
-import {useState, useCallback, FormEvent} from 'react';
+import {useState, useCallback, useRef, FormEvent} from 'react';
 
 /**
  * Generic form field configuration
@@ -164,6 +164,11 @@ export interface UseFormReturn<T extends Record<string, string>> {
    */
   validateForm: () => ValidationResult;
   /**
+   * Re-run validation for all touched fields that have a client-side config,
+   * refreshing stored error strings to the current language.
+   */
+  revalidateTouchedFields: () => void;
+  /**
    * Current form values
    */
   values: T;
@@ -229,6 +234,9 @@ export const useForm = <T extends Record<string, string>>(config: UseFormConfig<
   const [errors, setFormErrors] = useState<Record<keyof T, string>>({} as Record<keyof T, string>);
   const [isSubmitted, setIsSubmitted] = useState(false);
 
+  // Ref to track which fields have client-side validation rules. Errors injected via
+  // serErrors are not added here, so revalidateTouchedFields preserves server-side errors.
+  const clientErrorFieldRef = useRef(new Set<keyof T>());
   // Get field configuration by name
   const getFieldConfig: (name: keyof T) => FormField | undefined = useCallback(
     (name: keyof T): FormField | undefined => fields.find((field: FormField) => field.name === name),
@@ -245,6 +253,40 @@ export const useForm = <T extends Record<string, string>>(config: UseFormConfig<
     },
     [values, getFieldConfig, requiredMessage],
   );
+
+  // "Latest value" ref so revalidateTouchedFields can read fresh validators without
+  // appearing in any effect dep array (avoids exhaustive-deps violations at call sites).
+  const validateFieldRef = useRef(validateField);
+  validateFieldRef.current = validateField;
+
+  // Re-translate all, client-validated error strings on language change.
+  // Stable identity ([] deps): uses only refs and the stable state setter.
+  const revalidateTouchedFields: () => void = useCallback((): void => {
+    setFormErrors((prevErrors: Record<keyof T, string>) => {
+      if (Object.keys(prevErrors).length === 0) return prevErrors;
+
+      const newErrors: Record<keyof T, string> = {...prevErrors};
+      let changed = false;
+
+      (Object.keys(prevErrors) as Array<keyof T>).forEach((name: keyof T) => {
+        // Skip errors that were not produced by client-side validation - preserve server messages.
+        if (!clientErrorFieldRef.current.has(name)) return;
+
+        const freshError: string | null = validateFieldRef.current(name);
+        if (freshError === prevErrors[name]) return;
+
+        changed = true;
+        if (freshError) {
+          newErrors[name] = freshError;
+        } else {
+          delete newErrors[name];
+          clientErrorFieldRef.current.delete(name);
+        }
+      });
+
+      return changed ? newErrors : prevErrors;
+    });
+  }, []);
 
   // Validate the entire form
   const validateForm: () => ValidationResult = useCallback((): ValidationResult => {
@@ -307,8 +349,10 @@ export const useForm = <T extends Record<string, string>>(config: UseFormConfig<
         const newErrors: Record<keyof T, string> = {...prev};
         if (error) {
           newErrors[name] = error;
+          clientErrorFieldRef.current.add(name);
         } else {
           delete newErrors[name];
+          clientErrorFieldRef.current.delete(name);
         }
         return newErrors;
       });
@@ -339,8 +383,10 @@ export const useForm = <T extends Record<string, string>>(config: UseFormConfig<
           const newErrors: Record<keyof T, string> = {...prev};
           if (error) {
             newErrors[name] = error;
+            clientErrorFieldRef.current.add(name);
           } else {
             delete newErrors[name];
+            clientErrorFieldRef.current.delete(name);
           }
           return newErrors;
         });
@@ -375,6 +421,7 @@ export const useForm = <T extends Record<string, string>>(config: UseFormConfig<
     // Validate all fields
     const validation: ValidationResult = validateForm();
     setFormErrors(validation.errors as Record<keyof T, string>);
+    clientErrorFieldRef.current = new Set(Object.keys(validation.errors) as Array<keyof T>);
   }, [fields, validateForm]);
 
   // Set a field error
@@ -399,6 +446,7 @@ export const useForm = <T extends Record<string, string>>(config: UseFormConfig<
   // Clear all errors
   const clearErrors: () => void = useCallback((): void => {
     setFormErrors({} as Record<keyof T, string>);
+    clientErrorFieldRef.current.clear();
   }, []);
 
   // Reset form to initial state
@@ -407,6 +455,7 @@ export const useForm = <T extends Record<string, string>>(config: UseFormConfig<
     setFormTouched({} as Record<keyof T, boolean>);
     setFormErrors({} as Record<keyof T, string>);
     setIsSubmitted(false);
+    clientErrorFieldRef.current.clear();
   }, [initialValues]);
 
   // Handle form submission
@@ -455,6 +504,7 @@ export const useForm = <T extends Record<string, string>>(config: UseFormConfig<
     isSubmitted,
     isValid,
     reset,
+    revalidateTouchedFields,
     setError,
     setErrors,
     setTouched,
