@@ -61,6 +61,7 @@ const ThunderIDProvider: FC<PropsWithChildren<ThunderIDProviderProps>> = ({
   organizationChain,
   cspNonce,
   vendor,
+  namespace,
   ...rest
 }: PropsWithChildren<ThunderIDProviderProps>): ReactElement => {
   // Must run synchronously here, in the render body, before any descendant's css()/cx()/
@@ -568,7 +569,7 @@ const ThunderIDProvider: FC<PropsWithChildren<ThunderIDProviderProps>> = ({
   return (
     <ThunderIDContext.Provider value={value}>
       <I18nProvider preferences={preferences?.i18n} vendor={getVendorPrefix(config.vendor)}>
-        <FlowMetaProvider enabled={preferences?.resolveFromMeta !== false}>
+        <FlowMetaProvider enabled={preferences?.resolveFromMeta !== false} namespace={namespace}>
           <ThemeProvider
             theme={{
               ...preferences?.theme?.overrides,

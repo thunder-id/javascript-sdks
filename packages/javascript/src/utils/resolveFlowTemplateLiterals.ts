@@ -1,6 +1,9 @@
 // Copyright 2026 The ThunderID Authors
 // SPDX-License-Identifier: Apache-2.0
 
+import isTranslationFlowTemplateLiteral, {
+  TRANSLATION_FLOW_TEMPLATE_LITERAL_KEY_PATTERN,
+} from './isTranslationFlowTemplateLiteral';
 import parseFlowTemplateLiteral, {
   FLOW_TEMPLATE_LITERAL_REGEX,
   FlowTemplateLiteralResult,
@@ -16,6 +19,14 @@ import {ResolveFlowTemplateLiteralsOptions} from '../models/vars';
 const FLOW_TEMPLATE_LITERAL_REGEX_GLOBAL = new RegExp(FLOW_TEMPLATE_LITERAL_REGEX.source, 'g');
 
 /**
+ * Resolves a `{{ t(key) }}` translation key, converting its colon-separated namespace to dots
+ * e.g. "signin:fields.password.label" → "signin.fields.password.label".
+ */
+function resolveTranslation<TFn extends TranslationFn>(key: string, t: TFn): string {
+  return t(key.replace(/:/g, '.'));
+}
+
+/**
  * Resolves all flow template literal expressions in a string.
  *
  * Supported patterns:
@@ -27,6 +38,9 @@ const FLOW_TEMPLATE_LITERAL_REGEX_GLOBAL = new RegExp(FLOW_TEMPLATE_LITERAL_REGE
  *
  * Flow template literals can be embedded inside larger strings:
  *   `"Login using {{ meta(application.name) }}"` → `"Login using My App"`
+ *
+ * A meta field can itself hold a translation reference instead of final display text — that case is
+ * detected and resolved via `t()` too, so the raw template never reaches the screen.
  *
  * Unrecognized expressions are left unchanged.
  *
@@ -48,13 +62,18 @@ export default function resolveFlowTemplateLiterals<TFn extends TranslationFn = 
     const parsed: FlowTemplateLiteralResult = parseFlowTemplateLiteral(content.trim());
 
     if (parsed.type === FlowTemplateLiteralType.TRANSLATION && parsed.key) {
-      // Convert colon-separated namespace to dot-separated key
-      // e.g. "signin:fields.password.label" → "signin.fields.password.label"
-      return t(parsed.key.replace(/:/g, '.'));
+      return resolveTranslation(parsed.key, t);
     }
 
     if (parsed.type === FlowTemplateLiteralType.META && parsed.key && meta) {
-      return resolveMeta(parsed.key, meta);
+      const value: string = resolveMeta(parsed.key, meta);
+
+      if (isTranslationFlowTemplateLiteral(value)) {
+        const innerKey: string = value.trim().match(TRANSLATION_FLOW_TEMPLATE_LITERAL_KEY_PATTERN)![1];
+        return resolveTranslation(innerKey, t);
+      }
+
+      return value;
     }
 
     return match;
