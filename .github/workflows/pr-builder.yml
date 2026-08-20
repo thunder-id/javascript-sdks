@@ -100,7 +100,7 @@ jobs:
         run: pnpm --filter '!./packages/**' --filter '!./samples/**' test
 
   e2e:
-    name: 🎭 E2E (sample apps)
+    name: 🎭 Playwright E2E Tests
     runs-on: ubuntu-latest
     timeout-minutes: 40
     # Least privilege: this job never pushes, comments, or writes to the repo — only the default
@@ -113,7 +113,7 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: 🎭 Run E2E suite
+      - name: 🎭 Playwright E2E Tests
         uses: ./.github/actions/run-e2e-suite
         with:
           node-version: ${{ env.NODE_VERSION }}
