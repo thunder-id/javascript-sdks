@@ -10,6 +10,7 @@ import {
 } from '@thunderid/node';
 import {getRequestURL, type H3Event} from 'h3';
 import {defineNitroPlugin} from 'nitropack/runtime';
+import NuxtAPIRoutes from '../../constants/NuxtAPIRoutes';
 import type {ThunderIDAuthState, ThunderIDNuxtConfig, ThunderIDSSRData} from '../../types';
 import {createLogger} from '../../utils/log';
 import ThunderIDNuxtClient from '../ThunderIDNuxtClient';
@@ -18,15 +19,13 @@ import {useRuntimeConfig} from '#imports';
 
 const log: ReturnType<typeof createLogger> = createLogger('thunderid-ssr');
 
-const CALLBACK_PATH = '/api/auth/callback';
-
 /**
  * Build the OAuth redirect_uri from the incoming request origin.
  * Honors X-Forwarded-* headers so it works correctly behind a reverse proxy.
  */
 function resolveCallbackUrl(event: H3Event): string {
   const url: URL = getRequestURL(event, {xForwardedHost: true, xForwardedProto: true});
-  return `${url.origin}${CALLBACK_PATH}`;
+  return `${url.origin}${NuxtAPIRoutes.CALLBACK}`;
 }
 
 /**

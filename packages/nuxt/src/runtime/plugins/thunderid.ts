@@ -9,6 +9,7 @@ import type {H3Event} from 'h3';
 import {computed} from 'vue';
 import type {ComputedRef, Ref} from 'vue';
 import ThunderIDRoot from '../components/ThunderIDRoot';
+import NuxtAPIRoutes from '../constants/NuxtAPIRoutes';
 import type {ThunderIDAuthState, ThunderIDSSRData} from '../types';
 import {getAuthStateKey, getFlowMetaStateKey, getUserProfileStateKey, getUserSchemaStateKey} from '../utils/stateKeys';
 import type {NuxtApp} from '#app';
@@ -154,12 +155,14 @@ export default defineNuxtPlugin((nuxtApp: NuxtApp) => {
   // ── 3. Action helpers (Nuxt-aware navigation) ───────────────────────────
   const signIn = async (options?: Record<string, unknown>): Promise<void> => {
     const returnTo: string | undefined = typeof options?.returnTo === 'string' ? options.returnTo : undefined;
-    const url: string = returnTo ? `/api/auth/signin?returnTo=${encodeURIComponent(returnTo)}` : '/api/auth/signin';
+    const url: string = returnTo
+      ? `${NuxtAPIRoutes.SIGN_IN}?returnTo=${encodeURIComponent(returnTo)}`
+      : NuxtAPIRoutes.SIGN_IN;
     await navigateTo(url, {external: true});
   };
 
   const signOut = async (): Promise<void> => {
-    const res: {redirectUrl: string} = await $fetch<{redirectUrl: string}>('/api/auth/signout', {method: 'POST'});
+    const res: {redirectUrl: string} = await $fetch<{redirectUrl: string}>(NuxtAPIRoutes.SIGN_OUT, {method: 'POST'});
     await navigateTo(res.redirectUrl || '/', {external: true});
   };
 
@@ -187,12 +190,12 @@ export default defineNuxtPlugin((nuxtApp: NuxtApp) => {
     // Last-resort fallback for unrecognised baseUrls — keeps the historical
     // behaviour of hitting the (POST-only) Nitro route, which will surface a
     // 405 in the network tab and make the misconfiguration obvious.
-    await navigateTo('/api/auth/signup', {external: true});
+    await navigateTo(NuxtAPIRoutes.SIGN_UP, {external: true});
   };
 
   const getAccessToken = async (): Promise<string> => {
     try {
-      const res: {accessToken: string} = await $fetch<{accessToken: string}>('/api/auth/token');
+      const res: {accessToken: string} = await $fetch<{accessToken: string}>(NuxtAPIRoutes.TOKEN);
       return res.accessToken ?? '';
     } catch {
       return '';
