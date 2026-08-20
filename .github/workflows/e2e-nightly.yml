@@ -32,3 +32,64 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
           artifact-name: playwright-report-nightly
+
+      # Google Chat step - each failure posts as its own independent message.
+      - name: 🔔 Send Google Chat Notification on Failure
+        if: failure()
+        shell: bash
+        env:
+          GOOGLE_CHAT_WEBHOOK: ${{ secrets.GOOGLE_CHAT_WEBHOOK }}
+          WORKFLOW_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          RUN_NUMBER: ${{ github.run_number }}
+          COMMIT: ${{ github.sha }}
+        run: |
+          if [ -z "$GOOGLE_CHAT_WEBHOOK" ]; then
+            echo "GOOGLE_CHAT_WEBHOOK secret is not set. Skipping Google Chat notification."
+            exit 0
+          fi
+
+          FAILURE_DATE=$(date -u +"%d-%m-%Y")
+
+          jq -n \
+            --arg run_number "$RUN_NUMBER" \
+            --arg commit "${COMMIT:0:8}" \
+            --arg workflow_url "$WORKFLOW_URL" \
+            --arg failure_date "$FAILURE_DATE" \
+            '{
+              "cards": [{
+                "header": {
+                  "title": "🔴 JavaScript SDKs E2E Failed",
+                  "subtitle": ("Nightly - " + $failure_date),
+                  "imageUrl": "https://raw.githubusercontent.com/github/explore/main/topics/javascript/javascript.png",
+                  "imageStyle": "AVATAR"
+                },
+                "sections": [
+                  {
+                    "widgets": [
+                      {"keyValue": {"topLabel": "Run", "content": ("#" + $run_number)}},
+                      {"keyValue": {"topLabel": "Commit", "content": $commit}}
+                    ]
+                  },
+                  {
+                    "widgets": [
+                      {
+                        "buttons": [
+                          {
+                            "textButton": {
+                              "text": "VIEW WORKFLOW RUN",
+                              "onClick": {"openLink": {"url": $workflow_url}}
+                            }
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }]
+            }' > payload.json
+
+          if curl -f -X POST -H "Content-Type: application/json" -d @payload.json "$GOOGLE_CHAT_WEBHOOK"; then
+            echo "✅ Google Chat notification sent successfully"
+          else
+            echo "⚠️ Failed to send Google Chat notification"
+          fi
