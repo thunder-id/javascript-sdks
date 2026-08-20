@@ -40,6 +40,9 @@ export interface FlowMetaProviderProps {
    * flight — but still fetches normally on subsequent changes (e.g. an explicit language switch).
    */
   initialMeta?: FlowMetadataResponse | null;
+
+  /** Sent as the flow-meta request's `namespace`, e.g. to scope namespace-keyed i18n data. */
+  namespace?: string;
 }
 
 /**
@@ -70,6 +73,7 @@ const FlowMetaProvider: FC<PropsWithChildren<FlowMetaProviderProps>> = ({
   enabled = true,
   fetchMeta,
   initialMeta = null,
+  namespace,
 }: PropsWithChildren<FlowMetaProviderProps>): ReactElement => {
   const {baseUrl, endpoints, applicationId, isInitialized} = useThunderID();
   const i18nContext: I18nContextValue = useI18n();
@@ -112,6 +116,7 @@ const FlowMetaProvider: FC<PropsWithChildren<FlowMetaProviderProps>> = ({
             baseUrl,
             url: resolveResourceEndpoint('flowMeta', {endpoints}),
             ...(applicationId ? {id: applicationId, type: FlowMetaType.App} : {}),
+            ...(namespace ? {namespace} : {}),
             language: i18nContext?.currentLanguage,
           });
       setMeta(result);
@@ -120,7 +125,7 @@ const FlowMetaProvider: FC<PropsWithChildren<FlowMetaProviderProps>> = ({
     } finally {
       setIsLoading(false);
     }
-  }, [enabled, baseUrl, endpoints, applicationId, isInitialized, i18nContext?.currentLanguage, fetchMeta]);
+  }, [enabled, baseUrl, endpoints, applicationId, isInitialized, i18nContext?.currentLanguage, fetchMeta, namespace]);
 
   const switchLanguage: (language: string) => Promise<void> = useCallback(
     async (language: string): Promise<void> => {
@@ -136,6 +141,7 @@ const FlowMetaProvider: FC<PropsWithChildren<FlowMetaProviderProps>> = ({
               baseUrl,
               url: resolveResourceEndpoint('flowMeta', {endpoints}),
               ...(applicationId ? {id: applicationId, type: FlowMetaType.App} : {}),
+              ...(namespace ? {namespace} : {}),
               language,
             });
 
@@ -161,7 +167,7 @@ const FlowMetaProvider: FC<PropsWithChildren<FlowMetaProviderProps>> = ({
         setIsLoading(false);
       }
     },
-    [enabled, baseUrl, endpoints, applicationId, i18nContext, fetchMeta],
+    [enabled, baseUrl, endpoints, applicationId, i18nContext, fetchMeta, namespace],
   );
 
   // After injectBundles + setPendingLanguage are batched and committed, this

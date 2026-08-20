@@ -12,4 +12,7 @@ export type ThunderIDReactConfig = ThunderIDBrowserConfig & {
    * own CSP header/meta tag issues for the current request.
    */
   cspNonce?: string;
+
+  /** Forwarded to `FlowMetaProvider`'s `namespace` prop. See its doc for details. */
+  namespace?: string;
 };
