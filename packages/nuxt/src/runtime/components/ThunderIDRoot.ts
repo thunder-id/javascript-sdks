@@ -5,6 +5,7 @@ import {generateFlattenedUserProfile} from '@thunderid/browser';
 import type {AttributeSchema, FlowMetadataResponse, UpdateMeProfileConfig, User, UserProfile} from '@thunderid/node';
 import {FlowMetaProvider, FlowProvider, I18nProvider, ThemeProvider, UserProvider} from '@thunderid/vue';
 import {defineComponent, h, type Component, type Ref, type SetupContext, type VNode} from 'vue';
+import NuxtAPIRoutes from '../constants/NuxtAPIRoutes';
 import type {ThunderIDAuthState, ThunderIDNuxtConfig} from '../types';
 import {getAuthStateKey, getFlowMetaStateKey, getUserProfileStateKey, getUserSchemaStateKey} from '../utils/stateKeys';
 import {useState, useRuntimeConfig} from '#imports';
@@ -100,7 +101,7 @@ const ThunderIDRoot: Component = defineComponent({
     };
 
     /**
-     * profile PATCH via the `/api/auth/user/profile` Nitro route.
+     * profile PATCH via the `NuxtAPIRoutes.USER_PROFILE` Nitro route.
      * Signature matches `UserProvider.updateProfile` exactly.
      *
      * On success, applies an optimistic local update via `onUpdateProfile`
@@ -116,7 +117,7 @@ const ThunderIDRoot: Component = defineComponent({
         // no-op: session is resolved server-side
       }
       try {
-        const result: {data: {user: User}; error: string; success: boolean} = await $fetch('/api/auth/user/profile', {
+        const result: {data: {user: User}; error: string; success: boolean} = await $fetch(NuxtAPIRoutes.USER_PROFILE, {
           body: requestConfig,
           method: 'PATCH',
         });
@@ -130,13 +131,13 @@ const ThunderIDRoot: Component = defineComponent({
     };
 
     /**
-     * Re-fetch the full user profile (and its attribute schema) from `/api/auth/user/profile`.
+     * Re-fetch the full user profile (and its attribute schema) from `NuxtAPIRoutes.USER_PROFILE`.
      */
     const revalidateProfile = async (): Promise<void> => {
       try {
         const res: (UserProfile & {userSchema?: Record<string, AttributeSchema> | null}) | null = await $fetch<
           UserProfile & {userSchema?: Record<string, AttributeSchema> | null}
-        >('/api/auth/user/profile');
+        >(NuxtAPIRoutes.USER_PROFILE);
         if (res) {
           const {userSchema: fetchedSchema, ...profile} = res;
           userProfileState.value = profile as UserProfile;
@@ -148,14 +149,14 @@ const ThunderIDRoot: Component = defineComponent({
     };
 
     /**
-     * Fetches flow metadata via the `/api/auth/meta` Nitro route instead of `FlowMetaProvider`'s
+     * Fetches flow metadata via the `NuxtAPIRoutes.META` Nitro route instead of `FlowMetaProvider`'s
      * default direct browser-to-`baseUrl` fetch — so the browser never talks to the ThunderID
      * server directly and no CORS configuration is required there. Used for both the initial
      * fetch (when SSR seeding via `flowMetaState` didn't happen, e.g. it failed server-side) and
      * subsequent `switchLanguage()` calls.
      */
     const fetchMeta = async (params: {applicationId?: string; language?: string}): Promise<FlowMetadataResponse> =>
-      $fetch<FlowMetadataResponse>('/api/auth/meta', {
+      $fetch<FlowMetadataResponse>(NuxtAPIRoutes.META, {
         query: {...(params.language ? {language: params.language} : {})},
       });
 

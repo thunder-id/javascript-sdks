@@ -15,6 +15,7 @@ import {
 import type {Nuxt} from '@nuxt/schema';
 import {VendorConstants} from '@thunderid/node';
 import {defu} from 'defu';
+import NuxtAPIRoutes from './runtime/constants/NuxtAPIRoutes';
 import type {ThunderIDNuxtConfig, ThunderIDSessionPayload, ThunderIDSSRData} from './runtime/types';
 
 type ViteUserConfig = Parameters<Parameters<typeof extendViteConfig>[0]>[0];
@@ -141,39 +142,39 @@ export default defineNuxtModule<ThunderIDNuxtConfig>({
     // Register server API routes
     const serverRoutes: ServerRoute[] = [
       // ── Auth flow ──────────────────────────────────────────────────────
-      {handler: resolve('./runtime/server/routes/auth/session/signin.get'), route: '/api/auth/signin'},
+      {handler: resolve('./runtime/server/routes/auth/session/signin.get'), route: NuxtAPIRoutes.SIGN_IN},
       {
         handler: resolve('./runtime/server/routes/auth/session/signin.post'),
         method: 'post' as const,
-        route: '/api/auth/signin',
+        route: NuxtAPIRoutes.SIGN_IN,
       },
       {
         handler: resolve('./runtime/server/routes/auth/session/signup.post'),
         method: 'post' as const,
-        route: '/api/auth/signup',
+        route: NuxtAPIRoutes.SIGN_UP,
       },
-      {handler: resolve('./runtime/server/routes/auth/session/callback.get'), route: '/api/auth/callback'},
+      {handler: resolve('./runtime/server/routes/auth/session/callback.get'), route: NuxtAPIRoutes.CALLBACK},
       {
         handler: resolve('./runtime/server/routes/auth/session/callback.post'),
         method: 'post' as const,
-        route: '/api/auth/callback',
+        route: NuxtAPIRoutes.CALLBACK,
       },
       {
         handler: resolve('./runtime/server/routes/auth/session/signout.post'),
         method: 'post' as const,
-        route: '/api/auth/signout',
+        route: NuxtAPIRoutes.SIGN_OUT,
       },
       // ── Session / token ───────────────────────────────────────────────
-      {handler: resolve('./runtime/server/routes/auth/session/session.get'), route: '/api/auth/session'},
-      {handler: resolve('./runtime/server/routes/auth/session/token.get'), route: '/api/auth/token'},
-      {handler: resolve('./runtime/server/routes/auth/session/meta.get'), route: '/api/auth/meta'},
+      {handler: resolve('./runtime/server/routes/auth/session/session.get'), route: NuxtAPIRoutes.SESSION},
+      {handler: resolve('./runtime/server/routes/auth/session/token.get'), route: NuxtAPIRoutes.TOKEN},
+      {handler: resolve('./runtime/server/routes/auth/session/meta.get'), route: NuxtAPIRoutes.META},
       // ── User ──────────────────────────────────────────────────────────
-      {handler: resolve('./runtime/server/routes/auth/user/user.get'), route: '/api/auth/user'},
-      {handler: resolve('./runtime/server/routes/auth/user/profile.get'), route: '/api/auth/user/profile'},
+      {handler: resolve('./runtime/server/routes/auth/user/user.get'), route: NuxtAPIRoutes.USER},
+      {handler: resolve('./runtime/server/routes/auth/user/profile.get'), route: NuxtAPIRoutes.USER_PROFILE},
       {
         handler: resolve('./runtime/server/routes/auth/user/profile.patch'),
         method: 'patch' as const,
-        route: '/api/auth/user/profile',
+        route: NuxtAPIRoutes.USER_PROFILE,
       },
     ];
 

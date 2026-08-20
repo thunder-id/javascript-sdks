@@ -5,6 +5,7 @@ import {navigateTo, useState, useRuntimeConfig} from '#app';
 import {EmbeddedSignInFlowStatus, EmbeddedSignUpFlowStatus, getRedirectBasedSignUpUrl} from '@thunderid/browser';
 import {useThunderID as useThunderIDVue, type ThunderIDContext} from '@thunderid/vue';
 import type {Ref} from 'vue';
+import NuxtAPIRoutes from '../constants/NuxtAPIRoutes';
 import type {ThunderIDAuthState} from '../types';
 
 /**
@@ -53,7 +54,7 @@ export function useThunderID(): ThunderIDContext {
     if (isEmbedded) {
       const payload: Record<string, unknown> = arg0 as Record<string, unknown>;
       const request: Record<string, unknown> = (args[1] ?? {}) as Record<string, unknown>;
-      const res: {data: any; success: boolean} = await $fetch<{data: any; success: boolean}>('/api/auth/signin', {
+      const res: {data: any; success: boolean} = await $fetch<{data: any; success: boolean}>(NuxtAPIRoutes.SIGN_IN, {
         body: {payload, request},
         method: 'POST',
       });
@@ -71,7 +72,7 @@ export function useThunderID(): ThunderIDContext {
       if (res.data?.afterSignInUrl) {
         if (import.meta.client) {
           try {
-            const session: ThunderIDAuthState = await $fetch<ThunderIDAuthState>('/api/auth/session');
+            const session: ThunderIDAuthState = await $fetch<ThunderIDAuthState>(NuxtAPIRoutes.SESSION);
             const authState: Ref<ThunderIDAuthState> = useState<ThunderIDAuthState>('thunderid:auth');
             authState.value = session;
           } catch {
@@ -89,13 +90,15 @@ export function useThunderID(): ThunderIDContext {
     // Redirect flow.
     const options: Record<string, unknown> | undefined = arg0 as Record<string, unknown> | undefined;
     const returnTo: string | undefined = typeof options?.returnTo === 'string' ? options.returnTo : undefined;
-    const url: string = returnTo ? `/api/auth/signin?returnTo=${encodeURIComponent(returnTo)}` : '/api/auth/signin';
+    const url: string = returnTo
+      ? `${NuxtAPIRoutes.SIGN_IN}?returnTo=${encodeURIComponent(returnTo)}`
+      : NuxtAPIRoutes.SIGN_IN;
     await navigateTo(url, {external: true});
     return undefined;
   };
 
   const signOut = async (): Promise<void> => {
-    const res: {redirectUrl: string} = await $fetch<{redirectUrl: string}>('/api/auth/signout', {method: 'POST'});
+    const res: {redirectUrl: string} = await $fetch<{redirectUrl: string}>(NuxtAPIRoutes.SIGN_OUT, {method: 'POST'});
     await navigateTo(res.redirectUrl || '/', {external: true});
   };
 
@@ -120,7 +123,7 @@ export function useThunderID(): ThunderIDContext {
     const isEmbedded: boolean = typeof payload === 'object' && payload !== null && 'flowType' in payload;
 
     if (isEmbedded) {
-      const res: {data: any; success: boolean} = await $fetch<{data: any; success: boolean}>('/api/auth/signup', {
+      const res: {data: any; success: boolean} = await $fetch<{data: any; success: boolean}>(NuxtAPIRoutes.SIGN_UP, {
         body: {payload},
         method: 'POST',
       });

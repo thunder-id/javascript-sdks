@@ -4,13 +4,14 @@
 import {defineNuxtRouteMiddleware, navigateTo, useRuntimeConfig, useState} from '#app';
 import type {Ref} from 'vue';
 import type {RouteLocationNormalized} from 'vue-router';
+import NuxtAPIRoutes from '../constants/NuxtAPIRoutes';
 import type {ThunderIDAuthState} from '../types';
 import {getAuthStateKey} from '../utils/stateKeys';
 
 export interface ThunderIDMiddlewareOptions {
   /**
    * The path to redirect unauthenticated (or unauthorised) requests to.
-   * Defaults to `'/api/auth/signin'`.
+   * Defaults to `NuxtAPIRoutes.SIGN_IN`.
    */
   redirectTo?: string;
   /**
@@ -25,7 +26,7 @@ export interface ThunderIDMiddlewareOptions {
   requireScopes?: string[];
 }
 
-const DEFAULT_REDIRECT_TO = '/api/auth/signin';
+const DEFAULT_REDIRECT_TO = NuxtAPIRoutes.SIGN_IN;
 
 /**
  * Typed factory for ThunderID route middleware.
