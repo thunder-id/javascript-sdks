@@ -30,7 +30,7 @@ runs:
         version: latest
         run_install: false
 
-    - name: 🗄️ Cache pnpm store
+    - name: 🗄️ Cache pnpm Store
       uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
       with:
         path: ~/.local/share/pnpm/store
@@ -42,13 +42,13 @@ runs:
       shell: bash
       run: pnpm install --frozen-lockfile
 
-    - name: 🔨 Build SDK packages
+    - name: 🔨 Build SDK Packages
       shell: bash
       # Sample apps consume workspace:* SDK packages — this is what actually puts the PR's
       # changes under test.
       run: pnpm build
 
-    - name: 🚀 Install, set up, and start ThunderID (latest, via npx)
+    - name: 🚀 Install, Set up, and Start ThunderID (Latest, via npx)
       id: install
       shell: bash
       working-directory: tests/e2e
@@ -86,7 +86,7 @@ runs:
         done
         echo "ERROR: ThunderID server did not become ready" && exit 1
 
-    - name: 🔑 Obtain admin token
+    - name: 🔑 Obtain Admin Token
       id: admin-token
       shell: bash
       # Mirrors mint_admin_token() in tests/e2e/run-e2e.sh — the same OAuth2 authorization_code +
@@ -146,7 +146,7 @@ runs:
         echo "::add-mask::$TOKEN"
         echo "token=$TOKEN" >> "$GITHUB_OUTPUT"
 
-    - name: 📝 Import sample app OAuth2 clients
+    - name: 📝 Import Sample App OAuth2 Clients
       shell: bash
       # Mirrors import_sample_apps_config() in tests/e2e/run-e2e.sh — a direct POST to /import,
       # done in bash instead of through thunder-id/thunderid's import-declarative-config
@@ -182,7 +182,7 @@ runs:
         fi
         rm -f "$RESPONSE_FILE"
 
-    - name: 🔄 Restart the server with security enabled
+    - name: 🔄 Restart the Server with Security Enabled
       shell: bash
       working-directory: ${{ steps.install.outputs.dist_home }}
       run: |
@@ -207,7 +207,7 @@ runs:
         done
         echo "ERROR: ThunderID server did not restart" && exit 1
 
-    - name: 📝 Write sample app .env files
+    - name: 📝 Write Sample App .env Files
       shell: bash
       # Each app needs its own OAuth2 client wired in before it starts (see the OAuth2 clients
       # imported above). The apps' own `prepare-dev.cjs --flow=redirect` helper looks like the
@@ -258,7 +258,7 @@ runs:
           "THUNDERID_SESSION_SECRET=${NUXT_SECRET}" \
           "NODE_TLS_REJECT_UNAUTHORIZED=0"
 
-    - name: 🚀 Start sample apps
+    - name: 🚀 Start Sample Apps
       shell: bash
       run: |
         ( cd samples/browser/quickstart && pnpm exec vite --port 5173 & )
@@ -278,12 +278,12 @@ runs:
           fi
         done
 
-    - name: 🎭 Install Playwright browsers
+    - name: 📦 Install Playwright Browsers
       shell: bash
       working-directory: tests/e2e
       run: npx playwright install --with-deps chromium
 
-    - name: 🧪 Run E2E tests
+    - name: 🎭 Run Playwright E2E Tests (Sample Apps)
       shell: bash
       working-directory: tests/e2e
       env:
@@ -307,7 +307,7 @@ runs:
         NODE_TLS_REJECT_UNAUTHORIZED: "0"
       run: npx playwright test
 
-    - name: 📤 Upload Playwright report
+    - name: 📤 Upload Playwright Report
       if: ${{ !cancelled() }}
       uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
       with:

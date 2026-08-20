@@ -14,7 +14,7 @@
  * covers all four apps; only the base URL differs (see fixtures/sample-apps).
  */
 
-import {Page, expect} from '@playwright/test';
+import {Locator, Page, expect} from '@playwright/test';
 import {GateLoginPage} from './gate-login.page';
 import {Timeouts} from '../constants/timeouts';
 
@@ -59,9 +59,30 @@ export class ThunderIDWebSamplePage extends GateLoginPage {
     await this.verifyHomePageLoaded();
   }
 
+  /** Clicks the dropdown trigger and waits for `target` (a menu item scoped to the dropdown) to
+   * appear, re-clicking if it doesn't. The redirect landing page is server-rendered, so the
+   * trigger can be visible (and Playwright-clickable) before React/Vue finishes attaching its
+   * click handler — the click lands on plain markup and is silently lost, no error, nothing left
+   * to wait on. A second click after hydration catches up recovers cleanly; this has been
+   * observed to matter specifically for nuxt/quickstart under CI-level CPU contention, where the
+   * gap is wide enough to lose the first click outright rather than just render it late. */
+  private async openDropdown(target: Locator): Promise<void> {
+    const trigger = this.page.locator(USER_DROPDOWN_TRIGGER).first();
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      await trigger.click();
+      try {
+        await expect(target).toBeVisible({timeout: 3000});
+        return;
+      } catch (error) {
+        if (attempt === 3) throw error;
+      }
+    }
+  }
+
   async logout(): Promise<void> {
-    await this.page.locator(USER_DROPDOWN_TRIGGER).first().click();
-    await this.page.getByRole('button', {name: 'Sign Out'}).click();
+    const signOutButton = this.page.getByRole('button', {name: 'Sign Out'});
+    await this.openDropdown(signOutButton);
+    await signOutButton.click();
     await this.confirmSignOutIfPrompted();
   }
 
@@ -70,8 +91,9 @@ export class ThunderIDWebSamplePage extends GateLoginPage {
    * wire it to an `onClick` page-switch instead (no real navigation) — so this matches on text
    * rather than a specific role. */
   async openTokenDebug(): Promise<void> {
-    await this.page.locator(USER_DROPDOWN_TRIGGER).first().click();
-    await this.page.getByText('Token debug', {exact: true}).click();
+    const tokenDebugItem = this.page.getByText('Token debug', {exact: true});
+    await this.openDropdown(tokenDebugItem);
+    await tokenDebugItem.click();
   }
 
   async verifyTokenDebugLoaded(): Promise<void> {
@@ -97,8 +119,9 @@ export class ThunderIDWebSamplePage extends GateLoginPage {
    * (BaseUserDropdown.ts:359, `onProfileClick`/`profileContent`). Nuxt inherits Vue's via its own
    * `UserDropdown` wrapper, which delegates to the same `@thunderid/vue` component. */
   async openManageProfile(): Promise<void> {
-    await this.page.locator(USER_DROPDOWN_TRIGGER).first().click();
-    await this.page.getByRole('button', {name: /^(Manage Profile|Profile)$/}).click();
+    const profileButton = this.page.getByRole('button', {name: /^(Manage Profile|Profile)$/});
+    await this.openDropdown(profileButton);
+    await profileButton.click();
     await expect(this.page.getByRole('dialog')).toBeVisible({timeout: Timeouts.ELEMENT_VISIBILITY});
   }
 
