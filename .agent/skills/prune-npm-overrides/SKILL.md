@@ -145,6 +145,16 @@ For entries that stay, leave the issue open and make sure the override comment s
 
 ## Step 7 - Verify
 
+Entries were removed or narrowed in `pnpm-workspace.yaml`. `pnpm install` needs to run to regenerate
+`pnpm-lock.yaml` and confirm the tree still resolves clean — but it re-resolves the whole workspace,
+not just the touched entries, so it can shift unrelated transitive versions too. Ask before running it:
+
+> The overrides file is updated. Running `pnpm install` now will regenerate `pnpm-lock.yaml` and let
+> me verify nothing regressed — it can also shift unrelated transitive versions in the process. Shall
+> I proceed?
+
+Wait for confirmation, then run:
+
 ```bash
 pnpm install
 pnpm audit --audit-level=high
@@ -152,6 +162,9 @@ git diff --stat pnpm-lock.yaml
 ```
 
 The lockfile diff tells you which workspaces actually moved. Build and lint those, because a removed override that shifts a build tool across a major version fails at build time, not install time.
+
+Make sure `pnpm-lock.yaml` ends up staged/committed together with the `pnpm-workspace.yaml` edit —
+don't leave the lockfile change uncommitted for a later, unrelated commit to pick up.
 
 Report honestly: if `pnpm audit` still reports findings you deliberately left unpinned, name them and say why, rather than adding a pin to quiet the output.
 
