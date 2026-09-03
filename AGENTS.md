@@ -8,6 +8,15 @@ framework SDKs built on top of those (`react`, `vue`, `nuxt`, `nextjs`, `express
 `tanstack-router`). `samples/<framework>/quickstart` directories contain standalone demo apps — not part of
 any published package.
 
+## Skills
+
+- [Fix npm Vulnerability](.agent/skills/fix-npm-vulnerability/SKILL.md) — Resolve a pnpm/npm security advisory.
+  Use when `pnpm audit` or Dependabot surfaces a security advisory. Tries to update the head dependency first;
+  falls back to a scoped override with a tracking GitHub issue.
+- [Prune npm Overrides](.agent/skills/prune-npm-overrides/SKILL.md) — Audit the pnpm overrides this repo
+  already carries and remove the ones upstream has since fixed. Use when asked to check, clean up, or prune
+  the overrides in `pnpm-workspace.yaml`, or when an override's tracking issue comes up for review.
+
 ## Build & test
 
 ```bash
