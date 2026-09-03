@@ -17,6 +17,12 @@ overrides:
   # dependency (express > body-parser). express@4's own body-parser range (~1.20.5) already
   # permits 1.20.6; remove once a fresh install picks it up without the override.
   body-parser: 1.20.6
+  # JUSTIFICATION: Fixes GHSA-x5fp-wj9c-mxmx (array-limit bypass via bracket-key comma parsing) /
+  # GHSA-4mjr-xmp4-gh2g (DoS via attacker-controlled isBuffer). Transitive via body-parser's own
+  # `qs: ~6.15.1` range, which caps at 6.15.3 — the patched 6.15.4 was never published upstream, so
+  # the fix line jumps straight to 6.16.0. Remove once body-parser bumps its own `qs` range past
+  # 6.16.0.
+  body-parser>qs: 6.16.0
   # JUSTIFICATION: Fixes GHSA-3jxr-9vmj-r5cp / GHSA-mh99-v99m-4gvg / GHSA-rgw5-rvv9-x895 —
   # brace-expansion DoS via exponential/unbounded expansion of `{}` groups. Three major lines are
   # pulled in transitively, each needing its own pin: v1 via the root `@thunderid/eslint-plugin`
