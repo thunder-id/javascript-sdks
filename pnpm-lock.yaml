@@ -963,6 +963,37 @@ importers:
         specifier: ^4.21.2
         version: 4.22.2(supports-color@10.2.2)
 
+  samples/integrations/better-auth/nextjs:
+    dependencies:
+      '@thunderid/better-auth':
+        specifier: workspace:*
+        version: link:../../../../packages/better-auth
+      better-auth:
+        specifier: ^1.7.2
+        version: 1.7.2(next@15.5.23(@babel/core@7.29.7(supports-color@10.2.2))(@playwright/test@1.60.0)(babel-plugin-macros@3.1.0)(react-dom@19.2.3(react@19.2.3))(react@19.2.3))(react-dom@19.2.3(react@19.2.3))(react@19.2.3)(vitest@4.1.10)(vue@3.5.41(typescript@5.9.3))
+      next:
+        specifier: ^15.5.23
+        version: 15.5.23(@babel/core@7.29.7(supports-color@10.2.2))(@playwright/test@1.60.0)(babel-plugin-macros@3.1.0)(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
+      react:
+        specifier: ^19.2.3
+        version: 19.2.3
+      react-dom:
+        specifier: ^19.2.3
+        version: 19.2.3(react@19.2.3)
+    devDependencies:
+      '@types/node':
+        specifier: ^24.7.2
+        version: 24.7.2
+      '@types/react':
+        specifier: ^19.2.14
+        version: 19.2.14
+      '@types/react-dom':
+        specifier: ^19.2.3
+        version: 19.2.3(@types/react@19.2.14)
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
+
   samples/nextjs/quickstart:
     dependencies:
       '@thunderid/nextjs':
