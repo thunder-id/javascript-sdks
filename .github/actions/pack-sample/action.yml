@@ -11,6 +11,13 @@ inputs:
   version:
     description: Version being released (e.g. 1.2.3), used to name the zip file
     required: true
+  path:
+    description: >
+      Sample app directory, relative to the repo root. Defaults to samples/<sdk>/quickstart;
+      pass this for a sample that doesn't follow that convention (e.g. an integration sample
+      under samples/integrations/<sdk>/<framework>).
+    required: false
+    default: ''
 
 outputs:
   archive:
@@ -26,6 +33,7 @@ runs:
       run: |
         SDK="${{ inputs.sdk }}"
         VERSION="${{ inputs.version }}"
+        SAMPLE_PATH="${{ inputs.path }}"
         DEST_DIR="$(pwd)"
         FOLDER="thunderid-${SDK}-sdk-sample-v${VERSION}"
         ARCHIVE="${FOLDER}.zip"
@@ -33,7 +41,7 @@ runs:
         PACK_DIR="$(mktemp -d)"
         trap 'rm -rf "$PACK_DIR"' EXIT
 
-        cd "samples/${SDK}/quickstart"
+        cd "${SAMPLE_PATH:-samples/${SDK}/quickstart}"
         pnpm pack --pack-destination "${PACK_DIR}"
         cd "${DEST_DIR}"
 

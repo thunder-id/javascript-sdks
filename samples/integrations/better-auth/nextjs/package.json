@@ -1,0 +1,24 @@
+{
+  "name": "@thunderid/better-auth-nextjs-sample",
+  "private": true,
+  "version": "0.0.0",
+  "scripts": {
+    "prepare-dev": "node scripts/prepare-dev.cjs",
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "@thunderid/better-auth": "workspace:*",
+    "better-auth": "^1.7.2",
+    "next": "^15.5.23",
+    "react": "^19.2.3",
+    "react-dom": "^19.2.3"
+  },
+  "devDependencies": {
+    "@types/node": "^24.7.2",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "typescript": "^5.9.3"
+  }
+}

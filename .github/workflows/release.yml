@@ -255,13 +255,22 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
+      - name: 📦 Pack Sample
+        id: pack
+        uses: ./.github/actions/pack-sample
+        with:
+          sdk: better-auth
+          version: ${{ steps.bump.outputs.version }}
+          path: samples/integrations/better-auth/nextjs
+
       - name: 🚀 Create GitHub Release
         env:
           GH_TOKEN: ${{ secrets.THUNDERID_AUTOMATION_BOT }}
         run: |
           gh release create "sdk/better-auth/v${{ steps.bump.outputs.version }}" \
             --title "ThunderID Better Auth SDK v${{ steps.bump.outputs.version }}" \
-            --generate-notes
+            --generate-notes \
+            "${{ steps.pack.outputs.archive }}"
 
   # ── Level 1: depends on javascript ─────────────────────────────────────────
   release-browser:
