@@ -31,19 +31,19 @@
     "typecheck": "turbo run typecheck"
   },
   "devDependencies": {
-    "turbo": "2.10.2",
     "@thunderid/eslint-plugin": "catalog:",
     "@thunderid/prettier-config": "catalog:",
     "eslint": "catalog:",
     "prettier": "catalog:",
     "rimraf": "catalog:",
     "tslib": "catalog:",
+    "turbo": "2.10.2",
     "typescript": "catalog:"
   },
   "devEngines": {
     "packageManager": {
       "name": "pnpm",
-      "version": "11.9.0"
+      "version": "11.25.0"
     }
   }
 }
