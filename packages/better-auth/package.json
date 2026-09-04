@@ -1,0 +1,68 @@
+{
+  "name": "@thunderid/better-auth",
+  "version": "0.0.0",
+  "description": "ThunderID for Better Auth",
+  "keywords": [
+    "thunderid",
+    "better-auth",
+    "oauth",
+    "oidc",
+    "generic-oauth",
+    "helper"
+  ],
+  "homepage": "https://github.com/thunder-id/javascript-sdks/tree/main/packages/better-auth#readme",
+  "bugs": {
+    "url": "https://github.com/thunder-id/thunderid/issues"
+  },
+  "author": "The ThunderID Authors",
+  "license": "Apache-2.0",
+  "type": "module",
+  "main": "dist/index.js",
+  "module": "dist/index.js",
+  "commonjs": "dist/cjs/index.cjs",
+  "exports": {
+    "import": "./dist/index.js",
+    "require": "./dist/cjs/index.cjs"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "types": "dist/index.d.ts",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/thunder-id/javascript-sdks",
+    "directory": "packages/better-auth"
+  },
+  "scripts": {
+    "build": "pnpm clean:dist &&  rolldown -c rolldown.config.js && tsc -p tsconfig.lib.json --emitDeclarationOnly --outDir dist",
+    "clean": "pnpm clean:node_modules && pnpm clean:dist",
+    "clean:dist": "rimraf dist",
+    "clean:node_modules": "rimraf node_modules",
+    "format:check": "prettier --check --cache .",
+    "format:fix": "prettier --write --cache .",
+    "lint": "eslint . --ext .js,.jsx,.ts,.tsx,.cjs,.mjs",
+    "lint:fix": "eslint . --fix --ext .js,.jsx,.ts,.tsx,.cjs,.mjs",
+    "test": "vitest",
+    "typecheck": "tsc -p tsconfig.lib.json"
+  },
+  "devDependencies": {
+    "@thunderid/eslint-plugin": "catalog:",
+    "@thunderid/prettier-config": "catalog:",
+    "@types/node": "catalog:",
+    "better-auth": "^1.7.2",
+    "eslint": "catalog:",
+    "prettier": "catalog:",
+    "rimraf": "catalog:",
+    "rolldown": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  },
+  "peerDependencies": {
+    "better-auth": ">=1.7.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}
