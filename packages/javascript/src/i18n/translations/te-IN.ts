@@ -105,6 +105,28 @@ const translations: I18nTranslations = {
   'user.profile.update.generic.error': 'ప్రొఫైల్ అప్‌డేట్ చేస్తూ లోపం వచ్చింది. దయచేసి మళ్లీ ప్రయత్నించండి.',
 
   /* |---------------------------------------------------------------| */
+  /* |                        Change Password                        | */
+  /* |---------------------------------------------------------------| */
+
+  'user.change_password.heading': 'పాస్‌వర్డ్ మార్చండి',
+  'user.change_password.current.label': 'ప్రస్తుత పాస్‌వర్డ్',
+  'user.change_password.current.placeholder': 'మీ ప్రస్తుత పాస్‌వర్డ్‌ను నమోదు చేయండి',
+  'user.change_password.new.label': 'కొత్త పాస్‌వర్డ్',
+  'user.change_password.new.placeholder': 'మీ కొత్త పాస్‌వర్డ్‌ను నమోదు చేయండి',
+  'user.change_password.confirm.label': 'కొత్త పాస్‌వర్డ్‌ను నిర్ధారించండి',
+  'user.change_password.confirm.placeholder': 'మీ కొత్త పాస్‌వర్డ్‌ను మళ్లీ నమోదు చేయండి',
+  'user.change_password.requirements.heading': 'మీ పాస్‌వర్డ్‌లో ఉండవలసినవి:',
+  'user.change_password.submit': 'పాస్‌వర్డ్ నవీకరించండి',
+  'user.change_password.success': 'మీ పాస్‌వర్డ్ నవీకరించబడింది.',
+  'user.change_password.mismatch.error': 'పాస్‌వర్డ్‌లు సరిపోలడం లేదు.',
+  'user.change_password.same.as.current.error': 'మీ కొత్త పాస్‌వర్డ్ ప్రస్తుత పాస్‌వర్డ్‌కు భిన్నంగా ఉండాలి.',
+  'user.change_password.current.invalid.error': 'మీ ప్రస్తుత పాస్‌వర్డ్ తప్పు.',
+  'user.change_password.generic.error': 'మీ పాస్‌వర్డ్ నవీకరిస్తూ లోపం వచ్చింది. దయచేసి మళ్లీ ప్రయత్నించండి.',
+  'user.change_password.unavailable.heading': 'పాస్‌వర్డ్ మార్పు అందుబాటులో లేదు',
+  'user.change_password.unavailable.description': 'ఈ ఖాతా పాస్‌వర్డ్‌ను ఉపయోగించదు, కాబట్టి దీన్ని ఇక్కడ మార్చలేరు.',
+  'validation.password.pattern': 'అవసరమైన ఆకృతికి సరిపోతుంది',
+
+  /* |---------------------------------------------------------------| */
   /* |                     Organization Switcher                     | */
   /* |---------------------------------------------------------------| */
 

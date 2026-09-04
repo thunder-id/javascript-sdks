@@ -234,6 +234,7 @@ export interface BaseConfig<T = unknown> extends WithPreferences, WithExtensions
    *   flowMeta: "https://rs.example.com/flow/meta",
    *   usersMe: "https://rs.example.com/users/me",
    *   usersMeMeta: "https://rs.example.com/users/me/meta",
+   *   usersMeCredentials: "https://rs.example.com/users/me/update-credentials",
    * }
    */
   endpoints?: {
@@ -283,6 +284,11 @@ export interface BaseConfig<T = unknown> extends WithPreferences, WithExtensions
      * If not provided, defaults to `{baseUrl}/users/me`.
      */
     usersMe?: string;
+    /**
+     * The current-user credential endpoint URL used to change the signed-in user's password.
+     * If not provided, defaults to `{baseUrl}/users/me/update-credentials`.
+     */
+    usersMeCredentials?: string;
     /**
      * The user profile schema metadata endpoint URL used to fetch profile schema attributes.
      * If not provided, defaults to `{baseUrl}/users/me/meta`.

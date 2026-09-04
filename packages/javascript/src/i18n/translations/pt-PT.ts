@@ -104,6 +104,29 @@ const translations: I18nTranslations = {
   'user.profile.update.generic.error': 'Ocorreu um erro ao actualizar o seu perfil. Tente novamente.',
 
   /* |---------------------------------------------------------------| */
+  /* |                        Change Password                        | */
+  /* |---------------------------------------------------------------| */
+
+  'user.change_password.heading': 'Alterar palavra-passe',
+  'user.change_password.current.label': 'Palavra-passe actual',
+  'user.change_password.current.placeholder': 'Introduza a sua palavra-passe actual',
+  'user.change_password.new.label': 'Nova palavra-passe',
+  'user.change_password.new.placeholder': 'Introduza a sua nova palavra-passe',
+  'user.change_password.confirm.label': 'Confirmar nova palavra-passe',
+  'user.change_password.confirm.placeholder': 'Introduza novamente a sua nova palavra-passe',
+  'user.change_password.requirements.heading': 'A sua palavra-passe deve ter:',
+  'user.change_password.submit': 'Actualizar palavra-passe',
+  'user.change_password.success': 'A sua palavra-passe foi actualizada.',
+  'user.change_password.mismatch.error': 'As palavras-passe não coincidem.',
+  'user.change_password.same.as.current.error': 'A sua nova palavra-passe deve ser diferente da actual.',
+  'user.change_password.current.invalid.error': 'A sua palavra-passe actual está incorrecta.',
+  'user.change_password.generic.error': 'Ocorreu um erro ao actualizar a sua palavra-passe. Tente novamente.',
+  'user.change_password.unavailable.heading': 'Alteração de palavra-passe indisponível',
+  'user.change_password.unavailable.description':
+    'Esta conta não utiliza palavra-passe, pelo que não pode ser alterada aqui.',
+  'validation.password.pattern': 'Corresponde ao formato exigido',
+
+  /* |---------------------------------------------------------------| */
   /* |                     Organization Switcher                     | */
   /* |---------------------------------------------------------------| */
 

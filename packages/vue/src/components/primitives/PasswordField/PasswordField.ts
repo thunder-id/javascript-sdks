@@ -6,6 +6,7 @@ import {type Component, type Ref, type SetupContext, type VNode, defineComponent
 import {EyeIcon, EyeOffIcon} from '../Icons';
 
 type PasswordFieldProps = Readonly<{
+  autocomplete: string;
   disabled: boolean;
   error: string | undefined;
   label: string | undefined;
@@ -18,6 +19,12 @@ type PasswordFieldProps = Readonly<{
 const PasswordField: Component = defineComponent({
   name: 'PasswordField',
   props: {
+    /**
+     * Browser autofill hint. Defaults to `current-password`; set `new-password` on the fields
+     * of a change-password or sign-up form so password managers offer to generate and store a
+     * new credential instead of filling the existing one.
+     */
+    autocomplete: {default: 'current-password', type: String},
     disabled: {default: false, type: Boolean},
     error: {default: undefined, type: String},
     label: {default: undefined, type: String},
@@ -56,6 +63,7 @@ const PasswordField: Component = defineComponent({
           : null,
         h('div', {class: withVendorCSSClassPrefix('password-field__wrapper')}, [
           h('input', {
+            autocomplete: props.autocomplete,
             class: withVendorCSSClassPrefix('password-field__input'),
             'data-testid': attrs['data-testid'],
             disabled: props.disabled,

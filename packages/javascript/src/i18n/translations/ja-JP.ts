@@ -104,6 +104,29 @@ const translations: I18nTranslations = {
   'user.profile.update.generic.error': 'プロフィール更新中にエラーが発生しました。もう一度お試しください。',
 
   /* |---------------------------------------------------------------| */
+  /* |                        Change Password                        | */
+  /* |---------------------------------------------------------------| */
+
+  'user.change_password.heading': 'パスワードの変更',
+  'user.change_password.current.label': '現在のパスワード',
+  'user.change_password.current.placeholder': '現在のパスワードを入力してください',
+  'user.change_password.new.label': '新しいパスワード',
+  'user.change_password.new.placeholder': '新しいパスワードを入力してください',
+  'user.change_password.confirm.label': '新しいパスワードの確認',
+  'user.change_password.confirm.placeholder': '新しいパスワードをもう一度入力してください',
+  'user.change_password.requirements.heading': 'パスワードの要件:',
+  'user.change_password.submit': 'パスワードを更新',
+  'user.change_password.success': 'パスワードを更新しました。',
+  'user.change_password.mismatch.error': 'パスワードが一致しません。',
+  'user.change_password.same.as.current.error': '新しいパスワードは現在のパスワードと異なる必要があります。',
+  'user.change_password.current.invalid.error': '現在のパスワードが正しくありません。',
+  'user.change_password.generic.error': 'パスワードの更新中にエラーが発生しました。もう一度お試しください。',
+  'user.change_password.unavailable.heading': 'パスワードの変更は利用できません',
+  'user.change_password.unavailable.description':
+    'このアカウントはパスワードを使用していないため、ここでは変更できません。',
+  'validation.password.pattern': '必要な形式に一致',
+
+  /* |---------------------------------------------------------------| */
   /* |                     Organization Switcher                     | */
   /* |---------------------------------------------------------------| */
 

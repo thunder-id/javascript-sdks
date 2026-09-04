@@ -104,6 +104,9 @@ export {default as Loading} from './components/control/Loading';
 
 // ── UI Components — Presentation ──
 export {default as User} from './components/presentation/user/User';
+export {default as ChangePassword} from './components/presentation/change-password/ChangePassword';
+export {default as BaseChangePassword} from './components/presentation/change-password/BaseChangePassword';
+export type {ChangePasswordValues} from './components/presentation/change-password/BaseChangePassword';
 export {default as UserProfile} from './components/presentation/user-profile/UserProfile';
 export {default as BaseUserProfile} from './components/presentation/user-profile/BaseUserProfile';
 export {default as UserDropdown} from './components/presentation/user-dropdown/UserDropdown';
@@ -164,6 +167,8 @@ export {initiateOAuthRedirect} from './utils/oauth';
 export {extractErrorMessage, normalizeFlowResponse} from './utils/flowTransformer';
 export type {FlowErrorResponse, FlowTransformOptions} from './utils/flowTransformer';
 export {handlePasskeyAuthentication, handlePasskeyRegistration} from './utils/passkey';
+export {default as updateMeCredentials} from './api/updateMeCredentials';
+export * from './api/updateMeCredentials';
 export {default as getUsersMeMeta} from './api/getUsersMeMeta';
 export * from './api/getUsersMeMeta';
 

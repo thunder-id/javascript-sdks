@@ -12,6 +12,12 @@ import TextField, {TextFieldProps} from '../TextField/TextField';
 
 export interface PasswordFieldProps extends Omit<TextFieldProps, 'type' | 'endIcon' | 'onEndIconClick' | 'onChange'> {
   /**
+   * The browser autofill hint. Defaults to `current-password`; set `new-password` on the
+   * fields of a change-password or sign-up form so password managers offer to generate and
+   * store a new credential instead of filling the existing one.
+   */
+  autoComplete?: string;
+  /**
    * Callback function when the field value changes
    */
   onChange: (value: string) => void;
@@ -22,6 +28,7 @@ export interface PasswordFieldProps extends Omit<TextFieldProps, 'type' | 'endIc
  * This component extends TextField and adds password visibility toggle functionality.
  */
 const PasswordField: FC<PasswordFieldProps> = ({
+  autoComplete = 'current-password',
   onChange,
   className,
   disabled,
@@ -46,7 +53,7 @@ const PasswordField: FC<PasswordFieldProps> = ({
       className={cx(withVendorCSSClassPrefix(bem('password-field')), className)}
       type={showPassword ? 'text' : 'password'}
       onChange={(e: ChangeEvent<HTMLInputElement>): void => onChange(e.target.value)}
-      autoComplete="current-password"
+      autoComplete={autoComplete}
       disabled={disabled}
       error={error}
       endIcon={

@@ -104,6 +104,28 @@ const translations: I18nTranslations = {
   'user.profile.update.generic.error': 'An error occurred while updating your profile. Please try again.',
 
   /* |---------------------------------------------------------------| */
+  /* |                        Change Password                        | */
+  /* |---------------------------------------------------------------| */
+
+  'user.change_password.heading': 'Change Password',
+  'user.change_password.current.label': 'Current Password',
+  'user.change_password.current.placeholder': 'Enter your current password',
+  'user.change_password.new.label': 'New Password',
+  'user.change_password.new.placeholder': 'Enter your new password',
+  'user.change_password.confirm.label': 'Confirm New Password',
+  'user.change_password.confirm.placeholder': 'Re-enter your new password',
+  'user.change_password.requirements.heading': 'Your password must have:',
+  'user.change_password.submit': 'Update Password',
+  'user.change_password.success': 'Your password has been updated.',
+  'user.change_password.mismatch.error': 'Passwords do not match.',
+  'user.change_password.same.as.current.error': 'Your new password must be different from your current password.',
+  'user.change_password.current.invalid.error': 'Your current password is incorrect.',
+  'user.change_password.generic.error': 'An error occurred while updating your password. Please try again.',
+  'user.change_password.unavailable.heading': 'Password changes unavailable',
+  'user.change_password.unavailable.description': 'This account does not use a password, so it cannot be changed here.',
+  'validation.password.pattern': 'Matches the required format',
+
+  /* |---------------------------------------------------------------| */
   /* |                     Organization Switcher                     | */
   /* |---------------------------------------------------------------| */
 

@@ -48,6 +48,12 @@ describe('resolveResourceEndpoint', (): void => {
   });
 
   it('exposes the resource endpoint keys for filtering OIDC metadata', (): void => {
-    expect([...RESOURCE_ENDPOINT_KEYS].sort()).toEqual(['flowExecute', 'flowMeta', 'usersMe', 'usersMeMeta']);
+    expect([...RESOURCE_ENDPOINT_KEYS].sort()).toEqual([
+      'flowExecute',
+      'flowMeta',
+      'usersMe',
+      'usersMeCredentials',
+      'usersMeMeta',
+    ]);
   });
 });

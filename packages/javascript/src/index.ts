@@ -20,6 +20,8 @@ export {default as getUsersMe} from './api/getUsersMe';
 export type {GetUsersMeConfig} from './api/getUsersMe';
 export {default as getUsersMeMeta} from './api/getUsersMeMeta';
 export type {GetUsersMeMetaConfig, UsersMeMetaResponse, AttributeSchema} from './api/getUsersMeMeta';
+export {default as updateMeCredentials} from './api/updateMeCredentials';
+export type {UpdateMeCredentialsConfig} from './api/updateMeCredentials';
 export {default as updateMeProfile} from './api/updateMeProfile';
 export type {UpdateMeProfileConfig} from './api/updateMeProfile';
 
@@ -27,6 +29,7 @@ export {default as ApplicationNativeAuthenticationConstants} from './constants/A
 export {default as TokenConstants} from './constants/TokenConstants';
 export {default as OIDCRequestConstants} from './constants/OIDCRequestConstants';
 export {default as VendorConstants} from './constants/VendorConstants';
+export {default as CredentialConstants} from './constants/CredentialConstants';
 export {default as ConsentConstants} from './constants/ConsentConstants';
 
 export {default as ThunderIDError} from './errors/ThunderIDError';
@@ -175,6 +178,14 @@ export {
 } from './utils/substituteTranslationParams';
 export {default as removeTrailingSlash} from './utils/removeTrailingSlash';
 export {default as resolveFieldName} from './utils/resolveFieldName';
+export {default as evaluatePasswordPolicy} from './utils/evaluatePasswordPolicy';
+export type {PasswordPolicy, PasswordRuleResult} from './utils/evaluatePasswordPolicy';
+export {default as evaluateChangePasswordForm} from './utils/evaluateChangePasswordForm';
+export type {ChangePasswordFormValues, ChangePasswordFormEvaluation} from './utils/evaluateChangePasswordForm';
+export {default as resolveChangePasswordPolicy} from './utils/resolveChangePasswordPolicy';
+export {default as supportsPasswordCredential} from './utils/supportsPasswordCredential';
+export {default as mapCredentialUpdateError} from './utils/mapCredentialUpdateError';
+export type {CredentialUpdateErrorField, CredentialUpdateErrorResult} from './utils/mapCredentialUpdateError';
 export {default as resolveResourceEndpoint} from './utils/resolveResourceEndpoint';
 export type {ResourceEndpointKey, ResourceEndpointConfig} from './utils/resolveResourceEndpoint';
 export {default as resolveMeta} from './utils/resolveMeta';
