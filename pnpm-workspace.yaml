@@ -95,8 +95,8 @@ catalog:
   '@floating-ui/react': 0.27.12
   '@playwright/test': 1.60.0
   '@testing-library/react': 16.3.0
-  '@thunderid/eslint-plugin': 1.0.0
-  '@thunderid/prettier-config': 1.0.0
+  '@thunderid/eslint-plugin': 1.0.1
+  '@thunderid/prettier-config': 1.0.1
   '@types/node': 24.7.2
   '@types/react': 19.2.14
   '@types/react-dom': 19.2.3
