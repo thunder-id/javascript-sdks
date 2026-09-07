@@ -24,6 +24,7 @@ import ANIMATIONS_CSS from './animations.css';
 import DEFAULTS_CSS from './defaults.css';
 
 // Primitives
+import CHANGE_PASSWORD_CSS from '../components/presentation/change-password/ChangePassword.css';
 import LANGUAGE_SWITCHER_CSS from '../components/presentation/language-switcher/LanguageSwitcher.css';
 import USER_DROPDOWN_CSS from '../components/presentation/user-dropdown/UserDropdown.css';
 import USER_PROFILE_CSS from '../components/presentation/user-profile/UserProfile.css';
@@ -77,6 +78,7 @@ const STYLES: string = [
   LANGUAGE_SWITCHER_CSS,
   USER_DROPDOWN_CSS,
   USER_PROFILE_CSS,
+  CHANGE_PASSWORD_CSS,
 ].join('\n');
 
 /**

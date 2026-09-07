@@ -12,7 +12,7 @@ import {BaseConfig} from '../models/config';
  * issuers), these overrides let the SDK send flow and user-management requests to the resource
  * server while OAuth requests continue to target the authorization server.
  */
-export type ResourceEndpointKey = 'flowExecute' | 'flowMeta' | 'usersMe' | 'usersMeMeta';
+export type ResourceEndpointKey = 'flowExecute' | 'flowMeta' | 'usersMe' | 'usersMeCredentials' | 'usersMeMeta';
 
 /**
  * The `config.endpoints` keys that address resource-server endpoints rather than OIDC/OAuth
@@ -22,6 +22,7 @@ export const RESOURCE_ENDPOINT_KEYS: readonly ResourceEndpointKey[] = [
   'flowExecute',
   'flowMeta',
   'usersMe',
+  'usersMeCredentials',
   'usersMeMeta',
 ];
 

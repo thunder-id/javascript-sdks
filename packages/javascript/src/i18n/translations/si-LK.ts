@@ -104,6 +104,28 @@ const translations: I18nTranslations = {
   'user.profile.update.generic.error': 'ඔබේ පැතිකඩ යාවත්කාලීන කිරීමේදී දෝෂයක් ඇතිවිය.කරුණාකර නැවත උත්සාහ කරන්න',
 
   /* |---------------------------------------------------------------| */
+  /* |                        Change Password                        | */
+  /* |---------------------------------------------------------------| */
+
+  'user.change_password.heading': 'මුරපදය වෙනස් කරන්න',
+  'user.change_password.current.label': 'වත්මන් මුරපදය',
+  'user.change_password.current.placeholder': 'ඔබේ වත්මන් මුරපදය ඇතුළත් කරන්න',
+  'user.change_password.new.label': 'නව මුරපදය',
+  'user.change_password.new.placeholder': 'ඔබේ නව මුරපදය ඇතුළත් කරන්න',
+  'user.change_password.confirm.label': 'නව මුරපදය තහවුරු කරන්න',
+  'user.change_password.confirm.placeholder': 'ඔබේ නව මුරපදය නැවත ඇතුළත් කරන්න',
+  'user.change_password.requirements.heading': 'ඔබේ මුරපදයේ තිබිය යුතුය:',
+  'user.change_password.submit': 'මුරපදය යාවත්කාලීන කරන්න',
+  'user.change_password.success': 'ඔබේ මුරපදය යාවත්කාලීන කර ඇත.',
+  'user.change_password.mismatch.error': 'මුරපද නොගැලපේ.',
+  'user.change_password.same.as.current.error': 'ඔබේ නව මුරපදය වත්මන් මුරපදයට වඩා වෙනස් විය යුතුය.',
+  'user.change_password.current.invalid.error': 'ඔබේ වත්මන් මුරපදය වැරදියි.',
+  'user.change_password.generic.error': 'ඔබේ මුරපදය යාවත්කාලීන කිරීමේදී දෝෂයක් ඇතිවිය. කරුණාකර නැවත උත්සාහ කරන්න.',
+  'user.change_password.unavailable.heading': 'මුරපදය වෙනස් කිරීම නොමැත',
+  'user.change_password.unavailable.description': 'මෙම ගිණුම මුරපදයක් භාවිතා නොකරන බැවින්, එය මෙහිදී වෙනස් කළ නොහැක.',
+  'validation.password.pattern': 'අවශ්‍ය ආකෘතියට ගැලපේ',
+
+  /* |---------------------------------------------------------------| */
   /* |                     Organization Switcher                     | */
   /* |---------------------------------------------------------------| */
 

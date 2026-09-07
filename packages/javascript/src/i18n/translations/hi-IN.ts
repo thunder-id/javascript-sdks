@@ -104,6 +104,29 @@ const translations: I18nTranslations = {
   'user.profile.update.generic.error': 'प्रोफ़ाइल अपडेट करते समय त्रुटि हुई। कृपया पुनः प्रयास करें।',
 
   /* |---------------------------------------------------------------| */
+  /* |                        Change Password                        | */
+  /* |---------------------------------------------------------------| */
+
+  'user.change_password.heading': 'पासवर्ड बदलें',
+  'user.change_password.current.label': 'वर्तमान पासवर्ड',
+  'user.change_password.current.placeholder': 'अपना वर्तमान पासवर्ड दर्ज करें',
+  'user.change_password.new.label': 'नया पासवर्ड',
+  'user.change_password.new.placeholder': 'अपना नया पासवर्ड दर्ज करें',
+  'user.change_password.confirm.label': 'नए पासवर्ड की पुष्टि करें',
+  'user.change_password.confirm.placeholder': 'अपना नया पासवर्ड फिर से दर्ज करें',
+  'user.change_password.requirements.heading': 'आपके पासवर्ड में होना चाहिए:',
+  'user.change_password.submit': 'पासवर्ड अपडेट करें',
+  'user.change_password.success': 'आपका पासवर्ड अपडेट कर दिया गया है।',
+  'user.change_password.mismatch.error': 'पासवर्ड मेल नहीं खाते।',
+  'user.change_password.same.as.current.error': 'आपका नया पासवर्ड वर्तमान पासवर्ड से अलग होना चाहिए।',
+  'user.change_password.current.invalid.error': 'आपका वर्तमान पासवर्ड गलत है।',
+  'user.change_password.generic.error': 'पासवर्ड अपडेट करते समय त्रुटि हुई। कृपया पुनः प्रयास करें।',
+  'user.change_password.unavailable.heading': 'पासवर्ड बदलना उपलब्ध नहीं है',
+  'user.change_password.unavailable.description':
+    'यह खाता पासवर्ड का उपयोग नहीं करता, इसलिए इसे यहाँ बदला नहीं जा सकता।',
+  'validation.password.pattern': 'आवश्यक प्रारूप से मेल खाता है',
+
+  /* |---------------------------------------------------------------| */
   /* |                     Organization Switcher                     | */
   /* |---------------------------------------------------------------| */
 

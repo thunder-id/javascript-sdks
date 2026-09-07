@@ -104,6 +104,28 @@ const translations: I18nTranslations = {
   'user.profile.update.generic.error': 'Ocorreu um erro ao atualizar seu perfil. Tente novamente.',
 
   /* |---------------------------------------------------------------| */
+  /* |                        Change Password                        | */
+  /* |---------------------------------------------------------------| */
+
+  'user.change_password.heading': 'Alterar senha',
+  'user.change_password.current.label': 'Senha atual',
+  'user.change_password.current.placeholder': 'Digite sua senha atual',
+  'user.change_password.new.label': 'Nova senha',
+  'user.change_password.new.placeholder': 'Digite sua nova senha',
+  'user.change_password.confirm.label': 'Confirmar nova senha',
+  'user.change_password.confirm.placeholder': 'Digite novamente sua nova senha',
+  'user.change_password.requirements.heading': 'Sua senha deve ter:',
+  'user.change_password.submit': 'Atualizar senha',
+  'user.change_password.success': 'Sua senha foi atualizada.',
+  'user.change_password.mismatch.error': 'As senhas não coincidem.',
+  'user.change_password.same.as.current.error': 'Sua nova senha deve ser diferente da senha atual.',
+  'user.change_password.current.invalid.error': 'Sua senha atual está incorreta.',
+  'user.change_password.generic.error': 'Ocorreu um erro ao atualizar sua senha. Tente novamente.',
+  'user.change_password.unavailable.heading': 'Alteração de senha indisponível',
+  'user.change_password.unavailable.description': 'Esta conta não usa senha, portanto ela não pode ser alterada aqui.',
+  'validation.password.pattern': 'Corresponde ao formato exigido',
+
+  /* |---------------------------------------------------------------| */
   /* |                     Organization Switcher                     | */
   /* |---------------------------------------------------------------| */
 
