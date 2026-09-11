@@ -8,6 +8,27 @@ framework SDKs built on top of those (`react`, `vue`, `nuxt`, `nextjs`, `express
 `tanstack-router`). `samples/<framework>/quickstart` directories contain standalone demo apps — not part of
 any published package.
 
+## SDK development specification
+
+Every change to this SDK goes through the ThunderID SDK development specification. It is
+maintained in the product repository and governs all four SDK repositories, so it is linked
+here rather than copied.
+
+- [SDK development specification](https://github.com/thunder-id/thunderid/blob/main/docs-internals/sdk-development/spec.md):
+  the contract this SDK implements. Layering, operational modes, configuration keys, client
+  surface, error model, security floor, platform packaging, testing, and the cross-SDK parity
+  rules.
+- [SDK threat model](https://github.com/thunder-id/thunderid/blob/main/docs-internals/sdk-development/threat-model.md):
+  the security posture the specification's floor comes from.
+- [`sdk-development` skill](https://github.com/thunder-id/thunderid/blob/main/.agent/skills/sdk-development/SKILL.md):
+  loads both documents and drives the work, from locating the SDK checkouts through validation
+  to raising the linked pull requests.
+
+Read the specification before adding or changing an operation, configuration key, error, or UI
+component. A capability that lands here usually needs to land in the sibling SDKs too, and the
+pull request has to answer that question either way, by linking the sibling pull requests or
+by saying why they are not needed.
+
 ## Skills
 
 - [Fix npm Vulnerability](.agent/skills/fix-npm-vulnerability/SKILL.md) — Resolve a pnpm/npm security advisory.
