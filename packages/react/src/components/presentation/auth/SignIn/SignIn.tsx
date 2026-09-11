@@ -482,6 +482,7 @@ const SignIn: FC<SignInProps> = ({
         setIsSubmitting(false);
         await clearFlowState();
         cleanupOAuthUrlParams(true);
+        onError?.(new Error(extractErrorMessage(response, t)));
         window.location.href = response.redirectUrl;
 
         return true;
