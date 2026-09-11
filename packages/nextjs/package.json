@@ -59,7 +59,7 @@
     "@thunderid/prettier-config": "catalog:",
     "@types/node": "catalog:",
     "eslint": "catalog:",
-    "next": "15.5.23",
+    "next": "15.5.25",
     "prettier": "catalog:",
     "react": "catalog:",
     "rimraf": "catalog:",
