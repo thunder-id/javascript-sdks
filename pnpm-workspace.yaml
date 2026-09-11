@@ -36,11 +36,12 @@ overrides:
   brace-expansion@2: 2.1.4
   brace-expansion@5: 5.0.9
   # JUSTIFICATION: Fixes GHSA-52cp-r559-cp3m / GHSA-5p4m-2wfm-xmqj — js-yaml quadratic CPU
-  # consumption via YAML merge-key chains and `!!omap` resolution. Transitive via the root
-  # `eslint` > `@eslint/eslintrc` > `js-yaml`. `@eslint/eslintrc`@latest already declares
-  # `js-yaml: ^4.3.0`, which permits 4.3.1 — this pin can likely be removed once its lockfile
-  # entry is refreshed.
-  js-yaml: 4.3.1
+  # consumption via YAML merge-key chains and `!!omap` resolution — plus GHSA-2883-xcg3-v3hh
+  # (2026-09-11), where `maxTotalMergeKeys` fails to bound CPU use for empty merge sources, which
+  # the previous 4.3.1 pin did not cover. Transitive via the root `eslint` > `@eslint/eslintrc` >
+  # `js-yaml`. `@eslint/eslintrc`@latest already declares `js-yaml: ^4.3.0`, which permits 4.3.2 —
+  # this pin can likely be removed once its lockfile entry is refreshed.
+  js-yaml: 4.3.2
   # JUSTIFICATION: Fixes GHSA-28wg-ghj8-5hjv / GHSA-2v37-7h3g-55p8 — nanoid can loop indefinitely
   # given a negative or zero size. Two major lines are pulled in: v3 transitively via
   # packages/nextjs's `next` > `postcss` > `nanoid` (next still pins `postcss@8.4.31`, which pulls
@@ -56,20 +57,24 @@ overrides:
   # the override until Next.js bumps its own postcss pin (https://github.com/vercel/next.js).
   postcss: 8.5.23
   # JUSTIFICATION: Fixes GHSA-f88m-g3jw-g9cj — sharp inherits several libvips CVEs
-  # (CVE-2026-33327/33328/35590/35591). Transitive via packages/nextjs and
-  # samples/nextjs/quickstart's `next` > `sharp` (Next.js image optimization).
-  sharp: 0.35.0
+  # (CVE-2026-33327/33328/35590/35591) — plus GHSA-rgj7-g3m4-5g8c (2026-09-11), which bundles the
+  # libheif flaws GHSA-g89c-p67h-r497 / GHSA-2jg2-4ch7-h545 and needs >=0.35.4, above the previous
+  # 0.35.0 pin. Transitive via packages/nextjs and samples/nextjs/quickstart's `next` > `sharp`
+  # (Next.js image optimization).
+  sharp: 0.35.4
   # JUSTIFICATION: Fixes GHSA-395f-4hp3-45gv — quadratic-complexity DoS in shell-quote's `parse()`.
   # Transitive via packages/nuxt's `@nuxt/devtools` > `launch-editor` > `shell-quote`. Note the
   # advisory's own "patched" floor (>=1.8.5) is stale — 1.8.5 was never published; 1.10.0 is the
   # first published fix.
   shell-quote: 1.10.0
   # JUSTIFICATION: Fixes GHSA-2p49-hgcm-8545 — SVGO's `removeScripts` plugin leaves some executable
-  # script content intact. Transitive via packages/nuxt's Vite build pipeline
+  # script content intact — plus GHSA-w27v-7q3p-w38r (2026-09-11), a follow-up bypass of the same
+  # plugin via namespaced and control-character-obfuscated links that needs >=4.1.0, above the
+  # previous 4.0.2 pin. Transitive via packages/nuxt's Vite build pipeline
   # (`@nuxt/vite-builder` > `cssnano` > `cssnano-preset-default` > `postcss-svgo` > `svgo`).
-  # `postcss-svgo`@latest already depends on `svgo: ^4.0.2`, so this pin can likely be dropped once
-  # nuxt's own lockfile entry for `postcss-svgo` is refreshed.
-  svgo: 4.0.2
+  # `postcss-svgo`@latest already depends on `svgo: ^4.0.2`, which permits 4.1.0, so this pin can
+  # likely be dropped once nuxt's own lockfile entry for `postcss-svgo` is refreshed.
+  svgo: 4.1.0
   # JUSTIFICATION: Fixes 5 node-tar advisories (GHSA-w8wr-v893-vjvp, GHSA-23hp-3jrh-7fpw,
   # GHSA-8x88-c5mf-7j5w, GHSA-gvwx-54wh-qm9j, GHSA-r292-9mhp-454m) — PAX path/NUL-byte parsing
   # crashes, an unbounded-decompression DoS, and a mapHas/filesFilter stack-overflow DoS. Transitive

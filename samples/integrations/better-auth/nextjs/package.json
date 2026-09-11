@@ -11,7 +11,7 @@
   "dependencies": {
     "@thunderid/better-auth": "workspace:*",
     "better-auth": "^1.7.2",
-    "next": "^15.5.23",
+    "next": "^15.5.25",
     "react": "^19.2.3",
     "react-dom": "^19.2.3"
   },
