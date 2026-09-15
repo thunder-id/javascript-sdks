@@ -5,7 +5,8 @@
  * Credential Test Users
  *
  * One dedicated user per app whose E2E suite includes a change-credential spec
- * (react/quickstart, vue/quickstart, browser/quickstart). These specs change the signed-in
+ * (react/quickstart, vue/quickstart, nextjs/quickstart, nuxt/quickstart, browser/quickstart,
+ * express/quickstart). These specs change the signed-in
  * user's password mid-test (see each change-credential.spec.ts's own doc comment) and restore
  * it afterward, but the suite runs `fullyParallel`, so any other concurrently-running test file
  * signing in as the same identity would race that temporary change and fail transiently.
@@ -31,7 +32,7 @@ export interface CredentialTestUser {
   username: string;
 }
 
-export const CredentialTestUserApps = ['BROWSER', 'REACT', 'VUE'] as const;
+export const CredentialTestUserApps = ['BROWSER', 'REACT', 'VUE', 'NEXTJS', 'NUXT', 'EXPRESS'] as const;
 export type CredentialTestUserApp = (typeof CredentialTestUserApps)[number];
 
 export function credentialTestUser(app: CredentialTestUserApp): CredentialTestUser {

@@ -37,7 +37,7 @@ export default function RootLayout({
         {missingEnvVars.length > 0 ? (
           <ConfigNotice missing={missingEnvVars} isRedirectFlow={isRedirectFlow} />
         ) : (
-          <ThunderIDProvider>
+          <ThunderIDProvider preferences={{ theme: { mode: 'class' } }}>
             {children}
           </ThunderIDProvider>
         )}

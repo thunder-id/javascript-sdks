@@ -37,6 +37,22 @@ html.dark {
   --color-text-muted: rgba(224, 234, 255, 0.48);
   --color-muted: rgba(224, 234, 255, 0.48);
   --color-nav-bg: rgba(8, 15, 28, 0.92);
+
+  /* ThunderID Design Tokens for Dark Mode */
+  --thunderid-color-background-surface: #0f1a2d;
+  --thunderid-color-background-body: #080f1c;
+  --thunderid-color-background-disabled: rgba(255, 255, 255, 0.06);
+  --thunderid-color-background-muted: rgba(255, 255, 255, 0.05);
+  --thunderid-color-text-primary: #E0EAFF;
+  --thunderid-color-text-secondary: rgba(224, 234, 255, 0.65);
+  --thunderid-color-border: rgba(255, 255, 255, 0.09);
+  --thunderid-color-border-focus: var(--color-primary);
+  --thunderid-input-borderColor: rgba(255, 255, 255, 0.16);
+  --thunderid-input-focusBorderColor: var(--color-primary);
+  --thunderid-input-focusRing: 0 0 0 3px rgba(54, 136, 255, 0.25);
+  --thunderid-card-borderColor: rgba(255, 255, 255, 0.09);
+  --thunderid-card-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+  --thunderid-color-action-hover: rgba(255, 255, 255, 0.06);
 }
 
 /* ── Base ── */
@@ -1055,3 +1071,451 @@ button:focus-visible {
     padding: 24px 16px;
   }
 }
+
+/* ─── Account page (Google Account-style left-nav layout) ─────────── */
+.account-page {
+  display: flex;
+  align-items: flex-start;
+  min-height: calc(100vh - 52px);
+  margin-top: 52px;
+}
+
+.account-sidebar {
+  width: 280px;
+  flex-shrink: 0;
+  padding: 40px 24px;
+  position: sticky;
+  top: 52px;
+}
+
+.account-sidebar-title {
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  color: var(--color-text);
+  margin: 0 0 24px 16px;
+}
+
+.account-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.account-nav-item {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  padding: 11px 16px;
+  border: none;
+  border-radius: 20px;
+  background: transparent;
+  color: var(--color-muted);
+  font-size: 14px;
+  font-weight: 500;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.2s, color 0.2s;
+}
+
+.account-nav-item:hover {
+  background: var(--color-border);
+  color: var(--color-text);
+}
+
+.account-nav-item--active,
+.account-nav-item--active:hover {
+  background: rgba(54, 136, 255, 0.12);
+  color: var(--color-primary);
+}
+
+.account-content {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  justify-content: center;
+  padding: 40px 32px 80px;
+  border-left: 1px solid var(--color-border);
+}
+
+.account-content-inner {
+  width: 100%;
+  max-width: 720px;
+}
+
+/* UserProfile's `min-width: 600px` (a floor meant to keep the field grid from getting
+   cramped in other contexts) fights this page's own responsive layout, refusing to shrink
+   below 600px even when the viewport is narrower. The Security/Home boxes have no such floor
+   and already shrink fluidly with their container, so match that here. */
+.account-content .thunderid-user-profile {
+  min-width: 0;
+  background: var(--color-card) !important;
+  border: 1px solid var(--color-border) !important;
+  border-radius: var(--radius-card) !important;
+  box-shadow: var(--shadow-card);
+  color: var(--color-text);
+  box-sizing: border-box;
+}
+
+.account-content .thunderid-user-profile .thunderid-user-profile__hero {
+  border-bottom: 1px solid var(--color-border);
+}
+
+.account-content .thunderid-user-profile .thunderid-user-profile__hero-name {
+  color: var(--color-text);
+}
+
+.account-content .thunderid-user-profile .thunderid-user-profile__hero-subtitle {
+  color: var(--color-text-muted);
+}
+
+.account-content .thunderid-user-profile .thunderid-user-profile__field {
+  border-bottom: 1px solid var(--color-border);
+}
+
+.account-content .thunderid-user-profile .thunderid-user-profile__field-label {
+  color: var(--color-text-muted);
+}
+
+.account-content .thunderid-user-profile .thunderid-user-profile__field-value {
+  color: var(--color-text);
+}
+
+.account-content .thunderid-user-profile .thunderid-user-profile__field-placeholder {
+  color: var(--color-text-muted);
+}
+
+.account-content .thunderid-user-profile .thunderid-user-profile__field-edit-btn {
+  color: var(--color-text-muted);
+}
+
+.account-content .thunderid-user-profile .thunderid-user-profile__field-edit-btn:hover {
+  color: var(--color-primary);
+}
+
+.account-content .thunderid-user-profile input,
+.account-content .thunderid-user-profile select,
+.account-content .thunderid-user-profile textarea {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-btn);
+  color: var(--color-text);
+  padding: 6px 10px;
+}
+
+.account-content-title {
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  color: var(--color-text);
+  margin: 0 0 6px;
+}
+
+.account-content-subtitle {
+  font-size: 14px;
+  color: var(--color-muted);
+  margin: 0 0 32px;
+}
+
+.account-tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+  margin-top: 8px;
+}
+
+.account-tile {
+  text-align: left;
+  background: var(--color-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+  padding: 22px;
+  cursor: pointer;
+  font-family: inherit;
+  display: flex;
+  flex-direction: column;
+  transition: border-color 0.2s;
+}
+
+.account-tile:hover {
+  border-color: rgba(54, 136, 255, 0.35);
+}
+
+.account-tile-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 14px;
+}
+
+.account-tile-icon--blue {
+  background: rgba(54, 136, 255, 0.12);
+  color: var(--color-primary);
+}
+
+.account-tile-icon--green {
+  background: rgba(16, 185, 129, 0.12);
+  color: #10b981;
+}
+
+.account-tile-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--color-text);
+  margin-bottom: 4px;
+}
+
+.account-tile-desc {
+  font-size: 12.5px;
+  color: var(--color-muted);
+  line-height: 1.5;
+}
+
+.account-security-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.account-security-card {
+  background: var(--color-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+  padding: 20px 22px;
+}
+
+.account-security-card-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.account-security-card-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text);
+  margin-bottom: 2px;
+}
+
+.account-security-card-desc {
+  font-size: 12.5px;
+  color: var(--color-muted);
+}
+
+.account-security-card-cta {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0;
+  background: none;
+  border: none;
+  color: var(--color-primary);
+  font-size: 13px;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.account-security-card-cta:hover {
+  opacity: 0.8;
+}
+
+.account-security-card-chevron {
+  display: inline-flex;
+  transition: transform 0.2s;
+}
+
+.account-security-card-chevron--open {
+  transform: rotate(180deg);
+}
+
+.account-security-card-form {
+  margin-top: 18px;
+  padding-top: 18px;
+  border-top: 1px solid var(--color-border);
+}
+
+@media (max-width: 760px) {
+  .account-page {
+    flex-direction: column;
+  }
+  .account-sidebar {
+    width: 100%;
+    position: static;
+    padding: 20px 16px 8px;
+  }
+  .account-nav {
+    flex-direction: row;
+    overflow-x: auto;
+  }
+  .account-content {
+    max-width: 100%;
+    border-left: none;
+    border-top: 1px solid var(--color-border);
+    padding: 24px 20px 60px;
+  }
+}
+
+/* ── ThunderID inputs & forms dark mode ── */
+.dark .thunderid-password-field__wrapper,
+html.dark .thunderid-password-field__wrapper,
+.app.dark .thunderid-password-field__wrapper,
+.dark .thunderid-text-field__wrapper,
+html.dark .thunderid-text-field__wrapper,
+.app.dark .thunderid-text-field__wrapper,
+.dark .thunderid-text-field__input,
+html.dark .thunderid-text-field__input,
+.app.dark .thunderid-text-field__input {
+  background-color: rgba(255, 255, 255, 0.05) !important;
+  border-color: rgba(255, 255, 255, 0.16) !important;
+  color: var(--color-text) !important;
+}
+
+.dark .thunderid-password-field__label,
+html.dark .thunderid-password-field__label,
+.app.dark .thunderid-password-field__label,
+.dark .thunderid-text-field__label,
+html.dark .thunderid-text-field__label,
+.app.dark .thunderid-text-field__label,
+.dark .thunderid-input-label,
+html.dark .thunderid-input-label,
+.app.dark .thunderid-input-label {
+  color: var(--color-text) !important;
+}
+
+.dark .thunderid-password-field__input,
+html.dark .thunderid-password-field__input,
+.app.dark .thunderid-password-field__input {
+  background: transparent !important;
+  color: var(--color-text) !important;
+}
+
+.dark .thunderid-password-field__input::placeholder,
+html.dark .thunderid-password-field__input::placeholder,
+.app.dark .thunderid-password-field__input::placeholder,
+.dark .thunderid-text-field__input::placeholder,
+html.dark .thunderid-text-field__input::placeholder,
+.app.dark .thunderid-text-field__input::placeholder {
+  color: var(--color-text-muted) !important;
+}
+
+.dark .thunderid-password-field__toggle,
+html.dark .thunderid-password-field__toggle,
+.app.dark .thunderid-password-field__toggle {
+  color: var(--color-text-muted) !important;
+  background: transparent !important;
+}
+
+.dark .thunderid-password-field__toggle:hover,
+html.dark .thunderid-password-field__toggle:hover,
+.app.dark .thunderid-password-field__toggle:hover {
+  color: var(--color-text) !important;
+}
+
+.dark .thunderid-change-credential__requirements-heading,
+html.dark .thunderid-change-credential__requirements-heading,
+.app.dark .thunderid-change-credential__requirements-heading,
+.dark .thunderid-change-credential__requirement,
+html.dark .thunderid-change-credential__requirement,
+.app.dark .thunderid-change-credential__requirement {
+  color: var(--color-text-muted) !important;
+}
+
+.dark .thunderid-change-credential__requirement--passed,
+html.dark .thunderid-change-credential__requirement--passed,
+.app.dark .thunderid-change-credential__requirement--passed {
+  color: #38c172 !important;
+}
+
+/* ── ThunderID UserDropdown dark mode ── */
+.dark .thunderid-user-dropdown__menu,
+html.dark .thunderid-user-dropdown__menu,
+.app.dark .thunderid-user-dropdown__menu,
+.dark .thunderid-user-dropdown__content,
+html.dark .thunderid-user-dropdown__content,
+.app.dark .thunderid-user-dropdown__content {
+  background-color: var(--color-card) !important;
+  border: 1px solid var(--color-border) !important;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.45) !important;
+  color: var(--color-text) !important;
+}
+
+.dark .thunderid-user-dropdown__menu-header,
+html.dark .thunderid-user-dropdown__menu-header,
+.app.dark .thunderid-user-dropdown__menu-header,
+.dark .thunderid-user-dropdown__header,
+html.dark .thunderid-user-dropdown__header,
+.app.dark .thunderid-user-dropdown__header {
+  border-bottom: 1px solid var(--color-border) !important;
+}
+
+.dark .thunderid-user-dropdown__menu-header-name,
+html.dark .thunderid-user-dropdown__menu-header-name,
+.app.dark .thunderid-user-dropdown__menu-header-name,
+.dark .thunderid-user-dropdown__header-name,
+html.dark .thunderid-user-dropdown__header-name,
+.app.dark .thunderid-user-dropdown__header-name {
+  color: var(--color-text) !important;
+}
+
+.dark .thunderid-user-dropdown__menu-header-subtitle,
+html.dark .thunderid-user-dropdown__menu-header-subtitle,
+.app.dark .thunderid-user-dropdown__menu-header-subtitle,
+.dark .thunderid-user-dropdown__header-subtitle,
+html.dark .thunderid-user-dropdown__header-subtitle,
+.app.dark .thunderid-user-dropdown__header-subtitle {
+  color: var(--color-text-muted) !important;
+}
+
+.dark .thunderid-user-dropdown__menu-divider,
+html.dark .thunderid-user-dropdown__menu-divider,
+.app.dark .thunderid-user-dropdown__menu-divider,
+.dark .thunderid-divider,
+html.dark .thunderid-divider,
+.app.dark .thunderid-divider {
+  background-color: var(--color-border) !important;
+  border-color: var(--color-border) !important;
+}
+
+.dark .thunderid-user-dropdown__item,
+html.dark .thunderid-user-dropdown__item,
+.app.dark .thunderid-user-dropdown__item {
+  color: var(--color-text) !important;
+}
+
+.dark .thunderid-user-dropdown__item:hover,
+html.dark .thunderid-user-dropdown__item:hover,
+.app.dark .thunderid-user-dropdown__item:hover {
+  background-color: rgba(255, 255, 255, 0.06) !important;
+  color: var(--color-text) !important;
+}
+
+.dark .thunderid-user-dropdown__item--danger,
+html.dark .thunderid-user-dropdown__item--danger,
+.app.dark .thunderid-user-dropdown__item--danger {
+  color: #f87171 !important;
+}
+
+.dark .thunderid-user-dropdown__item--danger:hover,
+html.dark .thunderid-user-dropdown__item--danger:hover,
+.app.dark .thunderid-user-dropdown__item--danger:hover {
+  background-color: rgba(239, 68, 68, 0.12) !important;
+}
+
+.dark .thunderid-card,
+html.dark .thunderid-card,
+.app.dark .thunderid-card {
+  background-color: var(--color-card) !important;
+  border-color: var(--color-border) !important;
+  color: var(--color-text) !important;
+}
+

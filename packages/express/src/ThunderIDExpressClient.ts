@@ -44,8 +44,15 @@ class ThunderIDExpressClient<T extends ExpressClientConfig = ExpressClientConfig
   }
 
   public async getUserFromRequest(req: express.Request): Promise<User | undefined> {
-    const sessionId: string | undefined = req.cookies?.[this.getSessionCookieName()];
+    const cookies = req.cookies as Record<string, string | undefined> | undefined;
+    const sessionId: string | undefined = cookies?.[this.getSessionCookieName()];
     return this.getUser(sessionId);
+  }
+
+  public async updateUserCredentialsFromRequest(req: express.Request, payload: Record<string, string>): Promise<void> {
+    const cookies = req.cookies as Record<string, string | undefined> | undefined;
+    const sessionId: string | undefined = cookies?.[this.getSessionCookieName()];
+    return this.updateUserCredentials(payload, sessionId);
   }
 
   public override async signIn(

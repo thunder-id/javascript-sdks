@@ -25,6 +25,7 @@ const NuxtAPIRoutes: {
   SIGN_UP: string;
   TOKEN: string;
   USER: string;
+  USER_CREDENTIALS: string;
   USER_PROFILE: string;
 } = {
   /** Resolves the OAuth callback and completes sign-in. */
@@ -43,6 +44,8 @@ const NuxtAPIRoutes: {
   TOKEN: '/api/auth/token',
   /** Returns the current user object. */
   USER: '/api/auth/user',
+  /** Updates (PATCH) one of the signed-in user's own credentials, e.g. `password`. */
+  USER_CREDENTIALS: '/api/auth/user/credentials',
   /** Fetches (GET) and updates (PATCH) the user profile. */
   USER_PROFILE: '/api/auth/user/profile',
 } as const;

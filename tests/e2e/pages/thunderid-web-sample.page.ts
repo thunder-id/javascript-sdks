@@ -65,16 +65,27 @@ export class ThunderIDWebSamplePage extends GateLoginPage {
    * click handler — the click lands on plain markup and is silently lost, no error, nothing left
    * to wait on. A second click after hydration catches up recovers cleanly; this has been
    * observed to matter specifically for nuxt/quickstart under CI-level CPU contention, where the
-   * gap is wide enough to lose the first click outright rather than just render it late. */
+   * gap is wide enough to lose the first click outright rather than just render it late.
+   *
+   * Each click attempt is bounded by `DEFAULT_ACTION` (15 s) rather than the whole test timeout.
+   * Without that bound, a trigger that is visible but not yet actionable (e.g. covered during a
+   * Next.js SSR re-render after an OAuth redirect) would silently consume the entire remaining
+   * budget before failing; with it, the loop retries at most three times and surfaces a clear
+   * error if the trigger never becomes clickable. */
   protected async openDropdown(target: Locator): Promise<void> {
     const trigger = this.page.locator(USER_DROPDOWN_TRIGGER).first();
+    // Fail fast before the loop if the trigger is absent outright (e.g. user not signed in).
+    await trigger.waitFor({state: 'visible', timeout: Timeouts.ELEMENT_VISIBILITY});
     for (let attempt = 1; attempt <= 3; attempt++) {
-      await trigger.click();
       try {
+        await trigger.click({timeout: Timeouts.DEFAULT_ACTION});
         await expect(target).toBeVisible({timeout: 3000});
         return;
       } catch (error) {
         if (attempt === 3) throw error;
+        // Brief pause before the next attempt - lets any transient animation or loading
+        // overlay settle so the click is more likely to land cleanly.
+        await this.page.waitForTimeout(500);
       }
     }
   }
@@ -115,10 +126,9 @@ export class ThunderIDWebSamplePage extends GateLoginPage {
   /** Opens the SDK-provided profile dialog — `UserDropdown`'s built-in profile action, under the
    * plain "Profile" label. Nuxt inherits this via its own `UserDropdown` wrapper, which delegates
    * to the same `@thunderid/vue` component; nextjs likewise inherits React's "Manage Profile"
-   * label and behavior. react/quickstart and vue/quickstart's own Nav components now override
-   * this action to redirect to a full Account page instead — see
-   * {@link ThunderIDAccountPageSamplePage} below for their variant of the methods in this
-   * section. */
+   * label and behavior. Every quickstart's own Nav component now overrides this action to
+   * redirect to a full Account page instead — see {@link ThunderIDAccountPageSamplePage} below
+   * for their variant of the methods in this section. */
   async openManageProfile(): Promise<void> {
     const profileButton = this.page.getByRole('button', {name: /^(Manage Profile|Profile)$/});
     await this.openDropdown(profileButton);
@@ -154,12 +164,12 @@ export class ThunderIDWebSamplePage extends GateLoginPage {
 }
 
 /**
- * Variant of {@link ThunderIDWebSamplePage} for react/quickstart and vue/quickstart, whose Nav
- * components redirect `UserDropdown`'s profile action to a full "Manage Account" page (Home /
- * Personal info / Security tabs) instead of opening the SDK's built-in profile popup. nuxt and
- * nextjs are unaffected by that change — their own Nav components still use the base class's
- * dialog-based behavior — so this exists as a separate subclass rather than a change to the
- * shared base.
+ * Variant of {@link ThunderIDWebSamplePage} for every quickstart (react, vue, nextjs, nuxt),
+ * whose Nav components redirect `UserDropdown`'s profile action to a full "Manage Account" page
+ * (Home / Personal info / Security tabs) instead of opening the SDK's built-in profile popup.
+ * Kept as a subclass rather than folded into the shared base since the base class's dialog-based
+ * behavior remains independently correct and testable (it's what the SDK components fall back to
+ * when an app doesn't override `onManageProfile`, e.g. `browser/quickstart`).
  */
 export class ThunderIDAccountPageSamplePage extends ThunderIDWebSamplePage {
   /** Opens the Account page via the nav dropdown's "Manage Account" item. Lands on the Home
@@ -220,6 +230,11 @@ export class ThunderIDAccountPageSamplePage extends ThunderIDWebSamplePage {
    * {@link openSecurityTab} first. */
   async changeCredential(cta: string, newValue: string): Promise<void> {
     const toggle = this.page.getByRole('button', {name: cta});
+    // Bounded wait before the click: if the caller's page state doesn't actually have this row
+    // (e.g. the Security tab isn't open), fail fast with a clear "not visible" error instead of
+    // hanging on Playwright's default click-actionability wait, which is effectively bounded
+    // only by the whole test's timeout.
+    await expect(toggle).toBeVisible({timeout: Timeouts.ELEMENT_VISIBILITY});
     await toggle.click();
 
     await this.fillCredentialFields(newValue, newValue);

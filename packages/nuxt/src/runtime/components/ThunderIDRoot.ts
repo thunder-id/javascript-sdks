@@ -72,9 +72,8 @@ const ThunderIDRoot: Component = defineComponent({
     // Gate flags — mirror the same checks in thunderid-ssr.ts so client props
     // always agree with what the Nitro plugin decided to fetch server-side.
     const shouldFetchProfile: boolean = prefs?.user?.fetchUserProfile !== false;
-    // Defaults to 'light' — matches the Vue SDK's ThunderIDProvider, which
-    // passes no mode and therefore uses ThemeProvider's `DEFAULT_THEME`.
-    const themeMode: string = prefs?.theme?.mode ?? 'light';
+    // Defaults to 'class' so it dynamically detects theme classes (e.g. .dark) on document.documentElement.
+    const themeMode: string = prefs?.theme?.mode ?? 'class';
 
     // ── Callbacks ──────────────────────────────────────────────────────────
 

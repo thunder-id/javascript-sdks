@@ -37,6 +37,18 @@ export type UserDropdownProps = Omit<BaseUserDropdownProps, 'user' | 'onManagePr
    */
   children?: (props: UserDropdownRenderProps) => ReactNode;
   /**
+   * Called instead of opening the built-in "Manage Profile" popup when the "Manage Profile"
+   * menu item (see `manageProfileLabel`) is clicked. Use this when the app has its own
+   * profile/account page it wants to navigate to instead, for example with the router's
+   * `push()`.
+   *
+   * @example
+   * ```tsx
+   * <UserDropdown manageProfileLabel="Manage Account" onManageProfile={() => router.push('/account')} />
+   * ```
+   */
+  onManageProfile?: () => void;
+  /**
    * Custom render function for the dropdown content.
    * When provided, this replaces just the dropdown content while keeping the trigger.
    */
@@ -98,6 +110,7 @@ const UserDropdown: FC<UserDropdownProps> = ({
   children,
   renderTrigger,
   renderDropdown,
+  onManageProfile: onManageProfileOverride,
   onSignOut,
   ...rest
 }: UserDropdownProps): ReactElement => {
@@ -105,6 +118,10 @@ const UserDropdown: FC<UserDropdownProps> = ({
   const [isProfileOpen, setIsProfileOpen] = useState(false);
 
   const handleManageProfile = (): void => {
+    if (onManageProfileOverride) {
+      onManageProfileOverride();
+      return;
+    }
     setIsProfileOpen(true);
   };
 
@@ -134,7 +151,7 @@ const UserDropdown: FC<UserDropdownProps> = ({
     return (
       <>
         {children(renderProps)}
-        <UserProfile mode="popup" open={isProfileOpen} onOpenChange={setIsProfileOpen} />
+        {!onManageProfileOverride && <UserProfile mode="popup" open={isProfileOpen} onOpenChange={setIsProfileOpen} />}
       </>
     );
   }
@@ -157,7 +174,7 @@ const UserDropdown: FC<UserDropdownProps> = ({
           />
         )}
         {/* Note: renderDropdown would need BaseUserDropdown modifications to implement properly */}
-        <UserProfile mode="popup" open={isProfileOpen} onOpenChange={setIsProfileOpen} />
+        {!onManageProfileOverride && <UserProfile mode="popup" open={isProfileOpen} onOpenChange={setIsProfileOpen} />}
       </>
     );
   }
@@ -172,7 +189,9 @@ const UserDropdown: FC<UserDropdownProps> = ({
         onSignOut={handleSignOut}
         {...rest}
       />
-      {isProfileOpen && <UserProfile mode="popup" open={isProfileOpen} onOpenChange={setIsProfileOpen} />}
+      {!onManageProfileOverride && isProfileOpen && (
+        <UserProfile mode="popup" open={isProfileOpen} onOpenChange={setIsProfileOpen} />
+      )}
     </>
   );
 };

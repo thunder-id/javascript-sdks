@@ -2,7 +2,7 @@ import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import express from 'express';
 import cookieParser from 'cookie-parser';
-import {thunderID, handleSignIn, handleSignOut, protect} from '@thunderid/express';
+import {thunderID, handleSignIn, handleSignOut, protect, updateMeCredentials} from '@thunderid/express';
 import {verifyBearerToken} from './lib/auth.mjs';
 import {layout, esc, escAttr, COPY_ICON} from './lib/layout.mjs';
 import {thunderMark} from './lib/thunderMark.mjs';
@@ -232,6 +232,19 @@ app.get('/', async (req, res) => {
       curl: ['curl http://localhost:3000/api/me \\', `  -H "Authorization: ${bearerLine(accessToken)}"`],
       sample: JSON.stringify({sub: '...', email: 'jane@example.com', given_name: 'Jane'}, null, 2),
     })}
+    ${endpoint({
+      method: 'PATCH',
+      path: '/api/me/credentials',
+      summary: 'Updates credentials (such as password) for the authenticated caller.',
+      protectedRoute: true,
+      curl: [
+        'curl -X PATCH http://localhost:3000/api/me/credentials \\',
+        `  -H "Authorization: ${bearerLine(accessToken)}" \\`,
+        '  -H "Content-Type: application/json" \\',
+        '  -d \'{"password": "n3wP@ssword!"}\'',
+      ],
+      sample: '204 No Content',
+    })}
 
     <div class="section-label">Postman</div>
     <div class="card">
@@ -345,6 +358,24 @@ app.get('/api/protected', requireBearer, (req, res) => {
 
 app.get('/api/me', requireBearer, (req, res) => {
   res.json(req.thunderIDUserInfo);
+});
+
+app.patch('/api/me/credentials', requireBearer, async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization;
+    const token = authHeader?.split(' ')[1];
+    await updateMeCredentials({
+      baseUrl,
+      headers: {Authorization: `Bearer ${token}`},
+      payload: req.body,
+    });
+    res.status(204).end();
+  } catch (error) {
+    res.status(error?.statusCode || 500).json({
+      error: error?.code || 'CREDENTIAL_UPDATE_FAILED',
+      message: error?.message || 'Failed to update credentials',
+    });
+  }
 });
 
 // ── Postman collection download ─────────────────────────────────────────

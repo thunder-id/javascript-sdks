@@ -168,13 +168,13 @@ describe('thunderid-ssr Nitro plugin', () => {
 
   it('sets isSignedIn:false when no session cookie is present', async () => {
     const event = await callHandler('/');
-    expect(event.context.thunderid).toEqual({session: null, isSignedIn: false});
+    expect(event.context.thunderid).toEqual({flowMeta: null, isSignedIn: false, session: null});
   });
 
   it('sets isSignedIn:false when session token verification fails', async () => {
     vi.mocked(verifySessionToken).mockRejectedValueOnce(new Error('invalid token'));
     const event = await callHandler('/', 'bad-token-value');
-    expect(event.context.thunderid).toEqual({session: null, isSignedIn: false});
+    expect(event.context.thunderid).toEqual({flowMeta: null, isSignedIn: false, session: null});
   });
 
   // ── Authenticated — full SSR data ────────────────────────────────────────

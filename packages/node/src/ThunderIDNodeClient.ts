@@ -2,15 +2,18 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import {
-  ThunderIDJavaScriptClient,
-  ThunderIDAuthException,
+  AuthClientConfig,
   ExtendedAuthorizeRequestUrlParams,
   IdToken,
   OIDCEndpoints,
+  resolveResourceEndpoint,
   SessionData,
   Storage,
+  ThunderIDAuthException,
+  ThunderIDJavaScriptClient,
   TokenExchangeRequestConfig,
   TokenResponse,
+  updateMeCredentials,
   User,
 } from '@thunderid/javascript';
 import AuthURLCallback from './models/AuthURLCallback';
@@ -19,7 +22,7 @@ import MemoryCacheStore from './stores/MemoryCacheStore';
 import NodeCryptoUtils from './utils/NodeCryptoUtils';
 import SessionUtils from './utils/SessionUtils';
 
-class ThunderIDNodeClient<T = ThunderIDNodeConfig> extends ThunderIDJavaScriptClient<T> {
+class ThunderIDNodeClient<T extends ThunderIDNodeConfig = ThunderIDNodeConfig> extends ThunderIDJavaScriptClient<T> {
   private _nodeInstanceId = 0;
 
   public constructor(instanceId = 0) {
@@ -202,6 +205,24 @@ class ThunderIDNodeClient<T = ThunderIDNodeConfig> extends ThunderIDJavaScriptCl
     userId?: string,
   ): Promise<TokenResponse | Response | User> {
     return super.exchangeToken(config, userId);
+  }
+
+  /**
+   * Updates one or more of the signed-in user's credentials (e.g. `password`, or any other
+   * attribute the user type schema declares `credential: true`).
+   */
+  public async updateUserCredentials(payload: Record<string, string>, userId?: string): Promise<void> {
+    const configData: AuthClientConfig<T> = await this.getStorageManager().getConfigData();
+    const baseUrl: string | undefined = configData?.baseUrl;
+
+    await updateMeCredentials({
+      baseUrl,
+      headers: {
+        Authorization: `Bearer ${await this.getAccessToken(userId)}`,
+      },
+      payload,
+      url: resolveResourceEndpoint('usersMeCredentials', configData),
+    });
   }
 }
 

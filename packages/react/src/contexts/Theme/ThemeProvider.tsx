@@ -1,7 +1,17 @@
 // Copyright 2026 The ThunderID Authors
 // SPDX-License-Identifier: Apache-2.0
 
-import {createTheme, Theme, ThemeConfig, ThemeMode, RecursivePartial, FlowMetaTheme} from '@thunderid/browser';
+import {
+  createClassObserver,
+  createMediaQueryListener,
+  createTheme,
+  detectThemeMode,
+  FlowMetaTheme,
+  RecursivePartial,
+  Theme,
+  ThemeConfig,
+  ThemeMode,
+} from '@thunderid/browser';
 import {FC, PropsWithChildren, ReactElement, useCallback, useContext, useEffect, useMemo, useState} from 'react';
 import ThemeContext from './ThemeContext';
 import applyThemeToDOM from '../../utils/applyThemeToDOM';
@@ -53,6 +63,7 @@ export interface ThemeProviderProps {
  */
 const ThemeProvider: FC<PropsWithChildren<ThemeProviderProps>> = ({
   children,
+  mode,
   theme: themeOverrideProp,
 }: PropsWithChildren<ThemeProviderProps>): ReactElement => {
   const themeOverride: RecursivePartial<ThemeConfig> | undefined = normalizeThemeConfig(themeOverrideProp);
@@ -62,15 +73,47 @@ const ThemeProvider: FC<PropsWithChildren<ThemeProviderProps>> = ({
   const isLoading: boolean = flowMetaContext?.isLoading ?? false;
   const error: Error | null = flowMetaContext?.error ?? null;
 
-  // Seed the color scheme from the server's defaultColorScheme; allow local toggling.
-  const [colorScheme, setColorScheme] = useState<'light' | 'dark'>(() => flowMetaTheme?.defaultColorScheme ?? 'light');
+  // Seed the color scheme: a fixed mode wins outright, 'system'/'class' detect it from the
+  // environment via the same shared utilities Vue's ThemeProvider uses, and no mode falls back
+  // to the server's default (unchanged pre-`mode` behavior).
+  const getInitialColorScheme = (): 'light' | 'dark' => {
+    if (mode === 'light' || mode === 'dark') return mode;
+    if (mode === 'system' || mode === 'class') return detectThemeMode(mode);
+    return flowMetaTheme?.defaultColorScheme ?? 'light';
+  };
 
-  // When meta finishes loading, sync the color scheme with the server default.
+  const [colorScheme, setColorScheme] = useState<'light' | 'dark'>(getInitialColorScheme);
+
+  // When mode is unset, sync the color scheme with the server default once flow meta loads.
   useEffect(() => {
-    if (flowMetaTheme?.defaultColorScheme) {
+    if (mode === undefined && flowMetaTheme?.defaultColorScheme) {
       setColorScheme(flowMetaTheme.defaultColorScheme);
     }
-  }, [flowMetaTheme?.defaultColorScheme]);
+  }, [mode, flowMetaTheme?.defaultColorScheme]);
+
+  // Set up automatic detection listeners for 'system'/'class' modes.
+  useEffect(() => {
+    if (mode !== 'system' && mode !== 'class') return undefined;
+
+    const handleThemeChange = (isDark: boolean): void => {
+      setColorScheme(isDark ? 'dark' : 'light');
+    };
+
+    if (mode === 'class') {
+      if (typeof document === 'undefined') return undefined;
+      const observer = createClassObserver(document.documentElement, handleThemeChange);
+      return () => {
+        observer.disconnect();
+      };
+    }
+
+    const mediaQuery = createMediaQueryListener(handleThemeChange);
+    return () => {
+      if (mediaQuery?.removeEventListener) {
+        mediaQuery.removeEventListener('change', handleThemeChange as unknown as EventListener);
+      }
+    };
+  }, [mode]);
 
   const toggleTheme: () => void = useCallback(() => {
     setColorScheme((prev: 'light' | 'dark') => (prev === 'light' ? 'dark' : 'light'));

@@ -43,7 +43,7 @@ Open [http://localhost:3000](http://localhost:3000) for the API documentation pa
 ## Trying the API
 
 - `GET /api/public` — no auth required.
-- `GET /api/protected` and `GET /api/me` — require `Authorization: Bearer <access_token>`.
+- `GET /api/protected`, `GET /api/me`, and `PATCH /api/me/credentials` — require `Authorization: Bearer <access_token>`.
 
 To get a token to test with, open [http://localhost:3000/login](http://localhost:3000/login),
 sign in once, and your access token (decoded claims included) will be shown at

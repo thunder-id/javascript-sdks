@@ -35,6 +35,21 @@
       }
     },
     {
+      "name": "Update credentials",
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {"key": "Authorization", "value": "Bearer {{accessToken}}"},
+          {"key": "Content-Type", "value": "application/json"}
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"password\": \"n3wP@ssword!\"\n}"
+        },
+        "url": {"raw": "{{baseUrl}}/api/me/credentials", "host": ["{{baseUrl}}"], "path": ["api", "me", "credentials"]}
+      }
+    },
+    {
       "name": "ThunderID userinfo (direct)",
       "request": {
         "method": "GET",

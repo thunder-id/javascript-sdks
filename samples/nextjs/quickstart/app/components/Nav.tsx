@@ -1,7 +1,7 @@
 'use client'
-import { usePathname } from 'next/navigation'
-import Link from 'next/link'
 import { SignedIn, SignedOut, SignInButton, UserDropdown } from '@thunderid/nextjs'
+import Link from 'next/link'
+import { usePathname, useRouter } from 'next/navigation'
 import { useState } from 'react'
 import NextLogo from './icons/NextLogo'
 
@@ -46,6 +46,7 @@ function KeyIcon() {
 export default function Nav() {
   const [dark, setDark] = useState(false)
   const pathname = usePathname()
+  const router = useRouter()
   const isHome = pathname === '/'
 
   const toggle = () => {
@@ -79,7 +80,12 @@ export default function Nav() {
           {dark ? <SunIcon /> : <MoonIcon />}
         </button>
         <SignedIn>
-          <UserDropdown showTriggerLabel menuItems={menuItems} />
+          <UserDropdown
+            showTriggerLabel
+            menuItems={menuItems}
+            manageProfileLabel="Manage Account"
+            onManageProfile={() => router.push('/account')}
+          />
         </SignedIn>
         <SignedOut>
           <SignInButton>
