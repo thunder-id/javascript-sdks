@@ -1,0 +1,41 @@
+# Gates every pull request on an explicit cross-SDK parity decision, so a capability that ships
+# here is never silently forgotten in the other ThunderID SDKs.
+#
+# All of the logic lives in thunder-id/.github so the four SDK repositories cannot drift. This
+# file owns only the triggers, which a reusable workflow cannot declare for its caller. The
+# sibling list is derived from the repository the check runs in, so there is nothing to pass.
+#
+# `pull_request_target`, rather than `pull_request`, is what lets the check comment on pull
+# requests opened from forks. Nothing from the contributor's branch is checked out or executed.
+#
+# Uses:
+#   OS: ubuntu-latest
+
+name: 🔀 Parity Check
+
+on:
+  pull_request_target:
+    types: [opened, reopened, synchronize, ready_for_review, edited, labeled, unlabeled]
+  # Lets a reply carrying the port links refresh the checklist immediately, instead of it going
+  # stale until the next push.
+  issue_comment:
+    types: [created, edited]
+  merge_group:
+
+# Avoid running multiple parity checks for the same pull request on subsequent pushes, label
+# changes, or replies. The event name is part of the group deliberately: a reply refreshing the
+# checklist must not cancel the run that is gating the pull request, and any bot that comments
+# would otherwise do exactly that.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.event.issue.number || github.ref }}-${{ github.event_name }}
+  cancel-in-progress: true
+
+jobs:
+  parity:
+    name: 🔀 Cross-SDK Parity
+    permissions:
+      contents: read
+      pull-requests: write
+    # Pinned to a tag once one is cut, so a change to the shared workflow reaches the four SDK
+    # repositories deliberately rather than the moment it merges.
+    uses: thunder-id/.github/.github/workflows/sdk-parity-check.yml@main

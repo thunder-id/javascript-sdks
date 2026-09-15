@@ -43,6 +43,8 @@ _How should users update their code/configuration to adapt to the breaking chang
 - [ ] Breaking changes. (Fill if applicable)
   - [ ] Breaking changes section filled.
   - [ ] `breaking change` label added.
+- [ ] Cross-SDK parity. Exactly one of `parity/prs-raised` or `parity/prs-not-needed` added.
+  - [ ] If `parity/prs-raised`, the port links are posted as a reply on the parity check's comment.
 
 ### Security checks
 
