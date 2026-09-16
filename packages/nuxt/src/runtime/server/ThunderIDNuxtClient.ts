@@ -11,6 +11,7 @@ import {
   getUsersMeMeta,
   isEmpty,
   resolveResourceEndpoint,
+  updateMeCredentials,
   updateMeProfile,
   type AttributeSchema,
   type AuthClientConfig,
@@ -242,6 +243,28 @@ class ThunderIDNuxtClient extends ThunderIDNodeClient<ThunderIDNuxtConfig> {
         'An error occurred while updating the user profile. Please check your configuration and network connection.',
       );
     }
+  }
+
+  /**
+   * Updates one or more of the signed-in user's credentials (e.g. `password`, or any other
+   * attribute the user type schema declares `credential: true`).
+   *
+   * Deliberately does not catch and rewrap errors the way `updateUserProfile` does: the caller
+   * (the `PATCH /api/auth/user/credentials` Nitro route) needs the real `ThunderIDAPIError`
+   * instance, status code included, to map a failure onto the right form field.
+   */
+  async updateUserCredentials(payload: Record<string, string>, sessionId?: string): Promise<void> {
+    const configData: AuthClientConfig<ThunderIDNuxtConfig> = await this.getStorageManager().getConfigData();
+    const baseUrl: string | undefined = configData?.baseUrl;
+
+    await updateMeCredentials({
+      baseUrl,
+      url: resolveResourceEndpoint('usersMeCredentials', configData),
+      headers: {
+        Authorization: `Bearer ${await this.getAccessToken(sessionId)}`,
+      },
+      payload,
+    });
   }
 
   async getUserSchema(sessionId?: string): Promise<Record<string, AttributeSchema> | null> {

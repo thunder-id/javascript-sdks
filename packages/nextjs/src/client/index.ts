@@ -35,3 +35,6 @@ export type {UserAvatarProps} from './components/presentation/UserAvatar/UserAva
 
 export {default as UserProfile} from './components/presentation/UserProfile/UserProfile';
 export type {UserProfileProps} from './components/presentation/UserProfile/UserProfile';
+
+export {default as ChangeCredential} from './components/presentation/ChangeCredential/ChangeCredential';
+export type {ChangeCredentialProps} from './components/presentation/ChangeCredential/ChangeCredential';

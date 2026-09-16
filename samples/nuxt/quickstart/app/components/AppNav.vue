@@ -10,7 +10,22 @@ const menuItems = [
 
 function toggleDark() {
   dark.value = !dark.value
+  if (typeof document !== 'undefined') {
+    document.documentElement.classList.toggle('dark', dark.value)
+  }
 }
+
+onMounted(() => {
+  if (typeof document !== 'undefined') {
+    document.documentElement.classList.toggle('dark', dark.value)
+  }
+})
+
+watch(dark, (isDark) => {
+  if (typeof document !== 'undefined') {
+    document.documentElement.classList.toggle('dark', isDark)
+  }
+})
 </script>
 
 <template>
@@ -51,7 +66,11 @@ function toggleDark() {
       </button>
 
       <SignedIn>
-        <UserDropdown :menu-items="menuItems" />
+        <UserDropdown
+          :menu-items="menuItems"
+          profile-label="Manage Account"
+          :on-manage-profile="() => router.push('/account')"
+        />
       </SignedIn>
       <SignedOut>
         <SignInButton class="btn-primary btn-sm" v-slot="{ isLoading }">

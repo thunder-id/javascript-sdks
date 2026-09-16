@@ -21,6 +21,7 @@ import {
   generateFlattenedUserProfile,
   getUsersMe,
   getUsersMeMeta,
+  updateMeCredentials,
   updateMeProfile,
   resolveResourceEndpoint,
 } from '@thunderid/node';
@@ -200,6 +201,37 @@ class ThunderIDNextClient<T extends ThunderIDNextConfig = ThunderIDNextConfig> e
         'An error occurred while updating the user profile. Please check your configuration and network connection.',
       );
     }
+  }
+
+  /**
+   * Updates one or more of the signed-in user's credentials (e.g. `password`, or any other
+   * attribute the user type schema declares `credential: true`).
+   *
+   * Not part of {@link ThunderIDJavaScriptClient}'s base surface — unlike `updateUserProfile`,
+   * no other SDK routes credential updates through a client method (React/Vue's
+   * `ChangeCredential` call the core `updateMeCredentials` function directly), so this is a
+   * Next.js-specific addition rather than an override. Kept here anyway so this SDK's own
+   * server actions have one consistent way to reach every `/users/me/*` operation.
+   *
+   * Deliberately does not catch and rewrap errors the way `updateUserProfile` does: the caller
+   * (`updateUserCredentialsAction`) needs the real `ThunderIDAPIError` instance, status code
+   * included, to map a failure onto the right form field before it crosses the server action
+   * boundary back to the client.
+   */
+  override async updateUserCredentials(payload: Record<string, string>, userId?: string): Promise<void> {
+    await this.ensureInitialized();
+
+    const configData: AuthClientConfig<T> = await this.getStorageManager().getConfigData();
+    const baseUrl: string | undefined = configData?.baseUrl;
+
+    await updateMeCredentials({
+      baseUrl,
+      url: resolveResourceEndpoint('usersMeCredentials', configData),
+      headers: {
+        Authorization: `Bearer ${await this.getAccessToken(userId)}`,
+      },
+      payload,
+    });
   }
 
   override isLoading(): boolean {

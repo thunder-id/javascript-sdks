@@ -23,7 +23,6 @@ import {
   ThunderIDContext as ReactThunderIDContext,
   ThunderIDContextProps as ReactThunderIDContextProps,
   ThunderIDProviderProps,
-  getActiveTheme,
 } from '@thunderid/react';
 import {ReadonlyURLSearchParams} from 'next/dist/client/components/navigation.react-server';
 import {AppRouterInstance} from 'next/dist/shared/lib/app-router-context.shared-runtime';
@@ -405,7 +404,7 @@ const ThunderIDClientProvider: FC<PropsWithChildren<ThunderIDClientProviderProps
             initialMeta={initialMeta}
             fetchMeta={fetchMeta}
           >
-            <ThemeProvider theme={preferences?.theme?.overrides} mode={getActiveTheme(preferences?.theme?.mode as any)}>
+            <ThemeProvider theme={preferences?.theme?.overrides} mode={preferences?.theme?.mode}>
               <FlowProvider>
                 <UserProvider
                   profile={userProfile}

@@ -176,6 +176,11 @@ export default defineNuxtModule<ThunderIDNuxtConfig>({
         method: 'patch' as const,
         route: NuxtAPIRoutes.USER_PROFILE,
       },
+      {
+        handler: resolve('./runtime/server/routes/auth/user/credentials.patch'),
+        method: 'patch' as const,
+        route: NuxtAPIRoutes.USER_CREDENTIALS,
+      },
     ];
 
     serverRoutes.forEach((sr: ServerRoute): void => {
@@ -249,6 +254,7 @@ export default defineNuxtModule<ThunderIDNuxtConfig>({
     addComponent({filePath: resolve('./runtime/components/user/User'), name: 'User'});
     addComponent({filePath: resolve('./runtime/components/user/UserProfile'), name: 'UserProfile'});
     addComponent({filePath: resolve('./runtime/components/user/UserDropdown'), name: 'UserDropdown'});
+    addComponent({filePath: resolve('./runtime/components/user/ChangeCredential'), name: 'ChangeCredential'});
 
     // ── Auth callback ────────────────────────────────────────────────────────
     addComponent({filePath: resolve('./runtime/components/auth/Callback'), name: 'Callback'});
