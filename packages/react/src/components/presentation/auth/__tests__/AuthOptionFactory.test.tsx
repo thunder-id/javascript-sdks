@@ -12,6 +12,7 @@ import {
 } from '@thunderid/browser';
 import {describe, expect, it, vi} from 'vitest';
 import ThemeContext, {ThemeContextValue} from '../../../../contexts/Theme/ThemeContext';
+import {UseTranslation} from '../../../../hooks/useTranslation';
 import {renderSignInComponents} from '../AuthOptionFactory';
 
 const richTextWithLink = (label: string, action?: {ref: string; eventType?: string}): EmbeddedFlowComponent => ({
@@ -400,5 +401,74 @@ describe('AuthOptionFactory consent decisions', () => {
     expect(purpose.purposeName).toBe('permissions:app1');
     expect(purpose.elements).toHaveLength(1);
     expect(purpose.elements[0]).toEqual({approved: true, name: 'system'});
+  });
+});
+
+describe('AuthOptionFactory key-value list', () => {
+  const themeContextValue: ThemeContextValue = {
+    colorScheme: 'light',
+    direction: 'ltr',
+    theme: createTheme(),
+    toggleTheme: vi.fn(),
+  };
+
+  const keyValueList = (label?: string): EmbeddedFlowComponent =>
+    ({
+      category: 'DISPLAY',
+      id: 'kv_1',
+      label,
+      source: 'linkingPromptDetails',
+      type: EmbeddedFlowComponentType.KeyValueList,
+    }) as EmbeddedFlowComponent;
+
+  const renderList = (
+    component: EmbeddedFlowComponent,
+    additionalData?: Record<string, unknown>,
+    t?: UseTranslation['t'],
+  ): {container: HTMLElement} => {
+    const elements = renderSignInComponents(
+      [component],
+      {},
+      {},
+      {},
+      false,
+      true,
+      () => undefined,
+      () => undefined,
+      {additionalData, t},
+    );
+    return render(<ThemeContext.Provider value={themeContextValue}>{elements}</ThemeContext.Provider>);
+  };
+
+  it('renders each pair published under the source key, in order', () => {
+    const {container} = renderList(keyValueList(), {
+      linkingPromptDetails: JSON.stringify([
+        {label: 'Email', value: 'alice@example.com'},
+        {label: 'Username', value: 'alice'},
+      ]),
+    });
+
+    const terms = Array.from(container.querySelectorAll('dt')).map((node: Element) => node.textContent);
+    const values = Array.from(container.querySelectorAll('dd')).map((node: Element) => node.textContent);
+    expect(terms).toEqual(['Email', 'Username']);
+    expect(values).toEqual(['alice@example.com', 'alice']);
+  });
+
+  it('resolves template labels on the list and its pairs', () => {
+    const {container} = renderList(
+      keyValueList('{{ t(signin:forms.link_prompt.details) }}'),
+      {linkingPromptDetails: JSON.stringify([{label: '{{ t(signin:attributes.email) }}', value: 'alice@example.com'}])},
+      (key: string) => `translated:${key}`,
+    );
+
+    expect(container.textContent).toContain('translated:signin.forms.link_prompt.details');
+    expect(container.querySelector('dt')?.textContent).toBe('translated:signin.attributes.email');
+  });
+
+  it('renders nothing when the source holds no pairs', () => {
+    expect(renderList(keyValueList(), {linkingPromptDetails: '[]'}).container.innerHTML).toBe('');
+    expect(renderList(keyValueList(), {linkingPromptDetails: 'not json'}).container.innerHTML).toBe('');
+    expect(renderList(keyValueList(), {}).container.innerHTML).toBe('');
+    expect(renderList(keyValueList()).container.innerHTML).toBe('');
   });
 });

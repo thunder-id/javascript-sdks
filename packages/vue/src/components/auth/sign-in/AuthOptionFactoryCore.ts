@@ -19,6 +19,8 @@ import {
   ConsentDecisions,
   ConsentPurposeDecision,
   ConsentAttributeElement,
+  KeyValuePair,
+  parseKeyValuePairs,
 } from '@thunderid/browser';
 import DOMPurify from 'dompurify';
 import {h, type VNode} from 'vue';
@@ -30,6 +32,7 @@ import MicrosoftButton from '../../adapters/MicrosoftButton';
 import {createField} from '../../factories/FieldFactory';
 import Button from '../../primitives/Button';
 import Divider from '../../primitives/Divider';
+import KeyValueList from '../../primitives/KeyValueList';
 import Select from '../../primitives/Select/Select';
 import Typography from '../../primitives/Typography';
 
@@ -535,6 +538,20 @@ const createAuthComponentFromFlow = (
       const timerText: string = textTemplate.replace('{time}', String(expiresIn));
 
       return h('div', {class: 'thunderid-flow-timer', key}, timerText);
+    }
+
+    case EmbeddedFlowComponentType.KeyValueList: {
+      const sourceKey: string | undefined = component.source;
+      const pairs: KeyValuePair[] = parseKeyValuePairs(
+        sourceKey && options.additionalData ? options.additionalData[sourceKey] : undefined,
+      ).map((pair: KeyValuePair) => ({...pair, label: resolve(pair.label)}));
+
+      // An empty panel tells the user nothing, so a list with no pairs renders nothing at all.
+      if (pairs.length === 0) {
+        return null;
+      }
+
+      return h(KeyValueList, {key, label: resolve(component.label) || undefined, pairs});
     }
 
     default:
