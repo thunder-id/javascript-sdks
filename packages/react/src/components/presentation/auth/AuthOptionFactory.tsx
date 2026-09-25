@@ -21,6 +21,8 @@ import {
   ConsentAttributeElement,
   OrganizationUnitListResponse,
   PrefixOption,
+  KeyValuePair,
+  parseKeyValuePairs,
 } from '@thunderid/browser';
 import DOMPurify from 'dompurify';
 import {ChangeEvent, cloneElement, CSSProperties, FormEvent, ReactElement} from 'react';
@@ -48,6 +50,7 @@ import CopyableText from '../../primitives/CopyableText/CopyableText';
 import DatePicker from '../../primitives/DatePicker/DatePicker';
 import Divider from '../../primitives/Divider/Divider';
 import flowIconRegistry from '../../primitives/Icons/flowIconRegistry';
+import KeyValueList from '../../primitives/KeyValueList/KeyValueList';
 import AffixedField from '../../primitives/AffixedField/AffixedField';
 import Select from '../../primitives/Select/Select';
 import {affixPostfixKey, affixPrefixKey} from '../../../utils/composeAffixedInputs';
@@ -841,6 +844,20 @@ const createAuthComponentFromFlow = (
       const labelText: string | undefined = resolve((component as any).label) || undefined;
 
       return <CopyableText key={key} label={labelText} value={value} />;
+    }
+
+    case EmbeddedFlowComponentType.KeyValueList: {
+      const sourceKey: string | undefined = component.source;
+      const pairs: KeyValuePair[] = parseKeyValuePairs(
+        sourceKey && options.additionalData ? options.additionalData[sourceKey] : undefined,
+      ).map((pair: KeyValuePair) => ({...pair, label: resolve(pair.label)}));
+
+      // An empty panel tells the user nothing, so a list with no pairs renders nothing at all.
+      if (pairs.length === 0) {
+        return null;
+      }
+
+      return <KeyValueList key={key} label={resolve(component.label) || undefined} pairs={pairs} />;
     }
 
     default:

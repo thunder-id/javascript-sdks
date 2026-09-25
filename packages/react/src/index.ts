@@ -230,6 +230,9 @@ export * from './components/primitives/InputLabel/InputLabel';
 export {default as KeyValueInput} from './components/primitives/KeyValueInput/KeyValueInput';
 export * from './components/primitives/KeyValueInput/KeyValueInput';
 
+export {default as KeyValueList} from './components/primitives/KeyValueList/KeyValueList';
+export * from './components/primitives/KeyValueList/KeyValueList';
+
 export {default as Typography} from './components/primitives/Typography/Typography';
 export * from './components/primitives/Typography/Typography';
 
@@ -300,6 +303,8 @@ export {
   EmbeddedFlowActionVariant,
   EmbeddedFlowTextVariant,
   EmbeddedFlowEventType,
+  parseKeyValuePairs,
+  type KeyValuePair,
   type EmbeddedFlowComponent,
   type EmbeddedFlowResponseData,
   type EmbeddedFlowExecuteRequestConfig,

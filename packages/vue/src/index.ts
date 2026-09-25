@@ -59,6 +59,7 @@ export {default as Typography} from './components/primitives/Typography/Typograp
 export {default as Divider} from './components/primitives/Divider/Divider';
 export {default as Logo} from './components/primitives/Logo/Logo';
 export {default as Spinner} from './components/primitives/Spinner/Spinner';
+export {default as KeyValueList} from './components/primitives/KeyValueList/KeyValueList';
 export {
   UserIcon,
   EyeIcon,
@@ -188,6 +189,8 @@ export {
   EmbeddedFlowActionVariant,
   EmbeddedFlowTextVariant,
   EmbeddedFlowEventType,
+  parseKeyValuePairs,
+  type KeyValuePair,
   type EmbeddedFlowComponent,
   type EmbeddedFlowResponseData,
   type EmbeddedFlowExecuteRequestConfig,

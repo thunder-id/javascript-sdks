@@ -655,6 +655,7 @@ const BaseSignUp: Component = defineComponent({
               resetForm,
               handleInputChange,
               {
+                additionalData: currentFlow.value.data?.additionalData,
                 buttonClassName: props.buttonClassName,
                 inputClassName: props.inputClassName,
                 meta,

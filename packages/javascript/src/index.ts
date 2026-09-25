@@ -91,6 +91,7 @@ export type {
   ConsentDecisions,
   ConsentPurposeData,
   ConsentPromptData,
+  KeyValuePair,
   I18nMessage,
   ValidationRule,
   ValidationRuleType,
@@ -275,6 +276,7 @@ export {default as mapCredentialUpdateError} from './utils/mapCredentialUpdateEr
 export type {CredentialUpdateErrorField, CredentialUpdateErrorResult} from './utils/mapCredentialUpdateError';
 export {default as resolveMeta} from './utils/resolveMeta';
 export {default as resolveFlowTemplateLiterals} from './utils/resolveFlowTemplateLiterals';
+export {default as parseKeyValuePairs} from './utils/parseKeyValuePairs';
 export {default as countryCodeToFlagEmoji} from './utils/countryCodeToFlagEmoji';
 export {default as resolveLocaleDisplayName} from './utils/resolveLocaleDisplayName';
 export {default as resolveLocaleEmoji} from './utils/resolveLocaleEmoji';
