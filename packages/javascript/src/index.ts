@@ -25,12 +25,46 @@ export type {UpdateMeCredentialsConfig} from './api/updateMeCredentials';
 export {default as updateMeProfile} from './api/updateMeProfile';
 export type {UpdateMeProfileConfig} from './api/updateMeProfile';
 
+export {default as getApplications} from './api/applications/getApplications';
+export type {GetApplicationsConfig} from './api/applications/getApplications';
+export {default as getApplication} from './api/applications/getApplication';
+export type {GetApplicationConfig} from './api/applications/getApplication';
+export {default as createApplication} from './api/applications/createApplication';
+export type {CreateApplicationConfig} from './api/applications/createApplication';
+export {default as updateApplication} from './api/applications/updateApplication';
+export type {UpdateApplicationConfig} from './api/applications/updateApplication';
+export {default as deleteApplication} from './api/applications/deleteApplication';
+export type {DeleteApplicationConfig} from './api/applications/deleteApplication';
+export {default as getUsers} from './api/users/getUsers';
+export type {GetUsersConfig} from './api/users/getUsers';
+export {default as getUser} from './api/users/getUser';
+export type {GetUserConfig} from './api/users/getUser';
+export {default as createUser} from './api/users/createUser';
+export type {CreateUserConfig} from './api/users/createUser';
+export {default as updateUser} from './api/users/updateUser';
+export type {UpdateUserConfig} from './api/users/updateUser';
+export {default as deleteUser} from './api/users/deleteUser';
+export type {DeleteUserConfig} from './api/users/deleteUser';
+export {default as getAgents} from './api/agents/getAgents';
+export type {GetAgentsConfig} from './api/agents/getAgents';
+export {default as getAgent} from './api/agents/getAgent';
+export type {GetAgentConfig} from './api/agents/getAgent';
+export {default as createAgent} from './api/agents/createAgent';
+export type {CreateAgentConfig} from './api/agents/createAgent';
+export {default as updateAgent} from './api/agents/updateAgent';
+export type {UpdateAgentConfig} from './api/agents/updateAgent';
+export {default as deleteAgent} from './api/agents/deleteAgent';
+export type {DeleteAgentConfig} from './api/agents/deleteAgent';
+
 export {default as ApplicationNativeAuthenticationConstants} from './constants/ApplicationNativeAuthenticationConstants';
 export {default as TokenConstants} from './constants/TokenConstants';
 export {default as OIDCRequestConstants} from './constants/OIDCRequestConstants';
 export {default as VendorConstants} from './constants/VendorConstants';
 export {default as CredentialConstants} from './constants/CredentialConstants';
 export {default as ConsentConstants} from './constants/ConsentConstants';
+export {default as ApplicationQueryKeys} from './constants/ApplicationQueryKeys';
+export {default as UserQueryKeys} from './constants/UserQueryKeys';
+export {default as AgentQueryKeys} from './constants/AgentQueryKeys';
 
 export {default as ThunderIDError} from './errors/ThunderIDError';
 export {default as ThunderIDAPIError} from './errors/ThunderIDAPIError';
@@ -131,6 +165,57 @@ export type {TokenEndpointAuthMethod} from './models/token-endpoint-auth';
 export type {ComponentRenderContext, ComponentRenderer, ComponentsExtensions} from './models/extensions/components';
 export type {TokenResponse, IdToken, TokenExchangeRequestConfig} from './models/token';
 export type {AgentConfig} from './models/agent';
+export type {ApiError, ApiFetcher, ApiFilteringParams, ApiPaginationLink, ManagementRequestConfig} from './models/api';
+export {
+  InboundAuthTypes,
+  OAuth2GrantTypes,
+  OAuth2ResponseTypes,
+  REFRESH_TOKEN_ISSUING_GRANTS,
+  TokenEndpointAuthMethods,
+} from './models/application';
+export type {
+  AccessTokenConfig,
+  AccessTokenSubConfig,
+  AndroidAttestationConfig,
+  AppleAttestationConfig,
+  Application,
+  ApplicationListResponse,
+  ApplicationType,
+  AssertionConfig,
+  AttestationConfig,
+  BasicApplication,
+  CreateApplicationRequest,
+  IDJAGConfig,
+  IDTokenConfig,
+  IDTokenResponseType,
+  InboundAuthConfig,
+  InboundAuthType,
+  OAuth2Config,
+  OAuth2GrantType,
+  OAuth2ResponseType,
+  OAuth2Token,
+  RefreshTokenConfig,
+  ScopeClaims,
+  TokenConfig,
+  UpdateApplicationRequest,
+  UserInfoConfig,
+  UserInfoResponseType,
+} from './models/application';
+export type {
+  CreateManagedUserRequest,
+  ManagedUser,
+  ManagedUserListResponse,
+  UpdateManagedUserRequest,
+} from './models/managed-user';
+export type {
+  Agent,
+  AgentInboundAuthConfig,
+  AgentListResponse,
+  AgentLoginConsentConfig,
+  BasicAgent,
+  CreateAgentRequest,
+  UpdateAgentRequest,
+} from './models/agent-resource';
 export type {AuthCodeResponse} from './models/auth-code-response';
 export type {Crypto, JWKInterface} from './models/crypto';
 export type {OAuthResponseMode} from './models/oauth-response';

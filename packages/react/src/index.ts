@@ -54,6 +54,29 @@ export {normalizeFlowResponse, extractErrorMessage} from './utils/flowTransforme
 
 export {default as useForm} from './hooks/useForm';
 
+export type {ResourceQueryOptions, ResourceQueryResult} from './hooks/useResourceQuery';
+export type {ResourceMutationOptions, ResourceMutationResult} from './hooks/useResourceMutation';
+export {default as useGetApplications} from './hooks/applications/useGetApplications';
+export type {UseGetApplicationsParams} from './hooks/applications/useGetApplications';
+export {default as useGetApplication} from './hooks/applications/useGetApplication';
+export {default as useCreateApplication} from './hooks/applications/useCreateApplication';
+export {default as useUpdateApplication} from './hooks/applications/useUpdateApplication';
+export type {UpdateApplicationVariables} from './hooks/applications/useUpdateApplication';
+export {default as useDeleteApplication} from './hooks/applications/useDeleteApplication';
+export {default as useGetUsers} from './hooks/users/useGetUsers';
+export {default as useGetUser} from './hooks/users/useGetUser';
+export {default as useCreateUser} from './hooks/users/useCreateUser';
+export {default as useUpdateUser} from './hooks/users/useUpdateUser';
+export type {UpdateUserVariables} from './hooks/users/useUpdateUser';
+export {default as useDeleteUser} from './hooks/users/useDeleteUser';
+export {default as useGetAgents} from './hooks/agents/useGetAgents';
+export type {UseGetAgentsParams} from './hooks/agents/useGetAgents';
+export {default as useGetAgent} from './hooks/agents/useGetAgent';
+export {default as useCreateAgent} from './hooks/agents/useCreateAgent';
+export {default as useUpdateAgent} from './hooks/agents/useUpdateAgent';
+export type {UpdateAgentVariables} from './hooks/agents/useUpdateAgent';
+export {default as useDeleteAgent} from './hooks/agents/useDeleteAgent';
+
 export {default as BaseSignInButton} from './components/actions/SignInButton/BaseSignInButton';
 export * from './components/actions/SignInButton/BaseSignInButton';
 
@@ -304,4 +327,42 @@ export {
   type EmbeddedRecoveryFlowInitiateRequest,
   type EmbeddedRecoveryFlowRequest,
   type EmbeddedRecoveryFlowErrorResponse,
+} from '@thunderid/browser';
+
+export {
+  AgentQueryKeys,
+  ApplicationQueryKeys,
+  UserQueryKeys,
+  createAgent,
+  createApplication,
+  createUser,
+  deleteAgent,
+  deleteApplication,
+  deleteUser,
+  getAgent,
+  getAgents,
+  getApplication,
+  getApplications,
+  getUser,
+  getUsers,
+  updateAgent,
+  updateApplication,
+  updateUser,
+  type Agent,
+  type AgentListResponse,
+  type ApiFetcher,
+  type ApiFilteringParams,
+  type Application,
+  type ApplicationListResponse,
+  type BasicAgent,
+  type BasicApplication,
+  type CreateAgentRequest,
+  type CreateApplicationRequest,
+  type CreateManagedUserRequest,
+  type ManagedUser,
+  type ManagedUserListResponse,
+  type ManagementRequestConfig,
+  type UpdateAgentRequest,
+  type UpdateApplicationRequest,
+  type UpdateManagedUserRequest,
 } from '@thunderid/browser';

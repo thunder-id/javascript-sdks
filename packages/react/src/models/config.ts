@@ -1,9 +1,22 @@
 // Copyright 2025 The ThunderID Authors
 // SPDX-License-Identifier: Apache-2.0
 
-import {ThunderIDBrowserConfig} from '@thunderid/browser';
+import {ApiFetcher, ThunderIDBrowserConfig} from '@thunderid/browser';
 
 export type ThunderIDReactConfig = ThunderIDBrowserConfig & {
+  /**
+   * HTTP options.
+   */
+  http?: {
+    /**
+     * Transport used by the management hooks (`useGetApplications`, `useCreateUser`, and so on).
+     * Applies to management operations only. Defaults to the SDK's authenticated HTTP client,
+     * which attaches the signed-in user's access token. A `fetcher` passed to an individual hook
+     * takes precedence over this one.
+     */
+    fetcher?: ApiFetcher;
+  };
+
   /**
    * CSP nonce applied to the `<style>` tags Emotion injects into `<head>` at runtime.
    *

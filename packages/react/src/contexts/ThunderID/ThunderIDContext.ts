@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import {
+  ApiFetcher,
   FlowMetadataResponse,
   HttpRequestConfig,
   HttpResponse,
@@ -16,6 +17,7 @@ import {
 import {Context, createContext} from 'react';
 import {ThunderIDReactConfig} from '../../models/config';
 import ThunderIDReactClient from '../../ThunderIDReactClient';
+import {ResourceInvalidator, fallbackResourceInvalidator} from '../../utils/createResourceInvalidator';
 
 /**
  * Props interface of {@link ThunderIDContext}
@@ -82,6 +84,11 @@ export type ThunderIDContextProps = {
    */
   http: {
     /**
+     * Transport supplied through `ThunderIDProvider`'s `http.fetcher` prop, used by the management
+     * hooks. `undefined` means the hooks fall back to the SDK's authenticated HTTP client.
+     */
+    fetcher?: ApiFetcher;
+    /**
      * Makes an HTTP request using the provided configuration.
      * @param requestConfig - Configuration for the HTTP request.
      * @returns A promise that resolves to the HTTP response.
@@ -94,6 +101,11 @@ export type ThunderIDContextProps = {
      */
     requestAll: (requestConfigs?: HttpRequestConfig[]) => Promise<HttpResponse<any>[]>;
   };
+  /**
+   * Coordinates refetching between the management hooks: a successful mutation invalidates the
+   * queries whose data it changed.
+   */
+  invalidator?: ResourceInvalidator;
   /**
    * Instance ID for multi-instance support.
    */
@@ -238,6 +250,7 @@ const ThunderIDContext: Context<ThunderIDContextProps | null> = createContext<nu
     requestAll: () => null as unknown as Promise<HttpResponse<any>[]>,
   },
   instanceId: 0,
+  invalidator: fallbackResourceInvalidator,
   isInitialized: false,
   isLoading: true,
   isMetaLoading: false,

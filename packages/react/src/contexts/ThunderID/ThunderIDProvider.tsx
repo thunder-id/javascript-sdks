@@ -22,6 +22,7 @@ import useBrowserUrl from '../../hooks/useBrowserUrl';
 import {ThunderIDReactConfig} from '../../models/config';
 import {configureEmotionNonce} from '../../styles/emotion';
 import ThunderIDReactClient from '../../ThunderIDReactClient';
+import createResourceInvalidator, {ResourceInvalidator} from '../../utils/createResourceInvalidator';
 import ComponentRendererProvider from '../ComponentRenderer/ComponentRendererProvider';
 import FlowProvider from '../Flow/FlowProvider';
 import FlowMetaProvider from '../FlowMeta/FlowMetaProvider';
@@ -62,6 +63,7 @@ const ThunderIDProvider: FC<PropsWithChildren<ThunderIDProviderProps>> = ({
   cspNonce,
   vendor,
   namespace,
+  http: httpOptions,
   ...rest
 }: PropsWithChildren<ThunderIDProviderProps>): ReactElement => {
   // Must run synchronously here, in the render body, before any descendant's css()/cx()/
@@ -71,6 +73,7 @@ const ThunderIDProvider: FC<PropsWithChildren<ThunderIDProviderProps>> = ({
 
   const reRenderCheckRef: RefObject<boolean> = useRef(false);
   const client: ThunderIDReactClient = useMemo(() => new ThunderIDReactClient(instanceId), [instanceId]);
+  const invalidator: ResourceInvalidator = useMemo(() => createResourceInvalidator(), []);
   const storageManagerRef: any = useRef<any>(null);
   const {hasAuthParams, hasCalledForThisInstance} = useBrowserUrl();
   const [user, setUser] = useState<any | null>(null);
@@ -501,10 +504,12 @@ const ThunderIDProvider: FC<PropsWithChildren<ThunderIDProviderProps>> = ({
       getIdToken,
       getStorageManager,
       http: {
+        fetcher: httpOptions?.fetcher,
         request,
         requestAll,
       },
       instanceId,
+      invalidator,
       isInitialized: isInitializedSync,
       isLoading: isLoadingSync,
       isSignedIn: isSignedInSync,
@@ -552,9 +557,11 @@ const ThunderIDProvider: FC<PropsWithChildren<ThunderIDProviderProps>> = ({
       getDecodedIdToken,
       clearSession,
       exchangeToken,
+      httpOptions?.fetcher,
       getAccessToken,
       getStorageManager,
       instanceId,
+      invalidator,
       organizationChain,
       preferences,
       recover,
