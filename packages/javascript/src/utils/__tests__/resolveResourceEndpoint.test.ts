@@ -49,8 +49,11 @@ describe('resolveResourceEndpoint', (): void => {
 
   it('exposes the resource endpoint keys for filtering OIDC metadata', (): void => {
     expect([...RESOURCE_ENDPOINT_KEYS].sort()).toEqual([
+      'agents',
+      'applications',
       'flowExecute',
       'flowMeta',
+      'users',
       'usersMe',
       'usersMeCredentials',
       'usersMeMeta',

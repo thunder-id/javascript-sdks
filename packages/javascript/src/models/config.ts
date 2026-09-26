@@ -210,7 +210,8 @@ export interface BaseConfig<T = unknown> extends WithPreferences, WithExtensions
    *   `endSession`, `wellKnown`) — by default derived from the well-known discovery document at
    *   `{baseUrl}/oauth2/token/.well-known/openid-configuration`. Individual overrides take
    *   precedence over values resolved from the discovery document.
-   * - **Resource-server endpoints** (`flowExecute`, `flowMeta`, `usersMe`, `usersMeCredentials`) —
+   * - **Resource-server endpoints** (`flowExecute`, `flowMeta`, `usersMe`, `usersMeCredentials`, and the
+   *   management collections `applications`, `users`, `agents`) —
    *   by default derived by concatenating `baseUrl` with a fixed path (e.g. `{baseUrl}/flow/execute`).
    *   These do not participate in OIDC discovery.
    *
@@ -237,6 +238,18 @@ export interface BaseConfig<T = unknown> extends WithPreferences, WithExtensions
    * }
    */
   endpoints?: {
+    /**
+     * The agents collection URL used by the agent management operations.
+     * A single agent is addressed as `{agents}/{id}`.
+     * If not provided, defaults to `{baseUrl}/agents`.
+     */
+    agents?: string;
+    /**
+     * The applications collection URL used by the application management operations.
+     * A single application is addressed as `{applications}/{id}`.
+     * If not provided, defaults to `{baseUrl}/applications`.
+     */
+    applications?: string;
     /**
      * The authorization endpoint URL.
      * If not provided, resolved from the well-known discovery document.
@@ -278,6 +291,12 @@ export interface BaseConfig<T = unknown> extends WithPreferences, WithExtensions
      * If not provided, resolved from the well-known discovery document.
      */
     userInfo?: string;
+    /**
+     * The users collection URL used by the user management operations.
+     * A single user is addressed as `{users}/{id}`.
+     * If not provided, defaults to `{baseUrl}/users`.
+     */
+    users?: string;
     /**
      * The current-user profile endpoint URL used to fetch and update the signed-in user's profile.
      * If not provided, defaults to `{baseUrl}/users/me`.
