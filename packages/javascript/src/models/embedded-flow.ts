@@ -100,6 +100,9 @@ export enum EmbeddedFlowComponentType {
   /** Image display component for logos and illustrations */
   Image = 'IMAGE',
 
+  /** Key-value list display component that shows label and value pairs published in additionalData */
+  KeyValueList = 'KEY_VALUE_LIST',
+
   /** One-time password input field for multi-factor authentication */
   OtpInput = 'OTP_INPUT',
 
@@ -411,7 +414,7 @@ export interface EmbeddedFlowComponent {
   size?: number;
 
   /**
-   * Data source key for dynamic components (e.g., COPYABLE_TEXT).
+   * Data source key for dynamic components (e.g., COPYABLE_TEXT, KEY_VALUE_LIST).
    * References a key in additionalData whose value is resolved at render time.
    */
   source?: string;
@@ -743,6 +746,18 @@ export interface ConsentPurposeData {
 export interface ConsentPromptData {
   /** Array of consent purposes requiring user review */
   purposes: ConsentPurposeData[];
+}
+
+/**
+ * One row of a KEY_VALUE_LIST component, read from the additionalData key named in its `source`.
+ *
+ * @experimental This interface may change in future versions
+ */
+export interface KeyValuePair {
+  /** What to call the value */
+  label: string;
+  /** The value */
+  value: string;
 }
 
 /**

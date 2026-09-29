@@ -980,6 +980,7 @@ const BaseSignUpContent: FC<BaseSignUpProps> = ({
         {
           _customRenderers: customRenderers,
           _theme: theme,
+          additionalData: currentFlow?.data?.additionalData,
           buttonClassName: buttonClasses,
           inputClassName: inputClasses,
           onInputBlur: handleInputBlur,
@@ -990,6 +991,7 @@ const BaseSignUpContent: FC<BaseSignUpProps> = ({
         },
       ),
     [
+      currentFlow,
       customRenderers,
       formValues,
       touchedFields,
