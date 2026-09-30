@@ -1,13 +1,14 @@
 // Copyright 2026 The ThunderID Authors
 // SPDX-License-Identifier: Apache-2.0
 
-import {cleanup, fireEvent, render, waitFor} from '@testing-library/react';
-import {type ConsentDecisions, ThunderIDRuntimeError} from '@thunderid/browser';
-import {ReactElement, useState} from 'react';
+import {cleanup, fireEvent, render, screen, waitFor} from '@testing-library/react';
+import {type ConsentDecisions, I18nPreferences, ThunderIDAPIError, ThunderIDRuntimeError} from '@thunderid/browser';
+import {ReactElement, ReactNode, useState} from 'react';
 import {afterEach, beforeEach, describe, expect, it, vi, Mock} from 'vitest';
 import I18nProvider from '../../../../contexts/I18n/I18nProvider';
 import ThemeProvider from '../../../../contexts/Theme/ThemeProvider';
 import ThunderIDContext, {ThunderIDContextProps} from '../../../../contexts/ThunderID/ThunderIDContext';
+import useTranslation from '../../../../hooks/useTranslation';
 import Consent from '../../flow/Consent';
 import SignIn, {type SignInRenderProps} from '../SignIn';
 
@@ -74,6 +75,164 @@ describe('SignIn without an application', () => {
       setTimeout(resolve, 50);
     });
     expect(unhandled).toEqual([]);
+  });
+
+  it('passes the ThunderIDRuntimeError to the render prop with its code', async () => {
+    const onError: Mock<(error: Error) => void> = vi.fn();
+    const renderChild: Mock<(props: SignInRenderProps) => null> = vi.fn(() => null);
+
+    render(
+      <ThunderIDContext.Provider value={thunderIDContext}>
+        <I18nProvider>
+          <ThemeProvider>
+            <SignIn onError={onError}>{renderChild}</SignIn>
+          </ThemeProvider>
+        </I18nProvider>
+      </ThunderIDContext.Provider>,
+    );
+
+    await waitFor(() => {
+      expect(onError).toHaveBeenCalledTimes(1);
+    });
+    const error: Error | null | undefined = renderChild.mock.lastCall?.[0].error;
+    expect(error).toBeInstanceOf(ThunderIDRuntimeError);
+    expect((error as ThunderIDRuntimeError).code).toBe('SIGN_IN_ERROR');
+    expect(error).toBe(onError.mock.calls[0][0]);
+  });
+});
+
+describe('SignIn error banner on a language change', () => {
+  const i18nPreferences: I18nPreferences = {
+    bundles: {
+      'en-US': {
+        translations: {
+          'errors.signin.session.expired': 'Your session has expired.',
+          'errors.signin.timeout': 'The step has expired.',
+          invalid_individual_id: 'Invalid individual ID',
+        },
+      },
+      'fr-FR': {
+        translations: {
+          'errors.signin.session.expired': 'Votre session a expiré.',
+          'errors.signin.timeout': "L'étape a expiré.",
+          invalid_individual_id: 'Identifiant individuel invalide',
+        },
+      },
+    },
+    language: 'en-US',
+    storageStrategy: 'none',
+    urlParam: false,
+  } as unknown as I18nPreferences;
+
+  // A step with a single action that submits without client-side validation.
+  const step = (additionalData: Record<string, unknown> = {}): Record<string, unknown> => ({
+    data: {
+      additionalData,
+      meta: {components: [{eventType: 'TRIGGER', id: 'action_continue', label: 'Continue', type: 'ACTION'}]},
+    },
+    executionId: 'exec-1',
+    flowStatus: 'INCOMPLETE',
+    type: 'VIEW',
+  });
+
+  const LanguageSwitcher = (): ReactElement => {
+    const {setLanguage} = useTranslation();
+    return <button type="button" data-testid="switch-to-french" onClick={() => setLanguage('fr-FR')} />;
+  };
+
+  const renderSignIn = (
+    props: {children?: (renderProps: SignInRenderProps) => ReactNode; onError?: Mock} = {},
+    context: Partial<ThunderIDContextProps> = {applicationId: 'app-1'},
+  ): void => {
+    render(
+      <ThunderIDContext.Provider value={{...thunderIDContext, ...context}}>
+        <I18nProvider preferences={i18nPreferences}>
+          <ThemeProvider>
+            <LanguageSwitcher />
+            <SignIn {...props} />
+          </ThemeProvider>
+        </I18nProvider>
+      </ThunderIDContext.Provider>,
+    );
+  };
+
+  const switchToFrench = (): void => {
+    fireEvent.click(screen.getByTestId('switch-to-french'));
+  };
+
+  const banner = (): string | null => screen.queryByRole('alert')?.textContent ?? null;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    sessionStorage.clear();
+    window.history.replaceState({}, '', '/signin');
+  });
+
+  afterEach(() => {
+    cleanup();
+  });
+
+  it('translates a server error banner again when the language changes', async () => {
+    mockSignIn.mockResolvedValueOnce(step());
+    renderSignIn();
+
+    const button: HTMLButtonElement = await screen.findByTestId('thunderid-signin-submit');
+    mockSignIn.mockResolvedValueOnce({
+      error: {
+        code: 'invalid_individual_id',
+        description: {defaultValue: 'The individual ID is not registered.', key: 'invalid_individual_id_description'},
+        message: {defaultValue: 'Invalid individual ID', key: 'invalid_individual_id'},
+      },
+      executionId: 'exec-1',
+      flowStatus: 'ERROR',
+    });
+    fireEvent.click(button);
+
+    await waitFor(() => {
+      expect(banner()).toBe('Invalid individual ID');
+    });
+
+    switchToFrench();
+
+    await waitFor(() => {
+      expect(banner()).toBe('Identifiant individuel invalide');
+    });
+  });
+
+  it('translates the step timeout banner again when the language changes', async () => {
+    mockSignIn.mockResolvedValueOnce(step({stepTimeout: Date.now() + 100}));
+    renderSignIn();
+
+    await waitFor(() => {
+      expect(banner()).toBe('The step has expired.');
+    });
+
+    switchToFrench();
+
+    await waitFor(() => {
+      expect(banner()).toBe("L'étape a expiré.");
+    });
+  });
+
+  it('translates the session expired error again and keeps its code', async () => {
+    sessionStorage.setItem('thunderid_execution_id', 'stale-exec');
+    mockSignIn.mockRejectedValueOnce(new ThunderIDAPIError('Invalid executionId', 'FLOW_ERROR', 'react', 400, 'Bad'));
+    const renderChild: Mock<(props: SignInRenderProps) => null> = vi.fn(() => null);
+    renderSignIn({children: renderChild}, {applicationId: undefined});
+
+    const lastError = (): Error | null => renderChild.mock.lastCall?.[0].error ?? null;
+
+    await waitFor(() => {
+      expect(lastError()?.message).toBe('Your session has expired.');
+    });
+    expect((lastError() as ThunderIDRuntimeError).code).toBe('SIGN_IN_ERROR');
+
+    switchToFrench();
+
+    await waitFor(() => {
+      expect(lastError()?.message).toBe('Votre session a expiré.');
+    });
+    expect((lastError() as ThunderIDRuntimeError).code).toBe('SIGN_IN_ERROR');
   });
 });
 

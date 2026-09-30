@@ -3,8 +3,8 @@
 
 import {mount} from '@vue/test-utils';
 import {afterEach, beforeEach, describe, expect, it, vi, type Mock, type MockInstance} from 'vitest';
-import {ref} from 'vue';
-import BaseSignUp from '../../../components/auth/sign-up/BaseSignUp';
+import {nextTick, ref, type Ref} from 'vue';
+import BaseSignUp, {type BaseSignUpRenderProps} from '../../../components/auth/sign-up/BaseSignUp';
 import {FLOW_META_KEY, I18N_KEY} from '../../../keys';
 
 const callbackUrl = (code: string, state: string): string =>
@@ -252,5 +252,49 @@ describe('BaseSignUp social sign-up popup', () => {
     expect(popup.close).toHaveBeenCalledTimes(1);
     expect(navigations).toEqual([]);
     expect(onError).toHaveBeenCalledWith(expect.objectContaining({message: 'errors.signup.popup.failure'}));
+  });
+});
+
+describe('BaseSignUp error message', () => {
+  it('translates a server error message again when the language changes', async () => {
+    const translations: Record<string, Record<string, string>> = {
+      'en-US': {user_exists: 'The user already exists.'},
+      'fr-FR': {user_exists: "L'utilisateur existe déjà."},
+    };
+    const language: Ref<string> = ref('en-US');
+    const slot: Mock<(props: BaseSignUpRenderProps) => never[]> = vi.fn(() => []);
+
+    mount(BaseSignUp, {
+      global: {
+        provide: {
+          [FLOW_META_KEY as symbol]: {meta: ref(null)},
+          [I18N_KEY as symbol]: {
+            currentLanguage: language,
+            t: (key: string): string => translations[language.value][key] ?? key,
+          },
+        },
+      },
+      props: {
+        isInitialized: true,
+        onInitialize: (): Promise<unknown> =>
+          Promise.resolve({
+            error: {code: 'user_exists', message: {defaultValue: 'User exists', key: 'user_exists'}},
+            flowStatus: 'INCOMPLETE',
+            type: 'VIEW',
+          }),
+      },
+      slots: {default: slot},
+    });
+
+    await vi.waitFor(() => {
+      expect(slot.mock.lastCall?.[0].messages).toEqual([{message: 'The user already exists.', type: 'error'}]);
+    });
+    expect(slot.mock.lastCall?.[0].error?.message).toBe('The user already exists.');
+
+    language.value = 'fr-FR';
+    await nextTick();
+
+    expect(slot.mock.lastCall?.[0].messages).toEqual([{message: "L'utilisateur existe déjà.", type: 'error'}]);
+    expect(slot.mock.lastCall?.[0].error?.message).toBe("L'utilisateur existe déjà.");
   });
 });

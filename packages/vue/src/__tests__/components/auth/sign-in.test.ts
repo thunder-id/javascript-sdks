@@ -4,10 +4,10 @@
 import {EmbeddedFlowComponent, ThunderIDRuntimeError} from '@thunderid/browser';
 import {flushPromises, mount} from '@vue/test-utils';
 import {describe, expect, it, vi, type Mock} from 'vitest';
-import {defineComponent, h, ref, type VNode} from 'vue';
+import {defineComponent, h, nextTick, ref, type Ref, type VNode} from 'vue';
 import {renderSignInComponents, renderVerificationComponents} from '../../../components/auth/flow/AuthOptionFactory';
 import BaseSignIn from '../../../components/auth/sign-in/BaseSignIn';
-import SignIn from '../../../components/auth/sign-in/SignIn';
+import SignIn, {type SignInRenderProps} from '../../../components/auth/sign-in/SignIn';
 import {FLOW_KEY, FLOW_META_KEY, I18N_KEY, THUNDERID_KEY} from '../../../keys';
 
 describe('BaseSignIn', () => {
@@ -160,6 +160,52 @@ describe('SignIn', () => {
     expect(wrapper.emitted('error')?.[0]?.[0]).toBeInstanceOf(ThunderIDRuntimeError);
     expect(slot).toHaveBeenLastCalledWith(expect.objectContaining({error: expect.any(ThunderIDRuntimeError)}));
     expect(unhandled).not.toHaveBeenCalled();
+  });
+
+  it('translates a server error again when the language changes', async () => {
+    const translations: Record<string, Record<string, string>> = {
+      'en-US': {invalid_individual_id: 'Invalid individual ID'},
+      'fr-FR': {invalid_individual_id: 'Identifiant individuel invalide'},
+    };
+    const language: Ref<string> = ref('en-US');
+    const isInitialized = ref(false);
+    const signIn: Mock = vi.fn().mockResolvedValue({
+      error: {code: 'invalid_individual_id', message: {defaultValue: 'Invalid', key: 'invalid_individual_id'}},
+      flowStatus: 'ERROR',
+    });
+    const slot: Mock<(props: SignInRenderProps) => never[]> = vi.fn(() => []);
+
+    const wrapper = mount(SignIn, {
+      global: {
+        provide: {
+          [THUNDERID_KEY as symbol]: {
+            applicationId: 'app-1',
+            getStorageManager: () => null,
+            isInitialized,
+            isLoading: ref(false),
+            signIn,
+            vendor: 'thunderid',
+          },
+          [FLOW_META_KEY as symbol]: {meta: ref(null)},
+          [I18N_KEY as symbol]: {
+            currentLanguage: language,
+            t: (key: string): string => translations[language.value][key] ?? key,
+          },
+        },
+      },
+      slots: {default: slot},
+    });
+
+    isInitialized.value = true;
+    await flushPromises();
+
+    expect(slot.mock.lastCall?.[0].error?.message).toBe('Invalid individual ID');
+
+    language.value = 'fr-FR';
+    await nextTick();
+
+    expect(slot.mock.lastCall?.[0].error?.message).toBe('Identifiant individuel invalide');
+    expect(wrapper.emitted('error')).toHaveLength(1);
   });
 });
 

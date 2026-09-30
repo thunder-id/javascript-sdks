@@ -17,13 +17,18 @@ import {
   logger,
   compileConsentDecisions,
 } from '@thunderid/browser';
-import {FC, ReactElement, useState, useEffect, useRef, ReactNode} from 'react';
+import {FC, ReactElement, useState, useEffect, useMemo, useRef, ReactNode} from 'react';
 // eslint-disable-next-line import/no-named-as-default
 import BaseSignIn, {BaseSignInProps} from './BaseSignIn';
 import useThunderID from '../../../contexts/ThunderID/useThunderID';
 import {useOAuthCallback} from '../../../hooks/auth/useOAuthCallback';
 import useTranslation from '../../../hooks/useTranslation';
-import {extractErrorMessage, normalizeFlowResponse} from '../../../utils/flowTransformer';
+import {
+  extractErrorMessage,
+  FlowErrorBuilder,
+  normalizeFlowResponse,
+  resolveFlowError,
+} from '../../../utils/flowTransformer';
 import isConsentApprovalBlocked from '../../../utils/isConsentApprovalBlocked';
 import {initiateOAuthRedirect} from '../../../utils/oauth';
 import {handlePasskeyAuthentication, handlePasskeyRegistration} from '../../../utils/passkey';
@@ -264,7 +269,12 @@ const SignIn: FC<SignInProps> = ({
   const challengeTokenRef: any = useRef<string | null>(null);
   const [isStorageReady, setIsStorageReady] = useState(false);
   const [isFlowInitialized, setIsFlowInitialized] = useState(false);
-  const [flowError, setFlowError] = useState<Error | null>(null);
+  // Raw banner error source, resolved on render so the message follows a language change.
+  const [flowErrorSource, setFlowErrorSource] = useState<unknown>(null);
+  const flowError: Error | null = useMemo(
+    () => (flowErrorSource === null ? null : resolveFlowError(flowErrorSource, t)),
+    [flowErrorSource, t],
+  );
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isTimeoutDisabled, setIsTimeoutDisabled] = useState<boolean>(false);
   const [passkeyState, setPasskeyState] = useState<PasskeyState>({
@@ -431,10 +441,11 @@ const SignIn: FC<SignInProps> = ({
    * Set error state and call onError callback.
    * Ensures isFlowInitialized is true so errors can be displayed in the UI.
    */
-  const setError = (error: Error): void => {
-    setFlowError(error);
+  const setError = (source: unknown): void => {
+    // Updater form, so React stores a FlowErrorBuilder instead of calling it.
+    setFlowErrorSource(() => source);
     setIsFlowInitialized(true);
-    onError?.(error);
+    onError?.(resolveFlowError(source, t));
   };
 
   /**
@@ -495,12 +506,12 @@ const SignIn: FC<SignInProps> = ({
         setExecutionId(response.executionId);
         await setChallengeToken(response.challengeToken ?? null);
         setIsFlowInitialized(true);
-        setFlowError(new Error(extractErrorMessage(response, t)));
+        setFlowErrorSource(response);
         return true;
       }
       // Terminal: backend invalidated the session — clear all state.
       await clearFlowState();
-      setError(new Error(extractErrorMessage(response, t)));
+      setError(response);
       cleanupFlowUrlParams();
       return true;
     }
@@ -581,7 +592,7 @@ const SignIn: FC<SignInProps> = ({
     }
 
     try {
-      setFlowError(null);
+      setFlowErrorSource(null);
 
       let response: EmbeddedSignInFlowResponse;
 
@@ -610,12 +621,13 @@ const SignIn: FC<SignInProps> = ({
               logger.warn('Failed to clear authId from hybrid storage.');
             }
             if (!effectiveApplicationId) {
-              const expiredError: any = new ThunderIDRuntimeError(
-                t('errors.signin.session.expired') ||
-                  'Your session has expired. Please return to the application and sign in again.',
-                'SIGN_IN_ERROR',
-                'react',
-              );
+              const expiredError: FlowErrorBuilder = (translate) =>
+                new ThunderIDRuntimeError(
+                  translate('errors.signin.session.expired') ||
+                    'Your session has expired. Please return to the application and sign in again.',
+                  'SIGN_IN_ERROR',
+                  'react',
+                );
               setError(expiredError);
               return;
             }
@@ -680,7 +692,7 @@ const SignIn: FC<SignInProps> = ({
       const err: any = error;
       await clearFlowState();
 
-      setError(err instanceof ThunderIDRuntimeError ? err : new Error(extractErrorMessage(err, t)));
+      setError(err);
       initializationAttemptedRef.current = false;
     }
   };
@@ -800,7 +812,7 @@ const SignIn: FC<SignInProps> = ({
 
     try {
       setIsSubmitting(true);
-      setFlowError(null);
+      setFlowErrorSource(null);
       // Clear any field errors from the previous response before the new round-trip.
       setServerFieldErrors(null);
 
@@ -881,14 +893,14 @@ const SignIn: FC<SignInProps> = ({
 
         // Display error from INCOMPLETE response
         if ((response as any)?.error) {
-          setFlowError(new Error(extractErrorMessage(response, t)));
+          setFlowErrorSource(response);
         }
       }
     } catch (error) {
       const err: any = error;
       await clearFlowState();
 
-      setError(err instanceof ThunderIDRuntimeError ? err : new Error(extractErrorMessage(err, t)));
+      setError(err);
       return;
     } finally {
       setIsSubmitting(false);
@@ -919,8 +931,8 @@ const SignIn: FC<SignInProps> = ({
     const handleTimeout = (): void => {
       setIsTimeoutDisabled(true);
 
-      const expiredError = (): Error =>
-        new Error(t('errors.signin.timeout') || 'Time allowed to complete the step has expired.');
+      const expiredError: FlowErrorBuilder = (translate) =>
+        new Error(translate('errors.signin.timeout') || 'Time allowed to complete the step has expired.');
 
       // Read through the ref so the timer always sees the step that is on screen when it fires
       const context = timeoutContextRef.current;
@@ -933,11 +945,11 @@ const SignIn: FC<SignInProps> = ({
         timeoutSubmittedForRef.current = timeoutMs;
         context
           .submit({action: actionId, inputs: {[CONSENT_REASON_KEY]: ConsentConstants.REASON_TIMEOUT}})
-          .catch(() => setError(expiredError()));
+          .catch(() => setError(expiredError));
         return;
       }
 
-      setError(expiredError());
+      setError(expiredError);
     };
 
     const timerId: ReturnType<typeof setTimeout> = setTimeout(handleTimeout, Math.max(0, timeoutMs - Date.now()));
@@ -1031,8 +1043,7 @@ const SignIn: FC<SignInProps> = ({
       })
       .catch((error: any) => {
         setPasskeyState((prev: any) => ({...prev, error: error as Error, isActive: false}));
-        setFlowError(error as Error);
-        onError?.(error as Error);
+        setError(error);
       });
   }, [passkeyState.isActive, passkeyState.challenge, passkeyState.creationOptions, passkeyState.executionId]);
 

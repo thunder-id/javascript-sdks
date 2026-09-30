@@ -1,13 +1,15 @@
 // Copyright 2026 The ThunderID Authors
 // SPDX-License-Identifier: Apache-2.0
 
-import {render, waitFor, cleanup, act} from '@testing-library/react';
+import {render, waitFor, cleanup, act, fireEvent, screen} from '@testing-library/react';
+import {I18nPreferences} from '@thunderid/browser';
 import {afterEach, beforeEach, describe, expect, it, vi, Mock, MockInstance} from 'vitest';
-import type {ReactNode} from 'react';
+import type {ReactElement, ReactNode} from 'react';
 import I18nProvider from '../../../../contexts/I18n/I18nProvider';
 import ThemeProvider from '../../../../contexts/Theme/ThemeProvider';
 import ThunderIDContext, {ThunderIDContextProps} from '../../../../contexts/ThunderID/ThunderIDContext';
-import SignUp from '../SignUp';
+import useTranslation from '../../../../hooks/useTranslation';
+import SignUp, {SignUpRenderProps} from '../SignUp';
 
 const mockSignUp = vi.fn() as Mock;
 
@@ -175,6 +177,66 @@ describe('SignUp', () => {
       await captured.submit?.({id: 'continue'}, {}, true);
     });
     expect(mockSignUp).toHaveBeenCalledTimes(2);
+  });
+
+  it('translates a server error message again when the language changes', async () => {
+    const i18nPreferences: I18nPreferences = {
+      bundles: {
+        'en-US': {translations: {user_exists: 'The user already exists.'}},
+        'fr-FR': {translations: {user_exists: "L'utilisateur existe déjà."}},
+      },
+      language: 'en-US',
+      storageStrategy: 'none',
+      urlParam: false,
+    } as unknown as I18nPreferences;
+    const LanguageSwitcher = (): ReactElement => {
+      const {setLanguage} = useTranslation();
+      return <button type="button" data-testid="switch-to-french" onClick={() => setLanguage('fr-FR')} />;
+    };
+    let latest: SignUpRenderProps | undefined;
+
+    mockSignUp.mockResolvedValueOnce({executionId: 'exec-1', flowStatus: 'INCOMPLETE'});
+    render(
+      <ThunderIDContext.Provider value={thunderIDContext}>
+        <I18nProvider preferences={i18nPreferences}>
+          <ThemeProvider>
+            <LanguageSwitcher />
+            <SignUp shouldRedirectAfterSignUp={false}>
+              {(renderProps: SignUpRenderProps) => {
+                latest = renderProps;
+                return <div />;
+              }}
+            </SignUp>
+          </ThemeProvider>
+        </I18nProvider>
+      </ThunderIDContext.Provider>,
+    );
+    await waitFor(() => {
+      expect(mockSignUp).toHaveBeenCalledTimes(1);
+    });
+
+    mockSignUp.mockResolvedValueOnce({
+      error: {code: 'user_exists', message: {defaultValue: 'User exists', key: 'user_exists'}},
+      executionId: 'exec-1',
+      flowStatus: 'ERROR',
+    });
+    await act(async () => {
+      await latest?.handleSubmit({id: 'continue'}, {});
+    });
+
+    await waitFor(() => {
+      expect(latest?.messages).toEqual([expect.objectContaining({message: 'The user already exists.', type: 'error'})]);
+    });
+    expect(latest?.error?.message).toBe('The user already exists.');
+
+    fireEvent.click(screen.getByTestId('switch-to-french'));
+
+    await waitFor(() => {
+      expect(latest?.messages).toEqual([
+        expect.objectContaining({message: "L'utilisateur existe déjà.", type: 'error'}),
+      ]);
+    });
+    expect(latest?.error?.message).toBe("L'utilisateur existe déjà.");
   });
 
   describe('social sign-up popup', () => {

@@ -10,19 +10,22 @@ import {
 } from '@thunderid/browser';
 import {
   type Component,
+  type ComputedRef,
   type PropType,
   type Ref,
   type SetupContext,
   type VNode,
+  computed,
   defineComponent,
   h,
   onUnmounted,
   ref,
+  shallowRef,
   watch,
 } from 'vue';
 import useFlowMeta from '../../../composables/useFlowMeta';
 import useI18n from '../../../composables/useI18n';
-import {normalizeFlowResponse, extractErrorMessage} from '../../../utils/flowTransformer';
+import {normalizeFlowResponse, resolveFlowError} from '../../../utils/flowTransformer';
 import getAuthComponentHeadings from '../../../utils/getAuthComponentHeadings';
 import {createVueLogger} from '../../../utils/logger';
 import {handlePasskeyRegistration} from '../../../utils/passkey';
@@ -166,7 +169,11 @@ const BaseSignUp: Component = defineComponent({
     const isLoading: Ref<boolean> = ref(false);
     const isFlowInitialized: Ref<boolean> = ref(false);
     const currentFlow: Ref<any | null> = ref(null);
-    const apiError: Ref<Error | null> = ref(null);
+    // Raw error source, resolved on read so the message follows a language change.
+    const apiErrorSource: Ref<unknown> = shallowRef(null);
+    const apiError: ComputedRef<Error | null> = computed(() =>
+      apiErrorSource.value === null ? null : resolveFlowError(apiErrorSource.value, t),
+    );
     const flowMessages: Ref<{message: string; type: string}[]> = ref([]);
     const passkeyState: Ref<PasskeyState> = ref({
       actionId: null,
@@ -189,10 +196,19 @@ const BaseSignUp: Component = defineComponent({
     // ── Helpers ──
 
     const handleError = (error: any): void => {
-      const errorMessage: string = extractErrorMessage(error, t);
-      apiError.value = error instanceof Error ? error : new Error(errorMessage);
-      flowMessages.value = [{message: errorMessage, type: 'error'}];
+      apiErrorSource.value = error;
+      flowMessages.value = [{message: apiError.value!.message, type: 'error'}];
     };
+
+    // Flow messages hold plain strings, so refresh the error message on a language change.
+    watch(
+      () => apiError.value?.message,
+      (message: string | undefined) => {
+        if (message) {
+          flowMessages.value = [{message, type: 'error'}];
+        }
+      },
+    );
 
     const normalizeFlowResponseLocal = (response: any): any => {
       if (response?.data?.components && Array.isArray(response.data.components)) {
@@ -272,7 +288,7 @@ const BaseSignUp: Component = defineComponent({
       });
       formValues.value = freshValues;
       touchedFields.value = {};
-      apiError.value = null;
+      apiErrorSource.value = null;
       formErrors.value = {};
       isFormValid.value = true;
     };
@@ -445,7 +461,7 @@ const BaseSignUp: Component = defineComponent({
       }
 
       isLoading.value = true;
-      apiError.value = null;
+      apiErrorSource.value = null;
       flowMessages.value = [];
 
       try {
@@ -577,7 +593,7 @@ const BaseSignUp: Component = defineComponent({
 
           (async (): Promise<void> => {
             isLoading.value = true;
-            apiError.value = null;
+            apiErrorSource.value = null;
             flowMessages.value = [];
 
             try {
