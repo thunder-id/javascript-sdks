@@ -21,6 +21,7 @@ import {
   ConsentAttributeElement,
   OrganizationUnitListResponse,
   PrefixOption,
+  FetchUsers,
 } from '@thunderid/browser';
 import DOMPurify from 'dompurify';
 import {ChangeEvent, cloneElement, CSSProperties, FormEvent, ReactElement} from 'react';
@@ -53,6 +54,7 @@ import Select from '../../primitives/Select/Select';
 import {affixPostfixKey, affixPrefixKey} from '../../../utils/composeAffixedInputs';
 import Typography from '../../primitives/Typography/Typography';
 import {TypographyVariant} from '../../primitives/Typography/Typography.styles';
+import BaseUserSelect from '../../primitives/UserSelect/BaseUserSelect';
 
 const logger: ReturnType<typeof createPackageComponentLogger> = createPackageComponentLogger(
   '@thunderid/react',
@@ -216,6 +218,8 @@ const createAuthComponentFromFlow = (
     /** Flag to determine if the step timeline has expired */
     isTimeoutDisabled?: boolean;
     key?: string | number;
+    /** Data source for USER_SELECT fields. */
+    fetchUsers?: FetchUsers;
     /** Flow metadata for resolving {{meta(...)}} expressions at render time */
     meta?: FlowMetadataResponse | null;
     onInputBlur?: (name: string) => void;
@@ -577,6 +581,36 @@ const createAuthComponentFromFlow = (
     case EmbeddedFlowComponentType.OuSelect: {
       logger.warn('OU_SELECT component type is not supported. Skipping render.');
       return null;
+    }
+
+    case EmbeddedFlowComponentType.UserSelect: {
+      const identifier: string = component.ref!;
+      const value: string = formValues[identifier] || '';
+      const isTouched: boolean = touchedFields[identifier] || false;
+      const error: string = isTouched ? formErrors[identifier] : undefined!;
+
+      if (!options.fetchUsers) {
+        logger.warn('USER_SELECT is only rendered where a signed-in user is available (InviteUser). Skipping render.');
+        return null;
+      }
+
+      return (
+        <BaseUserSelect
+          key={key}
+          id={component.id}
+          name={identifier}
+          component={component}
+          label={resolve(component.label) || ''}
+          placeholder={resolve(component.placeholder)}
+          required={component.required}
+          value={value}
+          error={error}
+          fetchUsers={options.fetchUsers}
+          onChange={(e: {target: {value: string}}): void => onInputChange(identifier, e.target.value)}
+          onBlur={(): void => options.onInputBlur?.(identifier)}
+          className={cx(options.inputClassName, component.classes)}
+        />
+      );
     }
 
     case EmbeddedFlowComponentType.Block: {
@@ -1041,6 +1075,8 @@ export const renderInviteUserComponents = (
       offset: number,
     ) => Promise<OrganizationUnitListResponse>;
     inputClassName?: string;
+    /** Data source for USER_SELECT fields. */
+    fetchUsers?: FetchUsers;
     /** Flow metadata for resolving {{meta(...)}} expressions at render time */
     meta?: FlowMetadataResponse | null;
     onInputBlur?: (name: string) => void;

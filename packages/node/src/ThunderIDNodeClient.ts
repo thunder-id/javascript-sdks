@@ -4,7 +4,9 @@
 import {
   AuthClientConfig,
   ExtendedAuthorizeRequestUrlParams,
+  getUsers,
   IdToken,
+  ManagedUserListResponse,
   OIDCEndpoints,
   resolveResourceEndpoint,
   SessionData,
@@ -222,6 +224,28 @@ class ThunderIDNodeClient<T extends ThunderIDNodeConfig = ThunderIDNodeConfig> e
       },
       payload,
       url: resolveResourceEndpoint('usersMeCredentials', configData),
+    });
+  }
+
+  /**
+   * Retrieves one page of the user directory on behalf of the session identified by `userId`.
+   *
+   * Makes a single request and does not follow `links`. The access token stays on the server.
+   */
+  public async getUsers(
+    options: {filter?: string; limit?: number; offset?: number; signal?: AbortSignal} = {},
+    userId?: string,
+  ): Promise<ManagedUserListResponse> {
+    const configData: AuthClientConfig<T> = await this.getStorageManager().getConfigData();
+    const baseUrl: string | undefined = configData?.baseUrl;
+
+    return getUsers({
+      ...options,
+      baseUrl,
+      headers: {
+        Authorization: `Bearer ${await this.getAccessToken(userId)}`,
+      },
+      url: resolveResourceEndpoint('users', configData),
     });
   }
 }

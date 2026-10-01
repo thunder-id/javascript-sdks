@@ -6,6 +6,8 @@ import type {
   AuthClientConfig,
   FlowMetadataResponse,
   I18nPreferences,
+  PagedSelectErrorResult,
+  PagedSelectPage,
   TokenEndpointAuthMethod,
   User,
   UserProfile,
@@ -100,3 +102,10 @@ export interface ThunderIDAuthState {
   isSignedIn: boolean;
   user: User | null;
 }
+
+/**
+ * Result of `GET /api/auth/users`: one normalized `USER_SELECT` page, or why it could not be loaded.
+ */
+export type ThunderIDGetUsersResult =
+  | {page: PagedSelectPage; success: true}
+  | ({success: false} & PagedSelectErrorResult);

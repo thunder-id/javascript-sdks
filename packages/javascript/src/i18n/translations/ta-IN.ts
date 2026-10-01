@@ -46,6 +46,19 @@ const translations: I18nTranslations = {
   'elements.fields.organization.select.label': 'அமைப்பை தேர்ந்தெடு',
   'elements.fields.organization.select.placeholder': 'அமைப்பை தெரிந்தெடுக்கவும்',
 
+  /* Paged Select */
+  'elements.fields.paged_select.aria_label': 'ஒரு விருப்பத்தைத் தேர்ந்தெடுக்கவும்',
+  'elements.fields.paged_select.empty': 'முடிவுகள் எதுவும் கிடைக்கவில்லை.',
+  'elements.fields.paged_select.load_error': 'விருப்பங்களை ஏற்ற முடியவில்லை.',
+  'elements.fields.paged_select.load_more': 'மேலும் ஏற்றவும்',
+  'elements.fields.paged_select.loaded': '{count} ஏற்றப்பட்டது.',
+  'elements.fields.paged_select.loading': 'ஏற்றுகிறது…',
+  'elements.fields.paged_select.loading_more': 'மேலும் ஏற்றுகிறது…',
+  'elements.fields.paged_select.retry': 'மீண்டும் முயற்சிக்கவும்',
+  'elements.fields.user_select.aria_label': 'ஒரு பயனரைத் தேர்ந்தெடுக்கவும்',
+  'elements.fields.user_select.empty': 'பயனர்கள் எவரும் கிடைக்கவில்லை.',
+  'elements.fields.user_select.loading': 'பயனர்களை ஏற்றுகிறது…',
+
   /* Validation */
   'validations.required.field.error': 'இந்த புலம் தேவை',
   'validation.pattern.invalid': 'இந்த மதிப்பு தேவையான வடிவத்துடன் பொருந்தவில்லை.',

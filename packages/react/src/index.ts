@@ -50,6 +50,9 @@ export * from './hooks/useBrowserUrl';
 export {default as useTranslation} from './hooks/useTranslation';
 export * from './hooks/useTranslation';
 
+export {default as usePagedSelect} from './hooks/usePagedSelect';
+export * from './hooks/usePagedSelect';
+
 export {normalizeFlowResponse, extractErrorMessage} from './utils/flowTransformer';
 
 export {default as useForm} from './hooks/useForm';
@@ -215,6 +218,15 @@ export * from './components/primitives/Select/Select';
 export {default as DatePicker} from './components/primitives/DatePicker/DatePicker';
 export * from './components/primitives/DatePicker/DatePicker';
 
+export {default as PagedSelect} from './components/primitives/PagedSelect/PagedSelect';
+export * from './components/primitives/PagedSelect/PagedSelect';
+
+export {default as UserSelect} from './components/primitives/UserSelect/UserSelect';
+export * from './components/primitives/UserSelect/UserSelect';
+
+export {default as BaseUserSelect} from './components/primitives/UserSelect/BaseUserSelect';
+export * from './components/primitives/UserSelect/BaseUserSelect';
+
 export {default as Checkbox} from './components/primitives/Checkbox/Checkbox';
 export * from './components/primitives/Checkbox/Checkbox';
 
@@ -327,6 +339,21 @@ export {
   type EmbeddedRecoveryFlowInitiateRequest,
   type EmbeddedRecoveryFlowRequest,
   type EmbeddedRecoveryFlowErrorResponse,
+  mapPagedSelectError,
+  toPagedSelectOption,
+  toPagedSelectOptions,
+  toUserSelectOption,
+  toUserSelectPage,
+  UserSelectConstants,
+  type FetchPagedOptions,
+  type FetchUsers,
+  type PagedSelectErrorResult,
+  type PagedSelectOption,
+  type PagedSelectOptionDefaults,
+  type PagedSelectOptionMapping,
+  type PagedSelectPage,
+  type PagedSelectRequest,
+  type UserSelectOptionMapping,
 } from '@thunderid/browser';
 
 export {

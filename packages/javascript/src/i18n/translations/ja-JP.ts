@@ -46,6 +46,19 @@ const translations: I18nTranslations = {
   'elements.fields.organization.select.label': '組織を選択',
   'elements.fields.organization.select.placeholder': '組織を選択してください',
 
+  /* Paged Select */
+  'elements.fields.paged_select.aria_label': 'オプションを選択',
+  'elements.fields.paged_select.empty': '該当する結果がありません。',
+  'elements.fields.paged_select.load_error': 'オプションの読み込みに失敗しました。',
+  'elements.fields.paged_select.load_more': 'さらに読み込む',
+  'elements.fields.paged_select.loaded': '{count} 件読み込みました。',
+  'elements.fields.paged_select.loading': '読み込み中…',
+  'elements.fields.paged_select.loading_more': 'さらに読み込み中…',
+  'elements.fields.paged_select.retry': '再試行',
+  'elements.fields.user_select.aria_label': 'ユーザーを選択',
+  'elements.fields.user_select.empty': '該当するユーザーが見つかりません。',
+  'elements.fields.user_select.loading': 'ユーザーを読み込み中…',
+
   /* Validation */
   'validations.required.field.error': 'この項目は必須です',
   'validation.pattern.invalid': 'この値は必要な形式と一致しません。',

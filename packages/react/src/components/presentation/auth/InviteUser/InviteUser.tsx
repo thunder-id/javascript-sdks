@@ -3,6 +3,7 @@
 
 import {
   EmbeddedFlowType,
+  FetchUsers,
   getOrganizationUnitChildren,
   OrganizationUnitListResponse,
   resolveResourceEndpoint,
@@ -11,6 +12,7 @@ import {FC, ReactElement, ReactNode, useCallback} from 'react';
 // eslint-disable-next-line import/no-named-as-default
 import BaseInviteUser, {BaseInviteUserRenderProps, InviteUserFlowResponse} from './BaseInviteUser';
 import useThunderID from '../../../../contexts/ThunderID/useThunderID';
+import useFetchUsers from '../../../../hooks/useFetchUsers';
 
 /**
  * Render props for InviteUser (re-exported for convenience).
@@ -181,6 +183,8 @@ const InviteUser: FC<InviteUserProps> = ({
     [baseUrl, getAccessToken],
   );
 
+  const fetchUsers: FetchUsers = useFetchUsers();
+
   return (
     <BaseInviteUser
       onInitialize={handleInitialize}
@@ -189,6 +193,7 @@ const InviteUser: FC<InviteUserProps> = ({
       onFlowChange={onFlowChange}
       className={className}
       fetchOrganizationUnitChildren={fetchOrganizationUnitChildren}
+      fetchUsers={fetchUsers}
       isInitialized={isInitialized}
       size={size}
       variant={variant}

@@ -20,6 +20,7 @@ import {
   ConsentPurposeDecision,
   ConsentAttributeElement,
 } from '@thunderid/browser';
+import type {FetchUsers} from '@thunderid/browser';
 import DOMPurify from 'dompurify';
 import {h, type VNode} from 'vue';
 import {createVueLogger} from '../../../utils/logger';
@@ -32,6 +33,7 @@ import Button from '../../primitives/Button';
 import Divider from '../../primitives/Divider';
 import Select from '../../primitives/Select/Select';
 import Typography from '../../primitives/Typography';
+import BaseUserSelect from '../../primitives/UserSelect/BaseUserSelect';
 
 const logger: ReturnType<typeof createVueLogger> = createVueLogger('AuthOptionFactory');
 
@@ -139,6 +141,8 @@ const createAuthComponentFromFlow = (
   options: {
     additionalData?: Record<string, any>;
     buttonClassName?: string;
+    /** Data source for USER_SELECT fields. */
+    fetchUsers?: FetchUsers;
     inStack?: boolean;
     inputClassName?: string;
     isTimeoutDisabled?: boolean;
@@ -375,6 +379,33 @@ const createAuthComponentFromFlow = (
         onBlur: () => options.onInputBlur?.(identifier),
         'onUpdate:modelValue': (val: string) => onInputChange(identifier, val),
         options: selectOptions,
+        placeholder: resolve(component.placeholder),
+        required: component.required,
+      });
+    }
+
+    case EmbeddedFlowComponentType.UserSelect: {
+      if (!options.fetchUsers) {
+        logger.warn('USER_SELECT is only rendered where a signed-in user is available (InviteUser). Skipping render.');
+        return null;
+      }
+
+      const identifier: string = component.ref ?? '';
+      const value: string = formValues[identifier] || '';
+      const isTouched: boolean = touchedFields[identifier] || false;
+      const error: string | undefined = isTouched ? formErrors[identifier] : undefined;
+
+      return h(BaseUserSelect, {
+        class: options.inputClassName,
+        component,
+        error,
+        fetchUsers: options.fetchUsers,
+        key,
+        label: resolve(component.label) || '',
+        modelValue: value,
+        name: identifier,
+        onBlur: () => options.onInputBlur?.(identifier),
+        'onUpdate:modelValue': (val: string) => onInputChange(identifier, val),
         placeholder: resolve(component.placeholder),
         required: component.required,
       });
@@ -650,6 +681,8 @@ export const renderInviteUserComponents = (
   options?: {
     additionalData?: Record<string, any>;
     buttonClassName?: string;
+    /** Data source for USER_SELECT fields. */
+    fetchUsers?: FetchUsers;
     inputClassName?: string;
     isTimeoutDisabled?: boolean;
     meta?: FlowMetadataResponse | null;

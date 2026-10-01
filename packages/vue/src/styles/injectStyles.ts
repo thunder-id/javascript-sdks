@@ -37,6 +37,7 @@ import DATE_PICKER_CSS from '../components/primitives/DatePicker/DatePicker.css'
 import DIVIDER_CSS from '../components/primitives/Divider/Divider.css';
 import LOGO_CSS from '../components/primitives/Logo/Logo.css';
 import OTP_FIELD_CSS from '../components/primitives/OtpField/OtpField.css';
+import PAGED_SELECT_CSS from '../components/primitives/PagedSelect/PagedSelect.css';
 import PASSWORD_FIELD_CSS from '../components/primitives/PasswordField/PasswordField.css';
 import SELECT_CSS from '../components/primitives/Select/Select.css';
 import SPINNER_CSS from '../components/primitives/Spinner/Spinner.css';
@@ -62,6 +63,7 @@ const STYLES: string = [
   TEXT_FIELD_CSS,
   PASSWORD_FIELD_CSS,
   SELECT_CSS,
+  PAGED_SELECT_CSS,
   CHECKBOX_CSS,
   DATE_PICKER_CSS,
   OTP_FIELD_CSS,

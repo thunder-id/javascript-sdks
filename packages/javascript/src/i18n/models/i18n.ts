@@ -46,6 +46,19 @@ export interface I18nTranslations {
   'elements.fields.organization.select.label': string;
   'elements.fields.organization.select.placeholder': string;
 
+  /* Paged Select */
+  'elements.fields.paged_select.aria_label': string;
+  'elements.fields.paged_select.empty': string;
+  'elements.fields.paged_select.load_error': string;
+  'elements.fields.paged_select.load_more': string;
+  'elements.fields.paged_select.loaded': string;
+  'elements.fields.paged_select.loading': string;
+  'elements.fields.paged_select.loading_more': string;
+  'elements.fields.paged_select.retry': string;
+  'elements.fields.user_select.aria_label': string;
+  'elements.fields.user_select.empty': string;
+  'elements.fields.user_select.loading': string;
+
   /* Validation */
   'validations.required.field.error': string;
   'validation.pattern.invalid': string;

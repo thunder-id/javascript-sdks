@@ -22,6 +22,7 @@ describe('resolveResourceEndpoint', (): void => {
       endpoints: {
         flowExecute: 'https://rs.example.com/flow/execute',
         flowMeta: 'https://rs.example.com/flow/meta',
+        users: 'https://rs.example.com/users',
         usersMe: 'https://rs.example.com/users/me',
         usersMeMeta: 'https://rs.example.com/users/me/meta',
       },
@@ -29,6 +30,7 @@ describe('resolveResourceEndpoint', (): void => {
 
     expect(resolveResourceEndpoint('flowExecute', config)).toBe('https://rs.example.com/flow/execute');
     expect(resolveResourceEndpoint('flowMeta', config)).toBe('https://rs.example.com/flow/meta');
+    expect(resolveResourceEndpoint('users', config)).toBe('https://rs.example.com/users');
     expect(resolveResourceEndpoint('usersMe', config)).toBe('https://rs.example.com/users/me');
     expect(resolveResourceEndpoint('usersMeMeta', config)).toBe('https://rs.example.com/users/me/meta');
   });

@@ -32,6 +32,7 @@ const createAuthenticatedFetcher =
         data: typeof config.body === 'string' ? (JSON.parse(config.body) as unknown) : undefined,
         headers: config.headers as Record<string, string>,
         method: config.method ?? 'GET',
+        signal: config.signal,
         url,
       } as HttpRequestConfig);
 

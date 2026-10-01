@@ -62,4 +62,21 @@ describe('createHttpClientFetcher', () => {
 
     expect(getInstanceSpy).toHaveBeenCalledWith(3);
   });
+
+  it('forwards the caller-supplied AbortSignal so cancellation reaches the underlying request', async () => {
+    mockRequest.mockResolvedValueOnce({data: {ok: true}, status: 200, statusText: 'OK'});
+    const controller = new AbortController();
+
+    await createHttpClientFetcher()('https://localhost:8090/x', {method: 'POST', signal: controller.signal});
+
+    expect(mockRequest).toHaveBeenCalledWith(expect.objectContaining({signal: controller.signal}));
+  });
+
+  it('does not attach a signal when the caller did not supply one', async () => {
+    mockRequest.mockResolvedValueOnce({data: {ok: true}, status: 200, statusText: 'OK'});
+
+    await createHttpClientFetcher()('https://localhost:8090/x', {method: 'POST'});
+
+    expect(mockRequest).toHaveBeenCalledWith(expect.objectContaining({signal: undefined}));
+  });
 });

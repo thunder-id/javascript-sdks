@@ -27,6 +27,7 @@ const NuxtAPIRoutes: {
   USER: string;
   USER_CREDENTIALS: string;
   USER_PROFILE: string;
+  USERS: string;
 } = {
   /** Resolves the OAuth callback and completes sign-in. */
   CALLBACK: '/api/auth/callback',
@@ -48,6 +49,8 @@ const NuxtAPIRoutes: {
   USER_CREDENTIALS: '/api/auth/user/credentials',
   /** Fetches (GET) and updates (PATCH) the user profile. */
   USER_PROFILE: '/api/auth/user/profile',
+  /** Loads one page of the user directory for a `USER_SELECT` picker, using the signed-in session. */
+  USERS: '/api/auth/users',
 } as const;
 
 export default NuxtAPIRoutes;

@@ -1,7 +1,7 @@
 // Copyright 2025-2026 The ThunderID Authors
 // SPDX-License-Identifier: Apache-2.0
 
-import {EmbeddedFlowType, FlowMetadataResponse, withVendorCSSClassPrefix} from '@thunderid/browser';
+import {EmbeddedFlowType, FetchUsers, FlowMetadataResponse, withVendorCSSClassPrefix} from '@thunderid/browser';
 import {
   type Component,
   type PropType,
@@ -93,6 +93,11 @@ const BaseInviteUser: Component = defineComponent({
   name: 'BaseInviteUser',
   props: {
     className: {default: '', type: String},
+    /**
+     * Function to load one page of users.
+     * When provided, enables the user picker for USER_SELECT components.
+     */
+    fetchUsers: {default: undefined, type: Function as PropType<FetchUsers>},
     isInitialized: {default: true, type: Boolean},
     onError: {default: undefined, type: Function as PropType<(error: Error) => void>},
     onFlowChange: {
@@ -182,7 +187,10 @@ const BaseInviteUser: Component = defineComponent({
       const validateComponents = (comps: any[]): void => {
         comps.forEach((comp: any) => {
           if (
-            (comp.type === 'TEXT_INPUT' || comp.type === 'EMAIL_INPUT' || comp.type === 'SELECT') &&
+            (comp.type === 'TEXT_INPUT' ||
+              comp.type === 'EMAIL_INPUT' ||
+              comp.type === 'SELECT' ||
+              comp.type === 'USER_SELECT') &&
             comp.required &&
             comp.ref
           ) {
@@ -494,6 +502,7 @@ const BaseInviteUser: Component = defineComponent({
               resetForm,
               handleInputChange,
               {
+                fetchUsers: props.fetchUsers,
                 meta,
                 onInputBlur: handleInputBlur,
                 onSubmit: handleSubmit,
