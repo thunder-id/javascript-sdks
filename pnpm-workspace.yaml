@@ -25,16 +25,25 @@ overrides:
   # 6.16.0.
   body-parser>qs: 6.16.0
   # JUSTIFICATION: Fixes GHSA-3jxr-9vmj-r5cp / GHSA-mh99-v99m-4gvg / GHSA-rgw5-rvv9-x895 —
-  # brace-expansion DoS via exponential/unbounded expansion of `{}` groups. Three major lines are
+  # brace-expansion DoS via exponential/unbounded expansion of `{}` groups — plus GHSA-qhr7-859c-m2p7
+  # / GHSA-6j4f-fj2g-mc7p (2026-10-02), stack exhaustion via uncontrolled recursion on nested brace
+  # groups and in `parseCommaParts`, which need >=1.1.20 / >=2.1.6 / >=5.0.11, above the previous
+  # 1.1.18 / 2.1.4 / 5.0.9 pins. Three major lines are
   # pulled in transitively, each needing its own pin: v1 via the root `@thunderid/eslint-plugin`
   # toolchain (eslint > minimatch > brace-expansion), v2 via packages/nuxt and packages/vue's
   # `@vue/test-utils` (js-beautify > glob > minimatch > brace-expansion), and v5 via the root
   # `rimraf` clean scripts (rimraf > glob > minimatch > brace-expansion). Upstream minimatch@latest
   # already depends on brace-expansion ^5.0.8, so the v5 pin can likely be dropped on the next
   # `pnpm update` once eslint/js-beautify's own lockfile entries catch up too.
-  brace-expansion@1: 1.1.18
-  brace-expansion@2: 2.1.4
-  brace-expansion@5: 5.0.9
+  brace-expansion@1: 1.1.21
+  brace-expansion@2: 2.1.7
+  brace-expansion@5: 5.0.12
+  # JUSTIFICATION: Fixes GHSA-j22f-vq7h-c4qm / GHSA-mcm9-63f2-9j32 / GHSA-x5rw-q4pp-hg5g — devalue
+  # `stringify`/`uneval` serializing shared memory, quadratic expansion of repeated primitive
+  # strings in `uneval`, and an unhandled rejection from `stringifyAsync`. Transitive via
+  # packages/nuxt and samples/nuxt/quickstart's `nuxt` and `@nuxt/nitro-server`. Added 2026-10-02;
+  # remove once nuxt's own lockfile entry resolves devalue >=5.9.3 without the override.
+  devalue: 5.9.4
   # JUSTIFICATION: Fixes GHSA-52cp-r559-cp3m / GHSA-5p4m-2wfm-xmqj — js-yaml quadratic CPU
   # consumption via YAML merge-key chains and `!!omap` resolution — plus GHSA-2883-xcg3-v3hh
   # (2026-09-11), where `maxTotalMergeKeys` fails to bound CPU use for empty merge sources, which
@@ -95,6 +104,13 @@ auditConfig:
     # (chrome87/edge88/firefox78/safari14). Revisit once esbuild backports the fix to 0.27.x or
     # the sample's target list is modernized.
     - GHSA-g7r4-m6w7-qqqr
+    # JUSTIFICATION: GHSA-86w9-cpqp-85rv — node-forge accepts extra nested DigestAlgorithm elements
+    # during RSA PKCS#1 v1.5 signature verification. No patched release exists (1.4.0 is the
+    # latest and is affected). Transitive via nuxt's dev tooling (`@nuxt/cli` / `nitropack` >
+    # `listhen` > `node-forge`), which only uses it to generate RSA keys and self-signed
+    # certificates for the local HTTPS dev server — it never verifies signatures. Added
+    # 2026-10-02; revisit once node-forge publishes a fixed release.
+    - GHSA-86w9-cpqp-85rv
 
 catalog:
   '@emotion/css': 11.13.5
