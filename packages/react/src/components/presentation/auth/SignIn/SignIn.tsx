@@ -16,7 +16,7 @@ import {
   Preferences,
   logger,
 } from '@thunderid/browser';
-import {FC, ReactElement, useState, useEffect, useRef, ReactNode} from 'react';
+import {FC, ReactElement, useState, useEffect, useMemo, useRef, ReactNode} from 'react';
 // eslint-disable-next-line import/no-named-as-default
 import BaseSignIn, {BaseSignInProps} from './BaseSignIn';
 import useThunderID from '../../../../contexts/ThunderID/useThunderID';
@@ -262,7 +262,15 @@ const SignIn: FC<SignInProps> = ({
   const challengeTokenRef: any = useRef<string | null>(null);
   const [isStorageReady, setIsStorageReady] = useState(false);
   const [isFlowInitialized, setIsFlowInitialized] = useState(false);
-  const [flowError, setFlowError] = useState<Error | null>(null);
+  // Raw source behind the banner (flow response or thrown error), stored un-resolved
+  // so the message re-derives with the current translator on language change.
+  const [flowErrorSource, setFlowErrorSource] = useState<unknown>(null);
+  // Derived banner error. extractErrorMessage is pure over (source, t) and t's
+  // identity changes on language switch, so this recomputes automatically.
+  const flowError: Error | null = useMemo(
+    () => (flowErrorSource == null ? null : new Error(extractErrorMessage(flowErrorSource, t))),
+    [flowErrorSource, t],
+  );
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isTimeoutDisabled, setIsTimeoutDisabled] = useState<boolean>(false);
   const [passkeyState, setPasskeyState] = useState<PasskeyState>({
@@ -429,10 +437,10 @@ const SignIn: FC<SignInProps> = ({
    * Set error state and call onError callback.
    * Ensures isFlowInitialized is true so errors can be displayed in the UI.
    */
-  const setError = (error: Error): void => {
-    setFlowError(error);
+  const setError = (source: unknown): void => {
+    setFlowErrorSource(source);
     setIsFlowInitialized(true);
-    onError?.(error);
+    onError?.(source instanceof Error ? source : new Error(extractErrorMessage(source, t)));
   };
 
   /**
@@ -493,12 +501,12 @@ const SignIn: FC<SignInProps> = ({
         setExecutionId(response.executionId);
         await setChallengeToken(response.challengeToken ?? null);
         setIsFlowInitialized(true);
-        setFlowError(new Error(extractErrorMessage(response, t)));
+        setFlowErrorSource(response);
         return true;
       }
       // Terminal: backend invalidated the session — clear all state.
       await clearFlowState();
-      setError(new Error(extractErrorMessage(response, t)));
+      setError(response);
       cleanupFlowUrlParams();
       return true;
     }
@@ -578,7 +586,7 @@ const SignIn: FC<SignInProps> = ({
     }
 
     try {
-      setFlowError(null);
+      setFlowErrorSource(null);
 
       let response: EmbeddedSignInFlowResponse;
 
@@ -677,7 +685,7 @@ const SignIn: FC<SignInProps> = ({
       const err: any = error;
       await clearFlowState();
 
-      setError(err instanceof ThunderIDRuntimeError ? err : new Error(extractErrorMessage(err, t)));
+      setError(err);
       initializationAttemptedRef.current = false;
     }
   };
@@ -816,7 +824,7 @@ const SignIn: FC<SignInProps> = ({
 
     try {
       setIsSubmitting(true);
-      setFlowError(null);
+      setFlowErrorSource(null);
       // Clear any field errors from the previous response before the new round-trip.
       setServerFieldErrors(null);
 
@@ -897,14 +905,14 @@ const SignIn: FC<SignInProps> = ({
 
         // Display error from INCOMPLETE response
         if ((response as any)?.error) {
-          setFlowError(new Error(extractErrorMessage(response, t)));
+          setFlowErrorSource(response);
         }
       }
     } catch (error) {
       const err: any = error;
       await clearFlowState();
 
-      setError(err instanceof ThunderIDRuntimeError ? err : new Error(extractErrorMessage(err, t)));
+      setError(err);
       return;
     } finally {
       setIsSubmitting(false);
@@ -1047,8 +1055,7 @@ const SignIn: FC<SignInProps> = ({
       })
       .catch((error: any) => {
         setPasskeyState((prev: any) => ({...prev, error: error as Error, isActive: false}));
-        setFlowError(error as Error);
-        onError?.(error as Error);
+        setError(error);
       });
   }, [passkeyState.isActive, passkeyState.challenge, passkeyState.creationOptions, passkeyState.executionId]);
 
