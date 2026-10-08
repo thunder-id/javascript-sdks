@@ -42,6 +42,12 @@ const handleOAuthCallbackAction = async (
 
     const thunderIDClient = getClient();
 
+    // A server action can run in a module context that no provider render has initialized, for
+    // example after the dev server recompiles, so initialize from the environment first.
+    if (!thunderIDClient.isInitialized) {
+      await thunderIDClient.initialize({} as ThunderIDNextConfig);
+    }
+
     if (!thunderIDClient.isInitialized) {
       return {
         error: 'ThunderID client is not initialized',
