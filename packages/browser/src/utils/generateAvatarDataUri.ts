@@ -30,6 +30,23 @@ const AVATAR_PALETTES: [string, string][] = [
  */
 export const AVATAR_GRADIENT_COUNT: number = AVATAR_PALETTES.length;
 
+const XML_ESCAPES: Record<string, string> = {'"': '&quot;', '&': '&amp;', "'": '&apos;', '<': '&lt;', '>': '&gt;'};
+
+/**
+ * Escapes a caller-supplied value for interpolation into SVG text.
+ */
+const escapeXml = (value: string): string => value.replace(/["&'<>]/g, (ch: string) => XML_ESCAPES[ch]);
+
+/**
+ * Encodes an SVG document as a data URI. Lone UTF-16 surrogates are replaced with U+FFFD
+ * first, since `encodeURIComponent` throws a `URIError` on them. `Array.from` iterates by
+ * code point, so a surrogate it yields on its own is unpaired.
+ */
+const toSvgDataUri = (svg: string): string =>
+  `data:image/svg+xml,${encodeURIComponent(
+    Array.from(svg, (ch: string) => (ch.length === 1 && ch >= '\uD800' && ch <= '\uDFFF' ? '\uFFFD' : ch)).join(''),
+  )}`;
+
 /**
  * Fills in `params.content` when the spec itself didn't carry one, deriving it from a raw
  * seed name (e.g. an app or user display name) — extracting initials for letter variants,
@@ -96,13 +113,17 @@ const generateGradientAvatar = ({shape, variant, content, colors, bg}: AvatarPar
   let text = '';
   if (variant !== 'blank') {
     const letterCount: 1 | 2 = variant === 'one_letter' ? 1 : 2;
-    const initials: string = (content || 'A').toUpperCase().slice(0, letterCount);
+    const initials: string = escapeXml(
+      Array.from((content || 'A').toUpperCase())
+        .slice(0, letterCount)
+        .join(''),
+    );
     const fontSize: number = letterCount === 1 ? 46 : 34;
     text = `<text x="50" y="64" font-family="Helvetica,Arial,sans-serif" font-weight="700" font-size="${fontSize}" text-anchor="middle" fill="#fff">${initials}</text>`;
   }
 
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">${defs}${shapeMarkup(shape, background)}${text}</svg>`;
-  return `data:image/svg+xml,${encodeURIComponent(svg)}`;
+  return toSvgDataUri(svg);
 };
 
 /**
@@ -119,7 +140,7 @@ const generateAnonymousAnimalAvatar = ({shape, content, bg}: AvatarParams): stri
   const color: string = bg ?? icon.color;
   const markup: string = icon.markup.replaceAll('%COLOR%', color);
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">${shapeMarkup(shape, color)}${markup}</svg>`;
-  return `data:image/svg+xml,${encodeURIComponent(svg)}`;
+  return toSvgDataUri(svg);
 };
 
 /**
@@ -136,7 +157,7 @@ const generateAnonymousEntityAvatar = ({shape, content, bg}: AvatarParams): stri
   const color: string = bg ?? icon.color;
   const markup: string = icon.markup.replaceAll('%COLOR%', color);
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">${shapeMarkup(shape, color)}${markup}</svg>`;
-  return `data:image/svg+xml,${encodeURIComponent(svg)}`;
+  return toSvgDataUri(svg);
 };
 
 /**
