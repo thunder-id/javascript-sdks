@@ -156,4 +156,58 @@ describe('SignUp', () => {
     });
     expect(mockSignUp).toHaveBeenCalledTimes(2);
   });
+
+  it('follows a REDIRECTION that the provider callback leads into', async () => {
+    // Stand-ins for the provider popups. The callback is picked up by polling the popup URL, as it is
+    // when the provider redirects back to this origin.
+    const firstPopup = {close: vi.fn(), closed: false, location: {href: 'about:blank'}};
+    const secondPopup = {close: vi.fn(), closed: false, location: {href: 'about:blank'}};
+    const open = vi
+      .spyOn(window, 'open')
+      .mockReturnValueOnce(firstPopup as unknown as Window)
+      .mockReturnValueOnce(secondPopup as unknown as Window);
+
+    mockSignUp.mockResolvedValueOnce({executionId: 'exec-1', flowStatus: 'INCOMPLETE'});
+    const captured = renderSignUp();
+    await waitFor(() => {
+      expect(mockSignUp).toHaveBeenCalledTimes(1);
+    });
+
+    mockSignUp.mockResolvedValueOnce({
+      data: {redirectURL: 'https://idp.example.com/authorize?state=s1'},
+      executionId: 'exec-1',
+      flowStatus: 'INCOMPLETE',
+      type: 'REDIRECTION',
+    });
+    await act(async () => {
+      await captured.submit?.({id: 'google'}, {}, true);
+    });
+    expect(open).toHaveBeenCalledWith('https://idp.example.com/authorize?state=s1', 'oauth_popup', expect.any(String));
+
+    // The callback answers with the account-linking re-authentication: a second redirect.
+    mockSignUp.mockResolvedValueOnce({
+      data: {redirectURL: 'https://idp.example.com/authorize?state=s2'},
+      executionId: 'exec-1',
+      flowStatus: 'INCOMPLETE',
+      type: 'REDIRECTION',
+    });
+    firstPopup.location.href = `${window.location.origin}/callback?code=c1&state=s1`;
+
+    await waitFor(
+      () => {
+        expect(open).toHaveBeenCalledWith(
+          'https://idp.example.com/authorize?state=s2',
+          'oauth_popup',
+          expect.any(String),
+        );
+      },
+      {timeout: 3000},
+    );
+    expect(mockSignUp).toHaveBeenLastCalledWith(expect.objectContaining({inputs: {code: 'c1', state: 's1'}}));
+    expect(firstPopup.close).toHaveBeenCalled();
+    expect(secondPopup.close).not.toHaveBeenCalled();
+
+    secondPopup.closed = true;
+    open.mockRestore();
+  });
 });

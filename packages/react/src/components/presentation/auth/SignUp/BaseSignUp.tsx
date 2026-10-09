@@ -618,6 +618,57 @@ const BaseSignUpContent: FC<BaseSignUpProps> = ({
       };
 
       /**
+       * Continue the flow with the provider's callback, then close the popup. The popup is closed
+       * before the response is followed, because a chained REDIRECTION (e.g. the account-linking
+       * re-authentication) reuses the same `oauth_popup` window name and must not be closed by this one.
+       */
+      const continueWithCode = async (code: string, state: string): Promise<void> => {
+        const payload: EmbeddedSignUpFlowRequest = {
+          ...(currentFlow?.executionId && {executionId: currentFlow.executionId}),
+          inputs: {
+            code,
+            state,
+          },
+          ...(challengeTokenRef.current ? {challengeToken: challengeTokenRef.current} : {}),
+        };
+
+        try {
+          const continueResponse: any = await onSubmit!(payload);
+          popup.close();
+          cleanup();
+          await setChallengeToken(continueResponse.challengeToken ?? null);
+          onFlowChange?.(continueResponse);
+
+          if (continueResponse.flowStatus === EmbeddedSignUpFlowStatus.Error) {
+            handleError(continueResponse);
+            onError?.(continueResponse);
+          } else if (continueResponse.flowStatus === EmbeddedSignUpFlowStatus.Complete) {
+            handleFlowCompletion(continueResponse as EmbeddedSignUpFlowResponse);
+          } else if (continueResponse.flowStatus === EmbeddedSignUpFlowStatus.Incomplete) {
+            const normalizedContinueResponse: any = normalizeFlowResponseLocal(continueResponse);
+
+            // The provider callback can lead straight into another redirect, so follow it the same way.
+            if (handleRedirectionIfNeeded(normalizedContinueResponse)) {
+              return;
+            }
+
+            setCurrentFlow(normalizedContinueResponse);
+            setupFormFields(normalizedContinueResponse);
+
+            // Display error from INCOMPLETE response
+            if (normalizedContinueResponse?.error) {
+              handleError(normalizedContinueResponse);
+            }
+          }
+        } catch (err) {
+          handleError(err);
+          onError?.(err as Error);
+          popup.close();
+          cleanup();
+        }
+      };
+
+      /**
        * Add an event listener to the window to capture the message from the popup
        */
       messageHandler = async function messageEventHandler(event: MessageEvent): Promise<void> {
@@ -640,45 +691,7 @@ const BaseSignUpContent: FC<BaseSignUpProps> = ({
 
         if (code && state) {
           hasProcessedCallback = true;
-
-          const payload: EmbeddedSignUpFlowRequest = {
-            ...(currentFlow?.executionId && {executionId: currentFlow.executionId}),
-            inputs: {
-              code,
-              state,
-            },
-            ...(challengeTokenRef.current ? {challengeToken: challengeTokenRef.current} : {}),
-          };
-
-          try {
-            const continueResponse: any = await onSubmit!(payload);
-            await setChallengeToken(continueResponse.challengeToken ?? null);
-            onFlowChange?.(continueResponse);
-
-            if (continueResponse.flowStatus === EmbeddedSignUpFlowStatus.Error) {
-              handleError(continueResponse);
-              onError?.(continueResponse);
-            } else if (continueResponse.flowStatus === EmbeddedSignUpFlowStatus.Complete) {
-              handleFlowCompletion(continueResponse as EmbeddedSignUpFlowResponse);
-            } else if (continueResponse.flowStatus === EmbeddedSignUpFlowStatus.Incomplete) {
-              const normalizedContinueResponse: any = normalizeFlowResponseLocal(continueResponse);
-              setCurrentFlow(normalizedContinueResponse);
-              setupFormFields(normalizedContinueResponse);
-
-              // Display error from INCOMPLETE response
-              if (normalizedContinueResponse?.error) {
-                handleError(normalizedContinueResponse);
-              }
-            }
-
-            popup.close();
-            cleanup();
-          } catch (err) {
-            handleError(err);
-            onError?.(err as Error);
-            popup.close();
-            cleanup();
-          }
+          await continueWithCode(code, state);
         }
       };
 
@@ -721,42 +734,7 @@ const BaseSignUpContent: FC<BaseSignUpProps> = ({
               }
 
               if (code && state) {
-                const payload: EmbeddedSignUpFlowRequest = {
-                  ...(currentFlow?.executionId && {executionId: currentFlow.executionId}),
-                  inputs: {
-                    code,
-                    state,
-                  },
-                  ...(challengeTokenRef.current ? {challengeToken: challengeTokenRef.current} : {}),
-                };
-
-                try {
-                  const continueResponse: any = await onSubmit!(payload);
-                  await setChallengeToken(continueResponse.challengeToken ?? null);
-                  onFlowChange?.(continueResponse);
-
-                  if (continueResponse.flowStatus === EmbeddedSignUpFlowStatus.Error) {
-                    handleError(continueResponse);
-                    onError?.(continueResponse);
-                  } else if (continueResponse.flowStatus === EmbeddedSignUpFlowStatus.Complete) {
-                    handleFlowCompletion(continueResponse as EmbeddedSignUpFlowResponse);
-                  } else if (continueResponse.flowStatus === EmbeddedSignUpFlowStatus.Incomplete) {
-                    const normalizedContinueResponse: any = normalizeFlowResponseLocal(continueResponse);
-                    setCurrentFlow(normalizedContinueResponse);
-                    setupFormFields(normalizedContinueResponse);
-
-                    // Display error from INCOMPLETE response
-                    if (normalizedContinueResponse?.error) {
-                      handleError(normalizedContinueResponse);
-                    }
-                  }
-
-                  popup.close();
-                } catch (err) {
-                  handleError(err);
-                  onError?.(err as Error);
-                  popup.close();
-                }
+                await continueWithCode(code, state);
               }
             }
           } catch (e) {
