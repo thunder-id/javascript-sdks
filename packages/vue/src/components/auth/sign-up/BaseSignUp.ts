@@ -323,11 +323,18 @@ const BaseSignUp: Component = defineComponent({
 
         try {
           const continueResponse: any = await props.onSubmit(payload);
+          // Closed before the response is followed: a chained REDIRECTION (e.g. the account-linking
+          // re-authentication) reuses the same `oauth_popup` window name and must not be closed by this one.
+          popup.close();
+          cleanup();
           props.onFlowChange?.(continueResponse);
 
           if (continueResponse.flowStatus === EmbeddedSignUpFlowStatus.Complete) {
             props.onComplete?.(continueResponse);
           } else if (continueResponse.flowStatus === EmbeddedSignUpFlowStatus.Incomplete) {
+            // The provider callback can lead straight into another redirect, so follow it the same way.
+            if (handleRedirectionIfNeeded(continueResponse)) return;
+
             currentFlow.value = continueResponse;
             setupFormFields(continueResponse);
 
@@ -336,8 +343,6 @@ const BaseSignUp: Component = defineComponent({
               handleError(continueResponse);
             }
           }
-          popup.close();
-          cleanup();
         } catch (err) {
           handleError(err);
           props.onError?.(err as Error);
@@ -655,6 +660,7 @@ const BaseSignUp: Component = defineComponent({
               resetForm,
               handleInputChange,
               {
+                additionalData: currentFlow.value.data?.additionalData,
                 buttonClassName: props.buttonClassName,
                 inputClassName: props.inputClassName,
                 meta,

@@ -143,6 +143,11 @@ export interface EmbeddedSignUpFlowResponse extends ExtendedEmbeddedSignUpFlowRe
     }[];
 
     /**
+     * Additional data from the flow step.
+     */
+    additionalData?: Record<string, unknown>;
+
+    /**
      * Input fields required for the current step of the sign-up flow.
      */
     inputs?: {

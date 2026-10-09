@@ -104,6 +104,37 @@ describe('SignUp', () => {
     expect(onComplete.mock.calls[0][0]).toMatchObject({flowStatus: 'COMPLETE', assertion: 'a-jwt'});
   });
 
+  it('renders a KEY_VALUE_LIST from the step additionalData', async () => {
+    mockSignUp.mockResolvedValueOnce({
+      data: {
+        additionalData: {
+          linkingPromptDetails: JSON.stringify([{label: 'Email', value: 'alice@example.com'}]),
+        },
+        meta: {
+          components: [{category: 'DISPLAY', id: 'kv_1', source: 'linkingPromptDetails', type: 'KEY_VALUE_LIST'}],
+        },
+      },
+      executionId: 'exec-1',
+      flowStatus: 'INCOMPLETE',
+      type: 'VIEW',
+    });
+
+    render(
+      <ThunderIDContext.Provider value={thunderIDContext}>
+        <I18nProvider>
+          <ThemeProvider>
+            <SignUp shouldRedirectAfterSignUp={false} />
+          </ThemeProvider>
+        </I18nProvider>
+      </ThunderIDContext.Provider>,
+    );
+
+    await waitFor(() => {
+      expect(document.querySelector('dd')?.textContent).toBe('alice@example.com');
+    });
+    expect(document.querySelector('dt')?.textContent).toBe('Email');
+  });
+
   it('refuses to submit again once the flow has completed', async () => {
     mockSignUp.mockResolvedValueOnce({executionId: 'exec-1', flowStatus: 'INCOMPLETE'});
 
@@ -124,5 +155,59 @@ describe('SignUp', () => {
       await captured.submit?.({id: 'continue'}, {}, true);
     });
     expect(mockSignUp).toHaveBeenCalledTimes(2);
+  });
+
+  it('follows a REDIRECTION that the provider callback leads into', async () => {
+    // Stand-ins for the provider popups. The callback is picked up by polling the popup URL, as it is
+    // when the provider redirects back to this origin.
+    const firstPopup = {close: vi.fn(), closed: false, location: {href: 'about:blank'}};
+    const secondPopup = {close: vi.fn(), closed: false, location: {href: 'about:blank'}};
+    const open = vi
+      .spyOn(window, 'open')
+      .mockReturnValueOnce(firstPopup as unknown as Window)
+      .mockReturnValueOnce(secondPopup as unknown as Window);
+
+    mockSignUp.mockResolvedValueOnce({executionId: 'exec-1', flowStatus: 'INCOMPLETE'});
+    const captured = renderSignUp();
+    await waitFor(() => {
+      expect(mockSignUp).toHaveBeenCalledTimes(1);
+    });
+
+    mockSignUp.mockResolvedValueOnce({
+      data: {redirectURL: 'https://idp.example.com/authorize?state=s1'},
+      executionId: 'exec-1',
+      flowStatus: 'INCOMPLETE',
+      type: 'REDIRECTION',
+    });
+    await act(async () => {
+      await captured.submit?.({id: 'google'}, {}, true);
+    });
+    expect(open).toHaveBeenCalledWith('https://idp.example.com/authorize?state=s1', 'oauth_popup', expect.any(String));
+
+    // The callback answers with the account-linking re-authentication: a second redirect.
+    mockSignUp.mockResolvedValueOnce({
+      data: {redirectURL: 'https://idp.example.com/authorize?state=s2'},
+      executionId: 'exec-1',
+      flowStatus: 'INCOMPLETE',
+      type: 'REDIRECTION',
+    });
+    firstPopup.location.href = `${window.location.origin}/callback?code=c1&state=s1`;
+
+    await waitFor(
+      () => {
+        expect(open).toHaveBeenCalledWith(
+          'https://idp.example.com/authorize?state=s2',
+          'oauth_popup',
+          expect.any(String),
+        );
+      },
+      {timeout: 3000},
+    );
+    expect(mockSignUp).toHaveBeenLastCalledWith(expect.objectContaining({inputs: {code: 'c1', state: 's1'}}));
+    expect(firstPopup.close).toHaveBeenCalled();
+    expect(secondPopup.close).not.toHaveBeenCalled();
+
+    secondPopup.closed = true;
+    open.mockRestore();
   });
 });
