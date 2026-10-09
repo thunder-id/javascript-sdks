@@ -1,7 +1,7 @@
 // Copyright 2026 The ThunderID Authors
 // SPDX-License-Identifier: Apache-2.0
 
-import {render} from '@testing-library/react';
+import {cleanup, fireEvent, render, screen, waitFor} from '@testing-library/react';
 import {
   ConsentConstants,
   createTheme,
@@ -9,10 +9,12 @@ import {
   EmbeddedFlowComponent,
   EmbeddedFlowComponentType,
   EmbeddedFlowEventType,
+  PagedSelectPage,
 } from '@thunderid/browser';
-import {describe, expect, it, vi} from 'vitest';
+import {afterEach, describe, expect, it, vi} from 'vitest';
+import I18nProvider from '../../../../contexts/I18n/I18nProvider';
 import ThemeContext, {ThemeContextValue} from '../../../../contexts/Theme/ThemeContext';
-import {renderSignInComponents} from '../AuthOptionFactory';
+import {renderInviteUserComponents, renderSignInComponents} from '../AuthOptionFactory';
 
 const richTextWithLink = (label: string, action?: {ref: string; eventType?: string}): EmbeddedFlowComponent => ({
   action,
@@ -400,5 +402,105 @@ describe('AuthOptionFactory consent decisions', () => {
     expect(purpose.purposeName).toBe('permissions:app1');
     expect(purpose.elements).toHaveLength(1);
     expect(purpose.elements[0]).toEqual({approved: true, name: 'system'});
+  });
+});
+
+describe('AuthOptionFactory USER_SELECT', () => {
+  afterEach(() => {
+    cleanup();
+  });
+
+  const themeContextValue: ThemeContextValue = {
+    colorScheme: 'light',
+    direction: 'ltr',
+    theme: createTheme(),
+    toggleTheme: vi.fn(),
+  };
+
+  const ownerInput: EmbeddedFlowComponent = {
+    id: 'owner_input',
+    label: 'Owner',
+    placeholder: 'Select an owner',
+    ref: 'owner',
+    required: false,
+    type: EmbeddedFlowComponentType.UserSelect,
+  };
+
+  const usersPage: PagedSelectPage = {
+    items: [
+      {attributes: {username: 'ada'}, display: 'Ada Lovelace', id: 'user-1'},
+      {attributes: {username: 'grace'}, display: 'Grace Hopper', id: 'user-2'},
+    ],
+    nextOffset: null,
+    totalResults: 2,
+  };
+
+  const renderOwnerInput = ({
+    fetchUsers,
+    formErrors = {},
+    onInputChange = vi.fn(),
+    touchedFields = {},
+  }: {
+    fetchUsers?: ReturnType<typeof vi.fn>;
+    formErrors?: Record<string, string>;
+    onInputChange?: (name: string, value: string) => void;
+    touchedFields?: Record<string, boolean>;
+  }): ReturnType<typeof render> => {
+    const elements = renderInviteUserComponents(
+      [ownerInput],
+      {owner: ''},
+      touchedFields,
+      formErrors,
+      false,
+      true,
+      () => undefined,
+      onInputChange,
+      {fetchUsers},
+    );
+
+    return render(
+      <I18nProvider>
+        <ThemeContext.Provider value={themeContextValue}>{elements}</ThemeContext.Provider>
+      </I18nProvider>,
+    );
+  };
+
+  it('renders a labelled picker that requests no users until it is opened', () => {
+    const fetchUsers = vi.fn();
+    renderOwnerInput({fetchUsers});
+
+    expect(screen.getByRole('combobox', {name: /owner/i})).toBeInTheDocument();
+    expect(fetchUsers).not.toHaveBeenCalled();
+  });
+
+  it("loads the first page from the supplied data source and submits the chosen user's ID under the field ref", async () => {
+    const fetchUsers = vi.fn().mockResolvedValue(usersPage);
+    const onInputChange = vi.fn();
+    renderOwnerInput({fetchUsers, onInputChange});
+
+    fireEvent.click(screen.getByRole('combobox', {name: /owner/i}));
+    await waitFor(() => expect(screen.getAllByRole('option')).toHaveLength(2));
+    expect(fetchUsers).toHaveBeenCalledTimes(1);
+    expect(fetchUsers).toHaveBeenCalledWith(expect.objectContaining({limit: 30, offset: 0}));
+
+    fireEvent.click(screen.getByRole('option', {name: 'Grace Hopper'}));
+
+    expect(onInputChange).toHaveBeenCalledWith('owner', 'user-2');
+  });
+
+  it('shows the field error once the field has been touched', () => {
+    renderOwnerInput({
+      fetchUsers: vi.fn(),
+      formErrors: {owner: 'Owner is not valid'},
+      touchedFields: {owner: true},
+    });
+
+    expect(screen.getByText('Owner is not valid')).toBeInTheDocument();
+  });
+
+  it('renders nothing when no data source is supplied', () => {
+    const {container} = renderOwnerInput({});
+
+    expect(container.querySelector('[role="combobox"]')).toBeNull();
   });
 });

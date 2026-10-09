@@ -66,6 +66,7 @@ export {default as ConsentConstants} from './constants/ConsentConstants';
 export {default as ApplicationQueryKeys} from './constants/ApplicationQueryKeys';
 export {default as UserQueryKeys} from './constants/UserQueryKeys';
 export {default as AgentQueryKeys} from './constants/AgentQueryKeys';
+export {default as UserSelectConstants} from './constants/UserSelectConstants';
 
 export {default as ThunderIDError} from './errors/ThunderIDError';
 export {default as ThunderIDAPIError} from './errors/ThunderIDAPIError';
@@ -98,6 +99,15 @@ export type {
   FieldError,
   PrefixOption,
 } from './models/embedded-flow';
+export type {
+  FetchPagedOptions,
+  PagedSelectOption,
+  PagedSelectOptionDefaults,
+  PagedSelectOptionMapping,
+  PagedSelectPage,
+  PagedSelectRequest,
+} from './models/paged-select';
+export type {FetchUsers, UserSelectOptionMapping} from './models/user-select';
 export {EmbeddedSignInFlowStatus, EmbeddedSignInFlowType} from './models/embedded-signin-flow';
 export type {
   ExtendedEmbeddedSignInFlowResponse,
@@ -268,6 +278,13 @@ export {default as removeTrailingSlash} from './utils/removeTrailingSlash';
 export {default as resolveFieldName} from './utils/resolveFieldName';
 export {default as resolveResourceEndpoint} from './utils/resolveResourceEndpoint';
 export type {ResourceEndpointKey, ResourceEndpointConfig} from './utils/resolveResourceEndpoint';
+export {default as computeNextPageOffset} from './utils/computeNextPageOffset';
+export {default as isAdvancingPageOffset} from './utils/isAdvancingPageOffset';
+export {default as dedupePagedSelectOptions} from './utils/dedupePagedSelectOptions';
+export {default as toPagedSelectOption} from './utils/toPagedSelectOption';
+export {default as toPagedSelectOptions} from './utils/toPagedSelectOptions';
+export {default as toUserSelectOption} from './utils/toUserSelectOption';
+export {default as toUserSelectPage} from './utils/toUserSelectPage';
 export {default as evaluatePasswordPolicy} from './utils/evaluatePasswordPolicy';
 export type {PasswordPolicy, PasswordRuleResult} from './utils/evaluatePasswordPolicy';
 export {default as evaluateChangePasswordForm} from './utils/evaluateChangePasswordForm';
@@ -276,6 +293,8 @@ export {default as resolveChangeCredentialPolicy} from './utils/resolveChangeCre
 export {default as supportsCredential} from './utils/supportsCredential';
 export {default as mapCredentialUpdateError} from './utils/mapCredentialUpdateError';
 export type {CredentialUpdateErrorField, CredentialUpdateErrorResult} from './utils/mapCredentialUpdateError';
+export {default as mapPagedSelectError} from './utils/mapPagedSelectError';
+export type {PagedSelectErrorResult} from './utils/mapPagedSelectError';
 export {default as resolveMeta} from './utils/resolveMeta';
 export {default as resolveFlowTemplateLiterals} from './utils/resolveFlowTemplateLiterals';
 export {default as countryCodeToFlagEmoji} from './utils/countryCodeToFlagEmoji';

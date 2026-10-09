@@ -46,6 +46,19 @@ const translations: I18nTranslations = {
   'elements.fields.organization.select.label': 'සංවිධානය තෝරන්න',
   'elements.fields.organization.select.placeholder': 'සංවිධානයක් සැළුම් කරන්න',
 
+  /* Paged Select */
+  'elements.fields.paged_select.aria_label': 'විකල්පයක් තෝරන්න',
+  'elements.fields.paged_select.empty': 'ප්‍රතිඵල හමු නොවීය.',
+  'elements.fields.paged_select.load_error': 'විකල්ප පූරණය කිරීම අසාර්ථක විය.',
+  'elements.fields.paged_select.load_more': 'තවත් පූරණය කරන්න',
+  'elements.fields.paged_select.loaded': '{count} පූරණය විය.',
+  'elements.fields.paged_select.loading': 'පූරණය වේ…',
+  'elements.fields.paged_select.loading_more': 'තවත් පූරණය වේ…',
+  'elements.fields.paged_select.retry': 'නැවත උත්සාහ කරන්න',
+  'elements.fields.user_select.aria_label': 'පරිශීලකයෙකු තෝරන්න',
+  'elements.fields.user_select.empty': 'පරිශීලකයන් හමු නොවීය.',
+  'elements.fields.user_select.loading': 'පරිශීලකයන් පූරණය වේ…',
+
   /* Validation */
   'validations.required.field.error': 'මෙම ක්ෂේත්‍රය අවශ්‍යයි',
   'validation.pattern.invalid': 'මෙම අගය අවශ්‍ය ආකෘතියට නොගැලපේ.',

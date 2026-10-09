@@ -24,6 +24,8 @@ export {default as useTheme} from './composables/useTheme';
 export {default as useUser} from './composables/useUser';
 export {useOAuthCallback} from './composables/useOAuthCallback';
 export type {UseOAuthCallbackOptions, OAuthCallbackPayload} from './composables/useOAuthCallback';
+export {default as usePagedSelect} from './composables/usePagedSelect';
+export type {UsePagedSelectOptions, UsePagedSelectResult} from './composables/usePagedSelect';
 
 // ── Client ──
 export {default as ThunderIDVueClient} from './ThunderIDVueClient';
@@ -52,6 +54,11 @@ export {default as TextField} from './components/primitives/TextField/TextField'
 export {default as PasswordField} from './components/primitives/PasswordField/PasswordField';
 export {default as Select} from './components/primitives/Select/Select';
 export type {SelectOption} from './components/primitives/Select/Select';
+export {default as PagedSelect} from './components/primitives/PagedSelect/PagedSelect';
+export type {PagedSelectMessages} from './components/primitives/PagedSelect/PagedSelect';
+export {default as UserSelect} from './components/primitives/UserSelect/UserSelect';
+export {default as BaseUserSelect} from './components/primitives/UserSelect/BaseUserSelect';
+export type {BaseUserSelectProps} from './components/primitives/UserSelect/BaseUserSelect';
 export {default as Checkbox} from './components/primitives/Checkbox/Checkbox';
 export {default as DatePicker} from './components/primitives/DatePicker/DatePicker';
 export {default as OtpField} from './components/primitives/OtpField/OtpField';

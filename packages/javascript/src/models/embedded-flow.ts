@@ -132,6 +132,9 @@ export enum EmbeddedFlowComponentType {
 
   /** QR code display component for wallet-based flows (e.g. OpenID4VP) */
   QrCode = 'QR_CODE',
+
+  /** Single-user picker with incremental, paginated directory loading */
+  UserSelect = 'USER_SELECT',
 }
 
 /**

@@ -77,9 +77,12 @@ export class FetchHttpClient extends HttpClient {
         method: (method ?? 'GET').toUpperCase(),
       });
     } catch (networkError: any) {
+      // A caller-aborted request rejects with an 'AbortError'; keep it distinguishable from a network failure.
+      const isAbort: boolean = (networkError as Error | undefined)?.name === 'AbortError';
       throw Object.assign(new Error(networkError.message), {
-        code: 'NETWORK_ERROR',
+        code: isAbort ? 'ABORT_ERROR' : 'NETWORK_ERROR',
         config,
+        name: isAbort ? 'AbortError' : 'Error',
       } as Partial<HttpError>);
     }
 

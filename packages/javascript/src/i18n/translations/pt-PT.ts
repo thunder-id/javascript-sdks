@@ -46,6 +46,19 @@ const translations: I18nTranslations = {
   'elements.fields.organization.select.label': 'Selecionar Organização',
   'elements.fields.organization.select.placeholder': 'Selecione uma organização',
 
+  /* Paged Select */
+  'elements.fields.paged_select.aria_label': 'Selecionar uma opção',
+  'elements.fields.paged_select.empty': 'Nenhum resultado encontrado.',
+  'elements.fields.paged_select.load_error': 'Falha ao carregar as opções.',
+  'elements.fields.paged_select.load_more': 'Carregar mais',
+  'elements.fields.paged_select.loaded': '{count} carregado(s).',
+  'elements.fields.paged_select.loading': 'A carregar…',
+  'elements.fields.paged_select.loading_more': 'A carregar mais…',
+  'elements.fields.paged_select.retry': 'Tentar novamente',
+  'elements.fields.user_select.aria_label': 'Selecionar um utilizador',
+  'elements.fields.user_select.empty': 'Nenhum utilizador encontrado.',
+  'elements.fields.user_select.loading': 'A carregar utilizadores…',
+
   /* Validation */
   'validations.required.field.error': 'Este campo é obrigatório',
   'validation.pattern.invalid': 'Este valor não corresponde ao formato necessário.',

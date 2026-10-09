@@ -43,6 +43,7 @@ const createHttpClientFetcher = (instanceId = 0): ((url: string, config: Request
         data: config.body ? JSON.parse(config.body as string) : undefined,
         headers: config.headers as Record<string, string>,
         method: config.method || 'POST',
+        signal: config.signal,
         url,
       } as HttpRequestConfig);
 

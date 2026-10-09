@@ -7,6 +7,7 @@ import {
   FlowExecutionError,
   FlowMetadataResponse,
   buildValidatorFromRules,
+  FetchUsers,
   logger,
   OrganizationUnitListResponse,
   Preferences,
@@ -163,6 +164,12 @@ export interface BaseInviteUserProps {
   ) => Promise<OrganizationUnitListResponse>;
 
   /**
+   * Function to load one page of users.
+   * When provided, enables the user picker for USER_SELECT components.
+   */
+  fetchUsers?: FetchUsers;
+
+  /**
    * Whether the SDK is initialized.
    */
   isInitialized?: boolean;
@@ -240,6 +247,7 @@ const BaseInviteUser: FC<BaseInviteUserProps> = ({
   className = '',
   children,
   fetchOrganizationUnitChildren,
+  fetchUsers,
   isInitialized = true,
   preferences,
   size = 'medium',
@@ -413,7 +421,8 @@ const BaseInviteUser: FC<BaseInviteUserProps> = ({
               comp.type === 'SELECT' ||
               comp.type === 'PHONE_INPUT' ||
               comp.type === 'OTP_INPUT' ||
-              comp.type === 'DATE_INPUT') &&
+              comp.type === 'DATE_INPUT' ||
+              comp.type === 'USER_SELECT') &&
             comp.ref
           ) {
             const value: any = formValues[comp.ref];
@@ -650,6 +659,7 @@ const BaseInviteUser: FC<BaseInviteUserProps> = ({
           _theme: theme,
           additionalData: currentFlow?.data?.additionalData,
           fetchOrganizationUnitChildren,
+          fetchUsers,
           onInputBlur: handleInputBlur,
           onSubmit: handleSubmit,
           size,
@@ -660,6 +670,7 @@ const BaseInviteUser: FC<BaseInviteUserProps> = ({
       customRenderers,
       currentFlow?.data?.additionalData,
       fetchOrganizationUnitChildren,
+      fetchUsers,
       formValues,
       touchedFields,
       formErrors,

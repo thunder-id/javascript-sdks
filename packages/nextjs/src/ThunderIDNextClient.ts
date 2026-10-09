@@ -15,6 +15,7 @@ import {
   TokenExchangeRequestConfig,
   TokenResponse,
   User,
+  ManagedUserListResponse,
   UserProfile,
   executeEmbeddedSignInFlow,
   extractUserClaimsFromIdToken,
@@ -232,6 +233,20 @@ class ThunderIDNextClient<T extends ThunderIDNextConfig = ThunderIDNextConfig> e
       },
       payload,
     });
+  }
+
+  /**
+   * Retrieves one page of the user directory for the session identified by `userId`.
+   *
+   * Ensures the client is initialized first, like `updateUserCredentials`. Errors are not caught so the calling server action can map the real `ThunderIDAPIError`.
+   */
+  override async getUsers(
+    options: {filter?: string; limit?: number; offset?: number; signal?: AbortSignal} = {},
+    userId?: string,
+  ): Promise<ManagedUserListResponse> {
+    await this.ensureInitialized();
+
+    return super.getUsers(options, userId);
   }
 
   override isLoading(): boolean {

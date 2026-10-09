@@ -46,6 +46,19 @@ const translations: I18nTranslations = {
   'elements.fields.organization.select.label': 'संगठन चुनें',
   'elements.fields.organization.select.placeholder': 'एक संगठन चुनें',
 
+  /* Paged Select */
+  'elements.fields.paged_select.aria_label': 'एक विकल्प चुनें',
+  'elements.fields.paged_select.empty': 'कोई परिणाम नहीं मिला।',
+  'elements.fields.paged_select.load_error': 'विकल्प लोड करने में विफल।',
+  'elements.fields.paged_select.load_more': 'और लोड करें',
+  'elements.fields.paged_select.loaded': '{count} लोड हुए।',
+  'elements.fields.paged_select.loading': 'लोड हो रहा है…',
+  'elements.fields.paged_select.loading_more': 'और लोड हो रहा है…',
+  'elements.fields.paged_select.retry': 'पुनः प्रयास करें',
+  'elements.fields.user_select.aria_label': 'एक उपयोगकर्ता चुनें',
+  'elements.fields.user_select.empty': 'कोई उपयोगकर्ता नहीं मिला।',
+  'elements.fields.user_select.loading': 'उपयोगकर्ता लोड हो रहे हैं…',
+
   /* Validation */
   'validations.required.field.error': 'यह फील्ड आवश्यक है',
   'validation.pattern.invalid': 'यह मान आवश्यक प्रारूप से मेल नहीं खाता।',

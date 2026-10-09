@@ -187,6 +187,7 @@ export default defineNuxtModule<ThunderIDNuxtConfig>({
         method: 'patch' as const,
         route: NuxtAPIRoutes.USER_CREDENTIALS,
       },
+      {handler: resolve('./runtime/server/routes/auth/user/users.get'), route: NuxtAPIRoutes.USERS},
     ];
 
     // Opt-in: the route accepts unauthenticated requests, so it is served only when asked for.
@@ -270,6 +271,8 @@ export default defineNuxtModule<ThunderIDNuxtConfig>({
     addComponent({filePath: resolve('./runtime/components/user/UserProfile'), name: 'UserProfile'});
     addComponent({filePath: resolve('./runtime/components/user/UserDropdown'), name: 'UserDropdown'});
     addComponent({filePath: resolve('./runtime/components/user/ChangeCredential'), name: 'ChangeCredential'});
+    addComponent({filePath: resolve('./runtime/components/user/UserSelect'), name: 'UserSelect'});
+    addComponent({export: 'PagedSelect', filePath: '@thunderid/vue', name: 'PagedSelect'});
 
     // ── Auth callback ────────────────────────────────────────────────────────
     addComponent({filePath: resolve('./runtime/components/auth/Callback'), name: 'Callback'});

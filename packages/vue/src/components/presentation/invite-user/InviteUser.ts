@@ -2,9 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import {EmbeddedFlowType} from '@thunderid/browser';
+import type {FetchUsers} from '@thunderid/browser';
 import {type Component, type PropType, type SetupContext, type VNode, defineComponent, h} from 'vue';
 import BaseInviteUser from './BaseInviteUser';
 import type {BaseInviteUserRenderProps, InviteUserFlowResponse} from './BaseInviteUser';
+import useFetchUsers from '../../../composables/useFetchUsers';
 import useThunderID from '../../../composables/useThunderID';
 
 export type InviteUserRenderProps = BaseInviteUserRenderProps;
@@ -33,6 +35,8 @@ const InviteUser: Component = defineComponent({
   setup(props: any, {slots}: SetupContext): () => VNode | null {
     const {http, baseUrl, isInitialized} = useThunderID();
 
+    const fetchUsers: FetchUsers = useFetchUsers();
+
     const handleInitialize = async (payload: Record<string, any>): Promise<InviteUserFlowResponse> => {
       const response: any = await http.request({
         data: {...payload, flowType: EmbeddedFlowType.UserOnboarding, verbose: true},
@@ -58,6 +62,7 @@ const InviteUser: Component = defineComponent({
         BaseInviteUser,
         {
           className: props.className,
+          fetchUsers,
           isInitialized: isInitialized?.value ?? false,
           onError: props.onError,
           onFlowChange: props.onFlowChange,

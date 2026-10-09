@@ -46,6 +46,19 @@ const translations: I18nTranslations = {
   'elements.fields.organization.select.label': 'ఆర్గనైజేషన్‌ను ఎంచుకోండి',
   'elements.fields.organization.select.placeholder': 'సంస్థను ఎంచుకోండి',
 
+  /* Paged Select */
+  'elements.fields.paged_select.aria_label': 'ఒక ఎంపికను ఎంచుకోండి',
+  'elements.fields.paged_select.empty': 'ఫలితాలు కనుగొనబడలేదు.',
+  'elements.fields.paged_select.load_error': 'ఎంపికలను లోడ్ చేయడంలో విఫలమైంది.',
+  'elements.fields.paged_select.load_more': 'మరిన్ని లోడ్ చేయండి',
+  'elements.fields.paged_select.loaded': '{count} లోడ్ అయ్యాయి.',
+  'elements.fields.paged_select.loading': 'లోడ్ అవుతోంది…',
+  'elements.fields.paged_select.loading_more': 'మరిన్ని లోడ్ అవుతోంది…',
+  'elements.fields.paged_select.retry': 'మళ్లీ ప్రయత్నించండి',
+  'elements.fields.user_select.aria_label': 'ఒక వినియోగదారుని ఎంచుకోండి',
+  'elements.fields.user_select.empty': 'వినియోగదారులు కనుగొనబడలేదు.',
+  'elements.fields.user_select.loading': 'వినియోగదారులను లోడ్ చేస్తోంది…',
+
   /* Validation */
   'validations.required.field.error': 'ఈ ఫీల్డ్ అవసరం',
   'validation.pattern.invalid': 'ఈ విలువ అవసరమైన ఆకృతికి సరిపోలడం లేదు.',
