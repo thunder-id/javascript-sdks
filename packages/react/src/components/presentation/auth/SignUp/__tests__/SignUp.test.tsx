@@ -104,6 +104,37 @@ describe('SignUp', () => {
     expect(onComplete.mock.calls[0][0]).toMatchObject({flowStatus: 'COMPLETE', assertion: 'a-jwt'});
   });
 
+  it('renders a KEY_VALUE_LIST from the step additionalData', async () => {
+    mockSignUp.mockResolvedValueOnce({
+      data: {
+        additionalData: {
+          linkingPromptDetails: JSON.stringify([{label: 'Email', value: 'alice@example.com'}]),
+        },
+        meta: {
+          components: [{category: 'DISPLAY', id: 'kv_1', source: 'linkingPromptDetails', type: 'KEY_VALUE_LIST'}],
+        },
+      },
+      executionId: 'exec-1',
+      flowStatus: 'INCOMPLETE',
+      type: 'VIEW',
+    });
+
+    render(
+      <ThunderIDContext.Provider value={thunderIDContext}>
+        <I18nProvider>
+          <ThemeProvider>
+            <SignUp shouldRedirectAfterSignUp={false} />
+          </ThemeProvider>
+        </I18nProvider>
+      </ThunderIDContext.Provider>,
+    );
+
+    await waitFor(() => {
+      expect(document.querySelector('dd')?.textContent).toBe('alice@example.com');
+    });
+    expect(document.querySelector('dt')?.textContent).toBe('Email');
+  });
+
   it('refuses to submit again once the flow has completed', async () => {
     mockSignUp.mockResolvedValueOnce({executionId: 'exec-1', flowStatus: 'INCOMPLETE'});
 

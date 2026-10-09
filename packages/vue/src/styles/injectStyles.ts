@@ -35,6 +35,7 @@ import CARD_CSS from '../components/primitives/Card/Card.css';
 import CHECKBOX_CSS from '../components/primitives/Checkbox/Checkbox.css';
 import DATE_PICKER_CSS from '../components/primitives/DatePicker/DatePicker.css';
 import DIVIDER_CSS from '../components/primitives/Divider/Divider.css';
+import KEY_VALUE_LIST_CSS from '../components/primitives/KeyValueList/KeyValueList.css';
 import LOGO_CSS from '../components/primitives/Logo/Logo.css';
 import OTP_FIELD_CSS from '../components/primitives/OtpField/OtpField.css';
 import PASSWORD_FIELD_CSS from '../components/primitives/PasswordField/PasswordField.css';
@@ -66,6 +67,7 @@ const STYLES: string = [
   DATE_PICKER_CSS,
   OTP_FIELD_CSS,
   DIVIDER_CSS,
+  KEY_VALUE_LIST_CSS,
   LOGO_CSS,
   SPINNER_CSS,
   // Auth
