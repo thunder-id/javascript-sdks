@@ -263,6 +263,13 @@ const ThunderIDProvider: FC<PropsWithChildren<ThunderIDProviderProps>> = ({
         await updateSession();
       });
 
+      // A session that ends elsewhere, such as a sign-out in another app, signs this app out too.
+      await client.on('sign-out', () => {
+        setUser(null);
+        setUserProfile(null);
+        setIsSignedInSync(false);
+      });
+
       // Start auto-refresh with a soft failure. This also covers the case where the access token
       // expired while the refresh token is still valid — startAutoRefreshToken() calls
       // refreshAccessToken() immediately when timeUntilRefresh <= 0 — so the sign-in check below

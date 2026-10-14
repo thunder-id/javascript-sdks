@@ -108,7 +108,7 @@ class ThunderIDReactClient<T extends ThunderIDReactConfig = ThunderIDReactConfig
   }
 
   override isLoading(): boolean {
-    return this.loadingState;
+    return this.loadingState || super.isLoading();
   }
 
   override async isSignedIn(): Promise<boolean> {
@@ -148,6 +148,8 @@ class ThunderIDReactClient<T extends ThunderIDReactConfig = ThunderIDReactConfig
         !isEmpty(arg1) &&
         ('executionId' in arg1 || 'applicationId' in arg1)
       ) {
+        this.rejectEmbeddedFlowInBackendMode();
+
         const authIdFromUrl: string = new URL(window.location.href).searchParams.get('authId') ?? '';
         const authIdFromStorage: string =
           ((await this.getStorageManager().getHybridDataParameter('authId')) as string) ?? '';
@@ -209,6 +211,8 @@ class ThunderIDReactClient<T extends ThunderIDReactConfig = ThunderIDReactConfig
   override async signUp(options?: SignUpOptions): Promise<void>;
   override async signUp(payload: any): Promise<any>;
   override async signUp(...args: any[]): Promise<void | any> {
+    this.rejectEmbeddedFlowInBackendMode();
+
     const config: ThunderIDReactConfig = (await this.getStorageManager().getConfigData()) as ThunderIDReactConfig;
     const firstArg: any = args[0];
     const baseUrl: string = config?.baseUrl ?? '';
@@ -260,6 +264,8 @@ class ThunderIDReactClient<T extends ThunderIDReactConfig = ThunderIDReactConfig
   }
 
   override async recover(payload?: any): Promise<any> {
+    this.rejectEmbeddedFlowInBackendMode();
+
     const config: ThunderIDReactConfig = (await this.getStorageManager().getConfigData()) as ThunderIDReactConfig;
 
     return executeEmbeddedRecoveryFlow({
@@ -267,6 +273,21 @@ class ThunderIDReactClient<T extends ThunderIDReactConfig = ThunderIDReactConfig
       payload: {...payload, verbose: true},
       url: resolveResourceEndpoint('flowExecute', config),
     }) as any;
+  }
+
+  /**
+   * The embedded flows keep their result in the browser, which running sign-in on the backend rules
+   * out. Running them through the backend is not supported yet.
+   */
+  private rejectEmbeddedFlowInBackendMode(): void {
+    if (this.isBackendMode()) {
+      throw new ThunderIDRuntimeError(
+        'Embedded sign-in, sign-up, and recovery flows are not supported when sign-in runs on the backend.',
+        'ThunderIDReactClient-embeddedFlow-RuntimeError-001',
+        'react',
+        'Use redirect sign-in with the backend.',
+      );
+    }
   }
 
   public override getStorageManager(): any {

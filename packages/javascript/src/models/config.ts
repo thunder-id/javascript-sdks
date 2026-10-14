@@ -1,6 +1,7 @@
 // Copyright 2025-2026 The ThunderID Authors
 // SPDX-License-Identifier: Apache-2.0
 
+import type {BackendEndpoints} from './backend';
 import {ComponentsExtensions} from './extensions/components';
 import type {OAuthResponseMode} from './oauth-response';
 import type {OIDCEndpoints} from './oidc-endpoints';
@@ -255,6 +256,12 @@ export interface BaseConfig<T = unknown> extends WithPreferences, WithExtensions
      * If not provided, resolved from the well-known discovery document.
      */
     authorization?: string;
+    /**
+     * The app backend's auth endpoints. Setting them hands sign-in to the backend: the SDK then signs
+     * in, reads the session, and sends API calls through the backend, and never holds a token.
+     * Browser clients only. Unset entries default to a fixed path under `/api/auth`.
+     */
+    backend?: BackendEndpoints;
     /**
      * The end-session (logout) endpoint URL.
      * If not provided, resolved from the well-known discovery document.

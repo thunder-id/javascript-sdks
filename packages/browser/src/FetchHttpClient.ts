@@ -25,6 +25,10 @@ export class FetchHttpClient extends HttpClient {
     return this.instances.get(instanceId)!;
   }
 
+  static setInstance(instanceId: number, client: FetchHttpClient): void {
+    this.instances.set(instanceId, client);
+  }
+
   static destroyInstance(instanceId = 0): void {
     this.instances.delete(instanceId);
   }

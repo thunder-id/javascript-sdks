@@ -232,6 +232,7 @@ export type {OIDCDiscoveryApiResponse} from './models/oidc-discovery';
 export type {Storage, TemporaryStore} from './models/store';
 export type {User, UserProfile} from './models/user';
 export type {SessionData} from './models/session';
+export type {BackendEndpoints, BackendSession, ResolvedBackendEndpoints} from './models/backend';
 export type {TranslationFn} from './models/translation';
 export type {ResolveFlowTemplateLiteralsOptions} from './models/vars';
 export type {RecursivePartial} from './models/utility-types';
@@ -268,6 +269,8 @@ export {
 export {default as removeTrailingSlash} from './utils/removeTrailingSlash';
 export {default as resolveFieldName} from './utils/resolveFieldName';
 export {default as resolveResourceEndpoint} from './utils/resolveResourceEndpoint';
+export {default as resolveBackendEndpoints} from './utils/resolveBackendEndpoints';
+export type {BackendEndpointConfig} from './utils/resolveBackendEndpoints';
 export type {ResourceEndpointKey, ResourceEndpointConfig} from './utils/resolveResourceEndpoint';
 export {default as evaluatePasswordPolicy} from './utils/evaluatePasswordPolicy';
 export type {PasswordPolicy, PasswordRuleResult} from './utils/evaluatePasswordPolicy';

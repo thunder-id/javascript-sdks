@@ -422,6 +422,13 @@ const ThunderIDProvider: Component = defineComponent({
         await updateSession();
       });
 
+      // A session that ends elsewhere, such as a sign-out in another app, signs this app out too.
+      await client.on('sign-out', () => {
+        user.value = null;
+        userProfile.value = null;
+        isSignedIn.value = false;
+      });
+
       // 3. Try to sign in if already authenticated or if URL has auth params
       const alreadySignedIn: boolean = await client.isSignedIn();
 
