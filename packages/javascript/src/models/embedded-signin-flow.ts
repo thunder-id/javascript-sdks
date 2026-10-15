@@ -359,4 +359,7 @@ export interface EmbeddedSignInFlowRequest extends Partial<EmbeddedSignInFlowIni
    * ```
    */
   inputs?: Record<string, any>;
+
+  /** Current UI language (BCP 47) so the flow localizes notifications; validated server-side. */
+  locale?: string;
 }

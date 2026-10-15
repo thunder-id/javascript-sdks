@@ -45,6 +45,16 @@ describe('executeEmbeddedSignInFlow', (): void => {
       expect(captureRequestBody()).toMatchObject({verbose: true});
     });
 
+    it('sends a top-level locale field through to the request body', async (): Promise<void> => {
+      await executeEmbeddedSignInFlow({
+        payload: {action: 'submit', executionId: 'exec-abc', inputs: {username: 'user'}, locale: 'es-AR'},
+        url: URL,
+      });
+
+      const body = captureRequestBody();
+      expect(body).toMatchObject({locale: 'es-AR', inputs: {username: 'user'}});
+    });
+
     it('injects verbose:true for a new flow start that also includes scopes', async (): Promise<void> => {
       await executeEmbeddedSignInFlow({
         payload: {applicationId: 'app-1', flowType: 'AUTHENTICATION', scopes: ['openid', 'profile']},

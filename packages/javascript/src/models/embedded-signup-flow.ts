@@ -211,6 +211,7 @@ export interface EmbeddedSignUpFlowRequest extends Partial<EmbeddedSignUpFlowIni
   challengeToken?: string;
   executionId?: string;
   inputs?: Record<string, any>;
+  locale?: string;
 }
 
 /**

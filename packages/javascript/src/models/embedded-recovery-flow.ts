@@ -117,6 +117,7 @@ export interface EmbeddedRecoveryFlowRequest extends Partial<EmbeddedRecoveryFlo
   challengeToken?: string;
   executionId?: string;
   inputs?: Record<string, any>;
+  locale?: string;
 }
 
 /**
