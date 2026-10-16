@@ -3,6 +3,7 @@
 
 import {ThunderIDAPIError} from '@thunderid/browser';
 import {FC, ReactElement, ReactNode, useMemo} from 'react';
+import useTranslation from '../../../../hooks/useTranslation';
 import BaseAcceptInvite, {BaseAcceptInviteRenderProps, AcceptInviteFlowResponse} from './BaseAcceptInvite';
 
 /**
@@ -153,6 +154,7 @@ const AcceptInvite: FC<AcceptInviteProps> = ({
   showSubtitle = true,
 }: AcceptInviteProps): ReactElement => {
   // Extract from URL if not provided as props
+  const {currentLanguage} = useTranslation();
   const {executionId: urlExecutionId, inviteToken: urlInviteToken} = useMemo(() => getUrlParams(), []);
 
   const executionId: any = executionIdProp || urlExecutionId;
@@ -179,6 +181,7 @@ const AcceptInvite: FC<AcceptInviteProps> = ({
       body: JSON.stringify({
         ...payload,
         verbose: true,
+        locale: currentLanguage,
       }),
       headers: {
         Accept: 'application/json',
