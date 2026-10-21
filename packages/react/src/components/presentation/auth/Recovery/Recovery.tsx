@@ -5,6 +5,7 @@ import {EmbeddedRecoveryFlowRequest, EmbeddedRecoveryFlowResponse, EmbeddedFlowT
 import {FC, PropsWithChildren, ReactElement, useCallback} from 'react';
 import BaseRecovery, {BaseRecoveryProps} from './BaseRecovery';
 import useThunderID from '../../../../contexts/ThunderID/useThunderID';
+import useTranslation from '../../../../hooks/useTranslation';
 
 export type RecoveryProps = PropsWithChildren<
   BaseRecoveryProps & {
@@ -54,6 +55,7 @@ const Recovery: FC<RecoveryProps> = ({
   ...rest
 }: RecoveryProps): ReactElement => {
   const {recover, isInitialized, applicationId} = useThunderID();
+  const {currentLanguage} = useTranslation();
 
   const handleInitialize: (payload?: EmbeddedRecoveryFlowRequest) => Promise<EmbeddedRecoveryFlowResponse> =
     useCallback(
@@ -71,7 +73,7 @@ const Recovery: FC<RecoveryProps> = ({
               executionId,
               inputs: {[tokenUrlParam]: tokenValue},
             };
-            return (await recover(resumePayload)) as EmbeddedRecoveryFlowResponse;
+            return (await recover({...resumePayload, locale: currentLanguage})) as EmbeddedRecoveryFlowResponse;
           }
         }
 
@@ -80,15 +82,15 @@ const Recovery: FC<RecoveryProps> = ({
           ...(effectiveApplicationId && {applicationId: effectiveApplicationId}),
         };
 
-        return (await recover(initialPayload)) as EmbeddedRecoveryFlowResponse;
+        return (await recover({...initialPayload, locale: currentLanguage})) as EmbeddedRecoveryFlowResponse;
       },
-      [applicationId, tokenUrlParam, recover],
+      [applicationId, tokenUrlParam, recover, currentLanguage],
     );
 
   const handleOnSubmit: (payload: EmbeddedRecoveryFlowRequest) => Promise<EmbeddedRecoveryFlowResponse> = useCallback(
     async (payload: EmbeddedRecoveryFlowRequest): Promise<EmbeddedRecoveryFlowResponse> =>
-      (await recover(payload)) as EmbeddedRecoveryFlowResponse,
-    [recover],
+      (await recover({...payload, locale: currentLanguage})) as EmbeddedRecoveryFlowResponse,
+    [recover, currentLanguage],
   );
 
   const handleComplete: (response: EmbeddedRecoveryFlowResponse) => void = useCallback(

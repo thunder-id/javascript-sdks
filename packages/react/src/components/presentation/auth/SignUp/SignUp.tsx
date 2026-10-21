@@ -11,6 +11,7 @@ import {FC, ReactElement, ReactNode} from 'react';
 // eslint-disable-next-line import/no-named-as-default
 import BaseSignUp, {BaseSignUpProps, BaseSignUpRenderProps} from './BaseSignUp';
 import useThunderID from '../../../../contexts/ThunderID/useThunderID';
+import useTranslation from '../../../../hooks/useTranslation';
 
 /**
  * Render props function parameters (re-exported from BaseSignUp for convenience)
@@ -42,6 +43,7 @@ const SignUp: FC<SignUpProps> = ({
   ...rest
 }: SignUpProps): ReactElement => {
   const {signUp, isInitialized, applicationId, scopes} = useThunderID();
+  const {currentLanguage} = useTranslation();
 
   /**
    * Initialize the sign-up flow.
@@ -72,14 +74,14 @@ const SignUp: FC<SignUpProps> = ({
       initialPayload = payload;
     }
 
-    return (await signUp(initialPayload)) as EmbeddedSignUpFlowResponse;
+    return (await signUp({...initialPayload, locale: currentLanguage})) as EmbeddedSignUpFlowResponse;
   };
 
   /**
    * Handle sign-up steps.
    */
   const handleOnSubmit = async (payload: EmbeddedSignUpFlowRequest): Promise<EmbeddedSignUpFlowResponse> =>
-    (await signUp(payload)) as EmbeddedSignUpFlowResponse;
+    (await signUp({...payload, locale: currentLanguage})) as EmbeddedSignUpFlowResponse;
 
   /**
    * Handle successful sign-up and redirect.

@@ -64,6 +64,31 @@ describe('SignUp', () => {
     window.history.replaceState({}, '', '/signup');
   });
 
+  it('attaches the current UI language as locale on the initiation request', async () => {
+    mockSignUp.mockResolvedValueOnce({executionId: 'exec-1', flowStatus: 'INCOMPLETE'});
+
+    renderSignUp();
+
+    await waitFor(() => {
+      expect(mockSignUp).toHaveBeenCalledTimes(1);
+    });
+    expect(mockSignUp).toHaveBeenCalledWith(expect.objectContaining({locale: expect.any(String)}));
+  });
+
+  it('attaches the current UI language as locale on a step submission', async () => {
+    mockSignUp.mockResolvedValueOnce({executionId: 'exec-1', flowStatus: 'INCOMPLETE'});
+    const captured = renderSignUp();
+    await waitFor(() => {
+      expect(mockSignUp).toHaveBeenCalledTimes(1);
+    });
+
+    mockSignUp.mockResolvedValueOnce({executionId: 'exec-1', flowStatus: 'INCOMPLETE'});
+    await act(async () => {
+      await captured.submit?.({id: 'continue'}, {username: 'user'}, true);
+    });
+    expect(mockSignUp).toHaveBeenLastCalledWith(expect.objectContaining({locale: expect.any(String)}));
+  });
+
   it('redirects to afterSignUpUrl when the completion carries an assertion', async () => {
     // A URL differing from the current one only by its fragment is a same-document navigation:
     // location updates without the page reloading, so the redirect can be observed from inside the

@@ -250,7 +250,7 @@ const SignIn: FC<SignInProps> = ({
 }: SignInProps): ReactElement => {
   const {applicationId, afterSignInUrl, signIn, isInitialized, isLoading, meta, getStorageManager, scopes, vendor} =
     useThunderID();
-  const {t} = useTranslation(preferences?.i18n);
+  const {t, currentLanguage} = useTranslation(preferences?.i18n);
 
   // State management for the flow
   const [components, setComponents] = useState<EmbeddedFlowComponent[]>([]);
@@ -587,6 +587,7 @@ const SignIn: FC<SignInProps> = ({
           response = (await signIn({
             executionId: resumeExecutionId,
             ...(challengeTokenRef.current ? {challengeToken: challengeTokenRef.current} : {}),
+            locale: currentLanguage,
           })) as EmbeddedSignInFlowResponse;
         } catch (resumeError) {
           // Only treat a stale/expired session (HTTP 400 from the server, meaning the stored
@@ -620,6 +621,7 @@ const SignIn: FC<SignInProps> = ({
               applicationId: effectiveApplicationId,
               flowType: EmbeddedFlowType.Authentication,
               ...(scopes && {scopes}),
+              locale: currentLanguage,
             })) as EmbeddedSignInFlowResponse;
           } else {
             throw resumeError;
@@ -630,6 +632,7 @@ const SignIn: FC<SignInProps> = ({
           applicationId: effectiveApplicationId,
           flowType: EmbeddedFlowType.Authentication,
           ...(scopes && {scopes}),
+          locale: currentLanguage,
         })) as EmbeddedSignInFlowResponse;
       }
 
@@ -825,6 +828,7 @@ const SignIn: FC<SignInProps> = ({
         ...payload,
         inputs: processedInputs,
         ...(challengeTokenRef.current ? {challengeToken: challengeTokenRef.current} : {}),
+        locale: currentLanguage,
       })) as EmbeddedSignInFlowResponse;
 
       if (await handleRedirection(response)) {
