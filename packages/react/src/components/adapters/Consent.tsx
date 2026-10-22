@@ -98,24 +98,27 @@ const Consent: FC<ConsentProps> = ({consentData, formValues, onInputChange, chil
   });
   const optionalSectionLabelClass: string = css({alignItems: 'center', display: 'flex', gap: '4px'});
 
-  /** Resolve i18n keys */
-  const resolve = (text: string | undefined): string => {
-    if (!text || !t) {
-      return text || '';
-    }
-    return t(text);
+  /**
+   * Resolve an i18n key, falling back to the given value when no translation is found.
+   * `t` returns the key itself for missing translations, so that case is treated as "not found".
+   * @param key Translation key
+   * @param fallback Value to use when the key cannot be resolved
+   */
+  const resolve = (key: string, fallback = ''): string => {
+    const translated: string | undefined = t?.(key);
+    return translated && translated !== key ? translated : fallback;
   };
 
-  const essentialInfo = resolve(`consent.essential_claims.info`);
-  const optionalInfo = resolve(`consent.optional_claims.info`);
-  const permissionInfo = resolve(`consent.authorize_scope.info`);
-  /**
-   * Falls back to default config values if essential/optional
-   * keys cannot be resolved via translation files .
-   */
-  const essentialLabel = resolve(`consent.essential_claims`) || 'Essential Attributes';
-  const optionalLabel = resolve(`consent.optional_claims`) || 'Optional Attributes';
-  const permissionLabel = resolve(`consent.authorize_scope`) || 'Permissions';
+  const essentialInfo = resolve('consent.essential_claims.info');
+  const optionalInfo = resolve('consent.optional_claims.info');
+  const essentialPermissionInfo = resolve('consent.essential_scope.info');
+  const optionalPermissionInfo = resolve('consent.optional_scope.info');
+  const essentialLabel = resolve('consent.essential_claims', 'Essential Attributes');
+  const optionalLabel = resolve('consent.optional_claims', 'Optional Attributes');
+  const essentialPermissionLabel = resolve('consent.essential_scope', 'Essential Permissions');
+  const optionalPermissionLabel = resolve('consent.optional_scope', 'Optional Permissions');
+  const toggleAllAttributesLabel = resolve('consent.optional_claims.toggle_all', 'Toggle all optional attributes');
+  const toggleAllPermissionsLabel = resolve('consent.optional_scope.toggle_all', 'Toggle all optional permissions');
 
   /**
    * Method to check whether master toggle button is checked or not
@@ -124,7 +127,7 @@ const Consent: FC<ConsentProps> = ({consentData, formValues, onInputChange, chil
    */
   const handleChange = (purpose: ConsentPurposeData, checked: boolean): void => {
     const checkValue = checked ? 'true' : 'false';
-    purpose.optional.map((opt: PromptElement) => {
+    purpose.optional.forEach((opt: PromptElement) => {
       const key: string = getConsentOptionalKey(purpose.purposeId, opt.name);
       onInputChange(key, checkValue);
     });
@@ -142,6 +145,24 @@ const Consent: FC<ConsentProps> = ({consentData, formValues, onInputChange, chil
     });
   };
 
+  /**
+   * Renders a section title with an optional info tooltip.
+   * @param label Section title
+   * @param info Tooltip text; the tooltip is omitted when empty
+   */
+  const renderSectionTitle = (label: string, info: string): ReactNode => (
+    <>
+      <Typography variant="subtitle2" fontWeight="bold">
+        {label}
+      </Typography>
+      {info && (
+        <Tooltip helperText={info}>
+          <Info width="1rem" height="1rem" />
+        </Tooltip>
+      )}
+    </>
+  );
+
   if (!consentData) return null;
 
   let purposes: ConsentPurposeData[] = [];
@@ -158,76 +179,80 @@ const Consent: FC<ConsentProps> = ({consentData, formValues, onInputChange, chil
 
   if (purposes.length === 0) return null;
 
+  // Order purposes so that permissions come first and attributes come last.
+  // Copy before sorting to avoid mutating the caller's data; Array.prototype.sort is stable,
+  // so purposes of the same type keep their original order.
+  purposes = [...purposes].sort(
+    (a: ConsentPurposeData, b: ConsentPurposeData) =>
+      Number(b.type === 'permissions') - Number(a.type === 'permissions'),
+  );
+
   if (children) {
     return <>{children({formValues, onInputChange, purposes: purposes})}</>;
   }
 
   return (
     <div className={purposesContainerClass}>
-      {purposes.map((purpose: ConsentPurposeData, purposeIndex: number) => (
-        <div key={purpose.purposeId || purposeIndex} className={purposeItemClass}>
-          {/* TODO: Uncomment when the backend supports multiple purposes for a application */}
-          {/* <Typography variant="h6" fontWeight={600} gutterBottom color="inherit">
+      {purposes.map((purpose: ConsentPurposeData, purposeIndex: number) => {
+        // Pick section labels/tooltips according to the purpose type (permissions vs attributes)
+        const isPermission: boolean = purpose.type === 'permissions';
+
+        return (
+          <div key={purpose.purposeId || purposeIndex} className={purposeItemClass}>
+            {/* TODO: Uncomment when the backend supports multiple purposes for a application */}
+            {/* <Typography variant="h6" fontWeight={600} gutterBottom color="inherit">
             {purpose.purposeName}
           </Typography>
           <Typography variant="body2" color="inherit" style={{marginBottom: '1rem', opacity: 0.85}}>
             {purpose.description}
           </Typography> */}
 
-          {purpose.essential && purpose.essential.length > 0 && (
-            <div className={sectionClass}>
-              <div className={sectionHeaderClass}>
-                <Typography variant="subtitle2" fontWeight="bold">
-                  {essentialLabel}
-                </Typography>
-                {essentialInfo !== '' && (
-                  <Tooltip helperText={essentialInfo}>
-                    <Info width="1rem" height="1rem" />
-                  </Tooltip>
-                )}
-              </div>
-              <ConsentCheckboxList
-                variant="ESSENTIAL"
-                purpose={purpose}
-                formValues={formValues}
-                onInputChange={onInputChange}
-                t={t}
-              />
-            </div>
-          )}
-
-          {purpose.optional && purpose.optional.length > 0 && (
-            <div className={sectionClass}>
-              <div className={optionalSectionHeaderClass}>
-                <div className={optionalSectionLabelClass}>
-                  <Typography variant="subtitle2" fontWeight="bold">
-                    {purpose.type === 'permissions' ? permissionLabel : optionalLabel}
-                  </Typography>
-                  {/* Show tooltip for optional claims/permissions according to their type */}
-                  {Boolean(purpose.type === 'permissions' ? permissionInfo : optionalInfo) && (
-                    <Tooltip helperText={purpose.type === 'permissions' ? permissionInfo : optionalInfo}>
-                      <Info width="1rem" height="1rem" />
-                    </Tooltip>
+            {purpose.essential?.length > 0 && (
+              <div className={sectionClass}>
+                <div className={sectionHeaderClass}>
+                  {renderSectionTitle(
+                    isPermission ? essentialPermissionLabel : essentialLabel,
+                    isPermission ? essentialPermissionInfo : essentialInfo,
                   )}
                 </div>
-                <Toggle
-                  id={`consent_opt_${purpose.purposeId}_all`}
-                  checked={checkOptValue(purpose)}
-                  aria-label="Toggle all optional attributes"
-                  onChange={(e: ChangeEvent<HTMLInputElement>): void => handleChange(purpose, e.target.checked)}
+                <ConsentCheckboxList
+                  variant="ESSENTIAL"
+                  purpose={purpose}
+                  formValues={formValues}
+                  onInputChange={onInputChange}
+                  t={t}
                 />
               </div>
-              <ConsentCheckboxList
-                variant="OPTIONAL"
-                purpose={purpose}
-                formValues={formValues}
-                onInputChange={onInputChange}
-                t={t}
-              />
-            </div>
-          )}
-        </div>
-      ))}
+            )}
+
+            {purpose.optional?.length > 0 && (
+              <div className={sectionClass}>
+                <div className={optionalSectionHeaderClass}>
+                  <div className={optionalSectionLabelClass}>
+                    {renderSectionTitle(
+                      isPermission ? optionalPermissionLabel : optionalLabel,
+                      isPermission ? optionalPermissionInfo : optionalInfo,
+                    )}
+                  </div>
+                  <Toggle
+                    id={`consent_opt_${purpose.purposeId}_all`}
+                    checked={checkOptValue(purpose)}
+                    aria-label={isPermission ? toggleAllPermissionsLabel : toggleAllAttributesLabel}
+                    onChange={(e: ChangeEvent<HTMLInputElement>): void => handleChange(purpose, e.target.checked)}
+                  />
+                </div>
+                <ConsentCheckboxList
+                  variant="OPTIONAL"
+                  purpose={purpose}
+                  formValues={formValues}
+                  onInputChange={onInputChange}
+                  t={t}
+                />
+              </div>
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 };
