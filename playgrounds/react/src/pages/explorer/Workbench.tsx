@@ -112,7 +112,9 @@ const buildCode = (component: ComponentDef, args: Args): string => {
     .map((line: string) => `    ${line}`)
     .join('\n');
 
-  return `import {${imports.join(', ')}} from '@thunderid/react';\n\nexport default function Example() {\n  return (\n${body}\n  );\n}`;
+  const other: string = snippet.otherImports?.length ? `${snippet.otherImports.join('\n')}\n` : '';
+
+  return `${other}import {${imports.join(', ')}} from '@thunderid/react';\n\nexport default function Example() {\n  return (\n${body}\n  );\n}`;
 };
 
 const Workbench = ({

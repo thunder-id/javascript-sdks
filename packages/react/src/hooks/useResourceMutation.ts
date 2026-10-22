@@ -1,11 +1,10 @@
 // Copyright 2026 The ThunderID Authors
 // SPDX-License-Identifier: Apache-2.0
 
-import {ApiFetcher} from '@thunderid/browser';
+import {ResourceQueryKey, fallbackResourceInvalidator, ApiFetcher} from '@thunderid/browser';
 import {useCallback, useRef, useState} from 'react';
 import {useResolvedFetcher} from './useResourceQuery';
 import useThunderID from '../contexts/ThunderID/useThunderID';
-import {ResourceQueryKey, fallbackResourceInvalidator} from '../utils/createResourceInvalidator';
 
 /**
  * Options accepted by every management mutation hook.

@@ -39,47 +39,11 @@ import {
   UserProfile,
 } from '@thunderid/react';
 import {ChangeEvent, FC, ReactNode} from 'react';
+import {ADMIN_COMPONENTS} from './adminStories';
+import {bool, jsx, num, omit, SOURCE_CONTROL, str} from './storyHelpers';
 import {Narrow, OtpFieldStory, PasswordFieldStory, SelectStory} from './StoryWidgets';
-import type {Action, Args, ArgValue, ComponentDef, PropControl} from './types';
+import type {Action, Args, ComponentDef} from './types';
 import {getDisplayName} from '../../lib/user';
-
-const str = (args: Args, key: string): string => String(args[key] ?? '');
-const bool = (args: Args, key: string): boolean => args[key] === true;
-const num = (args: Args, key: string): number => Number(args[key] ?? 0);
-
-const attr = (key: string, value: ArgValue): string => {
-  if (value === true) return key;
-  if (typeof value === 'number') return `${key}={${value}}`;
-
-  return `${key}="${String(value).replace(/"/g, '&quot;')}"`;
-};
-
-/**
- * Builds a JSX element string from the props that differ from the component defaults.
- */
-export const jsx = (
-  tag: string,
-  props: Args,
-  options: {children?: string; defaults?: Args; extra?: string[]} = {},
-): string => {
-  const parts: string[] = Object.entries(props)
-    .filter(
-      ([key, value]: [string, ArgValue]) =>
-        value !== false && value !== '' && value !== undefined && options.defaults?.[key] !== value,
-    )
-    .map(([key, value]: [string, ArgValue]) => attr(key, value))
-    .concat(options.extra ?? []);
-  const inline: string = parts.length ? ` ${parts.join(' ')}` : '';
-  const multiline: boolean = inline.length > 70;
-  const attrs: string = multiline ? `\n  ${parts.join('\n  ')}\n` : inline;
-
-  if (options.children) return `<${tag}${attrs}>${options.children}</${tag}>`;
-
-  return `<${tag}${attrs}${multiline ? '' : ' '}/>`;
-};
-
-const omit = (args: Args, ...keys: string[]): Args =>
-  Object.fromEntries(Object.entries(args).filter(([key]: [string, ArgValue]) => !keys.includes(key)));
 
 const SAMPLE_USER: Record<string, string> = {
   email: 'liam.chen@acme.io',
@@ -98,12 +62,6 @@ const SAMPLE_PROFILE: Record<string, string> = {
 };
 
 const SIZE: readonly string[] = ['small', 'medium', 'large'];
-const SOURCE_CONTROL: PropControl = {
-  control: ['base', 'live'],
-  description: 'base renders the presentational Base component with sample data; live uses the SDK context.',
-  name: 'source',
-  type: "'base' | 'live' (playground only)",
-};
 
 const SOCIAL: Record<string, FC<{children?: ReactNode; onClick?: () => void}>> = {
   FacebookButton,
@@ -1020,6 +978,7 @@ export const COMPONENTS: ComponentDef[] = [
       {args: {expiresIn: 5}, id: 'short', name: 'Expiring'},
     ],
   },
+  ...ADMIN_COMPONENTS,
 ];
 
 export const STORY_COUNT: number = COMPONENTS.reduce(

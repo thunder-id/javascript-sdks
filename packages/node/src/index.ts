@@ -24,6 +24,14 @@ export {default as CookieConfig} from './constants/CookieConfig';
 // Models
 export type {ThunderIDNodeConfig, SessionCookieConfig} from './models/config';
 export type {default as AuthURLCallback} from './models/AuthURLCallback';
+export type {
+  ManagementCallOptions,
+  ManagementGroupMemberInput,
+  ManagementListOptions,
+  ManagementRequestConfigResolver,
+  ManagementResourceKey,
+  ThunderIDNodeManagementClient,
+} from './models/management';
 
 // Stores
 export {default as MemoryCacheStore} from './stores/MemoryCacheStore';
@@ -37,6 +45,14 @@ export {default as LoggedOutSessions, InMemoryLogoutRecordStore} from './utils/L
 export type {LogoutRecordStore, PresentedSession} from './utils/LoggedOutSessions';
 export type {IndexedSessions, SessionBinding} from './utils/SessionIndex';
 export {default as generateSessionId} from './utils/generateSessionId';
+export {default as createManagementClient} from './utils/createManagementClient';
+export {
+  MANAGEMENT_COLLECTIONS,
+  MANAGEMENT_COLLECTION_KEYS,
+  getManagementCollectionUrls,
+  matchManagementUrl,
+  type ManagementCollectionKey,
+} from './utils/managementCollections';
 export {default as getSessionCookieOptions} from './utils/getSessionCookieOptions';
 
 // Re-export everything from the JavaScript SDK

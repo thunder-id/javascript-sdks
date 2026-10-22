@@ -61,6 +61,9 @@ export const sdkConfig: BrowserAuthConfig = {
   applicationId: playgroundConfig.applicationId,
   baseUrl: playgroundConfig.baseUrl,
   clientId: playgroundConfig.clientId,
+  // Per-collection management endpoint overrides (see .env.example). Unset keys resolve to
+  // {baseUrl}/{collection}.
+  endpoints: playgroundConfig.endpoints,
   scopes: playgroundConfig.scopes,
   ...(playgroundConfig.storage ? {storage: playgroundConfig.storage} : {}),
 };

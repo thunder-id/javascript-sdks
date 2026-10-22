@@ -8,6 +8,7 @@ import type {SessionData, ThunderIDExpressClient, User} from '@thunderid/express
 import express, {type Request, type Response, type Router} from 'express';
 import catalog, {type RouteSpec} from './catalog.ts';
 import config from './config.ts';
+import resolveEndpoints, {type ResolvedEndpoint} from './endpoints.ts';
 import {clientOf, sessionOf} from './helpers.ts';
 import {newTraceId, takeTrace, TRACE_HEADER, type TraceStep} from './trace.ts';
 
@@ -151,10 +152,19 @@ const explorer = (): Router => {
       };
     }
 
+    // Resolved from the client's own configuration, so the list shows what the SDK will call.
+    let endpoints: ResolvedEndpoint[] = [];
+    try {
+      endpoints = resolveEndpoints(await client.getConfiguration());
+    } catch {
+      endpoints = resolveEndpoints({baseUrl: config.baseUrl, endpoints: config.endpoints});
+    }
+
     res.json({
       app: config.appUrl,
       configured: Boolean(config.clientId),
       cookieName: client.getSessionCookieName(),
+      endpoints,
       idp: {baseUrl: config.baseUrl, ...(await idpStatus())},
       routes: catalog.routes.map((route: RouteSpec) => ({
         ...route,

@@ -36,6 +36,8 @@ export interface Snippet {
   template: string;
   /** Named imports from vue, such as `ref`. */
   vueImports?: string[];
+  /** Import lines for other packages, such as a third-party UI library. */
+  otherImports?: string[];
 }
 
 export interface ComponentDef {

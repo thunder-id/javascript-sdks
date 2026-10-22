@@ -9,6 +9,10 @@ import useResourceQuery, {ResourceQueryOptions, ResourceQueryResult} from '../us
  * Parameters for {@link useGetAgents}.
  */
 export interface UseGetAgentsParams {
+  /**
+   * Server-side filter on an agent attribute, for example `name eq "Calendar Agent"`.
+   */
+  filter?: string;
   limit?: number;
   offset?: number;
 }
@@ -16,19 +20,19 @@ export interface UseGetAgentsParams {
 /**
  * Fetches a page of agents.
  *
- * @param params - Pagination parameters.
+ * @param params - Pagination and filter parameters.
  * @param options - Query options, including a per-hook `fetcher`.
  * @returns The query state.
  */
 const useGetAgents = (
-  {limit, offset}: UseGetAgentsParams = {},
+  {filter, limit, offset}: UseGetAgentsParams = {},
   options?: ResourceQueryOptions,
 ): ResourceQueryResult<AgentListResponse> => {
   const endpoint: ManagementEndpoint = useManagementEndpoint('agents');
 
   return useResourceQuery(
-    [AgentQueryKeys.AGENTS, {limit, offset}],
-    (fetcher) => getAgents({...endpoint, fetcher, limit, offset}),
+    [AgentQueryKeys.AGENTS, {filter, limit, offset}],
+    (fetcher) => getAgents({...endpoint, fetcher, filter, limit, offset}),
     options,
   );
 };

@@ -14,10 +14,13 @@ import {BaseConfig} from '../models/config';
  */
 export type ResourceEndpointKey =
   | 'agents'
+  | 'agentTypes'
   | 'applications'
   | 'flowExecute'
   | 'flowMeta'
   | 'flows'
+  | 'groups'
+  | 'roles'
   | 'users'
   | 'usersMe'
   | 'usersMeCredentials'
@@ -30,10 +33,13 @@ export type ResourceEndpointKey =
  */
 export const RESOURCE_ENDPOINT_KEYS: readonly ResourceEndpointKey[] = [
   'agents',
+  'agentTypes',
   'applications',
   'flowExecute',
   'flowMeta',
   'flows',
+  'groups',
+  'roles',
   'users',
   'usersMe',
   'usersMeCredentials',

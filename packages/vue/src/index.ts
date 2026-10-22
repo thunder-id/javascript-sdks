@@ -30,6 +30,67 @@ export {default as useFetchUsers} from './composables/useFetchUsers';
 export {default as useFetchAuthFlows} from './composables/useFetchAuthFlows';
 export {default as useFetchUserTypes} from './composables/useFetchUserTypes';
 
+// ── Composables — Management ──
+export {default as useResourceQuery} from './composables/useResourceQuery';
+export type {ResourceQueryOptions, ResourceQueryResult} from './composables/useResourceQuery';
+export {default as useResourceMutation} from './composables/useResourceMutation';
+export type {ResourceMutationOptions, ResourceMutationResult} from './composables/useResourceMutation';
+export {default as useManagementEndpoint} from './composables/useManagementEndpoint';
+export type {ManagementEndpoint, ManagementEndpointKey} from './composables/useManagementEndpoint';
+export {default as useGrantedPermissions} from './composables/useGrantedPermissions';
+export type {GrantedPermissions} from './composables/useGrantedPermissions';
+export {createResourceInvalidator} from '@thunderid/browser';
+export type {ResourceInvalidator, ResourceQueryKey} from '@thunderid/browser';
+export {default as useGetUsers} from './composables/users/useGetUsers';
+export {default as useGetUser} from './composables/users/useGetUser';
+export {default as useCreateUser} from './composables/users/useCreateUser';
+export {default as useUpdateUser} from './composables/users/useUpdateUser';
+export type {UpdateUserVariables} from './composables/users/useUpdateUser';
+export {default as useDeleteUser} from './composables/users/useDeleteUser';
+export {default as useGetUserGroups} from './composables/users/useGetUserGroups';
+export {default as useGetUserTypes} from './composables/users/useGetUserTypes';
+export {default as useGetGroups} from './composables/groups/useGetGroups';
+export type {UseGetGroupsParams} from './composables/groups/useGetGroups';
+export {default as useGetGroup} from './composables/groups/useGetGroup';
+export {default as useCreateGroup} from './composables/groups/useCreateGroup';
+export {default as useUpdateGroup} from './composables/groups/useUpdateGroup';
+export type {UpdateGroupVariables} from './composables/groups/useUpdateGroup';
+export {default as useDeleteGroup} from './composables/groups/useDeleteGroup';
+export {default as useGetGroupMembers} from './composables/groups/useGetGroupMembers';
+export type {UseGetGroupMembersParams} from './composables/groups/useGetGroupMembers';
+export {default as useAddGroupMembers} from './composables/groups/useAddGroupMembers';
+export type {GroupMembersVariables} from './composables/groups/useAddGroupMembers';
+export {default as useRemoveGroupMembers} from './composables/groups/useRemoveGroupMembers';
+export {default as useGetRoles} from './composables/roles/useGetRoles';
+export type {UseGetRolesParams} from './composables/roles/useGetRoles';
+export {default as useGetRole} from './composables/roles/useGetRole';
+export {default as useCreateRole} from './composables/roles/useCreateRole';
+export {default as useUpdateRole} from './composables/roles/useUpdateRole';
+export type {UpdateRoleVariables} from './composables/roles/useUpdateRole';
+export {default as useDeleteRole} from './composables/roles/useDeleteRole';
+export {default as useGetRoleAssignments} from './composables/roles/useGetRoleAssignments';
+export type {UseGetRoleAssignmentsParams} from './composables/roles/useGetRoleAssignments';
+export {default as useAddRoleAssignments} from './composables/roles/useAddRoleAssignments';
+export type {RoleAssignmentsVariables} from './composables/roles/useAddRoleAssignments';
+export {default as useRemoveRoleAssignments} from './composables/roles/useRemoveRoleAssignments';
+export {default as useGetAgents} from './composables/agents/useGetAgents';
+export type {UseGetAgentsParams} from './composables/agents/useGetAgents';
+export {default as useGetAgent} from './composables/agents/useGetAgent';
+export {default as useCreateAgent} from './composables/agents/useCreateAgent';
+export {default as useUpdateAgent} from './composables/agents/useUpdateAgent';
+export type {UpdateAgentVariables} from './composables/agents/useUpdateAgent';
+export {default as useDeleteAgent} from './composables/agents/useDeleteAgent';
+export {default as useGetAgentGroups} from './composables/agents/useGetAgentGroups';
+export {default as useGetAgentRoles} from './composables/agents/useGetAgentRoles';
+export {default as useGetAgentTypes} from './composables/agents/useGetAgentTypes';
+export {default as useGetApplications} from './composables/applications/useGetApplications';
+export type {UseGetApplicationsParams} from './composables/applications/useGetApplications';
+export {default as useGetApplication} from './composables/applications/useGetApplication';
+export {default as useCreateApplication} from './composables/applications/useCreateApplication';
+export {default as useUpdateApplication} from './composables/applications/useUpdateApplication';
+export type {UpdateApplicationVariables} from './composables/applications/useUpdateApplication';
+export {default as useDeleteApplication} from './composables/applications/useDeleteApplication';
+
 // ── Client ──
 export {default as ThunderIDVueClient} from './ThunderIDVueClient';
 
@@ -124,6 +185,7 @@ export {default as Loading} from './components/control/Loading';
 export {default as User} from './components/presentation/user/User';
 export {default as UserProfile} from './components/presentation/user-profile/UserProfile';
 export {default as BaseUserProfile} from './components/presentation/user-profile/BaseUserProfile';
+export {default as Attribution} from './components/presentation/attribution/Attribution';
 export {default as ChangeCredential} from './components/presentation/change-credential/ChangeCredential';
 export {default as BaseChangeCredential} from './components/presentation/change-credential/BaseChangeCredential';
 export type {ChangePasswordValues} from './components/presentation/change-credential/BaseChangeCredential';
@@ -145,6 +207,63 @@ export type {
 } from './components/presentation/invite-user/BaseInviteUser';
 export {default as LanguageSwitcher} from './components/presentation/language-switcher/LanguageSwitcher';
 export {default as BaseLanguageSwitcher} from './components/presentation/language-switcher/BaseLanguageSwitcher';
+
+// ── UI Components — Admin (management) ──
+export {default as DataTable} from './components/primitives/DataTable/DataTable';
+export type {DataTableColumn, DataTablePagination} from './components/primitives/DataTable/DataTable';
+export type {AdminListRenderProps} from './components/presentation/admin/shared/createAdminList';
+export type {AdminSearchValue} from './components/presentation/admin/shared/AdminSearch';
+export type {AdminFormRenderProps} from './components/presentation/admin/shared/adminFormProps';
+export {default as BaseUserList} from './components/presentation/admin/UserList/BaseUserList';
+export {default as UserList} from './components/presentation/admin/UserList/UserList';
+export {default as BaseUserCreate} from './components/presentation/admin/UserCreate/BaseUserCreate';
+export type {
+  BaseUserCreateRenderProps,
+  UserCreateSubmission,
+} from './components/presentation/admin/UserCreate/BaseUserCreate';
+export {DEFAULT_USER_CREATE_FIELDS} from './components/presentation/admin/UserCreate/userCreateFields';
+export type {UserCreateField} from './components/presentation/admin/UserCreate/userCreateFields';
+export {default as UserCreate} from './components/presentation/admin/UserCreate/UserCreate';
+export {default as BaseUserDetails} from './components/presentation/admin/UserDetails/BaseUserDetails';
+export type {BaseUserDetailsRenderProps} from './components/presentation/admin/UserDetails/BaseUserDetails';
+export {default as UserDetails} from './components/presentation/admin/UserDetails/UserDetails';
+export {default as BaseGroupList} from './components/presentation/admin/GroupList/BaseGroupList';
+export {default as GroupList} from './components/presentation/admin/GroupList/GroupList';
+export {default as BaseGroupCreate} from './components/presentation/admin/GroupCreate/BaseGroupCreate';
+export type {
+  BaseGroupCreateRenderProps,
+  GroupCreateSubmission,
+} from './components/presentation/admin/GroupCreate/BaseGroupCreate';
+export {default as GroupCreate} from './components/presentation/admin/GroupCreate/GroupCreate';
+export {default as BaseGroupMembers} from './components/presentation/admin/GroupMembers/BaseGroupMembers';
+export type {BaseGroupMembersRenderProps} from './components/presentation/admin/GroupMembers/BaseGroupMembers';
+export {default as GroupMembers} from './components/presentation/admin/GroupMembers/GroupMembers';
+export {default as BaseRoleList} from './components/presentation/admin/RoleList/BaseRoleList';
+export {default as RoleList} from './components/presentation/admin/RoleList/RoleList';
+export {default as BaseRoleCreate} from './components/presentation/admin/RoleCreate/BaseRoleCreate';
+export type {
+  BaseRoleCreateRenderProps,
+  RoleCreateSubmission,
+} from './components/presentation/admin/RoleCreate/BaseRoleCreate';
+export {default as RoleCreate} from './components/presentation/admin/RoleCreate/RoleCreate';
+export {default as BaseRoleAssignments} from './components/presentation/admin/RoleAssignments/BaseRoleAssignments';
+export type {BaseRoleAssignmentsRenderProps} from './components/presentation/admin/RoleAssignments/BaseRoleAssignments';
+export {default as RoleAssignments} from './components/presentation/admin/RoleAssignments/RoleAssignments';
+export {default as BaseRolePermissions} from './components/presentation/admin/RolePermissions/BaseRolePermissions';
+export type {BaseRolePermissionsRenderProps} from './components/presentation/admin/RolePermissions/BaseRolePermissions';
+export {default as RolePermissions} from './components/presentation/admin/RolePermissions/RolePermissions';
+export {default as BaseAgentList} from './components/presentation/admin/AgentList/BaseAgentList';
+export {default as AgentList} from './components/presentation/admin/AgentList/AgentList';
+export {default as BaseAgentCreate} from './components/presentation/admin/AgentCreate/BaseAgentCreate';
+export type {
+  AgentCreateSubmission,
+  BaseAgentCreateRenderProps,
+} from './components/presentation/admin/AgentCreate/BaseAgentCreate';
+export {default as AgentCreate} from './components/presentation/admin/AgentCreate/AgentCreate';
+export {default as BaseAgentDetails} from './components/presentation/admin/AgentDetails/BaseAgentDetails';
+export type {BaseAgentDetailsRenderProps} from './components/presentation/admin/AgentDetails/BaseAgentDetails';
+export {default as AgentDetails} from './components/presentation/admin/AgentDetails/AgentDetails';
+export type {IdentityCandidate} from './components/presentation/admin/shared/IdentityPicker';
 
 // ── UI Components — Adapters ──
 export {default as GoogleButton} from './components/adapters/GoogleButton';
@@ -230,4 +349,90 @@ export {
   type ComponentRenderContext,
   type ComponentsExtensions,
   type ComponentRenderer,
+} from '@thunderid/browser';
+
+// ── Re-exports from @thunderid/browser (management API) ──
+export {
+  AgentQueryKeys,
+  ApplicationQueryKeys,
+  GroupQueryKeys,
+  RoleQueryKeys,
+  UserQueryKeys,
+  ThunderIDAPIError,
+  addGroupMembers,
+  addRoleAssignments,
+  getTokenPermissions,
+  hasPermission,
+  createAgent,
+  createApplication,
+  createGroup,
+  createRole,
+  createUser,
+  deleteAgent,
+  deleteApplication,
+  deleteGroup,
+  deleteRole,
+  deleteUser,
+  getAgent,
+  getAgentGroups,
+  getAgentRoles,
+  getAgentTypes,
+  getAgents,
+  getApplication,
+  getApplications,
+  getGroup,
+  getGroupMembers,
+  getGroups,
+  getRole,
+  getRoleAssignments,
+  getRoles,
+  getUser,
+  getUserGroups,
+  getUsers,
+  removeGroupMembers,
+  removeRoleAssignments,
+  updateAgent,
+  updateApplication,
+  updateGroup,
+  updateRole,
+  updateUser,
+  type Agent,
+  type AgentListResponse,
+  type AgentRoleListResponse,
+  type AgentType,
+  type AgentTypeListResponse,
+  type ApiFetcher,
+  type ApiFilteringParams,
+  type Application,
+  type ApplicationListResponse,
+  type BasicAgent,
+  type BasicApplication,
+  type CreateAgentRequest,
+  type CreateApplicationRequest,
+  type CreateGroupRequest,
+  type CreateManagedUserRequest,
+  type CreateRoleRequest,
+  type Group,
+  type GroupListResponse,
+  type GroupMember,
+  type GroupMemberListResponse,
+  type GroupMemberType,
+  type ManagedUser,
+  type ManagedUserListResponse,
+  type ManagementRequestConfig,
+  type MembershipGroup,
+  type MembershipGroupListResponse,
+  type Role,
+  type RoleAssigneeType,
+  type RoleAssignment,
+  type RoleAssignmentInput,
+  type RoleAssignmentListResponse,
+  type RoleListResponse,
+  type RoleResourcePermissions,
+  type RoleSummary,
+  type UpdateAgentRequest,
+  type UpdateApplicationRequest,
+  type UpdateGroupRequest,
+  type UpdateManagedUserRequest,
+  type UpdateRoleRequest,
 } from '@thunderid/browser';

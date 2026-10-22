@@ -29,6 +29,8 @@ export interface Snippet {
   /** Lines of `<script setup>` after the imports. */
   script?: string[];
   template: string;
+  /** Import lines for other packages, such as a third-party UI library. */
+  otherImports?: string[];
 }
 
 export interface ComponentDef {

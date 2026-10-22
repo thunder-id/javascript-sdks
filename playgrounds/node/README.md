@@ -5,14 +5,15 @@ that holds a `ThunderIDNodeClient`, and serves an operations explorer for runnin
 
 ## What it covers
 
-| Group          | Operations                                                                                                                                 |
-| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
-| Discovery      | `getOpenIDProviderEndpoints()`, `getDiscoveryResponse()`, `getConfiguration()`                                                             |
-| Sign-in        | `getSignInUrl()`, `signIn()` (start, and code exchange), `getOBOSignInURL()`, `initiateCIBA()`, `pollCIBA()`                               |
-| Session        | `isSignedIn()`, `getUser()`, `getIdToken()`, `getDecodedIdToken()`, `getAccessToken()`, `decodeJwtToken()`, `clearSession()`               |
-| Tokens         | `refreshAccessToken()`, `revokeAccessToken()`, `exchangeToken()`, client credentials (`getAccessToken()` on a `client_credentials` client) |
-| Sign-out       | `signOut()`, `handleBackchannelLogout()`                                                                                                   |
-| Management API | `getUsers()`, `getFlows()`, `getUserTypes()`, `updateUserCredentials()`                                                                    |
+| Group             | Operations                                                                                                                                                                                                                                                                   |
+| ----------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Discovery         | resolved resource endpoints (`resolveResourceEndpoint()` on `getConfiguration()`), `getOpenIDProviderEndpoints()`, `getDiscoveryResponse()`, `getConfiguration()`                                                                                                            |
+| Sign-in           | `getSignInUrl()`, `signIn()` (start, and code exchange), `getOBOSignInURL()`, `initiateCIBA()`, `pollCIBA()`                                                                                                                                                                 |
+| Session           | `isSignedIn()`, `getUser()`, `getIdToken()`, `getDecodedIdToken()`, `getAccessToken()`, `decodeJwtToken()`, `clearSession()`                                                                                                                                                 |
+| Tokens            | `refreshAccessToken()`, `revokeAccessToken()`, `exchangeToken()`, client credentials (`getAccessToken()` on a `client_credentials` client)                                                                                                                                   |
+| Sign-out          | `signOut()`, `handleBackchannelLogout()`                                                                                                                                                                                                                                     |
+| Management API    | `getUsers()`, `getFlows()`, `getUserTypes()`, `updateUserCredentials()`                                                                                                                                                                                                      |
+| Management client | `client.management(sessionId)`: `groups.list/get/listMembers`, `roles.list/get/listAssignments`, `agentTypes.list`, `agents.listGroups/listRoles`, `users.listGroups`, and a permission-gated `groups.list()` behind `hasPermission(getTokenPermissions(token), permission)` |
 
 `signInSilently()`, `signUp()`, `recover()`, `getUserProfile()` and `updateUserProfile()` are listed as not available:
 `ThunderIDNodeClient` does not implement them.
@@ -27,7 +28,14 @@ The operations explorer at the playground's root lets you:
 - read what the call resolved to, or the error it rejected with;
 - open the **HTTP** tab for the requests the SDK sent to ThunderID, with their responses;
 - follow the **SDK trace**: the client methods the call went through, its requests and the SDK's own log lines;
-- copy the call as code and read the operation's source.
+- copy the call as code and read the operation's source;
+- read the **resolved endpoints** in the sidebar: where each management collection and each sign-in and self-service
+  endpoint resolves for the client, and which ones an override set.
+
+Management client operations run as a signed-in session. Run as a new session, they reject with
+`NODE-MANAGEMENT-RC-NF01` before any request; a token without the permission gets the server's 403 as
+`<operation>-ForbiddenError-001`. The trace shows `client.management()`, then `management.<collection>.<op>()` with the
+`getAccessToken()` the SDK reads and the request it sends.
 
 ## Run it against a local ThunderID server
 
@@ -63,6 +71,23 @@ restart.
 
 Without a ThunderID server, the explorer still runs: the top bar shows ThunderID as unreachable and the operations that
 call it reject with the SDK's errors, which the trace shows.
+
+## Endpoint overrides
+
+| Variable                   | Purpose                                                                                                                                      |
+| -------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| `THUNDERID_ENDPOINT_<KEY>` | Optional. One collection URL each. `<KEY>` is `USERS`, `USER_TYPES`, `GROUPS`, `ROLES`, `AGENTS`, `AGENT_TYPES`, `APPLICATIONS`, or `FLOWS`. |
+
+They become `endpoints` in `client.initialize()`. Unset, each collection resolves to `THUNDERID_BASE_URL/<collection>`.
+
+## Known SDK gaps
+
+- The SDK exports no table of default resource paths. `MANAGEMENT_COLLECTIONS` covers six collections but not
+  `applications` or `flows`, and there is none for `flowExecute`, `flowMeta` or the `usersMe*` endpoints, so
+  `src/endpoints.ts` lists them itself.
+- There is no client method for the permissions a session holds: the permission-gated operation combines
+  `getAccessToken()` with `getTokenPermissions()`, which reads nothing from an opaque token.
+- The management client is a plain object built per `management()` call, so the trace wraps what it returns.
 
 ## How the trace works
 

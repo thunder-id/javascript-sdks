@@ -59,6 +59,46 @@ export {default as updateAgent} from './api/agents/updateAgent';
 export type {UpdateAgentConfig} from './api/agents/updateAgent';
 export {default as deleteAgent} from './api/agents/deleteAgent';
 export type {DeleteAgentConfig} from './api/agents/deleteAgent';
+export {default as getRoles} from './api/roles/getRoles';
+export type {GetRolesConfig} from './api/roles/getRoles';
+export {default as getRole} from './api/roles/getRole';
+export type {GetRoleConfig} from './api/roles/getRole';
+export {default as createRole} from './api/roles/createRole';
+export type {CreateRoleConfig} from './api/roles/createRole';
+export {default as updateRole} from './api/roles/updateRole';
+export type {UpdateRoleConfig} from './api/roles/updateRole';
+export {default as deleteRole} from './api/roles/deleteRole';
+export type {DeleteRoleConfig} from './api/roles/deleteRole';
+export {default as getRoleAssignments} from './api/roles/getRoleAssignments';
+export type {GetRoleAssignmentsConfig} from './api/roles/getRoleAssignments';
+export {default as addRoleAssignments} from './api/roles/addRoleAssignments';
+export type {AddRoleAssignmentsConfig} from './api/roles/addRoleAssignments';
+export {default as removeRoleAssignments} from './api/roles/removeRoleAssignments';
+export type {RemoveRoleAssignmentsConfig} from './api/roles/removeRoleAssignments';
+export {default as getGroups} from './api/groups/getGroups';
+export type {GetGroupsConfig} from './api/groups/getGroups';
+export {default as getGroup} from './api/groups/getGroup';
+export type {GetGroupConfig} from './api/groups/getGroup';
+export {default as createGroup} from './api/groups/createGroup';
+export type {CreateGroupConfig} from './api/groups/createGroup';
+export {default as updateGroup} from './api/groups/updateGroup';
+export type {UpdateGroupConfig} from './api/groups/updateGroup';
+export {default as deleteGroup} from './api/groups/deleteGroup';
+export type {DeleteGroupConfig} from './api/groups/deleteGroup';
+export {default as getGroupMembers} from './api/groups/getGroupMembers';
+export type {GetGroupMembersConfig} from './api/groups/getGroupMembers';
+export {default as addGroupMembers} from './api/groups/addGroupMembers';
+export type {AddGroupMembersConfig} from './api/groups/addGroupMembers';
+export {default as removeGroupMembers} from './api/groups/removeGroupMembers';
+export type {RemoveGroupMembersConfig} from './api/groups/removeGroupMembers';
+export {default as getUserGroups} from './api/users/getUserGroups';
+export type {GetUserGroupsConfig} from './api/users/getUserGroups';
+export {default as getAgentGroups} from './api/agents/getAgentGroups';
+export type {GetAgentGroupsConfig} from './api/agents/getAgentGroups';
+export {default as getAgentRoles} from './api/agents/getAgentRoles';
+export type {GetAgentRolesConfig} from './api/agents/getAgentRoles';
+export {default as getAgentTypes} from './api/agents/getAgentTypes';
+export type {GetAgentTypesConfig} from './api/agents/getAgentTypes';
 
 export {default as ApplicationNativeAuthenticationConstants} from './constants/ApplicationNativeAuthenticationConstants';
 export {default as TokenConstants} from './constants/TokenConstants';
@@ -70,6 +110,8 @@ export {default as ConsentConstants} from './constants/ConsentConstants';
 export {default as ApplicationQueryKeys} from './constants/ApplicationQueryKeys';
 export {default as UserQueryKeys} from './constants/UserQueryKeys';
 export {default as AgentQueryKeys} from './constants/AgentQueryKeys';
+export {default as RoleQueryKeys} from './constants/RoleQueryKeys';
+export {default as GroupQueryKeys} from './constants/GroupQueryKeys';
 export {default as UserSelectConstants} from './constants/UserSelectConstants';
 export {default as AuthFlowSelectConstants} from './constants/AuthFlowSelectConstants';
 export {default as UserTypeSelectConstants} from './constants/UserTypeSelectConstants';
@@ -246,10 +288,36 @@ export type {
   AgentInboundAuthConfig,
   AgentListResponse,
   AgentLoginConsentConfig,
+  AgentRoleListResponse,
+  AgentType,
+  AgentTypeListResponse,
   BasicAgent,
   CreateAgentRequest,
   UpdateAgentRequest,
 } from './models/agent-resource';
+export type {
+  CreateRoleRequest,
+  Role,
+  RoleAssigneeType,
+  RoleAssignment,
+  RoleAssignmentInput,
+  RoleAssignmentListResponse,
+  RoleListResponse,
+  RoleResourcePermissions,
+  RoleSummary,
+  UpdateRoleRequest,
+} from './models/role';
+export type {
+  CreateGroupRequest,
+  Group,
+  GroupListResponse,
+  GroupMember,
+  GroupMemberListResponse,
+  GroupMemberType,
+  MembershipGroup,
+  MembershipGroupListResponse,
+  UpdateGroupRequest,
+} from './models/group';
 export type {AuthCodeResponse} from './models/auth-code-response';
 export type {Crypto, JWKInterface} from './models/crypto';
 export type {OAuthResponseMode} from './models/oauth-response';
@@ -274,6 +342,15 @@ export {default as createTheme, DEFAULT_THEME} from './theme/createTheme';
 export type {ThemeColors, ThemeConfig, Theme, ThemeMode, ThemeDetection} from './theme/types';
 
 export {default as AuthenticationHelper} from './utils/AuthenticationHelper';
+export {default as ThunderIDWordmark} from './constants/ThunderIDWordmark';
+export type {ThunderIDWordmarkPath} from './constants/ThunderIDWordmark';
+export {default as getTokenPermissions} from './utils/getTokenPermissions';
+export {default as createResourceInvalidator, fallbackResourceInvalidator} from './utils/createResourceInvalidator';
+export type {ResourceInvalidator, ResourceQueryKey} from './utils/createResourceInvalidator';
+export {default as toEqualityFilter} from './utils/toEqualityFilter';
+export {default as toManagementErrorMessage} from './utils/toManagementErrorMessage';
+export {default as resolveManagedIdentityName} from './utils/resolveManagedIdentityName';
+export {default as hasPermission} from './utils/hasPermission';
 export {default as arrayBufferToBase64url} from './utils/arrayBufferToBase64url';
 export {default as base64urlToArrayBuffer} from './utils/base64urlToArrayBuffer';
 export {default as bem} from './utils/bem';

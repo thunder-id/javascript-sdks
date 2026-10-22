@@ -8,7 +8,7 @@ import useTheme from '../../../contexts/Theme/useTheme';
 import {cx} from '../../../styles/emotion';
 import Spinner, {SpinnerSize} from '../Spinner/Spinner';
 
-export type ButtonColor = 'primary' | 'secondary' | 'tertiary' | string;
+export type ButtonColor = 'primary' | 'secondary' | 'tertiary' | 'error' | string;
 export type ButtonVariant = 'solid' | 'outline' | 'text' | 'icon';
 export type ButtonSize = 'small' | 'medium' | 'large';
 

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * A key identifying a resource query, e.g. `['applications', {limit: 10}]` or `['application', id]`.
+ * A key identifying a resource query, e.g. `['users', {limit: 10}]` or `['user', id]`.
  */
 export type ResourceQueryKey = readonly unknown[];
 
@@ -50,8 +50,8 @@ const createResourceInvalidator = (): ResourceInvalidator => {
 };
 
 /**
- * Used when the context does not supply an invalidator, for example when an integration renders
- * its own `ThunderIDContext` value instead of using `ThunderIDProvider`.
+ * Used when a framework context does not supply an invalidator, for example when an integration
+ * renders its own context value instead of using the framework's provider.
  */
 export const fallbackResourceInvalidator: ResourceInvalidator = createResourceInvalidator();
 

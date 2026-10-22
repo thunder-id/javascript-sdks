@@ -21,6 +21,11 @@ import FlowMetaContext, {FlowMetaContextValue} from '../FlowMeta/FlowMetaContext
 
 export interface ThemeProviderProps {
   /**
+   * A Design theme to use instead of the one the server returns in flow meta, for example the theme an
+   * app configuration names. `theme` overrides are still applied on top.
+   */
+  designTheme?: FlowMetaTheme | null;
+  /**
    * Initial color scheme override. Overrides the server default when provided.
    */
   mode?: ThemeMode;
@@ -63,13 +68,14 @@ export interface ThemeProviderProps {
  */
 const ThemeProvider: FC<PropsWithChildren<ThemeProviderProps>> = ({
   children,
+  designTheme = undefined,
   mode,
   theme: themeOverrideProp,
 }: PropsWithChildren<ThemeProviderProps>): ReactElement => {
   const themeOverride: RecursivePartial<ThemeConfig> | undefined = normalizeThemeConfig(themeOverrideProp);
   const flowMetaContext: FlowMetaContextValue | null = useContext(FlowMetaContext);
 
-  const flowMetaTheme: FlowMetaTheme | null = flowMetaContext?.meta?.design?.theme ?? null;
+  const flowMetaTheme: FlowMetaTheme | null = designTheme ?? flowMetaContext?.meta?.design?.theme ?? null;
   const isLoading: boolean = flowMetaContext?.isLoading ?? false;
   const error: Error | null = flowMetaContext?.error ?? null;
 

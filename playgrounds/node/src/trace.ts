@@ -15,7 +15,7 @@
  */
 
 import {AsyncLocalStorage} from 'node:async_hooks';
-import {logger, type LogLevel, type ThunderIDNodeClient} from '@thunderid/node';
+import {logger, type LogLevel, type ThunderIDNodeClient, type ThunderIDNodeManagementClient} from '@thunderid/node';
 
 export type TraceKind = 'ok' | 'info' | 'warn' | 'error';
 
@@ -163,6 +163,7 @@ const CLIENT_METHODS: Record<string, number> = {
   initiateCIBA: -1,
   isSignedIn: 0,
   loadOpenIDProviderConfiguration: -1,
+  management: 0,
   pollCIBA: -1,
   refreshAccessToken: 0,
   requestAccessToken: 2,
@@ -175,6 +176,47 @@ const CLIENT_METHODS: Record<string, number> = {
   updateUserCredentials: 1,
   validateLogoutToken: -1,
 };
+
+const describeArg = (value: unknown): string => {
+  if (typeof value === 'string') return `'${value.length > 12 ? `${value.slice(0, 12)}...` : value}'`;
+  if (value && typeof value === 'object') {
+    const keys: string[] = Object.entries(value)
+      .filter(([, v]: [string, unknown]) => v !== undefined)
+      .map(([key]: [string, unknown]) => key);
+    return `{${keys.join(', ')}}`;
+  }
+  return String(value);
+};
+
+/**
+ * The management client is a plain object of operations, built per call to `management()`, so its
+ * operations are wrapped on the object it returns.
+ */
+const traceManagement = (management: ThunderIDNodeManagementClient): ThunderIDNodeManagementClient =>
+  Object.fromEntries(
+    Object.entries(management).map(([collection, operations]: [string, Record<string, unknown>]) => [
+      collection,
+      Object.fromEntries(
+        Object.entries(operations).map(([name, operation]: [string, unknown]) => [
+          name,
+          async (...args: unknown[]): Promise<unknown> => {
+            const end: (detail: string, kind: TraceKind) => void = begin(
+              `management.${collection}.${name}(${args.map(describeArg).join(', ')})`,
+              'client',
+            );
+            try {
+              const result: unknown = await (operation as (...a: unknown[]) => Promise<unknown>)(...args);
+              end(`returned ${summarize(result)}`, 'ok');
+              return result;
+            } catch (e: unknown) {
+              end(`threw ${errorText(e)}`, 'error');
+              throw e;
+            }
+          },
+        ]),
+      ),
+    ]),
+  ) as unknown as ThunderIDNodeManagementClient;
 
 /**
  * Wraps the client's methods on the instance. Methods the SDK calls through `this` then go through
@@ -194,6 +236,10 @@ export const traceClient = (client: ThunderIDNodeClient, label: string): void =>
         'client',
       );
       const done = (result: unknown): unknown => {
+        if (name === 'management') {
+          end('returned the management client bound to the session', 'ok');
+          return traceManagement(result as ThunderIDNodeManagementClient);
+        }
         end(`returned ${summarize(result)}`, result === false ? 'warn' : 'ok');
         return result;
       };

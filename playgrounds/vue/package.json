@@ -15,8 +15,10 @@
     "format:fix": "prettier --write --cache ."
   },
   "dependencies": {
+    "@primeuix/themes": "^2.0.3",
     "@thunderid/browser": "workspace:*",
     "@thunderid/vue": "workspace:*",
+    "primevue": "^4.5.5",
     "vue": "3.5.43"
   },
   "devDependencies": {

@@ -211,6 +211,13 @@ a:hover {
   margin: 0 0 6px;
 }
 
+.pg-heading h2 {
+  font-size: 18px;
+  font-weight: 400;
+  letter-spacing: -0.2px;
+  margin: 12px 0 6px;
+}
+
 .pg-heading p {
   font-size: 13.5px;
   color: rgba(255, 255, 255, 0.55);
@@ -1246,4 +1253,32 @@ a:hover {
     text-align: left;
     max-width: none;
   }
+}
+
+/* Custom rendering stories (PrimeVue). */
+.pg-prime-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.pg-prime-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+}
+.pg-prime-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+.pg-prime-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.pg-prime-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }

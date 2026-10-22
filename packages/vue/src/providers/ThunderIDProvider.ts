@@ -1,7 +1,9 @@
 // Copyright 2025 The ThunderID Authors
 // SPDX-License-Identifier: Apache-2.0
 
+import {createResourceInvalidator} from '@thunderid/browser';
 import {
+  type ApiFetcher,
   AttributeSchema,
   ThunderIDRuntimeError,
   extractUserClaimsFromIdToken,
@@ -59,6 +61,7 @@ interface ThunderIDProviderProps {
   baseUrl: string;
   clientId: string;
   endpoints: ThunderIDVueConfig['endpoints'];
+  http: {fetcher?: ApiFetcher} | undefined;
   instanceId: number;
   organizationChain: object | undefined;
   organizationHandle: string | undefined;
@@ -133,6 +136,16 @@ const ThunderIDProvider: Component = defineComponent({
       type: Object as PropType<ThunderIDVueConfig['endpoints']>,
     },
     /** Instance ID for multi-instance support. */
+    /**
+     * HTTP options. `http.fetcher` is the transport used by the management composables
+     * (`useGetUsers`, `useCreateGroup`, and so on) and applies to management operations only.
+     * Defaults to the SDK's authenticated HTTP client, which attaches the signed-in user's access
+     * token. A `fetcher` passed to an individual composable takes precedence over this one.
+     */
+    http: {
+      default: undefined,
+      type: Object as PropType<{fetcher?: ApiFetcher}>,
+    },
     instanceId: {
       default: 0,
       type: Number,
@@ -370,10 +383,12 @@ const ThunderIDProvider: Component = defineComponent({
       getIdToken: (): Promise<string> => client.getIdToken(),
       getStorageManager: () => client.getStorageManager(),
       http: {
+        fetcher: props.http?.fetcher,
         request: (requestConfig?: any): Promise<HttpResponse<any>> => client.request(requestConfig),
         requestAll: (requestConfigs?: any[]): Promise<HttpResponse<any>[]> => client.requestAll(requestConfigs),
       },
       instanceId: props.instanceId,
+      invalidator: createResourceInvalidator(),
       isInitialized,
       isLoading,
       isSignedIn,

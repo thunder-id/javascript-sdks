@@ -2,11 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import {act, cleanup, renderHook, waitFor} from '@testing-library/react';
-import {ApiFetcher} from '@thunderid/browser';
+import {createResourceInvalidator, ApiFetcher} from '@thunderid/browser';
 import {ReactElement, ReactNode} from 'react';
 import {afterEach, describe, expect, it, vi, type Mock} from 'vitest';
 import ThunderIDContext, {ThunderIDContextProps} from '../../contexts/ThunderID/ThunderIDContext';
-import createResourceInvalidator from '../../utils/createResourceInvalidator';
 import useDeleteAgent from '../agents/useDeleteAgent';
 import useCreateApplication from '../applications/useCreateApplication';
 import useGetApplication from '../applications/useGetApplication';

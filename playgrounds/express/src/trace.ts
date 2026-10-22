@@ -16,7 +16,12 @@
 
 import {AsyncLocalStorage} from 'node:async_hooks';
 import {randomUUID} from 'node:crypto';
-import {logger, type LogLevel, type ThunderIDExpressClient} from '@thunderid/express';
+import {
+  logger,
+  type LogLevel,
+  type ThunderIDExpressClient,
+  type ThunderIDNodeManagementClient,
+} from '@thunderid/express';
 import type {NextFunction, Request, RequestHandler, Response} from 'express';
 
 export type TraceKind = 'ok' | 'info' | 'warn' | 'error';
@@ -217,6 +222,46 @@ const CLIENT_METHODS: Record<string, number> = {
 
 const instrumented: WeakSet<object> = new WeakSet<object>();
 
+const describeArg = (value: unknown): string => {
+  if (typeof value === 'string') return `'${value.length > 12 ? `${value.slice(0, 12)}...` : value}'`;
+  if (value && typeof value === 'object') return `{${Object.keys(value).join(', ')}}`;
+  return String(value);
+};
+
+/**
+ * The management client is a plain object of operations, built per call to
+ * managementFromRequest(), so its operations are wrapped on the object it returns.
+ */
+const traceManagement = (management: ThunderIDNodeManagementClient): ThunderIDNodeManagementClient =>
+  Object.fromEntries(
+    Object.entries(management).map(([collection, operations]: [string, Record<string, unknown>]) => [
+      collection,
+      Object.fromEntries(
+        Object.entries(operations).map(([name, operation]: [string, unknown]) => [
+          name,
+          async (...args: unknown[]): Promise<unknown> => {
+            const end: (detail: string, kind: TraceKind) => void = begin(
+              `management.${collection}.${name}(${args.map(describeArg).join(', ')})`,
+              'client',
+            );
+            try {
+              const result: unknown = await (operation as (...a: unknown[]) => Promise<unknown>)(...args);
+              end(`returned ${summarize(result)}`, 'ok');
+              return result;
+            } catch (e: unknown) {
+              const code: unknown = (e as {code?: unknown}).code;
+              end(
+                `threw ${typeof code === 'string' ? `${code}: ` : ''}${e instanceof Error ? e.message : String(e)}`,
+                'error',
+              );
+              throw e;
+            }
+          },
+        ]),
+      ),
+    ]),
+  ) as unknown as ThunderIDNodeManagementClient;
+
 /** Wraps the client's public methods on the instance so nested SDK calls show up in the trace. */
 const traceClient = (client: ThunderIDExpressClient): void => {
   if (instrumented.has(client)) return;
@@ -241,6 +286,25 @@ const traceClient = (client: ThunderIDExpressClient): void => {
       }
     };
   });
+
+  // managementFromRequest() is synchronous (it throws when there is no session cookie), so it is
+  // wrapped without the async wrapper above.
+  const managementFromRequest: unknown = target['managementFromRequest'];
+  if (typeof managementFromRequest === 'function') {
+    target['managementFromRequest'] = (...args: unknown[]): ThunderIDNodeManagementClient => {
+      const end: (detail: string, kind: TraceKind) => void = begin('client.managementFromRequest(req)', 'client');
+      try {
+        const management: ThunderIDNodeManagementClient = (
+          managementFromRequest as (...a: unknown[]) => ThunderIDNodeManagementClient
+        ).apply(client, args);
+        end('returned the management client bound to the session cookie', 'ok');
+        return traceManagement(management);
+      } catch (e: unknown) {
+        end(`threw ${e instanceof Error ? e.message : String(e)}`, 'error');
+        throw e;
+      }
+    };
+  }
 };
 
 /**

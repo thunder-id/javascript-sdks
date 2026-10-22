@@ -103,3 +103,35 @@ export interface UpdateAgentRequest {
   registrationFlowId?: string;
   type?: string;
 }
+
+/**
+ * A page of the role names assigned to an agent.
+ */
+export interface AgentRoleListResponse {
+  count: number;
+  roles: string[];
+  startIndex: number;
+  totalResults: number;
+}
+
+/**
+ * A kind of agent, which defines the attributes its agents carry.
+ */
+export interface AgentType {
+  allowSelfRegistration?: boolean;
+  displayName: string;
+  handle: string;
+  id: string;
+  ouHandle?: string;
+  ouId: string;
+}
+
+/**
+ * A page of agent types.
+ */
+export interface AgentTypeListResponse {
+  count: number;
+  startIndex: number;
+  totalResults: number;
+  types: AgentType[];
+}

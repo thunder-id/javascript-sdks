@@ -242,7 +242,7 @@ export interface BaseConfig<T = unknown> extends WithPreferences, WithExtensions
    *   `{baseUrl}/oauth2/token/.well-known/openid-configuration`. Individual overrides take
    *   precedence over values resolved from the discovery document.
    * - **Resource-server endpoints** (`flowExecute`, `flowMeta`, `usersMe`, `usersMeCredentials`, and the
-   *   management collections `applications`, `users`, `userTypes`, `flows`, `agents`) —
+   *   management collections `applications`, `users`, `userTypes`, `flows`, `agents`, `agentTypes`, `roles`, `groups`) —
    *   by default derived by concatenating `baseUrl` with a fixed path (e.g. `{baseUrl}/flow/execute`).
    *   These do not participate in OIDC discovery.
    *
@@ -276,6 +276,11 @@ export interface BaseConfig<T = unknown> extends WithPreferences, WithExtensions
      */
     agents?: string;
     /**
+     * The agent types collection URL used by the agent type listing operation.
+     * If not provided, defaults to `{baseUrl}/agent-types`.
+     */
+    agentTypes?: string;
+    /**
      * The applications collection URL used by the application management operations.
      * A single application is addressed as `{applications}/{id}`.
      * If not provided, defaults to `{baseUrl}/applications`.
@@ -308,6 +313,12 @@ export interface BaseConfig<T = unknown> extends WithPreferences, WithExtensions
      */
     flows?: string;
     /**
+     * The groups collection URL used by the group management operations.
+     * A single group is addressed as `{groups}/{id}`, and its members as `{groups}/{id}/members`.
+     * If not provided, defaults to `{baseUrl}/groups`.
+     */
+    groups?: string;
+    /**
      * The introspection endpoint URL.
      * If not provided, resolved from the well-known discovery document.
      */
@@ -327,6 +338,12 @@ export interface BaseConfig<T = unknown> extends WithPreferences, WithExtensions
      * If not provided, resolved from the well-known discovery document.
      */
     userInfo?: string;
+    /**
+     * The roles collection URL used by the role management operations.
+     * A single role is addressed as `{roles}/{id}`, and its assignments as `{roles}/{id}/assignments`.
+     * If not provided, defaults to `{baseUrl}/roles`.
+     */
+    roles?: string;
     /**
      * The users collection URL used by the user management operations.
      * A single user is addressed as `{users}/{id}`.

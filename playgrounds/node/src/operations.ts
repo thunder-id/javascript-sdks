@@ -4,13 +4,18 @@
 // What each operation in the explorer runs. The explorer shows an operation's source by reading
 // its `#region` block in this file, so keep each runner inside its region.
 
-import type {
-  AgentConfig,
-  CIBAInitiateOptions,
-  ExtendedAuthorizeRequestUrlParams,
-  ThunderIDNodeClient,
-  TokenExchangeRequestConfig,
+import {
+  getTokenPermissions,
+  hasPermission,
+  type AgentConfig,
+  type CIBAInitiateOptions,
+  type ExtendedAuthorizeRequestUrlParams,
+  type ManagementListOptions,
+  type RoleAssigneeType,
+  type ThunderIDNodeClient,
+  type TokenExchangeRequestConfig,
 } from '@thunderid/node';
+import resolveEndpoints from './endpoints.ts';
 
 export interface RunContext {
   /** The JSON argument from the explorer's Arguments field, already parsed. */
@@ -26,6 +31,17 @@ export interface RunContext {
 export type Runner = (ctx: RunContext) => Promise<unknown>;
 
 const num = (value: string | undefined): number | undefined => (value ? Number(value) : undefined);
+
+const page = (params: Record<string, string>): ManagementListOptions => ({
+  limit: num(params['limit']),
+  offset: num(params['offset']),
+});
+
+// #region resolveEndpoints
+// Where each resource endpoint resolves for the initialised client: resolveResourceEndpoint()
+// returns the `endpoints` override, and an unset key falls back to {baseUrl}/{path}.
+const resolveEndpointsOp: Runner = async ({client}) => resolveEndpoints(await client.getConfiguration());
+// #endregion
 
 // #region getOpenIDProviderEndpoints
 const getOpenIDProviderEndpoints: Runner = ({client}) => client.getOpenIDProviderEndpoints();
@@ -183,6 +199,79 @@ const updateUserCredentials: Runner = async ({args, client, sessionId}) => {
 };
 // #endregion
 
+// #region management
+// client.management(sessionId) binds the management operations to one session: each call is sent
+// with that session's access token, read at call time, and never copied onto the returned object.
+// ThunderID decides whether the token may read the resource; a 403 or 404 rejects with a
+// ThunderIDAPIError (<operation>-ForbiddenError-001, <operation>-NotFoundError-001).
+// #endregion
+
+// #region listGroups
+const listGroups: Runner = ({client, params, sessionId}) => client.management(sessionId).groups.list(page(params));
+// #endregion
+
+// #region getGroup
+const getGroup: Runner = ({client, params, sessionId}) =>
+  client.management(sessionId).groups.get(params['groupId'] ?? '');
+// #endregion
+
+// #region listGroupMembers
+const listGroupMembers: Runner = ({client, params, sessionId}) =>
+  client.management(sessionId).groups.listMembers(params['groupId'] ?? '', page(params));
+// #endregion
+
+// #region listRoles
+const listRoles: Runner = ({client, params, sessionId}) => client.management(sessionId).roles.list(page(params));
+// #endregion
+
+// #region getRole
+const getRole: Runner = ({client, params, sessionId}) => client.management(sessionId).roles.get(params['roleId'] ?? '');
+// #endregion
+
+// #region listRoleAssignments
+// `type` narrows the assignments to users, groups, apps or agents.
+const listRoleAssignments: Runner = ({client, params, sessionId}) =>
+  client.management(sessionId).roles.listAssignments(params['roleId'] ?? '', {
+    ...page(params),
+    type: params['type'] ? (params['type'] as RoleAssigneeType) : undefined,
+  });
+// #endregion
+
+// #region listAgentTypes
+const listAgentTypes: Runner = ({client, params, sessionId}) =>
+  client.management(sessionId).agentTypes.list(page(params));
+// #endregion
+
+// #region listAgentGroups
+const listAgentGroups: Runner = ({client, params, sessionId}) =>
+  client.management(sessionId).agents.listGroups(params['agentId'] ?? '', page(params));
+// #endregion
+
+// #region listAgentRoles
+const listAgentRoles: Runner = ({client, params, sessionId}) =>
+  client.management(sessionId).agents.listRoles(params['agentId'] ?? '', page(params));
+// #endregion
+
+// #region listUserGroups
+const listUserGroups: Runner = ({client, params, sessionId}) =>
+  client.management(sessionId).users.listGroups(params['userId'] ?? '', page(params));
+// #endregion
+
+// #region permissionGatedGroups
+// getTokenPermissions() reads the `scope` or `scopes` claim of the access token, and hasPermission()
+// treats permissions as `:` paths, so `system` or `system:group` also cover `system:group:view`. The
+// token is decoded, not verified: the check only decides whether to make the call, and ThunderID
+// still checks the request.
+const permissionGatedGroups: Runner = async ({client, params, sessionId}) => {
+  const permission: string = params['permission'] ?? '';
+  const granted: string[] = getTokenPermissions(await client.getAccessToken(sessionId));
+  if (!hasPermission(granted, permission)) {
+    return {allowed: false, granted, required: permission};
+  }
+  return {allowed: true, groups: await client.management(sessionId).groups.list(page(params))};
+};
+// #endregion
+
 const runners: Record<string, Runner> = {
   clearSession,
   clientCredentials,
@@ -197,14 +286,26 @@ const runners: Record<string, Runner> = {
   getOBOSignInURL,
   getOpenIDProviderEndpoints,
   getSignInUrl,
+  getGroup,
+  getRole,
   getUser,
   getUserTypes,
   getUsers,
   handleBackchannelLogout,
   initiateCIBA,
   isSignedIn,
+  listAgentGroups,
+  listAgentRoles,
+  listAgentTypes,
+  listGroupMembers,
+  listGroups,
+  listRoleAssignments,
+  listRoles,
+  listUserGroups,
+  permissionGatedGroups,
   pollCIBA,
   refreshAccessToken,
+  resolveEndpoints: resolveEndpointsOp,
   revokeAccessToken,
   signInCode,
   signInStart,

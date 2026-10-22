@@ -47,3 +47,48 @@ export type {AuthFlowSelectProps} from './components/presentation/AuthFlowSelect
 
 export {default as UserTypeSelect} from './components/presentation/UserTypeSelect/UserTypeSelect';
 export type {UserTypeSelectProps} from './components/presentation/UserTypeSelect/UserTypeSelect';
+
+// Admin (management) components. Their requests run through a server action with the server-held session.
+
+export {default as UserList} from './components/presentation/admin/UserList/UserList';
+export type {UserListProps} from './components/presentation/admin/UserList/UserList';
+
+export {default as UserCreate} from './components/presentation/admin/UserCreate/UserCreate';
+export type {UserCreateProps} from './components/presentation/admin/UserCreate/UserCreate';
+
+export {default as UserDetails} from './components/presentation/admin/UserDetails/UserDetails';
+export type {UserDetailsProps} from './components/presentation/admin/UserDetails/UserDetails';
+
+export {default as GroupList} from './components/presentation/admin/GroupList/GroupList';
+export type {GroupListProps} from './components/presentation/admin/GroupList/GroupList';
+
+export {default as GroupCreate} from './components/presentation/admin/GroupCreate/GroupCreate';
+export type {GroupCreateProps} from './components/presentation/admin/GroupCreate/GroupCreate';
+
+export {default as GroupMembers} from './components/presentation/admin/GroupMembers/GroupMembers';
+export type {GroupMembersProps} from './components/presentation/admin/GroupMembers/GroupMembers';
+
+export {default as RoleList} from './components/presentation/admin/RoleList/RoleList';
+export type {RoleListProps} from './components/presentation/admin/RoleList/RoleList';
+
+export {default as RoleCreate} from './components/presentation/admin/RoleCreate/RoleCreate';
+export type {RoleCreateProps} from './components/presentation/admin/RoleCreate/RoleCreate';
+
+export {default as RoleAssignments} from './components/presentation/admin/RoleAssignments/RoleAssignments';
+export type {RoleAssignmentsProps} from './components/presentation/admin/RoleAssignments/RoleAssignments';
+
+export {default as RolePermissions} from './components/presentation/admin/RolePermissions/RolePermissions';
+export type {RolePermissionsProps} from './components/presentation/admin/RolePermissions/RolePermissions';
+
+export {default as AgentList} from './components/presentation/admin/AgentList/AgentList';
+export type {AgentListProps} from './components/presentation/admin/AgentList/AgentList';
+
+export {default as AgentCreate} from './components/presentation/admin/AgentCreate/AgentCreate';
+export type {AgentCreateProps} from './components/presentation/admin/AgentCreate/AgentCreate';
+
+export {default as AgentDetails} from './components/presentation/admin/AgentDetails/AgentDetails';
+export type {AgentDetailsProps} from './components/presentation/admin/AgentDetails/AgentDetails';
+
+export {default as useGrantedPermissions} from './hooks/useGrantedPermissions';
+
+export * from './admin';

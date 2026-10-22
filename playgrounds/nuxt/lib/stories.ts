@@ -20,6 +20,9 @@ import {
   Typography,
 } from '@thunderid/vue';
 import {defineComponent, h, ref, type Component, type PropType, type Ref, type VNode} from 'vue';
+import {ADMIN_COMPONENTS} from './adminStories';
+import {CUSTOM_RENDER_COMPONENTS} from './customRenderStories';
+import {tag} from './storyCode';
 import type {Action, Args, ArgValue, ComponentDef, PropControl} from './storyTypes';
 import {CheckboxStory, narrow, OtpFieldStory, PasswordFieldStory, SelectStory, TextFieldStory} from './storyWidgets';
 import {getDisplayName} from './user';
@@ -43,43 +46,6 @@ import {
 
 const str = (args: Args, key: string): string => String(args[key] ?? '');
 const bool = (args: Args, key: string): boolean => args[key] === true;
-
-const kebab = (name: string): string => name.replace(/[A-Z]/g, (char: string) => `-${char.toLowerCase()}`);
-
-const attr = (key: string, value: ArgValue): string => {
-  const name: string = kebab(key);
-
-  if (value === true) return name;
-  if (value === false || typeof value === 'number') return `:${name}="${String(value)}"`;
-
-  return `${name}="${value.replace(/"/g, '&quot;')}"`;
-};
-
-/**
- * Builds a template element from the props that differ from the component's own defaults.
- */
-export const tag = (
-  name: string,
-  props: Args,
-  options: {children?: string; defaults?: Args; extra?: string[]} = {},
-): string => {
-  const parts: string[] = Object.entries(props)
-    .filter(
-      ([key, value]: [string, ArgValue]) =>
-        value !== '' &&
-        options.defaults?.[key] !== value &&
-        !(value === false && options.defaults?.[key] === undefined),
-    )
-    .map(([key, value]: [string, ArgValue]) => attr(key, value))
-    .concat(options.extra ?? []);
-  const inline: string = parts.length ? ` ${parts.join(' ')}` : '';
-  const multiline: boolean = inline.length > 70;
-  const attrs: string = multiline ? `\n  ${parts.join('\n  ')}\n` : inline;
-
-  if (options.children) return `<${name}${attrs}>${options.children}</${name}>`;
-
-  return `<${name}${attrs}${multiline ? '' : ' '}/>`;
-};
 
 const omit = (args: Args, ...keys: string[]): Args =>
   Object.fromEntries(Object.entries(args).filter(([key]: [string, ArgValue]) => !keys.includes(key)));
@@ -887,6 +853,8 @@ export const COMPONENTS: ComponentDef[] = [
     'GET /api/auth/user-types',
     'userTypes',
   ),
+  ...ADMIN_COMPONENTS,
+  ...CUSTOM_RENDER_COMPONENTS,
 ];
 
 export const STORY_COUNT: number = COMPONENTS.reduce(
@@ -900,8 +868,12 @@ export const GROUPS: string[] = Array.from(new Set(COMPONENTS.map((component: Co
 export const buildCode = (component: ComponentDef, args: Args): string => {
   const snippet = component.code(args);
   const imports: string[] = Array.from(new Set(snippet.imports)).sort();
+  const vueImports: string[] = ['computed', 'ref'].filter((name: string) =>
+    (snippet.script ?? []).some((line: string) => line.includes(`${name}(`)),
+  );
   const script: string[] = [
-    ...(snippet.script?.length ? ["import {ref} from 'vue';"] : []),
+    ...(vueImports.length ? [`import {${vueImports.join(', ')}} from 'vue';`] : []),
+    ...(snippet.otherImports ?? []),
     ...(imports.length ? [`import {${imports.join(', ')}} from '@thunderid/vue';`] : []),
   ];
   const body: string[] = snippet.script ?? [];
@@ -910,7 +882,7 @@ export const buildCode = (component: ComponentDef, args: Args): string => {
     .split('\n')
     .map((line: string) => `  ${line}`)
     .join('\n');
-  const autoImported = '<!-- Components of @thunderid/nuxt are auto-imported. -->';
+  const autoImported = '<!-- Auto-imported by @thunderid/nuxt (admin components with thunderid.management). -->';
 
   return `${scriptBlock ? `<script setup lang="ts">\n${scriptBlock}\n</script>\n\n` : ''}<template>\n${
     imports.length ? '' : `  ${autoImported}\n`

@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import {
+  ResourceInvalidator,
+  createResourceInvalidator,
   ThunderIDRuntimeError,
   generateFlattenedUserProfile,
   OIDCDiscoveryApiResponse,
@@ -21,19 +23,18 @@ import {
 } from '@thunderid/browser';
 import {FC, RefObject, PropsWithChildren, ReactElement, useEffect, useMemo, useRef, useState, useCallback} from 'react';
 import ThunderIDContext, {ThunderIDContextProps} from './ThunderIDContext';
+import getUsersMe from '../../api/getUsersMe';
+import getUsersMeMeta from '../../api/getUsersMeMeta';
 import useBrowserUrl from '../../hooks/useBrowserUrl';
 import {ThunderIDReactConfig} from '../../models/config';
 import {configureEmotionNonce} from '../../styles/emotion';
 import ThunderIDReactClient from '../../ThunderIDReactClient';
-import createResourceInvalidator, {ResourceInvalidator} from '../../utils/createResourceInvalidator';
 import ComponentRendererProvider from '../ComponentRenderer/ComponentRendererProvider';
 import FlowProvider from '../Flow/FlowProvider';
 import FlowMetaProvider from '../FlowMeta/FlowMetaProvider';
 import I18nProvider from '../I18n/I18nProvider';
 import ThemeProvider from '../Theme/ThemeProvider';
 import UserProvider from '../User/UserProvider';
-import getUsersMe from '../../api/getUsersMe';
-import getUsersMeMeta from '../../api/getUsersMeMeta';
 
 const logger: ReturnType<typeof createPackageComponentLogger> = createPackageComponentLogger(
   '@thunderid/react',
@@ -587,11 +588,7 @@ const ThunderIDProvider: FC<PropsWithChildren<ThunderIDProviderProps>> = ({
             }}
           >
             <FlowProvider>
-              <UserProvider
-                profile={userProfile as UserProfile}
-                userSchema={userSchema}
-                onUpdateProfile={handleProfileUpdate}
-              >
+              <UserProvider profile={userProfile!} userSchema={userSchema} onUpdateProfile={handleProfileUpdate}>
                 <ComponentRendererProvider renderers={(extensions?.components?.renderers ?? {}) as any}>
                   {children}
                 </ComponentRendererProvider>

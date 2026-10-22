@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import type {
+  ResourceInvalidator,
+  ApiFetcher,
   AttributeSchema,
   FlowMetadataResponse,
   HttpRequestConfig,
@@ -53,12 +55,24 @@ export interface ThunderIDContext {
   getStorageManager: () => StorageManager<any>;
   // ── HTTP ──
   http: {
+    /**
+     * Transport supplied through `ThunderIDProvider`'s `http.fetcher` prop, used by the management
+     * composables (`useGetUsers`, `useCreateGroup`, and so on) only. A `fetcher` passed to an
+     * individual composable takes precedence over it.
+     */
+    fetcher?: ApiFetcher;
     request: (requestConfig?: HttpRequestConfig) => Promise<HttpResponse<any>>;
     requestAll: (requestConfigs?: HttpRequestConfig[]) => Promise<HttpResponse<any>[]>;
   };
 
   /** The instance ID for multi-instance support. */
   instanceId: number;
+  /**
+   * Lets management mutations refetch the management queries whose data they changed. Optional so an
+   * integration that provides its own context keeps working; the composables fall back to a shared
+   * in-memory invalidator.
+   */
+  invalidator?: ResourceInvalidator;
   // ── Reactive Auth State ──
   /** Whether the SDK has finished initializing. */
   isInitialized: Readonly<Ref<boolean>>;

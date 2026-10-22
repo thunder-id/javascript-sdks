@@ -16,6 +16,9 @@ await client.initialize({
   baseUrl: config.baseUrl,
   clientId: config.clientId,
   clientSecret: config.clientSecret,
+  // Per-collection management endpoint overrides (see .env.example). Unset keys resolve to
+  // {baseUrl}/{collection}.
+  endpoints: config.endpoints,
   scopes: config.scopes,
 });
 // #endregion

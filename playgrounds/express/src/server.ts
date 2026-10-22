@@ -6,12 +6,16 @@
 
 import {fileURLToPath} from 'node:url';
 import {
+  getTokenPermissions,
   handleBackchannelLogout,
   handleFlow,
   handleSignIn,
   handleSignOut,
+  hasPermission,
   protect,
   thunderID,
+  type RoleAssigneeType,
+  type ThunderIDNodeManagementClient,
   type ThunderIDRuntimeError,
   type TokenResponse,
 } from '@thunderid/express';
@@ -41,6 +45,9 @@ app.use(
     baseUrl: config.baseUrl,
     clientId: config.clientId,
     clientSecret: config.clientSecret,
+    // Per-collection management endpoint overrides (see .env.example). Unset keys resolve to
+    // {baseUrl}/{collection}.
+    endpoints: config.endpoints,
     flowSecret: config.flowSecret,
     onError: (res: Response, error: ThunderIDRuntimeError) =>
       res.status(500).json({error: error.code, message: error.message}),
@@ -83,6 +90,34 @@ const requireScope =
     }
     res.status(403).json({error: 'insufficient_scope', granted, required: [scope]});
   };
+// #endregion
+
+// #region requirePermission
+// The same check with the SDK helpers: getTokenPermissions() reads the `scope` or `scopes` claim, and
+// hasPermission() treats permissions as `:` paths, so `system` or `system:group` also cover
+// `system:group:view`. The token is decoded, not verified; ThunderID still checks every request.
+const requirePermission =
+  (permission: string): RequestHandler =>
+  async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    const granted: string[] = getTokenPermissions(await clientOf(req).getAccessToken(sessionOf(req)));
+    if (hasPermission(granted, permission)) {
+      next();
+      return;
+    }
+    res.status(403).json({error: 'insufficient_permission', granted, required: permission});
+  };
+// #endregion
+
+// #region management
+// managementFromRequest() binds the management client to the request's session cookie: each call
+// is sent with that session's access token, which stays on the server. ThunderID decides whether
+// the token may read the resource; a 403 or 404 comes back as a ThunderIDAPIError.
+const adminOf = (req: Request): ThunderIDNodeManagementClient => clientOf(req).managementFromRequest(req);
+
+const page = (req: Request): {limit: number; offset: number} => ({
+  limit: Number(req.query['limit'] ?? 10),
+  offset: Number(req.query['offset'] ?? 0),
+});
 // #endregion
 
 // #region login
@@ -171,6 +206,67 @@ app.get(
   async (req: Request, res: Response) => {
     const limit = Number(req.query['limit'] ?? 10);
     res.json(await clientOf(req).getUsers({limit}, sessionOf(req)));
+  },
+);
+// #endregion
+
+// #region groups
+app.get('/api/management/groups', protect(unauthenticated), async (req: Request, res: Response) => {
+  res.json(await adminOf(req).groups.list(page(req)));
+});
+// #endregion
+
+// #region group
+app.get('/api/management/groups/:id', protect(unauthenticated), async (req: Request, res: Response) => {
+  res.json(await adminOf(req).groups.get(req.params['id'] as string));
+});
+// #endregion
+
+// #region groupMembers
+app.get('/api/management/groups/:id/members', protect(unauthenticated), async (req: Request, res: Response) => {
+  res.json(await adminOf(req).groups.listMembers(req.params['id'] as string, page(req)));
+});
+// #endregion
+
+// #region roles
+app.get('/api/management/roles', protect(unauthenticated), async (req: Request, res: Response) => {
+  res.json(await adminOf(req).roles.list(page(req)));
+});
+// #endregion
+
+// #region role
+app.get('/api/management/roles/:id', protect(unauthenticated), async (req: Request, res: Response) => {
+  res.json(await adminOf(req).roles.get(req.params['id'] as string));
+});
+// #endregion
+
+// #region roleAssignments
+// `type` narrows the assignments to users, groups, apps or agents.
+app.get('/api/management/roles/:id/assignments', protect(unauthenticated), async (req: Request, res: Response) => {
+  const type = req.query['type'] ? (req.query['type'] as RoleAssigneeType) : undefined;
+  res.json(await adminOf(req).roles.listAssignments(req.params['id'] as string, {...page(req), type}));
+});
+// #endregion
+
+// #region agentTypes
+app.get('/api/management/agent-types', protect(unauthenticated), async (req: Request, res: Response) => {
+  res.json(await adminOf(req).agentTypes.list(page(req)));
+});
+// #endregion
+
+// #region userGroups
+app.get('/api/management/users/:id/groups', protect(unauthenticated), async (req: Request, res: Response) => {
+  res.json(await adminOf(req).users.listGroups(req.params['id'] as string, page(req)));
+});
+// #endregion
+
+// #region adminGroups
+app.get(
+  '/api/admin/groups',
+  protect(unauthenticated),
+  requirePermission(config.groupsPermission),
+  async (req: Request, res: Response) => {
+    res.json(await adminOf(req).groups.list(page(req)));
   },
 );
 // #endregion

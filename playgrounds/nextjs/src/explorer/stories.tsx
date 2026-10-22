@@ -32,52 +32,12 @@ import {
   Typography,
 } from '@thunderid/react';
 import {ChangeEvent, FC} from 'react';
+import {ADMIN_COMPONENTS} from './adminStories';
+import {CUSTOM_RENDER_COMPONENTS} from './customRenderStories';
+import {bool, fromReact, isLive, jsx, num, omit, str} from './helpers';
 import Narrow from './Narrow';
-import type {Action, Args, ArgValue, ComponentDef, PropControl, Snippet} from './types';
+import type {Action, Args, ComponentDef, PropControl} from './types';
 import {getDisplayName} from '../lib/user';
-
-const str = (args: Args, key: string): string => String(args[key] ?? '');
-const bool = (args: Args, key: string): boolean => args[key] === true;
-const num = (args: Args, key: string): number => Number(args[key] ?? 0);
-
-const attr = (key: string, value: ArgValue): string => {
-  if (value === true) return key;
-  if (typeof value === 'number') return `${key}={${value}}`;
-
-  return `${key}="${String(value).replace(/"/g, '&quot;')}"`;
-};
-
-/**
- * Builds a JSX element string from the props that differ from the component defaults.
- */
-export const jsx = (
-  tag: string,
-  props: Args,
-  options: {children?: string; defaults?: Args; extra?: string[]} = {},
-): string => {
-  const parts: string[] = Object.entries(props)
-    .filter(
-      ([key, value]: [string, ArgValue]) =>
-        value !== false && value !== '' && value !== undefined && options.defaults?.[key] !== value,
-    )
-    .map(([key, value]: [string, ArgValue]) => attr(key, value))
-    .concat(options.extra ?? []);
-  const inline: string = parts.length ? ` ${parts.join(' ')}` : '';
-  const multiline: boolean = inline.length > 70;
-  const attrs: string = multiline ? `\n  ${parts.join('\n  ')}\n` : inline;
-
-  if (options.children) return `<${tag}${attrs}>${options.children}</${tag}>`;
-
-  return `<${tag}${attrs}${multiline ? '' : ' '}/>`;
-};
-
-const omit = (args: Args, ...keys: string[]): Args =>
-  Object.fromEntries(Object.entries(args).filter(([key]: [string, ArgValue]) => !keys.includes(key)));
-
-/** Base components are not re-exported by @thunderid/nextjs; apps import them from @thunderid/react. */
-const fromReact = (snippet: Snippet): Snippet => ({...snippet, from: '@thunderid/react'});
-
-const isLive = (args: Args): boolean => str(args, 'source') === 'live';
 
 const SAMPLE_USER: Record<string, string> = {
   email: 'liam.chen@acme.io',
@@ -554,6 +514,8 @@ export const COMPONENTS: ComponentDef[] = [
   selectComponent('userselect', 'UserSelect', UserSelect, 'User', 'users'),
   selectComponent('usertypeselect', 'UserTypeSelect', UserTypeSelect, 'User type', 'user types'),
   selectComponent('authflowselect', 'AuthFlowSelect', AuthFlowSelect, 'Sign-in flow', 'flows'),
+  ...ADMIN_COMPONENTS,
+  ...CUSTOM_RENDER_COMPONENTS,
 ];
 
 export const STORY_COUNT: number = COMPONENTS.reduce(

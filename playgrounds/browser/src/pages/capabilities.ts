@@ -2,15 +2,42 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import {
+  AgentTypeListResponse,
+  createHttpClientFetcher,
+  createResourceInvalidator,
   createTheme,
   EmbeddedFlowType,
   executeEmbeddedSignInFlow,
   FlowMetaType,
   getActiveTheme,
+  getAgentTypes,
+  getDefaultI18nBundles,
   getFlowMeta,
+  getGroupMembers,
+  getGroups,
+  getRole,
+  getRoleAssignments,
+  getRoles,
+  getTokenPermissions,
+  getUserGroups,
+  GroupListResponse,
+  GroupMemberListResponse,
+  hasPermission,
   Hooks,
   HttpResponse,
+  ManagementRequestConfig,
+  MembershipGroupListResponse,
   OIDCDiscoveryApiResponse,
+  ResourceEndpointConfig,
+  ResourceEndpointKey,
+  ResourceInvalidator,
+  resolveManagedIdentityName,
+  resolveResourceEndpoint,
+  Role,
+  RoleAssignmentListResponse,
+  RoleListResponse,
+  ThunderIDAPIError,
+  toManagementErrorMessage,
   UserProfile,
 } from '@thunderid/browser';
 import {HELPERS, STORY_COUNT} from './helpers/stories';
@@ -61,6 +88,41 @@ const flowSummary = (response: unknown): string => {
   const components: unknown[] = Array.isArray(data['components']) ? (data['components'] as unknown[]) : [];
 
   return `flowStatus=${asText(flow['flowStatus']) || 'unknown'}, ${components.length} components`;
+};
+
+/** The management collections the new endpoint keys address. */
+const NEW_ENDPOINT_KEYS: ResourceEndpointKey[] = ['agentTypes', 'groups', 'roles'];
+
+/**
+ * Request inputs for a management collection: the `endpoints` override when one is set (otherwise
+ * `{baseUrl}/{collection}`), and a fetcher backed by the client's HTTP client, which attaches the
+ * access token and fires the http-request hooks.
+ */
+const managementConfig = (key: ResourceEndpointKey): ManagementRequestConfig => ({
+  baseUrl: sdkConfig.baseUrl,
+  fetcher: createHttpClientFetcher(),
+  url: resolveResourceEndpoint(key, sdkConfig),
+});
+
+/**
+ * Runs a management check as a signed-in user. A 403 names the permission ThunderID expects, since
+ * that is the usual reason a management call fails here.
+ */
+const asAdmin = async (permission: string, run: () => Promise<CapabilityResult>): Promise<CapabilityResult> => {
+  const gate: CapabilityResult | null = requireSignedIn();
+
+  if (gate) return gate;
+
+  try {
+    return await run();
+  } catch (error) {
+    if (error instanceof ThunderIDAPIError && error.statusCode === 403) {
+      return fail(`403 ${error.code}: the access token needs ${permission}`);
+    }
+    if (error instanceof ThunderIDAPIError) return fail(`${error.statusCode ?? ''} ${error.code}: ${error.message}`);
+
+    return fail(describeError(error));
+  }
 };
 
 export const CAPABILITIES: Capability[] = [
@@ -468,6 +530,262 @@ export const CAPABILITIES: Capability[] = [
       return pass(`profile loaded, ${Object.keys(profile.profile).length} attributes`);
     },
     section: 'User',
+  },
+  {
+    api: "resolveResourceEndpoint('groups' | 'roles' | 'agentTypes', config)",
+    id: 'resourceEndpoints',
+    name: 'Management endpoint resolution',
+    run: async () => {
+      // Read back from the client, so the check shows the overrides survived initialize().
+      const resolved: ResourceEndpointConfig = (await client.getConfiguration()) as ResourceEndpointConfig;
+      const lost: ResourceEndpointKey[] = NEW_ENDPOINT_KEYS.filter(
+        (key: ResourceEndpointKey) => resolveResourceEndpoint(key, resolved) !== playgroundConfig.endpoints[key],
+      );
+
+      if (lost.length) return fail(`the client configuration does not carry the override for ${lost.join(', ')}`);
+
+      // Precedence: an explicit URL, then `endpoints`, then undefined (the API falls back to baseUrl).
+      const probe: ResourceEndpointConfig = {endpoints: {groups: 'https://api.example.test/groups'}};
+
+      if (
+        resolveResourceEndpoint('groups', probe, 'https://explicit.example.test/groups') !==
+          'https://explicit.example.test/groups' ||
+        resolveResourceEndpoint('groups', probe) !== 'https://api.example.test/groups' ||
+        resolveResourceEndpoint('roles', probe) !== undefined
+      ) {
+        return fail('precedence is not explicit URL, then endpoints, then baseUrl');
+      }
+
+      const overridden: ResourceEndpointKey[] = NEW_ENDPOINT_KEYS.filter(
+        (key: ResourceEndpointKey) => playgroundConfig.endpoints[key],
+      );
+
+      return pass(
+        overridden.length
+          ? `override kept for ${overridden.join(', ')}; precedence holds`
+          : 'no overrides: groups, roles and agentTypes use {baseUrl}; precedence holds',
+      );
+    },
+    section: 'Management',
+  },
+  {
+    api: 'getTokenPermissions() · hasPermission()',
+    id: 'tokenPermissions',
+    name: 'Granted permissions',
+    run: async () => {
+      const gate: CapabilityResult | null = requireSignedIn();
+
+      if (gate) return gate;
+
+      const token: string = await client.getAccessToken();
+
+      if (!decodeJwt(token)) return skip('access token is opaque; it carries no permissions to read');
+
+      const granted: string[] = getTokenPermissions(token);
+      const checks: string[] = ['system:group:view', 'system:role:view'].map(
+        (permission: string) => `${permission} ${hasPermission(granted, permission) ? 'yes' : 'no'}`,
+      );
+
+      return pass(`${granted.length} permissions; ${checks.join(', ')}`);
+    },
+    section: 'Management',
+  },
+  {
+    api: 'hasPermission(granted, required)',
+    id: 'permissionRules',
+    name: 'Permission matching',
+    run: () => {
+      const cases: [string[], string, boolean][] = [
+        [['system:group'], 'system:group:view', true],
+        [['system'], 'system:role:view', true],
+        [['system:group'], 'system:groups', false],
+        [['system:group:view'], 'system:group', false],
+        [[], '', true],
+      ];
+      const wrong: [string[], string, boolean][] = cases.filter(
+        ([granted, required, expected]: [string[], string, boolean]) => hasPermission(granted, required) !== expected,
+      );
+
+      if (wrong.length)
+        return fail(`unexpected result for ${wrong.map(([, required]) => required || "''").join(', ')}`);
+      if (getTokenPermissions('opaque-token').length) return fail('an opaque token should grant nothing');
+
+      return pass(`${cases.length} cases: a permission covers the paths under it`);
+    },
+    section: 'Management',
+  },
+  {
+    api: 'getGroups({limit})',
+    id: 'groups',
+    name: 'List groups',
+    run: () =>
+      asAdmin('system:group:view', async () => {
+        const page: GroupListResponse = await track(
+          'getGroups',
+          () => getGroups({...managementConfig('groups'), limit: 5}),
+          (value: GroupListResponse) => `${value.totalResults} groups`,
+        );
+
+        return pass(`${page.totalResults} groups${page.groups[0] ? `, first: ${page.groups[0].name}` : ''}`);
+      }),
+    section: 'Management',
+  },
+  {
+    api: 'getGroupMembers({groupId})',
+    id: 'groupMembers',
+    name: 'Group members',
+    run: () =>
+      asAdmin('system:group:view', async () => {
+        const {groups} = await getGroups({...managementConfig('groups'), limit: 1});
+
+        if (!groups[0]) return skip('no groups to read members from');
+
+        const page: GroupMemberListResponse = await track(
+          'getGroupMembers',
+          () => getGroupMembers({...managementConfig('groups'), groupId: groups[0].id, limit: 5}),
+          (value: GroupMemberListResponse) => `${value.totalResults} members`,
+        );
+        const names: string = page.members.slice(0, 3).map(resolveManagedIdentityName).join(', ');
+
+        return pass(`${groups[0].name}: ${page.totalResults} members${names ? ` (${names})` : ''}`);
+      }),
+    section: 'Management',
+  },
+  {
+    api: 'getRoles({limit}) · getRole({roleId})',
+    id: 'roles',
+    name: 'List roles',
+    run: () =>
+      asAdmin('system:role:view', async () => {
+        const page: RoleListResponse = await track(
+          'getRoles',
+          () => getRoles({...managementConfig('roles'), limit: 5}),
+          (value: RoleListResponse) => `${value.totalResults} roles`,
+        );
+
+        if (!page.roles[0]) return pass('0 roles');
+
+        const role: Role = await track('getRole', () =>
+          getRole({...managementConfig('roles'), roleId: page.roles[0].id}),
+        );
+
+        return pass(`${page.totalResults} roles; ${role.name} has ${role.permissions.length} permission sets`);
+      }),
+    section: 'Management',
+  },
+  {
+    api: 'getRoleAssignments({roleId})',
+    id: 'roleAssignments',
+    name: 'Role assignments',
+    run: () =>
+      asAdmin('system:role:view', async () => {
+        const {roles} = await getRoles({...managementConfig('roles'), limit: 1});
+
+        if (!roles[0]) return skip('no roles to read assignments from');
+
+        const page: RoleAssignmentListResponse = await track(
+          'getRoleAssignments',
+          () => getRoleAssignments({...managementConfig('roles'), limit: 5, roleId: roles[0].id}),
+          (value: RoleAssignmentListResponse) => `${value.totalResults} assignments`,
+        );
+        const types: string[] = Array.from(new Set(page.assignments.map((assignment) => assignment.type)));
+
+        return pass(
+          `${roles[0].name}: ${page.totalResults} assignments${types.length ? ` (${types.join(', ')})` : ''}`,
+        );
+      }),
+    section: 'Management',
+  },
+  {
+    api: 'getAgentTypes({limit})',
+    id: 'agentTypes',
+    name: 'Agent types',
+    run: () =>
+      asAdmin('system:agent', async () => {
+        const page: AgentTypeListResponse = await track(
+          'getAgentTypes',
+          () => getAgentTypes({...managementConfig('agentTypes'), limit: 5}),
+          (value: AgentTypeListResponse) => `${value.totalResults} agent types`,
+        );
+
+        return pass(`${page.totalResults} agent types${page.types[0] ? `, first: ${page.types[0].displayName}` : ''}`);
+      }),
+    section: 'Management',
+  },
+  {
+    api: 'getUserGroups({userId: sub})',
+    id: 'userGroups',
+    name: 'My groups',
+    run: () =>
+      asAdmin('system:user:view', async () => {
+        const {sub} = (await client.getDecodedIdToken()) as {sub?: string};
+
+        if (!sub) return fail('the ID token has no sub claim to look the user up by');
+
+        const page: MembershipGroupListResponse = await track(
+          'getUserGroups',
+          () => getUserGroups({...managementConfig('users'), limit: 5, userId: sub}),
+          (value: MembershipGroupListResponse) => `${value.totalResults} groups`,
+        );
+
+        return pass(
+          `member of ${page.totalResults} groups${page.groups.length ? `: ${page.groups.map((g) => g.name).join(', ')}` : ''}`,
+        );
+      }),
+    section: 'Management',
+  },
+  {
+    api: 'createResourceInvalidator()',
+    id: 'invalidator',
+    name: 'Resource invalidation',
+    run: () => {
+      const invalidator: ResourceInvalidator = createResourceInvalidator();
+      const calls: string[] = [];
+      const unsubscribe: () => void = invalidator.subscribe(['groups', {limit: 10}], () => calls.push('groups'));
+
+      invalidator.subscribe(['roles'], () => calls.push('roles'));
+      invalidator.invalidate(['groups']);
+      unsubscribe();
+      invalidator.invalidate(['groups']);
+
+      return calls.join(',') === 'groups'
+        ? pass('a key prefix reaches its queries; unsubscribed listeners stay quiet')
+        : fail(`listeners called: ${calls.join(', ') || 'none'}`);
+    },
+    section: 'Management',
+  },
+  {
+    api: 'resolveManagedIdentityName() · toManagementErrorMessage()',
+    id: 'presentation',
+    name: 'Management display helpers',
+    run: () => {
+      const names: string[] = [
+        resolveManagedIdentityName({display: 'Ops team', id: 'g1'}),
+        resolveManagedIdentityName({attributes: {family_name: 'Lovelace', given_name: 'Ada'}, id: 'u1'}),
+        resolveManagedIdentityName({id: 'a1'}),
+      ];
+
+      if (names.join('|') !== 'Ops team|Ada Lovelace|a1') return fail(`names resolved to ${names.join(', ')}`);
+
+      const translations: Record<string, string> = getDefaultI18nBundles()['en-US']?.translations as unknown as Record<
+        string,
+        string
+      >;
+      const t = (key: string): string => translations?.[key] ?? key;
+      const forbidden: string | null = toManagementErrorMessage(
+        t,
+        new ThunderIDAPIError('Forbidden', 'getGroups-ForbiddenError-001', 'browser', 403),
+        'admin.groups.list.error',
+      );
+      const other: string | null = toManagementErrorMessage(t, new Error('boom'), 'admin.groups.list.error');
+
+      if (forbidden !== t('admin.common.errors.forbidden') || other !== t('admin.groups.list.error')) {
+        return fail(`messages: ${String(forbidden)} / ${String(other)}`);
+      }
+
+      return pass(`403 → "${forbidden}"`);
+    },
+    section: 'Management',
   },
   {
     api: 'on(Hooks.*)',

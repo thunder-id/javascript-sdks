@@ -33,6 +33,11 @@ export interface ManagementResourceRequest {
    * Query parameters. `undefined` values are omitted.
    */
   query?: Record<string, string | number | undefined>;
+  /**
+   * Path appended after the resource identifier, for sub-resources such as `members` or
+   * `assignments/add`. Requires `id`.
+   */
+  subPath?: string;
 }
 
 /**
@@ -44,7 +49,7 @@ export interface ManagementResourceRequest {
  */
 const requestManagementResource = async <T>(
   {baseUrl, url, fetcher, ...requestConfig}: ManagementRequestConfig,
-  {body, collection, failureMessage, id, method, operation, query}: ManagementResourceRequest,
+  {body, collection, failureMessage, id, method, operation, query, subPath}: ManagementResourceRequest,
 ): Promise<T> => {
   try {
     // eslint-disable-next-line no-new
@@ -70,7 +75,8 @@ const requestManagementResource = async <T>(
   }
 
   const collectionUrl: string = (url ?? `${baseUrl}/${collection}`).replace(/\/+$/, '');
-  const resourceUrl: string = id === undefined ? collectionUrl : `${collectionUrl}/${encodeURIComponent(id)}`;
+  const itemUrl: string = id === undefined ? collectionUrl : `${collectionUrl}/${encodeURIComponent(id)}`;
+  const resourceUrl: string = id !== undefined && subPath ? `${itemUrl}/${subPath}` : itemUrl;
 
   const searchParams: URLSearchParams = new URLSearchParams();
   Object.entries(query ?? {}).forEach(([key, value]: [string, string | number | undefined]) => {

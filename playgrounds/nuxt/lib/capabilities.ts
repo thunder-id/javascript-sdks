@@ -1,10 +1,39 @@
 // Copyright 2026 The ThunderID Authors
 // SPDX-License-Identifier: Apache-2.0
 
-import type {ThunderIDContext} from '@thunderid/vue';
+import {
+  getAgentGroups,
+  getAgentRoles,
+  getAgents,
+  getAgentTypes,
+  getGroupMembers,
+  getGroups,
+  getRoleAssignments,
+  getRoles,
+  getTokenPermissions,
+  getUserGroups,
+  getUsers,
+  getUserTypes,
+  hasPermission,
+  resolveResourceEndpoint,
+  type ApiFetcher,
+} from '@thunderid/browser';
+import type {GrantedPermissions, ManagementEndpoint, ManagementEndpointKey, ThunderIDContext} from '@thunderid/vue';
 import {describeError, track} from './events';
 import {checkServerHealth} from './health';
 import {decodeJwt, formatDuration} from './jwt';
+import {
+  AUTO_IMPORTED_COMPONENTS,
+  AUTO_IMPORTED_COMPOSABLES,
+  MANAGEMENT_COLLECTIONS,
+  MANAGEMENT_ROUTE,
+  NEW_ENDPOINT_KEYS,
+  describeManagementError,
+  mismatchedAutoImports,
+  observeManagementRequests,
+  requestConfig,
+  type EndpointOverrides,
+} from './management';
 import {loadServerSession} from './session';
 import {COMPONENTS, STORY_COUNT} from './stories';
 import type {PlaygroundSession, SsrSnapshot} from './types';
@@ -22,7 +51,16 @@ export interface PublicThunderIDConfig {
   applicationId?: string;
   baseUrl?: string;
   clientId?: string;
+  endpoints?: EndpointOverrides;
+  management?: boolean;
   scopes?: string | string[];
+}
+
+/** What the management checks need from the page's setup, where composables can run. */
+export interface ManagementContext {
+  /** `useManagementEndpoint(key)` for each collection. */
+  endpoint: (key: ManagementEndpointKey) => ManagementEndpoint;
+  permissions: GrantedPermissions;
 }
 
 /**
@@ -33,6 +71,7 @@ export interface CapabilityContext {
   config: PublicThunderIDConfig;
   flowMeta: ReturnType<typeof useFlowMeta>;
   i18n: ReturnType<typeof useThunderIDI18n>;
+  management: ManagementContext;
   sdk: ThunderIDContext;
   ssr: SsrSnapshot | null;
   theme: ReturnType<typeof useTheme>;
@@ -112,6 +151,42 @@ const probePage = async (path: string): Promise<'redirect' | number> => {
 
   return response.type === 'opaqueredirect' ? 'redirect' : response.status;
 };
+
+/** The fetcher the module installs as `http.fetcher` when `management` is on. */
+const fetcherOf = (context: CapabilityContext): ApiFetcher | undefined => context.sdk.http?.fetcher;
+
+/**
+ * Calls a management API function with the endpoint and fetcher the management composables use. A
+ * request is made even without a session, so the module's route answers with the reason.
+ */
+const manage = <T>(
+  context: CapabilityContext,
+  key: ManagementEndpointKey,
+  label: string,
+  call: (config: ManagementEndpoint & {fetcher?: ApiFetcher}) => Promise<T>,
+): Promise<T> => track(label, () => call(requestConfig(context.management.endpoint(key), fetcherOf(context))));
+
+const managementCheck =
+  (
+    run: (context: CapabilityContext) => Promise<CapabilityResult>,
+  ): ((context: CapabilityContext) => Promise<CapabilityResult>) =>
+  async (context: CapabilityContext) => {
+    if (!context.config.management) return fail('thunderid.management is off in nuxt.config.ts');
+
+    try {
+      return await run(context);
+    } catch (error) {
+      return fail(describeManagementError(error, context.config.clientId));
+    }
+  };
+
+/** Posts one request body to the management route and returns the upstream status it reports. */
+const postManagement = async (body: Record<string, unknown>): Promise<number> =>
+  (await $fetch<{status: number}>(MANAGEMENT_ROUTE, {body, method: 'POST'})).status;
+
+/** A JWT with the given payload and no valid signature: enough for `getTokenPermissions`, which only decodes. */
+const unsignedJwt = (payload: Record<string, unknown>): string =>
+  `e30.${btoa(JSON.stringify(payload)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')}.sig`;
 
 export const CAPABILITIES: Capability[] = [
   {
@@ -558,6 +633,257 @@ export const CAPABILITIES: Capability[] = [
     name: 'Components',
     run: () => pass(`${COMPONENTS.length} components · ${STORY_COUNT} stories`),
     section: 'UI',
+  },
+  {
+    api: 'nuxt.config thunderid.management · runtimeConfig.public.thunderid.management',
+    id: 'managementOption',
+    name: 'Management surface on',
+    run: ({config, sdk}: CapabilityContext) => {
+      if (!config.management) return fail('thunderid.management is not true in nuxt.config.ts');
+      if (typeof sdk.http?.fetcher !== 'function') return fail('management is on but http.fetcher is not installed');
+
+      return pass(`http.fetcher installed: requests go to POST ${MANAGEMENT_ROUTE}`);
+    },
+    section: 'Management',
+  },
+  {
+    api: 'addComponent / addImports from @thunderid/vue · #components · #imports',
+    id: 'managementAutoImports',
+    name: 'Admin components and composables auto-imported',
+    run: () => {
+      const components: string[] = mismatchedAutoImports(AUTO_IMPORTED_COMPONENTS);
+      const composables: string[] = mismatchedAutoImports(AUTO_IMPORTED_COMPOSABLES);
+
+      if (components.length || composables.length) {
+        return fail(`not the @thunderid/vue export: ${[...components, ...composables].join(', ')}`);
+      }
+
+      return pass(
+        `${Object.keys(AUTO_IMPORTED_COMPONENTS).length} components, ${Object.keys(AUTO_IMPORTED_COMPOSABLES).length} composables resolve to @thunderid/vue`,
+      );
+    },
+    section: 'Management',
+  },
+  {
+    api: `POST ${MANAGEMENT_ROUTE} · URL allowlist`,
+    id: 'managementRoute',
+    name: 'Management route',
+    run: async (context: CapabilityContext) => {
+      if (!context.config.management) return fail('thunderid.management is off in nuxt.config.ts');
+
+      const foreign: number = await track(`POST ${MANAGEMENT_ROUTE} (foreign host)`, () =>
+        postManagement({method: 'GET', url: 'https://example.invalid/groups'}),
+      );
+      const groups: ManagementEndpoint = context.management.endpoint('groups');
+      const target: string = groups.url ?? `${(groups.baseUrl ?? '').replace(/\/+$/, '')}/groups`;
+      const allowed: number = await track(
+        `POST ${MANAGEMENT_ROUTE} (groups)`,
+        () => postManagement({method: 'GET', url: target}),
+        String,
+      );
+
+      if (foreign !== 400) return fail(`a foreign host got HTTP ${foreign}, expected 400`);
+      if (allowed === 400) return fail(`the configured groups collection ${target} was refused`);
+
+      return pass(`foreign host 400; ${target} accepted (HTTP ${allowed}${allowed === 401 ? ': no session' : ''})`);
+    },
+    section: 'Management',
+  },
+  {
+    api: `http.fetcher → POST ${MANAGEMENT_ROUTE}`,
+    id: 'managementRelay',
+    name: 'Requests go through the server route',
+    run: async (context: CapabilityContext) => {
+      if (!context.config.management) return fail('thunderid.management is off in nuxt.config.ts');
+      if (typeof PerformanceObserver === 'undefined') return unavailable('no PerformanceObserver in this browser');
+
+      const observed = await observeManagementRequests(() =>
+        manage(context, 'groups', 'getGroups (relay)', (config) => getGroups({...config, limit: 1})),
+      );
+
+      if (observed.direct.length) return fail(`browser called ${observed.direct.join(', ')} directly`);
+      if (!observed.relayed) return fail(`no request to ${MANAGEMENT_ROUTE} was observed`);
+
+      return pass(
+        `${observed.relayed} request via ${MANAGEMENT_ROUTE}, none to ThunderID; ${
+          observed.error ? describeManagementError(observed.error, context.config.clientId) : 'HTTP 200'
+        }`,
+      );
+    },
+    section: 'Management',
+  },
+  {
+    api: 'useManagementEndpoint(key) · resolveResourceEndpoint() · endpoints.{agentTypes,groups,roles}',
+    id: 'endpoints',
+    name: 'Endpoint resolution and overrides',
+    run: ({config, management}: CapabilityContext) => {
+      const sample: EndpointOverrides = {
+        agentTypes: 'https://api.example/agent-types',
+        groups: 'https://api.example/groups',
+        roles: 'https://api.example/roles',
+      };
+      const broken: string[] = NEW_ENDPOINT_KEYS.filter(
+        (key) =>
+          resolveResourceEndpoint(key, {endpoints: sample}) !== sample[key] ||
+          resolveResourceEndpoint(key, {endpoints: sample}, 'https://explicit.example') !==
+            'https://explicit.example' ||
+          resolveResourceEndpoint(key, {endpoints: {}}) !== undefined,
+      );
+
+      if (broken.length) return fail(`resolveResourceEndpoint ignores the override of ${broken.join(', ')}`);
+
+      const drift: string[] = MANAGEMENT_COLLECTIONS.filter(
+        ({key}) => management.endpoint(key).url !== config.endpoints?.[key],
+      ).map(({key}) => key);
+
+      if (drift.length) return fail(`useManagementEndpoint disagrees with the config for ${drift.join(', ')}`);
+
+      const overridden: string[] = MANAGEMENT_COLLECTIONS.filter(({key}) => management.endpoint(key).url).map(
+        ({key}) => key,
+      );
+
+      return pass(
+        `override > {baseUrl}/{path} for agentTypes, groups, roles; ${
+          overridden.length ? `overridden here: ${overridden.join(', ')}` : 'no overrides set'
+        }`,
+      );
+    },
+    section: 'Management',
+  },
+  {
+    api: 'getGroups() · getGroupMembers() · useGetGroups()',
+    id: 'groups',
+    name: 'Groups',
+    run: managementCheck(async (context: CapabilityContext) => {
+      const page = await manage(context, 'groups', 'getGroups', (config) => getGroups({...config, limit: 5}));
+      const first = page.groups[0];
+
+      if (!first) return pass(`0 groups (${page.totalResults} total)`);
+
+      const members = await manage(context, 'groups', 'getGroupMembers', (config) =>
+        getGroupMembers({...config, groupId: first.id, limit: 5}),
+      );
+
+      return pass(`${page.totalResults} groups; "${first.name}" has ${members.totalResults} members`);
+    }),
+    section: 'Management',
+  },
+  {
+    api: 'getRoles() · getRoleAssignments() · useGetRoles()',
+    id: 'roles',
+    name: 'Roles',
+    run: managementCheck(async (context: CapabilityContext) => {
+      const page = await manage(context, 'roles', 'getRoles', (config) => getRoles({...config, limit: 5}));
+      const first = page.roles[0];
+
+      if (!first) return pass(`0 roles (${page.totalResults} total)`);
+
+      const assignments = await manage(context, 'roles', 'getRoleAssignments', (config) =>
+        getRoleAssignments({...config, limit: 5, roleId: first.id}),
+      );
+
+      return pass(`${page.totalResults} roles; "${first.name}" has ${assignments.totalResults} assignments`);
+    }),
+    section: 'Management',
+  },
+  {
+    api: 'getAgentTypes() · useGetAgentTypes() · endpoints.agentTypes',
+    id: 'agentTypes',
+    name: 'Agent types',
+    run: managementCheck(async (context: CapabilityContext) => {
+      const page = await manage(context, 'agentTypes', 'getAgentTypes', (config) =>
+        getAgentTypes({...config, limit: 5}),
+      );
+
+      return pass(
+        `${page.totalResults} agent types${page.types.length ? `: ${page.types.map((type) => type.handle).join(', ')}` : ''}`,
+      );
+    }),
+    section: 'Management',
+  },
+  {
+    api: 'getAgentGroups() · getAgentRoles() · useGetAgentGroups() · useGetAgentRoles()',
+    id: 'agentMemberships',
+    name: 'Agent groups and roles',
+    run: managementCheck(async (context: CapabilityContext) => {
+      const agents = await manage(context, 'agents', 'getAgents', (config) => getAgents({...config, limit: 1}));
+      const agent = agents.agents[0];
+
+      if (!agent) return skip('no agents to read groups and roles of: create one in the Console');
+
+      const groups = await manage(context, 'agents', 'getAgentGroups', (config) =>
+        getAgentGroups({...config, agentId: agent.id}),
+      );
+      const roles = await manage(context, 'agents', 'getAgentRoles', (config) =>
+        getAgentRoles({...config, agentId: agent.id}),
+      );
+
+      return pass(`"${agent.name}": ${groups.totalResults} groups, ${roles.totalResults} roles`);
+    }),
+    section: 'Management',
+  },
+  {
+    api: 'getUserGroups() · getUserTypes() · useGetUserGroups() · useGetUserTypes()',
+    id: 'userMemberships',
+    name: 'User groups and types',
+    run: managementCheck(async (context: CapabilityContext) => {
+      const types = await manage(context, 'userTypes', 'getUserTypes', (config) => getUserTypes({...config, limit: 5}));
+      const users = await manage(context, 'users', 'getUsers', (config) => getUsers({...config, limit: 1}));
+      const user = users.users[0];
+
+      if (!user) return pass(`${types.totalResults} user types; no users to read groups of`);
+
+      const groups = await manage(context, 'users', 'getUserGroups', (config) =>
+        getUserGroups({...config, userId: user.id}),
+      );
+
+      return pass(
+        `${types.totalResults} user types; user ${user.display ?? user.id} is in ${groups.totalResults} groups`,
+      );
+    }),
+    section: 'Management',
+  },
+  {
+    api: 'getTokenPermissions() · hasPermission()',
+    id: 'permissionHelpers',
+    name: 'Permission helpers',
+    run: () => {
+      const fromScope: string[] = getTokenPermissions(unsignedJwt({scope: 'openid system:user'}));
+      const fromScopes: string[] = getTokenPermissions(unsignedJwt({scopes: ['system:group']}));
+
+      if (fromScope.join(' ') !== 'openid system:user') return fail(`scope claim read as ${fromScope.join(' ')}`);
+      if (fromScopes.join(' ') !== 'system:group') return fail(`scopes claim read as ${fromScopes.join(' ')}`);
+      if (getTokenPermissions('not-a-jwt').length) return fail('an opaque token produced permissions');
+      if (!hasPermission(['system:user'], 'system:user:view'))
+        return fail('system:user does not cover system:user:view');
+      if (hasPermission(['system:user'], 'system:userx')) return fail('system:user covers system:userx');
+
+      return pass('scope and scopes claims read; system:user covers system:user:view, not system:userx');
+    },
+    section: 'Management',
+  },
+  {
+    api: 'useGrantedPermissions() · can()',
+    id: 'grantedPermissions',
+    name: 'Granted permissions',
+    run: async ({config, management, sdk}: CapabilityContext) => {
+      const {can, isLoading, permissions} = management.permissions;
+
+      if (!sdk.isSignedIn.value) {
+        return fail(
+          `no session: permissions stay [] until you sign in${config.clientId ? '' : ' (NUXT_PUBLIC_THUNDERID_CLIENT_ID is not set)'}`,
+        );
+      }
+      if (!(await waitFor(() => !isLoading.value, 5000))) return fail('isLoading stayed true for 5s');
+
+      const granted: string[] = permissions.value;
+      const sample: string[] = ['system:user:view', 'system:group:view', 'system:role:view'].filter(can);
+
+      return pass(
+        `${granted.length} permissions from the access token; can: ${sample.length ? sample.join(', ') : 'none of system:{user,group,role}:view'}`,
+      );
+    },
+    section: 'Management',
   },
 ];
 

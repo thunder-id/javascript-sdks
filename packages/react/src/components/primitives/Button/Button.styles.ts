@@ -5,7 +5,7 @@ import {Theme} from '@thunderid/browser';
 import {useMemo} from 'react';
 import {css} from '../../../styles/emotion';
 
-export type ButtonColor = 'primary' | 'secondary' | 'tertiary' | string;
+export type ButtonColor = 'primary' | 'secondary' | 'tertiary' | 'error' | string;
 export type ButtonVariant = 'solid' | 'outline' | 'text' | 'icon';
 export type ButtonSize = 'small' | 'medium' | 'large';
 
@@ -323,6 +323,34 @@ const useStyles = (
           background-color: ${theme.vars.colors.action.focus};
           color: ${theme.vars.colors.text.primary};
           outline: none;
+        }
+      `,
+      'error-outline': css`
+        background-color: transparent;
+        color: ${theme.vars.colors.error.main};
+        border-color: ${theme.vars.colors.error.main};
+        &:hover:not(:disabled),
+        &:focus-visible:not(:disabled) {
+          background-color: ${theme.vars.colors.error.main};
+          color: ${theme.vars.colors.error.contrastText};
+        }
+      `,
+      'error-solid': css`
+        background-color: ${theme.vars.colors.error.main};
+        color: ${theme.vars.colors.error.contrastText};
+        border-color: ${theme.vars.colors.error.main};
+        &:hover:not(:disabled),
+        &:focus-visible:not(:disabled) {
+          opacity: 0.9;
+        }
+      `,
+      'error-text': css`
+        background-color: transparent;
+        color: ${theme.vars.colors.error.main};
+        border-color: transparent;
+        &:hover:not(:disabled),
+        &:focus-visible:not(:disabled) {
+          background-color: ${theme.vars.colors.action.hover};
         }
       `,
     };

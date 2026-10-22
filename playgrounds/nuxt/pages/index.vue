@@ -2,8 +2,18 @@
 // Copyright 2026 The ThunderID Authors
 // SPDX-License-Identifier: Apache-2.0
 
+import {useManagementEndpoint, type ManagementEndpoint, type ManagementEndpointKey} from '@thunderid/vue';
 import {computed, onBeforeUnmount, onMounted, ref, watch, type ComputedRef, type Ref} from 'vue';
-import {useFlowMeta, useRuntimeConfig, useState, useTheme, useThunderID, useThunderIDI18n, useUser} from '#imports';
+import {
+  useFlowMeta,
+  useGrantedPermissions,
+  useRuntimeConfig,
+  useState,
+  useTheme,
+  useThunderID,
+  useThunderIDI18n,
+  useUser,
+} from '#imports';
 import {
   CAPABILITIES,
   runCapability,
@@ -15,6 +25,13 @@ import {
 } from '~/lib/capabilities';
 import {logEvent} from '~/lib/events';
 import {health} from '~/lib/health';
+import {
+  MANAGEMENT_COLLECTIONS,
+  MANAGEMENT_ROUTE,
+  describeHosts,
+  resolveManagementEndpoints,
+  type ResolvedEndpoint,
+} from '~/lib/management';
 import type {SsrSnapshot} from '~/lib/types';
 
 interface CapabilityState {
@@ -31,13 +48,23 @@ interface LastRun {
 
 const RESULTS_KEY = 'playground:nuxt:results';
 
-const config: PublicThunderIDConfig = useRuntimeConfig().public.thunderid as PublicThunderIDConfig;
+const runtimeConfig = useRuntimeConfig();
+const config: PublicThunderIDConfig = runtimeConfig.public.thunderid as PublicThunderIDConfig;
 const sdk = useThunderID();
+
+// Composables only run in setup, so the endpoint of every management collection is resolved here once.
+const endpoints: Record<string, ManagementEndpoint> = Object.fromEntries(
+  MANAGEMENT_COLLECTIONS.map(({key}: {key: ManagementEndpointKey}) => [key, useManagementEndpoint(key)]),
+);
 const ssr: Ref<SsrSnapshot | null> = useState<SsrSnapshot | null>('playground:ssr');
 const context: CapabilityContext = {
   config,
   flowMeta: useFlowMeta(),
   i18n: useThunderIDI18n(),
+  management: {
+    endpoint: (key: ManagementEndpointKey): ManagementEndpoint => endpoints[key],
+    permissions: useGrantedPermissions(),
+  },
   sdk,
   ssr: ssr.value,
   theme: useTheme(),
@@ -187,9 +214,23 @@ const configText: string = [
   ['session', 'signed cookie (THUNDERID_SESSION_SECRET)'],
   ['pickers', 'users, authFlows, userTypes'],
   ['backchannel', '/api/auth/backchannel-logout'],
+  ['management', config.management ? `on · POST ${MANAGEMENT_ROUTE}` : 'off'],
 ]
   .map(([key, value]: string[]) => `${key.padEnd(14)}${value}`)
   .join('\n');
+
+// Where the management composables send each collection, as useManagementEndpoint() resolves it.
+const resolvedEndpoints: ResolvedEndpoint[] = resolveManagementEndpoints(
+  (key: ManagementEndpointKey) => endpoints[key],
+);
+
+const endpointsText: string = [
+  ...describeHosts(config.baseUrl, resolvedEndpoints),
+  '',
+  ...resolvedEndpoints.map(
+    (item: ResolvedEndpoint) => `${item.key.padEnd(11)}${item.url}\n${''.padEnd(11)}↳ ${item.source}`,
+  ),
+].join('\n');
 </script>
 
 <template>
@@ -309,6 +350,14 @@ const configText: string = [
             <span class="pg-card-meta">nuxt.config.ts · .env</span>
           </div>
           <pre class="pg-pre">{{ configText }}</pre>
+        </section>
+
+        <section aria-label="Management endpoints" class="pg-card">
+          <div class="pg-card-head">
+            <h2>Management endpoints</h2>
+            <span class="pg-card-meta">thunderid.endpoints · useManagementEndpoint()</span>
+          </div>
+          <pre class="pg-pre">{{ endpointsText }}</pre>
         </section>
 
         <EventLog />

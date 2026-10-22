@@ -1524,3 +1524,23 @@ a:hover {
     border-bottom: 1px solid var(--pg-border);
   }
 }
+
+/* Hooks */
+
+.pg-pill[data-state='error'] {
+  background: rgba(239, 68, 68, 0.12);
+  color: var(--pg-err);
+}
+
+.pg-hook-error {
+  color: var(--pg-err);
+}
+
+.pg-hook-input {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+  color: var(--pg-text-2);
+}

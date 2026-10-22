@@ -8,6 +8,7 @@ import {generateSessionId, type SessionData, type User} from '@thunderid/node';
 import operations, {type OperationSpec} from './catalog.ts';
 import {client, serviceClient} from './client.ts';
 import config from './config.ts';
+import resolveEndpoints from './endpoints.ts';
 import runners, {type Runner} from './operations.ts';
 import {traced, type Traced} from './trace.ts';
 
@@ -185,6 +186,8 @@ const explorer = (): {
   const meta = async (browserSession: string | undefined): Promise<Record<string, unknown>> => ({
     app: config.appUrl,
     configured: Boolean(config.clientId),
+    // Resolved from the client's own configuration, so the list shows what the SDK will call.
+    endpoints: resolveEndpoints(await client.getConfiguration()),
     idp: {baseUrl: config.baseUrl, ...(await idpStatus())},
     operations: operations.map((operation: OperationSpec) => {
       const blocks: Region[] = operation.regions

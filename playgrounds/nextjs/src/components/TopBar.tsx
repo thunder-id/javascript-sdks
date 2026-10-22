@@ -15,6 +15,7 @@ import {getDisplayName, getInitials} from '../lib/user';
 const NAV: [string, string][] = [
   ['/', 'Overview'],
   ['/components', 'Components'],
+  ['/hooks', 'Hooks'],
   ['/server', 'Server'],
   ['/tokens', 'Tokens'],
 ];

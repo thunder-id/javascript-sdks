@@ -1,7 +1,12 @@
 // Copyright 2026 The ThunderID Authors
 // SPDX-License-Identifier: Apache-2.0
 
-const GROUPS = ['Authentication', 'Session', 'Tokens', 'Protected routes'];
+const GROUPS = ['Authentication', 'Session', 'Tokens', 'Protected routes', 'Management'];
+
+const ENDPOINT_GROUPS = [
+  ['management', 'Management API'],
+  ['selfService', 'Sign-in and self-service'],
+];
 
 const state = {
   curlCopied: false,
@@ -159,6 +164,42 @@ const renderRoutes = () => {
         ),
       ]);
     }),
+  );
+};
+
+const renderEndpoints = () => {
+  const {endpoints} = state.meta;
+  const shortUrl = (url) => {
+    try {
+      const parsed = new URL(url);
+      return `${parsed.host}${parsed.pathname}`;
+    } catch {
+      return url;
+    }
+  };
+  const overrides = endpoints.filter((endpoint) => endpoint.source === 'override').length;
+  $('endpoints-note').textContent = overrides
+    ? `${overrides} endpoint${overrides === 1 ? '' : 's'} set by THUNDERID_ENDPOINT_<KEY>; the rest resolve to {baseUrl}/{path}.`
+    : 'No overrides: every collection resolves to {baseUrl}/{path}. See .env.example.';
+  $('endpoint-groups').replaceChildren(
+    ...ENDPOINT_GROUPS.map(([group, label]) =>
+      el('div', {className: 'group'}, [
+        el('div', {className: 'group-name', text: label}),
+        el(
+          'dl',
+          {className: 'endpoint-list'},
+          endpoints
+            .filter((endpoint) => endpoint.group === group)
+            .flatMap((endpoint) => [
+              el('dt', {}, [
+                document.createTextNode(endpoint.key),
+                endpoint.source === 'override' ? el('span', {className: 'override', text: 'override'}) : '',
+              ]),
+              el('dd', {text: shortUrl(endpoint.url), title: endpoint.url}),
+            ]),
+        ),
+      ]),
+    ),
   );
 };
 
@@ -330,6 +371,7 @@ const loadMeta = async () => {
   const session = state.meta.session;
   if (state.identity !== 'anonymous' && !(session.present && session.hasTokens)) state.identity = 'anonymous';
   renderTopbar();
+  renderEndpoints();
 };
 
 const send = async () => {

@@ -8,6 +8,7 @@ import {sessionCard} from '../components/sessionCard';
 import playgroundConfig from '../config';
 import {sdkConfig} from '../lib/client';
 import {Child, h, mount} from '../lib/dom';
+import {resolveEndpoints, ResolvedEndpoint} from '../lib/endpoints';
 import {logEvent} from '../lib/events';
 import {healthStore} from '../lib/health';
 import {Scope} from '../lib/store';
@@ -284,6 +285,16 @@ export const renderOverview = (root: HTMLElement, scope: Scope): void => {
     .map(([key, value]: string[]) => `${key.padEnd(17)}${value}`)
     .join('\n');
 
+  const shortUrl = (url: string): string => url.replace(/^https?:\/\//, '');
+  const endpointsText = (group: ResolvedEndpoint['group']): string =>
+    resolveEndpoints(sdkConfig)
+      .filter((endpoint: ResolvedEndpoint) => endpoint.group === group)
+      .map(
+        (endpoint: ResolvedEndpoint) =>
+          `${endpoint.key.padEnd(19)}${shortUrl(endpoint.url)}${endpoint.source === 'override' ? '  (override)' : ''}`,
+      )
+      .join('\n');
+
   render();
   scope.add(healthStore.subscribe(render));
   scope.interval(render, 15000);
@@ -343,6 +354,26 @@ export const renderOverview = (root: HTMLElement, scope: Scope): void => {
               h('span', {className: 'pg-card-meta'}, 'initialize() · .env'),
             ),
             h('pre', {className: 'pg-pre'}, configText),
+          ),
+          h(
+            'section',
+            {'aria-label': 'Resolved endpoints', className: 'pg-card'},
+            h(
+              'div',
+              {className: 'pg-card-head'},
+              h('h2', {}, 'Resolved endpoints'),
+              h(
+                'span',
+                {className: 'pg-card-meta'},
+                Object.keys(playgroundConfig.endpoints).length
+                  ? `${Object.keys(playgroundConfig.endpoints).length} overridden`
+                  : 'no overrides',
+              ),
+            ),
+            h('div', {className: 'pg-section-label'}, 'Management API'),
+            h('pre', {className: 'pg-pre'}, endpointsText('management')),
+            h('div', {className: 'pg-section-label'}, 'Sign-in and self-service'),
+            h('pre', {className: 'pg-pre'}, endpointsText('selfService')),
           ),
           eventLog(scope),
         ),

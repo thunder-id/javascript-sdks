@@ -340,6 +340,47 @@ code,
   text-overflow: ellipsis;
 }
 
+#endpoint-groups {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.endpoints {
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+
+.endpoint-list {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 4px 10px;
+  padding: 0 6px;
+  font: 400 11.5px/1.4 var(--mono);
+}
+
+.endpoint-list dt {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.endpoint-list dd {
+  color: var(--code);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.endpoint-list .override {
+  padding: 0 5px;
+  border-radius: 4px;
+  font-size: 10px;
+  color: var(--warn);
+  background: rgba(245, 158, 11, 0.12);
+}
+
 .lock {
   margin-left: auto;
   flex: none;

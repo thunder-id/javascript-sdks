@@ -607,6 +607,40 @@ a:hover {
   overflow-x: auto;
 }
 
+.pg-kv {
+  margin: 0;
+  padding: 14px 18px;
+  font: 400 12px/1.7 var(--pg-mono);
+  color: var(--pg-code);
+}
+
+.pg-kv-row {
+  display: flex;
+  gap: 12px;
+  min-width: 0;
+}
+
+.pg-kv-row dt {
+  flex: 0 0 15ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Long URLs wrap inside the card instead of overflowing it: at a `/` where possible (see breakable()), anywhere
+   as a last resort. */
+.pg-kv-row dd {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.pg-kv-tag {
+  flex: 0 0 auto;
+  color: var(--pg-text-2);
+}
+
 .pg-warning {
   padding: 12px 16px;
   border-radius: 12px;
@@ -932,12 +966,12 @@ a:hover {
   color: var(--pg-info);
 }
 
+/* The frame centers itself with `margin: auto`, not `align-items: center`, so a story taller than the canvas
+   starts at the top and scrolls instead of overflowing past the top edge. */
 .pg-canvas {
   flex: 1;
   min-height: 380px;
   display: flex;
-  align-items: center;
-  justify-content: center;
   padding: 32px;
   background-color: #071022;
   overflow: auto;
@@ -957,6 +991,8 @@ a:hover {
 }
 
 .pg-frame {
+  margin: auto;
+  flex-shrink: 0;
   max-width: 100%;
   min-height: 220px;
   display: flex;
@@ -1223,6 +1259,27 @@ a:hover {
   text-align: center;
   max-width: 420px;
   line-height: 1.5;
+}
+
+/* On wide screens the explorer fills the viewport below the top bar: the sidebar and the canvas scroll on their own,
+   so a long component tree does not stretch the canvas and push short stories down the page. */
+@media (min-width: 840px) {
+  .pg-app:has(> .pg-explorer) {
+    height: 100vh;
+  }
+
+  .pg-explorer {
+    flex-wrap: nowrap;
+  }
+
+  .pg-sidebar {
+    flex: 0 0 248px;
+    overflow-y: auto;
+  }
+
+  .pg-canvas {
+    min-height: 240px;
+  }
 }
 
 @media (max-width: 720px) {

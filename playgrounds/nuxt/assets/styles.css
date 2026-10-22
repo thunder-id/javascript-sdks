@@ -1594,3 +1594,31 @@ a:hover {
     gap: 4px;
   }
 }
+
+/* Custom rendering stories (PrimeVue). */
+.pg-prime-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.pg-prime-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+}
+.pg-prime-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+.pg-prime-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.pg-prime-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}

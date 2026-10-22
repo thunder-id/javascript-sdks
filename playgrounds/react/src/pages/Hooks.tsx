@@ -12,62 +12,12 @@ import {
   useTranslation,
   useUser,
 } from '@thunderid/react';
-import {ReactElement, ReactNode, useState} from 'react';
+import {ReactElement, useState} from 'react';
+import ManagementHooks from './ManagementHooks';
 import EventLog from '../components/EventLog';
+import {HookCard, QueryCard} from '../components/HookCard';
 import {describeError, track} from '../lib/events';
-import {inspect} from '../lib/inspect';
 import {sdkSignIn, sdkSignOut} from '../lib/sdk';
-
-interface HookCardProps {
-  actions?: ReactNode;
-  children?: ReactNode;
-  name: string;
-  signature: string;
-  value: unknown;
-}
-
-const HookCard = ({actions = null, children = null, name, signature, value}: HookCardProps): ReactElement => (
-  <section className="pg-card" aria-label={name}>
-    <div className="pg-card-head">
-      <div>
-        <h2 className="pg-mono">{name}</h2>
-        <div className="pg-hook-sig">{signature}</div>
-      </div>
-      {actions && <div className="pg-row">{actions}</div>}
-    </div>
-    {children}
-    <pre className="pg-json">{inspect(value)}</pre>
-  </section>
-);
-
-interface QueryLike {
-  data: unknown;
-  error: Error | null;
-  isLoading: boolean;
-  refetch: () => Promise<unknown>;
-}
-
-const QueryCard = ({name, query}: {name: string; query: QueryLike}): ReactElement => (
-  <HookCard
-    name={name}
-    signature="({limit}, {enabled: false}) => {data, error, isLoading, refetch}"
-    value={{data: query.data, error: query.error?.message ?? null, isLoading: query.isLoading}}
-    actions={
-      <button
-        type="button"
-        className="pg-btn"
-        data-size="sm"
-        onClick={() => void track(name, () => query.refetch()).catch(() => undefined)}
-      >
-        Fetch
-      </button>
-    }
-  >
-    <p className="pg-empty">
-      Management hook. Calls the ThunderID management API with the signed-in user&apos;s token.
-    </p>
-  </HookCard>
-);
 
 const Hooks = (): ReactElement => {
   const sdk = useThunderID();
@@ -208,6 +158,7 @@ const Hooks = (): ReactElement => {
         <QueryCard name="useGetUsers()" query={users} />
         <QueryCard name="useGetApplications()" query={applications} />
         <QueryCard name="useGetAgents()" query={agents} />
+        <ManagementHooks agents={agents.data} />
         <EventLog />
       </div>
     </main>

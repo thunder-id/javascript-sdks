@@ -6,3 +6,6 @@ export * from './components/ProtectedRoute';
 
 export {default as CallbackRoute} from './components/CallbackRoute';
 export * from './components/CallbackRoute';
+
+export {default as createAdminRoutes} from './routes/createAdminRoutes';
+export * from './routes/createAdminRoutes';

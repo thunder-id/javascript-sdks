@@ -23,13 +23,16 @@ import {
   ThunderIDAuthException,
   ThunderIDJavaScriptClient,
   TokenExchangeRequestConfig,
+  ThunderIDRuntimeError,
   TokenResponse,
   updateMeCredentials,
   User,
 } from '@thunderid/javascript';
 import AuthURLCallback from './models/AuthURLCallback';
 import {ThunderIDNodeConfig} from './models/config';
+import {ManagementResourceKey, ThunderIDNodeManagementClient} from './models/management';
 import MemoryCacheStore from './stores/MemoryCacheStore';
+import createManagementClient from './utils/createManagementClient';
 import NodeCryptoUtils from './utils/NodeCryptoUtils';
 import SessionIndex, {IndexedSessions, SessionBinding} from './utils/SessionIndex';
 
@@ -454,6 +457,67 @@ class ThunderIDNodeClient<T extends ThunderIDNodeConfig = ThunderIDNodeConfig> e
         Authorization: `Bearer ${await this.getAccessToken(userId)}`,
       },
       url: resolveResourceEndpoint(key, configData),
+    };
+  }
+
+  /**
+   * Returns the management operations (users, groups, roles, agents, and their sub-resources) bound
+   * to the session identified by `sessionId`.
+   *
+   * Every request is authorized with that session's access token, read at the time of each call; the
+   * token is never copied onto the returned object or exposed to the caller. Whether a call succeeds
+   * is the server's decision: the token needs the permissions the server requires for that resource.
+   *
+   * The collection URL comes from, in order: the `url` passed to the call, then `endpoints.<resource>`
+   * in the configuration, then `{baseUrl}/{collection}`.
+   *
+   * @param sessionId - The session whose access token authorizes the requests.
+   * @returns The session-bound management client.
+   * @throws {ThunderIDRuntimeError} `NODE-MANAGEMENT-RC-NF01`, from an operation, when the session
+   *   has no access token. Raised before any request is sent.
+   * @throws {ThunderIDAPIError} From an operation, when the server rejects the request. HTTP 403 and
+   *   404 surface as `<operation>-ForbiddenError-001` and `<operation>-NotFoundError-001`.
+   *
+   * @example
+   * ```typescript
+   * const admin = client.management(sessionId);
+   * const {users, totalResults} = await admin.users.list({limit: 20});
+   * await admin.groups.addMembers(groupId, [{id: users[0].id, type: 'user'}]);
+   * ```
+   */
+  public management(sessionId?: string): ThunderIDNodeManagementClient {
+    return createManagementClient((key: ManagementResourceKey, explicitUrl?: string) =>
+      this.sessionManagementRequestConfig(key, sessionId, explicitUrl),
+    );
+  }
+
+  /**
+   * The URL inputs and bearer token for a management request made through {@link management}. Unlike
+   * {@link managementRequestConfig}, a session without an access token is refused here rather than
+   * sent to the server with an empty credential.
+   */
+  private async sessionManagementRequestConfig(
+    key: ManagementResourceKey,
+    sessionId?: string,
+    explicitUrl?: string,
+  ): Promise<{baseUrl: string | undefined; headers: {Authorization: string}; url: string | undefined}> {
+    const configData: AuthClientConfig<T> = await this.getStorageManager().getConfigData();
+    const accessToken: string | undefined = await this.getAccessToken(sessionId);
+
+    if (!accessToken) {
+      throw new ThunderIDRuntimeError(
+        'No access token is available for the session. Sign in before calling a management operation.',
+        'NODE-MANAGEMENT-RC-NF01',
+        'node',
+      );
+    }
+
+    return {
+      baseUrl: configData?.baseUrl,
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+      url: resolveResourceEndpoint(key, configData, explicitUrl),
     };
   }
 

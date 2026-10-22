@@ -24,7 +24,10 @@ export interface ManagementEndpoint {
  * @returns The base URL and optional collection URL override.
  */
 const useManagementEndpoint = (
-  key: Extract<ResourceEndpointKey, 'agents' | 'applications' | 'flows' | 'users' | 'userTypes'>,
+  key: Extract<
+    ResourceEndpointKey,
+    'agents' | 'agentTypes' | 'applications' | 'flows' | 'groups' | 'roles' | 'users' | 'userTypes'
+  >,
 ): ManagementEndpoint => {
   const {baseUrl, endpoints} = useThunderID();
 

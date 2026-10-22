@@ -25,6 +25,8 @@ import DEFAULTS_CSS from './defaults.css';
 
 // Primitives
 import BASE_SIGN_IN_CSS from '../components/auth/sign-in/BaseSignIn.css';
+import ADMIN_CSS from '../components/presentation/admin/shared/Admin.css';
+import ATTRIBUTION_CSS from '../components/presentation/attribution/Attribution.css';
 import CHANGE_CREDENTIAL_CSS from '../components/presentation/change-credential/ChangeCredential.css';
 import LANGUAGE_SWITCHER_CSS from '../components/presentation/language-switcher/LanguageSwitcher.css';
 import USER_DROPDOWN_CSS from '../components/presentation/user-dropdown/UserDropdown.css';
@@ -34,6 +36,7 @@ import BUTTON_CSS from '../components/primitives/Button/Button.css';
 import CARD_CSS from '../components/primitives/Card/Card.css';
 import CHECKBOX_CSS from '../components/primitives/Checkbox/Checkbox.css';
 import COPYABLE_TEXT_CSS from '../components/primitives/CopyableText/CopyableText.css';
+import DATA_TABLE_CSS from '../components/primitives/DataTable/DataTable.css';
 import DATE_PICKER_CSS from '../components/primitives/DatePicker/DatePicker.css';
 import DIVIDER_CSS from '../components/primitives/Divider/Divider.css';
 import KEY_VALUE_LIST_CSS from '../components/primitives/KeyValueList/KeyValueList.css';
@@ -72,6 +75,7 @@ const STYLES: string = [
   LOGO_CSS,
   COPYABLE_TEXT_CSS,
   SPINNER_CSS,
+  DATA_TABLE_CSS,
   // Auth
   BASE_SIGN_IN_CSS,
   // Presentation
@@ -79,6 +83,8 @@ const STYLES: string = [
   LANGUAGE_SWITCHER_CSS,
   USER_DROPDOWN_CSS,
   USER_PROFILE_CSS,
+  ADMIN_CSS,
+  ATTRIBUTION_CSS,
 ].join('\n');
 
 /**

@@ -18,6 +18,7 @@ export const buildCode = (component: ComponentDef, args: Args): string => {
   const lines: string[] = [];
 
   if (snippet.vueImports?.length) lines.push(`import {${snippet.vueImports.join(', ')}} from 'vue';`);
+  if (snippet.otherImports?.length) lines.push(...snippet.otherImports);
   lines.push(`import {${imports.join(', ')}} from '@thunderid/vue';`);
   if (snippet.script?.length) lines.push('', ...snippet.script);
 

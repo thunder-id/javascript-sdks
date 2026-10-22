@@ -18,7 +18,7 @@ export interface RouteSpec {
   chain: string[];
   contentType?: string;
   description: string;
-  group: 'Authentication' | 'Session' | 'Tokens' | 'Protected routes';
+  group: 'Authentication' | 'Session' | 'Tokens' | 'Protected routes' | 'Management';
   id: string;
   /** Whether the route needs a session. */
   locked: boolean;
@@ -29,6 +29,22 @@ export interface RouteSpec {
   regions: string[];
   summary: string;
 }
+
+const pageParams = (): RouteParam[] => [
+  {name: 'limit', required: false, type: 'number', value: '10', where: 'query'},
+  {name: 'offset', required: false, type: 'number', value: '0', where: 'query'},
+];
+
+const idParam = (what: string): RouteParam => ({
+  name: 'id',
+  required: true,
+  type: `${what} id`,
+  value: '',
+  where: 'path',
+});
+
+const MANAGEMENT_NOTE =
+  'Sent with the session access token, which needs the permission ThunderID asks for. The collection URL comes from `endpoints` in the config, else {baseUrl}/{collection}; the top of the sidebar shows where each one resolves.';
 
 const routes: RouteSpec[] = [
   {
@@ -190,6 +206,118 @@ const routes: RouteSpec[] = [
     path: '/api/admin/users',
     regions: ['requireScope', 'admin'],
     summary: 'Example scoped route.',
+  },
+  {
+    chain: ['protect()', `requirePermission('${config.groupsPermission}')`, 'handler'],
+    description: `Checks the access token with getTokenPermissions() and hasPermission() before listing groups. A granted parent permission (system, system:group) covers ${config.groupsPermission}; set PLAYGROUND_GROUPS_PERMISSION to try another. Without it, answers 403 with what the token grants.`,
+    group: 'Protected routes',
+    id: 'adminGroups',
+    locked: true,
+    method: 'GET',
+    params: pageParams(),
+    path: '/api/admin/groups',
+    regions: ['requirePermission', 'management', 'adminGroups'],
+    summary: 'Example permission-gated route.',
+  },
+  {
+    chain: ['protect()', 'handler'],
+    description: `Lists groups with managementFromRequest(req).groups.list(). ${MANAGEMENT_NOTE}`,
+    group: 'Management',
+    id: 'groups',
+    locked: true,
+    method: 'GET',
+    params: pageParams(),
+    path: '/api/management/groups',
+    regions: ['management', 'groups'],
+    summary: 'List groups.',
+  },
+  {
+    chain: ['protect()', 'handler'],
+    description: `Reads one group with groups.get(id). An unknown id answers 404 (getGroup-NotFoundError-001). ${MANAGEMENT_NOTE}`,
+    group: 'Management',
+    id: 'group',
+    locked: true,
+    method: 'GET',
+    params: [idParam('group')],
+    path: '/api/management/groups/:id',
+    regions: ['management', 'group'],
+    summary: 'Get a group.',
+  },
+  {
+    chain: ['protect()', 'handler'],
+    description: `Lists the users, agents and groups in a group with groups.listMembers(id). ${MANAGEMENT_NOTE}`,
+    group: 'Management',
+    id: 'groupMembers',
+    locked: true,
+    method: 'GET',
+    params: [idParam('group'), ...pageParams()],
+    path: '/api/management/groups/:id/members',
+    regions: ['management', 'groupMembers'],
+    summary: 'List group members.',
+  },
+  {
+    chain: ['protect()', 'handler'],
+    description: `Lists roles with roles.list(). ${MANAGEMENT_NOTE}`,
+    group: 'Management',
+    id: 'roles',
+    locked: true,
+    method: 'GET',
+    params: pageParams(),
+    path: '/api/management/roles',
+    regions: ['management', 'roles'],
+    summary: 'List roles.',
+  },
+  {
+    chain: ['protect()', 'handler'],
+    description: `Reads one role, with its permissions, with roles.get(id). ${MANAGEMENT_NOTE}`,
+    group: 'Management',
+    id: 'role',
+    locked: true,
+    method: 'GET',
+    params: [idParam('role')],
+    path: '/api/management/roles/:id',
+    regions: ['management', 'role'],
+    summary: 'Get a role.',
+  },
+  {
+    chain: ['protect()', 'handler'],
+    description: `Lists who holds a role with roles.listAssignments(id, {type}). type is one of user, group, app or agent; empty lists all. ${MANAGEMENT_NOTE}`,
+    group: 'Management',
+    id: 'roleAssignments',
+    locked: true,
+    method: 'GET',
+    params: [
+      idParam('role'),
+      {name: 'type', required: false, type: 'user | group | app | agent', value: '', where: 'query'},
+      ...pageParams(),
+    ],
+    path: '/api/management/roles/:id/assignments',
+    regions: ['management', 'roleAssignments'],
+    summary: 'List role assignments.',
+  },
+  {
+    chain: ['protect()', 'handler'],
+    description: `Lists agent types with agentTypes.list(). ${MANAGEMENT_NOTE}`,
+    group: 'Management',
+    id: 'agentTypes',
+    locked: true,
+    method: 'GET',
+    params: pageParams(),
+    path: '/api/management/agent-types',
+    regions: ['management', 'agentTypes'],
+    summary: 'List agent types.',
+  },
+  {
+    chain: ['protect()', 'handler'],
+    description: `Lists the groups a user belongs to with users.listGroups(id). Your own user id is the sub claim on /api/id-token. ${MANAGEMENT_NOTE}`,
+    group: 'Management',
+    id: 'userGroups',
+    locked: true,
+    method: 'GET',
+    params: [idParam('user'), ...pageParams()],
+    path: '/api/management/users/:id/groups',
+    regions: ['management', 'userGroups'],
+    summary: "List a user's groups.",
   },
 ];
 

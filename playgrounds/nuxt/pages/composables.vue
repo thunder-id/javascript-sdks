@@ -166,5 +166,7 @@ const flowMetaValue: ComputedRef<Record<string, unknown>> = computed(() => ({
       />
       <EventLog />
     </div>
+
+    <ManagementComposables />
   </main>
 </template>

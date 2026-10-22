@@ -248,7 +248,7 @@ class ThunderIDNuxtClient extends ThunderIDNodeClient<ThunderIDNuxtClientConfig>
    * (the `PATCH /api/auth/user/credentials` Nitro route) needs the real `ThunderIDAPIError`
    * instance, status code included, to map a failure onto the right form field.
    */
-  async updateUserCredentials(payload: Record<string, string>, sessionId?: string): Promise<void> {
+  override async updateUserCredentials(payload: Record<string, string>, sessionId?: string): Promise<void> {
     const configData: AuthClientConfig<ThunderIDNuxtConfig> = await this.getStorageManager().getConfigData();
     const baseUrl: string | undefined = configData?.baseUrl;
 

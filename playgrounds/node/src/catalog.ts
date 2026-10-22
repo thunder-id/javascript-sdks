@@ -17,6 +17,7 @@ export type OperationGroup =
   | 'Tokens'
   | 'Sign-out'
   | 'Management API'
+  | 'Management client'
   | 'Not available';
 
 export interface OperationSpec {
@@ -55,7 +56,46 @@ const json = (value: unknown): string => JSON.stringify(value, null, 2);
 const NOT_IMPLEMENTED =
   'ThunderIDNodeClient inherits this method from ThunderIDJavaScriptClient without implementing it, so it throws "Method not implemented."';
 
+const page = (): OperationParam[] => [param('limit', '10', 'number'), param('offset', '0', 'number')];
+
+const MANAGEMENT_NOTE =
+  'Sent with the session access token, which needs the permission ThunderID asks for. The collection URL comes from the call, then `endpoints` in the config, then {baseUrl}/{collection}: see the resolved endpoints in the sidebar.';
+
+/** An operation of the session-bound management client, `client.management(sessionId)`. */
+const management = (
+  id: string,
+  call: string,
+  returns: string,
+  summary: string,
+  description: string,
+  params: OperationParam[] = page(),
+): OperationSpec => ({
+  call: `client.management(sessionId).${call}`,
+  description: `${description} ${MANAGEMENT_NOTE}`,
+  group: 'Management client',
+  id,
+  network: true,
+  params,
+  regions: ['management', id],
+  returns,
+  session: true,
+  summary,
+});
+
 const operations: OperationSpec[] = [
+  {
+    call: 'resolveResourceEndpoint(key, await client.getConfiguration())',
+    description:
+      'Where each management and sign-in resource endpoint resolves for this client: the `endpoints` override from the config, else {baseUrl}/{path}. Set a THUNDERID_ENDPOINT_<KEY> variable in .env to override one. The sidebar shows the same list.',
+    group: 'Discovery',
+    id: 'resolveEndpoints',
+    network: false,
+    params: [],
+    regions: ['setup', 'resolveEndpoints'],
+    returns: 'ResolvedEndpoint[]',
+    session: false,
+    summary: 'Resolved resource endpoints.',
+  },
   {
     call: 'client.getOpenIDProviderEndpoints()',
     description:
@@ -408,6 +448,91 @@ const operations: OperationSpec[] = [
     returns: 'Promise<void>',
     session: true,
     summary: 'Update own credentials.',
+  },
+  management(
+    'listGroups',
+    'groups.list({limit, offset})',
+    'Promise<GroupListResponse>',
+    'List groups.',
+    'One page of groups.',
+  ),
+  management(
+    'getGroup',
+    'groups.get(groupId)',
+    'Promise<Group>',
+    'Get a group.',
+    'One group. An unknown id rejects with getGroup-NotFoundError-001.',
+    [param('groupId', '', 'string', true)],
+  ),
+  management(
+    'listGroupMembers',
+    'groups.listMembers(groupId, {limit, offset})',
+    'Promise<GroupMemberListResponse>',
+    'List group members.',
+    'The users, agents and groups in a group.',
+    [param('groupId', '', 'string', true), ...page()],
+  ),
+  management(
+    'listRoles',
+    'roles.list({limit, offset})',
+    'Promise<RoleListResponse>',
+    'List roles.',
+    'One page of roles.',
+  ),
+  management('getRole', 'roles.get(roleId)', 'Promise<Role>', 'Get a role.', 'One role, with its permissions.', [
+    param('roleId', '', 'string', true),
+  ]),
+  management(
+    'listRoleAssignments',
+    'roles.listAssignments(roleId, {limit, offset, type})',
+    'Promise<RoleAssignmentListResponse>',
+    'List role assignments.',
+    'Who holds a role. type is one of user, group, app or agent; empty lists all.',
+    [param('roleId', '', 'string', true), param('type', '', 'user | group | app | agent'), ...page()],
+  ),
+  management(
+    'listAgentTypes',
+    'agentTypes.list({limit, offset})',
+    'Promise<AgentTypeListResponse>',
+    'List agent types.',
+    'One page of agent types.',
+  ),
+  management(
+    'listAgentGroups',
+    'agents.listGroups(agentId, {limit, offset})',
+    'Promise<MembershipGroupListResponse>',
+    "List an agent's groups.",
+    'The groups an agent belongs to.',
+    [param('agentId', '', 'string', true), ...page()],
+  ),
+  management(
+    'listAgentRoles',
+    'agents.listRoles(agentId, {limit, offset})',
+    'Promise<AgentRoleListResponse>',
+    "List an agent's roles.",
+    'The roles assigned to an agent.',
+    [param('agentId', '', 'string', true), ...page()],
+  ),
+  management(
+    'listUserGroups',
+    'users.listGroups(userId, {limit, offset})',
+    'Promise<MembershipGroupListResponse>',
+    "List a user's groups.",
+    'The groups a user belongs to. Your own user id is the sub claim of getDecodedIdToken().',
+    [param('userId', '', 'string', true), ...page()],
+  ),
+  {
+    call: 'hasPermission(getTokenPermissions(await client.getAccessToken(sessionId)), permission)',
+    description:
+      'Checks the session access token for a permission before calling groups.list(), the way an app gates an admin page. A granted parent permission (system, system:group) covers system:group:view. Resolves {allowed: false, granted, required} without calling ThunderID when the token lacks it.',
+    group: 'Management client',
+    id: 'permissionGatedGroups',
+    network: true,
+    params: [param('permission', 'system:group:view', 'string', true), ...page()],
+    regions: ['permissionGatedGroups'],
+    returns: 'Promise<{allowed: boolean, ...}>',
+    session: true,
+    summary: 'Permission-gated call.',
   },
   ...['signInSilently', 'signUp', 'recover', 'getUserProfile', 'updateUserProfile'].map(
     (name: string): OperationSpec => ({

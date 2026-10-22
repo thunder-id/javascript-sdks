@@ -20,6 +20,7 @@ const NuxtAPIRoutes: {
   AUTH_FLOWS: string;
   BACKCHANNEL_LOGOUT: string;
   CALLBACK: string;
+  MANAGEMENT: string;
   META: string;
   SESSION: string;
   SIGN_IN: string;
@@ -38,6 +39,8 @@ const NuxtAPIRoutes: {
   BACKCHANNEL_LOGOUT: '/api/auth/backchannel-logout',
   /** Resolves the OAuth callback and completes sign-in. */
   CALLBACK: '/api/auth/callback',
+  /** Performs (POST) one management API request with the signed-in session. Served only when `management` is on. */
+  MANAGEMENT: '/api/auth/management',
   /** Serves flow metadata (design config + i18n bundle). */
   META: '/api/auth/meta',
   /** Returns the current server-verified session. */

@@ -114,8 +114,10 @@ const buildCode = (component: ComponentDef, args: Args): string => {
     .map((line: string) => `    ${line}`)
     .join('\n');
 
+  const other: string = snippet.otherImports?.length ? `${snippet.otherImports.join('\n')}\n` : '';
+
   // SDK components use hooks and server actions, so the file that renders them is a client component.
-  return `'use client';\n\nimport {${imports.join(', ')}} from '${snippet.from ?? '@thunderid/nextjs'}';\n\nexport default function Example() {\n  return (\n${body}\n  );\n}`;
+  return `'use client';\n\n${other}import {${imports.join(', ')}} from '${snippet.from ?? '@thunderid/nextjs'}';\n\nexport default function Example() {\n  return (\n${body}\n  );\n}`;
 };
 
 const Workbench = ({

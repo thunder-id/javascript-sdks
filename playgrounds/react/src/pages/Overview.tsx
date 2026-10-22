@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import {useI18n, useTheme, useThunderID, useUser} from '@thunderid/react';
-import {ReactElement, useEffect, useRef, useState} from 'react';
+import {ReactElement, ReactNode, useEffect, useRef, useState} from 'react';
 import {
   CAPABILITIES,
   Capability,
@@ -17,6 +17,7 @@ import SessionCard from '../components/SessionCard';
 import playgroundConfig from '../config';
 import {logEvent} from '../lib/events';
 import {useServerHealth} from '../lib/health';
+import {NEW_MANAGEMENT_KEYS, resolveManagementEndpoints, ResolvedEndpoint} from '../lib/management';
 
 interface CapabilityState {
   note: string;
@@ -78,6 +79,21 @@ const timeAgo = (at: number, now: number): string => {
   if (seconds < 3600) return `${Math.round(seconds / 60)} min`;
 
   return `${Math.round(seconds / 3600)} h`;
+};
+
+// Offers a line break after each `/`, so a long URL wraps at a path boundary rather than mid-word.
+const breakable = (value: string): ReactNode[] => {
+  const nodes: ReactNode[] = [];
+  let offset = 0;
+
+  value.split(/(?<=\/)/).forEach((part: string) => {
+    // The offset of each part is unique within the value, so it keys the <wbr> before it.
+    if (offset) nodes.push(<wbr key={offset} />);
+    nodes.push(part);
+    offset += part.length;
+  });
+
+  return nodes;
 };
 
 const Overview = (): ReactElement => {
@@ -173,7 +189,7 @@ const Overview = (): ReactElement => {
   const sections: string[] = Array.from(new Set(CAPABILITIES.map((capability: Capability) => capability.section)));
   const host: string = playgroundConfig.baseUrl.replace(/^https?:\/\//, '');
 
-  const configText: string = [
+  const configRows: [string, string][] = [
     ['baseUrl', orNotSet(sdk.baseUrl)],
     ['clientId', orNotSet(sdk.clientId)],
     ['applicationId', orNotSet(sdk.applicationId)],
@@ -181,9 +197,11 @@ const Overview = (): ReactElement => {
     ['afterSignOut', playgroundConfig.afterSignOutUrl],
     ['scopes', Array.isArray(sdk.scopes) ? sdk.scopes.join(' ') : String(sdk.scopes ?? '')],
     ['storage', playgroundConfig.storage ?? 'SDK default'],
-  ]
-    .map(([key, value]: string[]) => `${key.padEnd(14)}${value}`)
-    .join('\n');
+  ];
+
+  // Where each management collection resolves, the way useManagementEndpoint() does it.
+  const endpoints: ResolvedEndpoint[] = resolveManagementEndpoints(sdk.baseUrl, sdk.endpoints);
+  const overrideCount: number = endpoints.filter((endpoint: ResolvedEndpoint) => endpoint.override).length;
 
   return (
     <main className="pg-main">
@@ -322,7 +340,29 @@ const Overview = (): ReactElement => {
               <h2>ThunderIDProvider</h2>
               <span className="pg-card-meta">.env</span>
             </div>
-            <pre className="pg-pre">{configText}</pre>
+            <dl className="pg-kv">
+              {configRows.map(([key, value]: [string, string]) => (
+                <div key={key} className="pg-kv-row">
+                  <dt>{key}</dt>
+                  <dd title={value}>{breakable(value)}</dd>
+                </div>
+              ))}
+            </dl>
+            <div className="pg-section-label">
+              endpoints · {overrideCount ? `${overrideCount} overridden` : 'all under baseUrl'}
+            </div>
+            <dl className="pg-kv">
+              {endpoints.map(({key, override, url}: ResolvedEndpoint) => (
+                <div key={key} className="pg-kv-row">
+                  <dt>{key}</dt>
+                  <dd title={url}>
+                    {breakable(url)}
+                    {override && <span className="pg-kv-tag"> override</span>}
+                    {NEW_MANAGEMENT_KEYS.includes(key) && <span className="pg-kv-tag"> new</span>}
+                  </dd>
+                </div>
+              ))}
+            </dl>
           </section>
 
           <EventLog />

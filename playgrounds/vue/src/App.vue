@@ -14,6 +14,7 @@ import Shell from './Shell.vue';
     :application-id="playgroundConfig.applicationId"
     :base-url="playgroundConfig.baseUrl"
     :client-id="playgroundConfig.clientId"
+    :endpoints="playgroundConfig.endpoints"
     :scopes="playgroundConfig.scopes"
     :storage="playgroundConfig.storage"
   >

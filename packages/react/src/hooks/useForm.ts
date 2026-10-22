@@ -268,7 +268,7 @@ export const useForm = <T extends Record<string, string>>(config: UseFormConfig<
       const newErrors: Record<keyof T, string> = {...prevErrors};
       let changed = false;
 
-      (Object.keys(prevErrors) as Array<keyof T>).forEach((name: keyof T) => {
+      (Object.keys(prevErrors) as (keyof T)[]).forEach((name: keyof T) => {
         // Skip errors that were not produced by client-side validation - preserve server messages.
         if (!clientErrorFieldRef.current.has(name)) return;
 
@@ -421,7 +421,7 @@ export const useForm = <T extends Record<string, string>>(config: UseFormConfig<
     // Validate all fields
     const validation: ValidationResult = validateForm();
     setFormErrors(validation.errors as Record<keyof T, string>);
-    clientErrorFieldRef.current = new Set(Object.keys(validation.errors) as Array<keyof T>);
+    clientErrorFieldRef.current = new Set(Object.keys(validation.errors) as (keyof T)[]);
   }, [fields, validateForm]);
 
   // Set a field error

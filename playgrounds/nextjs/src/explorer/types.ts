@@ -27,6 +27,8 @@ export interface Snippet {
   from?: string;
   imports: string[];
   jsx: string;
+  /** Import lines for other packages, such as a third-party UI library, shown above the SDK import. */
+  otherImports?: string[];
 }
 
 export interface ComponentDef {

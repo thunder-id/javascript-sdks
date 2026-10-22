@@ -83,6 +83,37 @@ export {default as useCreateAgent} from './hooks/agents/useCreateAgent';
 export {default as useUpdateAgent} from './hooks/agents/useUpdateAgent';
 export type {UpdateAgentVariables} from './hooks/agents/useUpdateAgent';
 export {default as useDeleteAgent} from './hooks/agents/useDeleteAgent';
+export {default as useGetUserGroups} from './hooks/users/useGetUserGroups';
+export {default as useGetAgentGroups} from './hooks/agents/useGetAgentGroups';
+export {default as useGetAgentRoles} from './hooks/agents/useGetAgentRoles';
+export {default as useGetRoles} from './hooks/roles/useGetRoles';
+export type {UseGetRolesParams} from './hooks/roles/useGetRoles';
+export {default as useGetRole} from './hooks/roles/useGetRole';
+export {default as useCreateRole} from './hooks/roles/useCreateRole';
+export {default as useUpdateRole} from './hooks/roles/useUpdateRole';
+export type {UpdateRoleVariables} from './hooks/roles/useUpdateRole';
+export {default as useDeleteRole} from './hooks/roles/useDeleteRole';
+export {default as useGetRoleAssignments} from './hooks/roles/useGetRoleAssignments';
+export type {UseGetRoleAssignmentsParams} from './hooks/roles/useGetRoleAssignments';
+export {default as useAddRoleAssignments} from './hooks/roles/useAddRoleAssignments';
+export type {RoleAssignmentsVariables} from './hooks/roles/useAddRoleAssignments';
+export {default as useRemoveRoleAssignments} from './hooks/roles/useRemoveRoleAssignments';
+export {default as useGetGroups} from './hooks/groups/useGetGroups';
+export type {UseGetGroupsParams} from './hooks/groups/useGetGroups';
+export {default as useGetGroup} from './hooks/groups/useGetGroup';
+export {default as useCreateGroup} from './hooks/groups/useCreateGroup';
+export {default as useUpdateGroup} from './hooks/groups/useUpdateGroup';
+export type {UpdateGroupVariables} from './hooks/groups/useUpdateGroup';
+export {default as useDeleteGroup} from './hooks/groups/useDeleteGroup';
+export {default as useGetGroupMembers} from './hooks/groups/useGetGroupMembers';
+export type {UseGetGroupMembersParams} from './hooks/groups/useGetGroupMembers';
+export {default as useAddGroupMembers} from './hooks/groups/useAddGroupMembers';
+export type {GroupMembersVariables} from './hooks/groups/useAddGroupMembers';
+export {default as useRemoveGroupMembers} from './hooks/groups/useRemoveGroupMembers';
+export {default as useGetUserTypes} from './hooks/users/useGetUserTypes';
+export {default as useGetAgentTypes} from './hooks/agents/useGetAgentTypes';
+export {default as useGrantedPermissions} from './hooks/useGrantedPermissions';
+export type {GrantedPermissions} from './hooks/useGrantedPermissions';
 
 export {default as BaseSignInButton} from './components/actions/SignInButton/BaseSignInButton';
 export * from './components/actions/SignInButton/BaseSignInButton';
@@ -168,6 +199,90 @@ export * from './components/presentation/UserProfile/BaseUserProfile';
 
 export {default as UserProfile} from './components/presentation/UserProfile/UserProfile';
 export * from './components/presentation/UserProfile/UserProfile';
+
+export * from './components/presentation/admin/shared/AdminListRenderProps';
+export type {AdminSearchValue} from './components/presentation/admin/shared/AdminSearch';
+
+export {default as BaseUserList} from './components/presentation/admin/UserList/BaseUserList';
+export * from './components/presentation/admin/UserList/BaseUserList';
+
+export {default as UserList} from './components/presentation/admin/UserList/UserList';
+export * from './components/presentation/admin/UserList/UserList';
+
+export {default as BaseUserCreate} from './components/presentation/admin/UserCreate/BaseUserCreate';
+export * from './components/presentation/admin/UserCreate/BaseUserCreate';
+
+export {default as UserCreate} from './components/presentation/admin/UserCreate/UserCreate';
+export * from './components/presentation/admin/UserCreate/UserCreate';
+
+export {default as BaseUserDetails} from './components/presentation/admin/UserDetails/BaseUserDetails';
+export * from './components/presentation/admin/UserDetails/BaseUserDetails';
+
+export {default as UserDetails} from './components/presentation/admin/UserDetails/UserDetails';
+export * from './components/presentation/admin/UserDetails/UserDetails';
+
+export {default as BaseGroupList} from './components/presentation/admin/GroupList/BaseGroupList';
+export * from './components/presentation/admin/GroupList/BaseGroupList';
+
+export {default as GroupList} from './components/presentation/admin/GroupList/GroupList';
+export * from './components/presentation/admin/GroupList/GroupList';
+
+export {default as BaseGroupCreate} from './components/presentation/admin/GroupCreate/BaseGroupCreate';
+export * from './components/presentation/admin/GroupCreate/BaseGroupCreate';
+
+export {default as GroupCreate} from './components/presentation/admin/GroupCreate/GroupCreate';
+export * from './components/presentation/admin/GroupCreate/GroupCreate';
+
+export {default as BaseGroupMembers} from './components/presentation/admin/GroupMembers/BaseGroupMembers';
+export * from './components/presentation/admin/GroupMembers/BaseGroupMembers';
+
+export {default as GroupMembers} from './components/presentation/admin/GroupMembers/GroupMembers';
+export * from './components/presentation/admin/GroupMembers/GroupMembers';
+
+export {default as BaseRoleList} from './components/presentation/admin/RoleList/BaseRoleList';
+export * from './components/presentation/admin/RoleList/BaseRoleList';
+
+export {default as RoleList} from './components/presentation/admin/RoleList/RoleList';
+export * from './components/presentation/admin/RoleList/RoleList';
+
+export {default as BaseRoleCreate} from './components/presentation/admin/RoleCreate/BaseRoleCreate';
+export * from './components/presentation/admin/RoleCreate/BaseRoleCreate';
+
+export {default as RoleCreate} from './components/presentation/admin/RoleCreate/RoleCreate';
+export * from './components/presentation/admin/RoleCreate/RoleCreate';
+
+export {default as BaseRoleAssignments} from './components/presentation/admin/RoleAssignments/BaseRoleAssignments';
+export * from './components/presentation/admin/RoleAssignments/BaseRoleAssignments';
+
+export {default as RoleAssignments} from './components/presentation/admin/RoleAssignments/RoleAssignments';
+export * from './components/presentation/admin/RoleAssignments/RoleAssignments';
+
+export {default as BaseRolePermissions} from './components/presentation/admin/RolePermissions/BaseRolePermissions';
+export * from './components/presentation/admin/RolePermissions/BaseRolePermissions';
+
+export {default as RolePermissions} from './components/presentation/admin/RolePermissions/RolePermissions';
+export * from './components/presentation/admin/RolePermissions/RolePermissions';
+
+export {default as BaseAgentList} from './components/presentation/admin/AgentList/BaseAgentList';
+export * from './components/presentation/admin/AgentList/BaseAgentList';
+
+export {default as AgentList} from './components/presentation/admin/AgentList/AgentList';
+export * from './components/presentation/admin/AgentList/AgentList';
+
+export {default as BaseAgentCreate} from './components/presentation/admin/AgentCreate/BaseAgentCreate';
+export * from './components/presentation/admin/AgentCreate/BaseAgentCreate';
+
+export {default as AgentCreate} from './components/presentation/admin/AgentCreate/AgentCreate';
+export * from './components/presentation/admin/AgentCreate/AgentCreate';
+
+export {default as BaseAgentDetails} from './components/presentation/admin/AgentDetails/BaseAgentDetails';
+export * from './components/presentation/admin/AgentDetails/BaseAgentDetails';
+
+export {default as AgentDetails} from './components/presentation/admin/AgentDetails/AgentDetails';
+export * from './components/presentation/admin/AgentDetails/AgentDetails';
+
+export {default as DataTable} from './components/primitives/DataTable/DataTable';
+export * from './components/primitives/DataTable/DataTable';
 
 export {default as BaseChangeCredential} from './components/presentation/ChangeCredential/BaseChangeCredential';
 export * from './components/presentation/ChangeCredential/BaseChangeCredential';
@@ -263,6 +378,9 @@ export * from './components/primitives/Typography/Typography';
 
 export {default as Divider} from './components/primitives/Divider/Divider';
 export * from './components/primitives/Divider/Divider';
+
+export {default as Attribution} from './components/presentation/Attribution/Attribution';
+export * from './components/presentation/Attribution/Attribution';
 
 export {default as Logo} from './components/primitives/Logo/Logo';
 export * from './components/primitives/Logo/Logo';
@@ -378,7 +496,31 @@ export {
 export {
   AgentQueryKeys,
   ApplicationQueryKeys,
+  GroupQueryKeys,
+  RoleQueryKeys,
   UserQueryKeys,
+  addGroupMembers,
+  addRoleAssignments,
+  getTokenPermissions,
+  hasPermission,
+  createGroup,
+  createRole,
+  deleteGroup,
+  deleteRole,
+  getAgentGroups,
+  getAgentRoles,
+  getAgentTypes,
+  getGroup,
+  getGroupMembers,
+  getGroups,
+  getRole,
+  getRoleAssignments,
+  getRoles,
+  getUserGroups,
+  removeGroupMembers,
+  removeRoleAssignments,
+  updateGroup,
+  updateRole,
   createAgent,
   createApplication,
   createUser,
@@ -411,4 +553,26 @@ export {
   type UpdateAgentRequest,
   type UpdateApplicationRequest,
   type UpdateManagedUserRequest,
+  type AgentRoleListResponse,
+  type AgentType,
+  type AgentTypeListResponse,
+  type CreateGroupRequest,
+  type CreateRoleRequest,
+  type Group,
+  type GroupListResponse,
+  type GroupMember,
+  type GroupMemberListResponse,
+  type GroupMemberType,
+  type MembershipGroup,
+  type MembershipGroupListResponse,
+  type Role,
+  type RoleAssigneeType,
+  type RoleAssignment,
+  type RoleAssignmentInput,
+  type RoleAssignmentListResponse,
+  type RoleListResponse,
+  type RoleResourcePermissions,
+  type RoleSummary,
+  type UpdateGroupRequest,
+  type UpdateRoleRequest,
 } from '@thunderid/browser';

@@ -38,11 +38,18 @@ const IDENTITIES: [Identity, string, string][] = [
 
 const GROUPS: RouteGroup[] = ['Module routes', 'Playground server routes', 'Protected pages'];
 
-const config = useRuntimeConfig().public.thunderid as {applicationId?: string};
+const config = useRuntimeConfig().public.thunderid as {
+  applicationId?: string;
+  baseUrl?: string;
+  endpoints?: {groups?: string};
+};
 const {isSignedIn} = useThunderID();
 const ssr: Ref<SsrSnapshot | null> = useState<SsrSnapshot | null>('playground:ssr');
 const now: Ref<number> = useNow();
-const routes: RouteSpec[] = buildRoutes(config.applicationId);
+const routes: RouteSpec[] = buildRoutes(
+  config.applicationId,
+  config.endpoints?.groups ?? `${(config.baseUrl ?? '').replace(/\/+$/, '')}/groups`,
+);
 
 const selectedId: Ref<string> = ref<string>(routes[0].id);
 const identity: Ref<Identity> = ref<Identity>('anonymous');

@@ -32,6 +32,7 @@ import ThunderIDContext, {ThunderIDContextProps} from './ThunderIDContext';
 import {RefreshResult} from '../../../server/actions/refreshToken';
 import logger from '../../../utils/logger';
 import fetchFlowMetaFromServer from '../../fetchFlowMetaFromServer';
+import fetchManagementFromServer from '../../fetchManagementFromServer';
 
 /**
  * Props interface of {@link ThunderIDClientProvider}
@@ -67,6 +68,7 @@ export type ThunderIDClientProviderProps = Partial<Omit<ThunderIDProviderProps, 
 const ThunderIDClientProvider: FC<PropsWithChildren<ThunderIDClientProviderProps>> = ({
   baseUrl,
   children,
+  endpoints,
   signIn,
   clearSession,
   refreshToken,
@@ -337,12 +339,18 @@ const ThunderIDClientProvider: FC<PropsWithChildren<ThunderIDClientProviderProps
       clearSession,
       clientId: undefined,
       discovery: {wellKnown: null},
+      // Only the management collection overrides arrive here, so the admin hooks build the URLs the
+      // management server action accepts.
+      endpoints,
       exchangeToken: unsupported('exchangeToken'),
       getAccessToken: unsupported('getAccessToken'),
       getDecodedIdToken: unsupported('getDecodedIdToken'),
       getIdToken: unsupported('getIdToken'),
       getStorageManager: () => Promise.resolve(null),
       http: {
+        // The admin components and hooks send management requests through a server action that adds
+        // the server-held access token, so the token never reaches the browser.
+        fetcher: fetchManagementFromServer,
         request: unsupported('http.request'),
         requestAll: unsupported('http.requestAll'),
       },
@@ -371,6 +379,7 @@ const ThunderIDClientProvider: FC<PropsWithChildren<ThunderIDClientProviderProps
       applicationId,
       baseUrl,
       clearSession,
+      endpoints,
       isLoading,
       isSignedIn,
       organizationHandle,

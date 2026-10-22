@@ -16,6 +16,7 @@ createRoot(document.getElementById('root')!).render(
       applicationId={playgroundConfig.applicationId}
       baseUrl={playgroundConfig.baseUrl}
       clientId={playgroundConfig.clientId}
+      endpoints={playgroundConfig.endpoints}
       scopes={playgroundConfig.scopes}
       storage={playgroundConfig.storage}
     >

@@ -21,6 +21,8 @@ const useStyles = (theme: Theme, colorScheme: string, disabled: boolean, hasErro
     const select: string = css`
       width: 100%;
       padding: ${theme.vars.spacing.unit} calc(${theme.vars.spacing.unit} * 1.5);
+      /* Room for the dropdown arrow, so a short select's label never runs under it. */
+      padding-right: calc(${theme.vars.spacing.unit} * 1.5 + 1.4em);
       border: 1px solid ${hasError ? theme.vars.colors.error.main : theme.vars.colors.border};
       border-radius: ${theme.vars.components?.Field?.root?.borderRadius || theme.vars.borderRadius.medium};
       font-size: ${theme.vars.typography.fontSizes.md};

@@ -8,7 +8,7 @@ import requestManagementResource from '../../utils/requestManagementResource';
 /**
  * Configuration for the getAgents request.
  */
-export type GetAgentsConfig = ManagementRequestConfig & Pick<ApiFilteringParams, 'limit' | 'offset'>;
+export type GetAgentsConfig = ManagementRequestConfig & Pick<ApiFilteringParams, 'filter' | 'limit' | 'offset'>;
 
 /**
  * Retrieves a page of agents.
@@ -20,17 +20,18 @@ export type GetAgentsConfig = ManagementRequestConfig & Pick<ApiFilteringParams,
  * ```typescript
  * const {agents, totalResults} = await getAgents({
  *   baseUrl: 'https://localhost:8090',
+ *   filter: 'name eq "Calendar Agent"',
  *   limit: 10,
  * });
  * ```
  */
-const getAgents = async ({limit, offset, ...config}: GetAgentsConfig): Promise<AgentListResponse> =>
+const getAgents = async ({filter, limit, offset, ...config}: GetAgentsConfig): Promise<AgentListResponse> =>
   requestManagementResource<AgentListResponse>(config, {
     collection: 'agents',
     failureMessage: 'Failed to fetch agents',
     method: 'GET',
     operation: 'getAgents',
-    query: {include: 'display', limit, offset},
+    query: {filter, include: 'display', limit, offset},
   });
 
 export default getAgents;

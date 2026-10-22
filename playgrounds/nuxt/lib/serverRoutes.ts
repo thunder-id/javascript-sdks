@@ -30,7 +30,7 @@ const moduleRoute = (route: Omit<RouteSpec, 'group' | 'handler'> & {file: string
   return {...rest, group: 'Module routes', handler: `${MODULE} · runtime/server/routes/auth/${file}`};
 };
 
-export const buildRoutes = (applicationId: string | undefined): RouteSpec[] => [
+export const buildRoutes = (applicationId: string | undefined, groupsUrl: string): RouteSpec[] => [
   moduleRoute({
     description:
       'Verifies the session cookie and returns {isSignedIn, user, isLoading}. The client calls it to refresh auth state after an app-native sign-in.',
@@ -159,6 +159,18 @@ export const buildRoutes = (applicationId: string | undefined): RouteSpec[] => [
     method: 'GET',
     path: '/api/auth/user-types',
     summary: 'User type picker options.',
+  }),
+  moduleRoute({
+    body: JSON.stringify({method: 'GET', url: `${groupsUrl}?limit=5`}, null, 2),
+    contentType: 'application/json',
+    description:
+      "The http.fetcher of the management composables and admin components. Performs one management request with the session's access token, only to a configured management collection (users, user types, groups, roles, agents, agent types, honoring endpoints overrides). Always 200 with {body, status, statusText}: a foreign URL reports 400, no session 401. On with management.",
+    file: 'management.post.ts',
+    id: 'management',
+    locked: true,
+    method: 'POST',
+    path: '/api/auth/management',
+    summary: 'Management relay.',
   }),
   moduleRoute({
     body: 'logout_token=not-a-real-token',

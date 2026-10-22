@@ -40,6 +40,17 @@ export interface ThunderIDNuxtConfig extends Omit<AuthClientConfig, 'baseUrl'> {
     store?: string;
   };
   /**
+   * Opt-in admin (management) surface. When `true`, the module serves `POST /api/auth/management`, which
+   * performs a management API request with the signed-in user's server-held session, installs it as the
+   * `http.fetcher` of the management composables, and auto-imports the admin components (`UserList`,
+   * `GroupMembers`, `RoleAssignments`, ... and their `Base*` variants) and composables (`useGetUsers`,
+   * `useCreateGroup`, `useGrantedPermissions`, ...) from `@thunderid/vue`. Nothing is served by default.
+   *
+   * The route only reaches the configured management collections (users, groups, roles, agents, user
+   * types, agent types), and the management API still decides what the signed-in user may do.
+   */
+  management?: boolean;
+  /**
    * Opt-in management pickers. `UserSelect`, `AuthFlowSelect` and `UserTypeSelect` load their options through a server
    * route that lists the users, authentication flows or user types with the signed-in user's own session, so each
    * route and its component are registered only for the picker that is turned on. Nothing is served by default.
@@ -151,6 +162,26 @@ export interface ThunderIDAuthState {
  * one normalized page, or why it could not be loaded. Always carried in the body of a `200` response, since
  * a `401` means the caller's own session is invalid, not that the directory call failed.
  */
+/**
+ * Body of `POST /api/auth/management`: one management API request as the core API function built it.
+ */
+export interface ThunderIDManagementRequest {
+  /** JSON request body, already serialized. */
+  body?: string;
+  method?: string;
+  url: string;
+}
+
+/**
+ * Response of `POST /api/auth/management`: the upstream status, and its reply on success. A failure
+ * carries a message built on the server, never the text of the upstream reply.
+ */
+export interface ThunderIDManagementResult {
+  body: string;
+  status: number;
+  statusText: string;
+}
+
 export type ThunderIDSelectPageResult = {page: SelectPage; success: true} | ({success: false} & SelectPageErrorResult);
 
 /** Result of `GET /api/auth/users`. */

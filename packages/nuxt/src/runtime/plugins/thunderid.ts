@@ -10,7 +10,8 @@ import {computed} from 'vue';
 import type {ComputedRef, Ref} from 'vue';
 import ThunderIDRoot from '../components/ThunderIDRoot';
 import NuxtAPIRoutes from '../constants/NuxtAPIRoutes';
-import type {ThunderIDAuthState, ThunderIDSSRData} from '../types';
+import type {ThunderIDAuthState, ThunderIDNuxtConfig, ThunderIDSSRData} from '../types';
+import fetchManagementFromServer from '../utils/fetchManagementFromServer';
 import {getAuthStateKey, getFlowMetaStateKey, getUserProfileStateKey, getUserSchemaStateKey} from '../utils/stateKeys';
 import type {NuxtApp} from '#app';
 import {defineNuxtPlugin, useState, useRequestEvent, useRuntimeConfig, navigateTo} from '#app';
@@ -41,6 +42,8 @@ export default defineNuxtPlugin((nuxtApp: NuxtApp) => {
     applicationId?: string;
     baseUrl: string;
     clientId: string;
+    endpoints?: ThunderIDNuxtConfig['endpoints'];
+    management?: boolean;
     organizationHandle?: string;
     scopes: string | string[];
     signInUrl?: string;
@@ -52,6 +55,8 @@ export default defineNuxtPlugin((nuxtApp: NuxtApp) => {
     applicationId?: string;
     baseUrl: string;
     clientId: string;
+    endpoints?: ThunderIDNuxtConfig['endpoints'];
+    management?: boolean;
     organizationHandle?: string;
     scopes: string | string[];
     signInUrl?: string;
@@ -213,11 +218,19 @@ export default defineNuxtPlugin((nuxtApp: NuxtApp) => {
     baseUrl: publicConfig.baseUrl,
     clearSession: noop,
     clientId: publicConfig.clientId,
+    // Lets the management composables build the URLs the management route accepts.
+    endpoints: publicConfig.endpoints,
     exchangeToken: noop,
     getAccessToken,
     getDecodedIdToken: noop,
     getIdToken: noop,
-    http: {request: noop, requestAll: noop},
+    http: {
+      // With `management` on, the management composables reach the management API through a server
+      // route that adds the server-held access token.
+      ...(publicConfig.management ? {fetcher: fetchManagementFromServer} : {}),
+      request: noop,
+      requestAll: noop,
+    },
     instanceId: 0,
     isInitialized,
     isLoading,

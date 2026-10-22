@@ -4,6 +4,8 @@
 import {
   ThunderIDNodeClient,
   ThunderIDAuthException,
+  ThunderIDNodeManagementClient,
+  ThunderIDRuntimeError,
   Storage,
   TokenResponse,
   User,
@@ -47,6 +49,31 @@ class ThunderIDExpressClient<T extends ExpressClientConfig = ExpressClientConfig
     const cookies = req.cookies as Record<string, string | undefined> | undefined;
     const sessionId: string | undefined = cookies?.[this.getSessionCookieName()];
     return this.getUser(sessionId);
+  }
+
+  /**
+   * Returns the management operations bound to the session named by the request's session cookie,
+   * so a route handler can administer users, groups, roles, and agents as the signed-in user. The
+   * session's access token stays on the server and is read on every call.
+   *
+   * ```ts
+   * app.get('/admin/users', protect(), async (req, res) => {
+   *   const admin = req.thunderIDAuth.managementFromRequest(req);
+   *   res.json(await admin.users.list({limit: 20}));
+   * });
+   * ```
+   *
+   * @throws {ThunderIDRuntimeError} `EXPRESS-CLIENT-MFR-NF01` when the request carries no session cookie.
+   */
+  public managementFromRequest(req: express.Request): ThunderIDNodeManagementClient {
+    const cookies = req.cookies as Record<string, string | undefined> | undefined;
+    const sessionId: string | undefined = cookies?.[this.getSessionCookieName()];
+
+    if (!sessionId) {
+      throw new ThunderIDRuntimeError('No session cookie found in the request.', 'EXPRESS-CLIENT-MFR-NF01', 'express');
+    }
+
+    return this.management(sessionId);
   }
 
   public async updateUserCredentialsFromRequest(req: express.Request, payload: Record<string, string>): Promise<void> {

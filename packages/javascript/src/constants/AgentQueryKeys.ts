@@ -8,9 +8,11 @@
 const AgentQueryKeys: {
   AGENT: 'agent';
   AGENTS: 'agents';
+  AGENT_TYPES: 'agent-types';
 } = {
   AGENT: 'agent',
   AGENTS: 'agents',
+  AGENT_TYPES: 'agent-types',
 };
 
 export default AgentQueryKeys;

@@ -34,6 +34,7 @@ import getClient from './getClient';
 import ThunderIDClientProvider from '../client/contexts/ThunderID/ThunderIDProvider.js';
 import {ThunderIDNextConfig} from '../models/config';
 import logger from '../utils/logger';
+import {pickManagementEndpoints} from '../utils/managementCollections';
 import {SessionTokenPayload} from '../utils/SessionManager';
 
 /**
@@ -203,6 +204,7 @@ const ThunderIDServerProvider: FC<PropsWithChildren<ThunderIDServerProviderProps
       organizationHandle={config?.organizationHandle}
       applicationId={config?.applicationId}
       baseUrl={config?.baseUrl}
+      endpoints={pickManagementEndpoints(config?.endpoints)}
       initialMeta={flowMeta}
       signIn={signInAction}
       clearSession={clearSession}

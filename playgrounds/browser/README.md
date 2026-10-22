@@ -40,14 +40,20 @@ pnpm --filter @thunderid/playground-browser dev
 Open http://localhost:5175. After changing SDK source, rebuild that package (for example
 `pnpm --filter @thunderid/browser build`) and reload.
 
-| Variable                                                                | Purpose                                                                           |
-| ----------------------------------------------------------------------- | --------------------------------------------------------------------------------- |
-| `VITE_THUNDERID_BASE_URL`                                               | ThunderID server. Defaults to `https://localhost:8090`.                           |
-| `VITE_THUNDERID_CLIENT_ID`                                              | Client ID of the SPA application. Required for sign-in.                           |
-| `VITE_THUNDERID_APPLICATION_ID`                                         | Application ID. Needed by the flow metadata and app-native sign-in checks.        |
-| `VITE_THUNDERID_AFTER_SIGN_IN_URL`, `VITE_THUNDERID_AFTER_SIGN_OUT_URL` | Redirect targets. Default to the app origin.                                      |
-| `VITE_THUNDERID_SCOPES`                                                 | Space separated scopes. Defaults to `openid profile email`.                       |
-| `VITE_THUNDERID_STORAGE`                                                | `sessionStorage`, `localStorage`, or `browserMemory`. Unset uses the SDK default. |
+| Variable                                                                | Purpose                                                                                                                                      |
+| ----------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| `VITE_THUNDERID_BASE_URL`                                               | ThunderID server. Defaults to `https://localhost:8090`.                                                                                      |
+| `VITE_THUNDERID_CLIENT_ID`                                              | Client ID of the SPA application. Required for sign-in.                                                                                      |
+| `VITE_THUNDERID_APPLICATION_ID`                                         | Application ID. Needed by the flow metadata and app-native sign-in checks.                                                                   |
+| `VITE_THUNDERID_AFTER_SIGN_IN_URL`, `VITE_THUNDERID_AFTER_SIGN_OUT_URL` | Redirect targets. Default to the app origin.                                                                                                 |
+| `VITE_THUNDERID_SCOPES`                                                 | Space separated scopes. Defaults to `openid profile email`.                                                                                  |
+| `VITE_THUNDERID_STORAGE`                                                | `sessionStorage`, `localStorage`, or `browserMemory`. Unset uses the SDK default.                                                            |
+| `VITE_THUNDERID_ENDPOINT_<KEY>`                                         | Optional. One collection URL each. `<KEY>` is `USERS`, `USER_TYPES`, `GROUPS`, `ROLES`, `AGENTS`, `AGENT_TYPES`, `APPLICATIONS`, or `FLOWS`. |
+
+The endpoint variables become `endpoints` in `initialize()`; unset collections resolve to
+`VITE_THUNDERID_BASE_URL/<collection>`. A host other than the base URL must allow the playground's origin (CORS). The
+Overview shows the **Resolved endpoints** card: each management collection and sign-in and self-service endpoint, and
+which ones an override set.
 
 Without a server or a client ID the app still runs: checks that need one fail with the reason.
 
@@ -64,6 +70,19 @@ Checks that would leave the page or end the session (redirect sign-in, sign-out,
 own **Run** button; **Run all checks** marks them as not run. Results are kept in `sessionStorage` so they survive the
 sign-in redirect.
 
+The **Management** checks call the core management functions `@thunderid/browser` re-exports, with
+`resolveResourceEndpoint()` for the collection URL and `createHttpClientFetcher()` as the fetcher, so the client
+attaches the access token and the `http-request-*` hooks fire:
+
+- endpoint resolution for `groups`, `roles` and `agentTypes`: the overrides survive `initialize()` (read back with
+  `getConfiguration()`), and an explicit URL wins over `endpoints`, which wins over `baseUrl`;
+- `getTokenPermissions()` on the access token, and `hasPermission()` for `system:group:view` and `system:role:view`;
+- `hasPermission()` matching rules (a permission covers the paths under it), run locally;
+- `getGroups()`, `getGroupMembers()` (first group), `getRoles()` with `getRole()`, `getRoleAssignments()` (first role),
+  `getAgentTypes()`, and `getUserGroups()` for the signed-in user's `sub`. A 403 names the permission the token needs;
+- `createResourceInvalidator()`, `resolveManagedIdentityName()` and `toManagementErrorMessage()` (with the default en-US
+  bundle), run locally.
+
 ## Known SDK gaps
 
 The playground reports these instead of faking them:
@@ -71,3 +90,8 @@ The playground reports these instead of faking them:
 - Stored session data (`expires_in`, `created_at`, `refresh_token`) sits behind the protected `getStorageManager()`. The
   session card and Tokens page take expiry from the access token's `exp`/`iat`, which is unknown for opaque tokens, and
   refresh token presence can only be tested by calling `refreshAccessToken()`.
+- `ThunderIDBrowserClient` has no management methods (no counterpart of `@thunderid/node`'s `management()`): the checks
+  call the core functions with a `fetcher` and `url` they build themselves.
+- No table of default resource paths reaches `@thunderid/browser` (`MANAGEMENT_COLLECTIONS` is in `@thunderid/node`
+  only), so `src/config.ts` and `src/lib/endpoints.ts` list the collection and sign-in paths.
+- Nothing reports the permissions of an opaque access token; `getTokenPermissions()` returns none for one.

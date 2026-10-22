@@ -1,20 +1,59 @@
 // Copyright 2026 The ThunderID Authors
 // SPDX-License-Identifier: Apache-2.0
 
-import {EmbeddedFlowType, SessionData} from '@thunderid/browser';
 import {
+  createHttpClientFetcher,
+  EmbeddedFlowType,
+  getUserTypes,
+  ManagedUserTypeListResponse,
+  resolveResourceEndpoint,
+  ResourceEndpointKey,
+  SessionData,
+} from '@thunderid/browser';
+import {
+  AgentListResponse,
+  AgentRoleListResponse,
+  AgentTypeListResponse,
+  ApiFetcher,
   createCallbackRoute,
   createThunderIDGuard,
   FlowMetaContextValue,
+  getAgentGroups,
+  getAgentRoles,
+  getAgents,
+  getAgentTypes,
+  getGroup,
+  getGroupMembers,
+  getGroups,
+  getRole,
+  getRoleAssignments,
+  getRoles,
+  getTokenPermissions,
+  getUserGroups,
+  GrantedPermissions,
+  Group,
+  GroupListResponse,
+  GroupMemberListResponse,
+  hasPermission,
   I18nContextValue,
+  ManagementEndpoint,
+  ManagementEndpointKey,
+  ManagementRequestConfig,
+  MembershipGroupListResponse,
   NavigationGuardReturn,
+  Role,
+  RoleAssignmentListResponse,
+  RoleListResponse,
   THUNDERID_KEY,
   ThemeContextValue,
+  ThunderIDAPIError,
   ThunderIDContext,
   ThunderIDRouteRecord,
+  useGrantedPermissions,
+  useManagementEndpoint,
   UserContextValue,
 } from '@thunderid/vue';
-import {App, inject} from 'vue';
+import {App, effectScope, EffectScope, inject} from 'vue';
 import {COMPONENTS, STORY_COUNT} from './explorer/stories';
 import playgroundConfig from '../config';
 import {describeError, track} from '../lib/events';
@@ -95,6 +134,78 @@ interface GuardTarget {
 
 const requireSignedIn = ({sdk}: CapabilityContext): CapabilityResult | null =>
   sdk.isSignedIn.value ? null : skip('sign in first');
+
+/**
+ * Management APIs need the signed-in user's access token. Without a client ID nobody can sign in, so
+ * those checks fail with that reason instead of skipping.
+ */
+const requireManagementSession = (context: CapabilityContext): CapabilityResult | null => {
+  if (!context.sdk.clientId) {
+    return fail('VITE_THUNDERID_CLIENT_ID is empty: management APIs need a signed-in user, set it in .env');
+  }
+
+  return requireSignedIn(context);
+};
+
+/**
+ * The request config the management composables build: the provider's endpoint for the collection
+ * and the SDK's authenticated transport (the provider's `http.fetcher`, else the access token client).
+ */
+const managementConfig = ({sdk}: CapabilityContext, key: ManagementEndpointKey): ManagementRequestConfig => ({
+  baseUrl: sdk.baseUrl,
+  fetcher: sdk.http.fetcher ?? createHttpClientFetcher(sdk.instanceId),
+  url: resolveResourceEndpoint(key, {endpoints: sdk.endpoints}),
+});
+
+/**
+ * Runs a management request and rewrites its error into a reason that says what to fix.
+ */
+const manage = async <T>(name: string, permission: string, call: () => Promise<T>): Promise<T> => {
+  try {
+    return await track(name, call);
+  } catch (error) {
+    if (!(error instanceof ThunderIDAPIError)) throw error;
+
+    const status: number = error.statusCode ?? 0;
+
+    if (status === 0) throw new Error(`${name}: network error, is the management endpoint reachable (CORS)?`);
+    if (status === 401) throw new Error(`${name}: HTTP 401, the access token was rejected`);
+    if (status === 403) throw new Error(`${name}: HTTP 403, the token lacks ${permission}; add it to the app's scopes`);
+    if (status === 404) throw new Error(`${name}: HTTP 404, check the endpoint overrides in .env`);
+
+    throw new Error(`${name}: HTTP ${status} ${error.message}`);
+  }
+};
+
+/** A fetcher that records the URL and answers with an empty page, so requests never leave the browser. */
+const recordingFetcher =
+  (urls: string[]): ApiFetcher =>
+  (url: string): Promise<Response> => {
+    urls.push(url);
+
+    return Promise.resolve(new Response('{}', {headers: {'Content-Type': 'application/json'}, status: 200}));
+  };
+
+/** Builds an unsigned JWT carrying the given payload, for the token permission parsers. */
+const fakeJwt = (payload: Record<string, unknown>): string => {
+  const encode = (value: unknown): string =>
+    btoa(JSON.stringify(value)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+
+  return `${encode({alg: 'none'})}.${encode(payload)}.`;
+};
+
+/**
+ * Runs a composable the way a component would: inside the app's injection context, in an effect
+ * scope the caller stops when done.
+ */
+const runComposable = <T>(app: App, composable: () => T): {scope: EffectScope; value: T} => {
+  const scope: EffectScope = effectScope(true);
+  const value: T = app.runWithContext(() => scope.run(composable)!);
+
+  return {scope, value};
+};
+
+const plural = (count: number, noun: string): string => `${count} ${noun}${count === 1 ? '' : 's'}`;
 
 const flowSummary = (response: unknown): string => {
   const flow: Record<string, unknown> = (response ?? {}) as Record<string, unknown>;
@@ -419,6 +530,333 @@ export const CAPABILITIES: Capability[] = [
     name: 'Organizations',
     run: () => unavailable('@thunderid/vue has no organization API'),
     section: 'User',
+  },
+  {
+    api: 'resolveResourceEndpoint(agentTypes | groups | roles)',
+    id: 'endpointKeys',
+    name: 'Endpoint keys',
+    run: () => {
+      const keys: ResourceEndpointKey[] = ['agentTypes', 'groups', 'roles'];
+      const problems: string[] = keys.flatMap((key: ResourceEndpointKey) => {
+        const override = `https://api.playground.invalid/v2/${key}`;
+        const explicit = `https://explicit.playground.invalid/${key}`;
+        const found: string[] = [];
+
+        if (resolveResourceEndpoint(key, {endpoints: {}}) !== undefined) found.push(`${key}: unset is not undefined`);
+        if (resolveResourceEndpoint(key, {endpoints: {[key]: override}}) !== override) {
+          found.push(`${key}: override ignored`);
+        }
+        if (resolveResourceEndpoint(key, {endpoints: {[key]: override}}, explicit) !== explicit) {
+          found.push(`${key}: explicit URL did not win over the override`);
+        }
+
+        return found;
+      });
+
+      return problems.length
+        ? fail(problems.join('; '))
+        : pass('agentTypes, groups, roles: unset defers to baseUrl, override applies, explicit URL wins');
+    },
+    section: 'Management',
+  },
+  {
+    api: 'getGroups · getGroupMembers · getRoles · getRoleAssignments · getAgentTypes · ... ({baseUrl, url})',
+    id: 'endpointRequests',
+    name: 'Requests honor overrides',
+    run: async () => {
+      const base = 'https://idp.playground.invalid';
+      const overrideHost = 'https://api.playground.invalid/v2';
+      const urls: string[] = [];
+      const fetcher: ApiFetcher = recordingFetcher(urls);
+      const onBase: ManagementRequestConfig = {baseUrl: base, fetcher};
+      const at = (collection: string): ManagementRequestConfig => ({
+        baseUrl: base,
+        fetcher,
+        url: `${overrideHost}/${collection}`,
+      });
+      // Each request, with the URL prefix it must hit. The collection override replaces {baseUrl}/{path}.
+      const cases: [() => Promise<unknown>, string][] = [
+        [() => getGroups(onBase), `${base}/groups`],
+        [() => getGroups(at('groups')), `${overrideHost}/groups`],
+        [() => getGroupMembers({...at('groups'), groupId: 'g1'}), `${overrideHost}/groups/g1/members`],
+        [() => getRoles(onBase), `${base}/roles`],
+        [() => getRoles(at('roles')), `${overrideHost}/roles`],
+        [() => getRoleAssignments({...at('roles'), roleId: 'r1'}), `${overrideHost}/roles/r1/assignments`],
+        [() => getAgentTypes(onBase), `${base}/agent-types`],
+        [() => getAgentTypes(at('agent-types')), `${overrideHost}/agent-types`],
+        [() => getAgentGroups({...at('agents'), agentId: 'a1'}), `${overrideHost}/agents/a1/groups`],
+        [() => getAgentRoles({...at('agents'), agentId: 'a1'}), `${overrideHost}/agents/a1/roles`],
+        [() => getUserGroups({...at('users'), userId: 'u1'}), `${overrideHost}/users/u1/groups`],
+        [() => getUserTypes(at('user-types')), `${overrideHost}/user-types`],
+      ];
+
+      for (const [call] of cases) {
+        // Sequential so each recorded URL lines up with its case.
+        await call();
+      }
+
+      const wrong: string[] = cases
+        .map(([, expected]: [() => Promise<unknown>, string], index: number) =>
+          urls[index]?.startsWith(expected) ? '' : `expected ${expected}, got ${urls[index] ?? 'no request'}`,
+        )
+        .filter(Boolean);
+
+      return wrong.length ? fail(wrong.join('; ')) : pass(`${cases.length} requests addressed the expected URL`);
+    },
+    section: 'Management',
+  },
+  {
+    api: 'useManagementEndpoint(key) · <ThunderIDProvider :endpoints>',
+    id: 'providerEndpoints',
+    name: 'Provider endpoints',
+    run: ({app}: CapabilityContext) => {
+      const keys: ManagementEndpointKey[] = [
+        'applications',
+        'users',
+        'userTypes',
+        'groups',
+        'roles',
+        'agents',
+        'agentTypes',
+      ];
+      const {scope, value: resolved} = runComposable(app, () =>
+        keys.map((key: ManagementEndpointKey): [ManagementEndpointKey, ManagementEndpoint] => [
+          key,
+          useManagementEndpoint(key),
+        ]),
+      );
+
+      scope.stop();
+
+      const mismatched: string[] = resolved
+        .filter(
+          ([key, endpoint]: [ManagementEndpointKey, ManagementEndpoint]) =>
+            endpoint.url !== playgroundConfig.endpoints?.[key] || endpoint.baseUrl !== playgroundConfig.baseUrl,
+        )
+        .map(([key]: [ManagementEndpointKey, ManagementEndpoint]) => key);
+
+      if (mismatched.length) return fail(`does not match .env: ${mismatched.join(', ')}`);
+
+      const overridden: string[] = resolved
+        .filter(([, endpoint]: [ManagementEndpointKey, ManagementEndpoint]) => endpoint.url)
+        .map(([key, endpoint]: [ManagementEndpointKey, ManagementEndpoint]) => `${key} → ${endpoint.url}`);
+
+      return pass(
+        overridden.length ? overridden.join(', ') : `${keys.length} collections on baseUrl (no overrides in .env)`,
+      );
+    },
+    section: 'Management',
+  },
+  {
+    api: 'getGroups() · getGroup() · getGroupMembers()',
+    id: 'groups',
+    name: 'Groups',
+    run: async (context: CapabilityContext) => {
+      const gate: CapabilityResult | null = requireManagementSession(context);
+
+      if (gate) return gate;
+
+      const config: ManagementRequestConfig = managementConfig(context, 'groups');
+      const page: GroupListResponse = await manage('getGroups', 'system:group:view', () =>
+        getGroups({...config, limit: 5}),
+      );
+      const first: Group | undefined = page.groups[0];
+
+      if (!first) return pass('0 groups: create one in the Console or with <GroupCreate />');
+
+      const group: Group = await manage('getGroup', 'system:group:view', () =>
+        getGroup({...config, groupId: first.id}),
+      );
+      const members: GroupMemberListResponse = await manage('getGroupMembers', 'system:group:view', () =>
+        getGroupMembers({...config, groupId: first.id, limit: 5}),
+      );
+
+      return pass(
+        `${plural(page.totalResults, 'group')}; "${group.name}" has ${plural(members.totalResults, 'member')}`,
+      );
+    },
+    section: 'Management',
+  },
+  {
+    api: 'getRoles() · getRole() · getRoleAssignments()',
+    id: 'roles',
+    name: 'Roles',
+    run: async (context: CapabilityContext) => {
+      const gate: CapabilityResult | null = requireManagementSession(context);
+
+      if (gate) return gate;
+
+      const config: ManagementRequestConfig = managementConfig(context, 'roles');
+      const page: RoleListResponse = await manage('getRoles', 'system:role:view', () =>
+        getRoles({...config, limit: 5}),
+      );
+      const first: RoleListResponse['roles'][number] | undefined = page.roles[0];
+
+      if (!first) return pass('0 roles: create one in the Console or with <RoleCreate />');
+
+      const role: Role = await manage('getRole', 'system:role:view', () => getRole({...config, roleId: first.id}));
+      const assignments: RoleAssignmentListResponse = await manage('getRoleAssignments', 'system:role:view', () =>
+        getRoleAssignments({...config, limit: 5, roleId: first.id}),
+      );
+      const permissions: number = role.permissions.reduce(
+        (total: number, resource: Role['permissions'][number]) => total + resource.permissions.length,
+        0,
+      );
+
+      return pass(
+        `${plural(page.totalResults, 'role')}; "${role.name}" grants ${plural(permissions, 'permission')}, ${plural(
+          assignments.totalResults,
+          'assignment',
+        )}`,
+      );
+    },
+    section: 'Management',
+  },
+  {
+    api: 'getAgentTypes()',
+    id: 'agentTypes',
+    name: 'Agent types',
+    run: async (context: CapabilityContext) => {
+      const gate: CapabilityResult | null = requireManagementSession(context);
+
+      if (gate) return gate;
+
+      const page: AgentTypeListResponse = await manage('getAgentTypes', 'system:agent:view', () =>
+        getAgentTypes({...managementConfig(context, 'agentTypes'), limit: 5}),
+      );
+      const names: string = page.types.map((type: AgentTypeListResponse['types'][number]) => type.handle).join(', ');
+
+      return pass(`${plural(page.totalResults, 'agent type')}${names ? `: ${names}` : ''}`);
+    },
+    section: 'Management',
+  },
+  {
+    api: 'getAgents() · getAgentGroups() · getAgentRoles()',
+    id: 'agentMemberships',
+    name: 'Agent groups and roles',
+    run: async (context: CapabilityContext) => {
+      const gate: CapabilityResult | null = requireManagementSession(context);
+
+      if (gate) return gate;
+
+      const config: ManagementRequestConfig = managementConfig(context, 'agents');
+      const agents: AgentListResponse = await manage('getAgents', 'system:agent:view', () =>
+        getAgents({...config, limit: 1}),
+      );
+      const agent: AgentListResponse['agents'][number] | undefined = agents.agents[0];
+
+      if (!agent) return skip('no agents to inspect: create one with <AgentCreate />');
+
+      const groups: MembershipGroupListResponse = await manage('getAgentGroups', 'system:agent:view', () =>
+        getAgentGroups({...config, agentId: agent.id}),
+      );
+      const roles: AgentRoleListResponse = await manage('getAgentRoles', 'system:agent:view', () =>
+        getAgentRoles({...config, agentId: agent.id}),
+      );
+
+      return pass(`"${agent.name}": ${plural(groups.totalResults, 'group')}, roles [${roles.roles.join(', ')}]`);
+    },
+    section: 'Management',
+  },
+  {
+    api: 'getUserGroups({userId})',
+    id: 'userGroups',
+    name: 'User groups',
+    run: async (context: CapabilityContext) => {
+      const gate: CapabilityResult | null = requireManagementSession(context);
+
+      if (gate) return gate;
+
+      // ThunderID issues the user's ID as the `sub` claim.
+      const claims: Record<string, unknown> = (await context.sdk.getDecodedIdToken()) as Record<string, unknown>;
+      const userId: string = asText(claims['sub']);
+
+      if (!userId) return fail('the ID token has no sub claim to look the user up by');
+
+      const page: MembershipGroupListResponse = await manage('getUserGroups', 'system:user:view', () =>
+        getUserGroups({...managementConfig(context, 'users'), userId}),
+      );
+      const names: string = page.groups
+        .map((group: MembershipGroupListResponse['groups'][number]) => group.name)
+        .join(', ');
+
+      return pass(`signed-in user is in ${plural(page.totalResults, 'group')}${names ? `: ${names}` : ''}`);
+    },
+    section: 'Management',
+  },
+  {
+    api: 'getUserTypes() · useGetUserTypes()',
+    id: 'userTypes',
+    name: 'User types',
+    run: async (context: CapabilityContext) => {
+      const gate: CapabilityResult | null = requireManagementSession(context);
+
+      if (gate) return gate;
+
+      const page: ManagedUserTypeListResponse = await manage('getUserTypes', 'system:user:view', () =>
+        getUserTypes({...managementConfig(context, 'userTypes'), limit: 5}),
+      );
+
+      return pass(plural(page.totalResults, 'user type'));
+    },
+    section: 'Management',
+  },
+  {
+    api: 'getTokenPermissions() · hasPermission()',
+    id: 'permissionHelpers',
+    name: 'Permission helpers',
+    run: () => {
+      const expectations: [string, boolean][] = [
+        ["hasPermission(['system:user'], 'system:user:view')", hasPermission(['system:user'], 'system:user:view')],
+        ["!hasPermission(['system:user'], 'system:users')", !hasPermission(['system:user'], 'system:users')],
+        ["!hasPermission(['system:user:view'], 'system:user')", !hasPermission(['system:user:view'], 'system:user')],
+        ["hasPermission([], '')", hasPermission([], '')],
+        [
+          'scope claim is split on spaces',
+          getTokenPermissions(fakeJwt({scope: 'openid system:group:view'})).join(',') === 'openid,system:group:view',
+        ],
+        [
+          'scopes claim is read as a list',
+          getTokenPermissions(fakeJwt({scopes: ['system:role']})).join(',') === 'system:role',
+        ],
+        ['an opaque token grants nothing', getTokenPermissions('opaque-token').length === 0],
+      ];
+      const failed: string[] = expectations.filter(([, ok]: [string, boolean]) => !ok).map(([label]) => label);
+
+      return failed.length ? fail(`failed: ${failed.join('; ')}`) : pass(`${expectations.length} cases hold`);
+    },
+    section: 'Permissions',
+  },
+  {
+    api: 'useGrantedPermissions()',
+    id: 'grantedPermissions',
+    name: 'Granted permissions',
+    run: async (context: CapabilityContext) => {
+      const gate: CapabilityResult | null = requireManagementSession(context);
+
+      if (gate) return gate;
+
+      const {scope, value: granted} = runComposable<GrantedPermissions>(context.app, useGrantedPermissions);
+
+      try {
+        if (!(await waitFor(() => !granted.isLoading.value, 5000))) return fail('isLoading stayed true for 5s');
+
+        const fromToken: string[] = getTokenPermissions(await context.sdk.getAccessToken());
+        const permissions: string[] = granted.permissions.value;
+
+        if (permissions.join(' ') !== fromToken.join(' ')) {
+          return fail(`composable has ${permissions.length}, the access token has ${fromToken.length}`);
+        }
+        if (!permissions.length) return pass('0 permissions: the access token is opaque or has no scope claim');
+
+        const probe = 'system:group:view';
+
+        return pass(`${plural(permissions.length, 'permission')}; can('${probe}') = ${String(granted.can(probe))}`);
+      } finally {
+        scope.stop();
+      }
+    },
+    section: 'Permissions',
   },
   {
     api: 'createThunderIDGuard()',

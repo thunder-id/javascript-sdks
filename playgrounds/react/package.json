@@ -15,6 +15,10 @@
     "format:fix": "prettier --write --cache ."
   },
   "dependencies": {
+    "@emotion/react": "^11.14.0",
+    "@emotion/styled": "^11.14.1",
+    "@mui/material": "^7.3.11",
+    "@mui/x-data-grid": "^8.29.5",
     "@thunderid/browser": "workspace:*",
     "@thunderid/react": "workspace:*",
     "react": "catalog:",

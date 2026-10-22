@@ -16,6 +16,7 @@ import EventLog from '../components/EventLog.vue';
 import {Bang, Check, Cross, Dash, Play, Spinner} from '../components/icons';
 import SessionCard from '../components/SessionCard.vue';
 import playgroundConfig from '../config';
+import {EndpointGroup, ResolvedEndpoint, resolveEndpoints} from '../lib/endpoints';
 import {logEvent} from '../lib/events';
 import {serverHealth} from '../lib/health';
 
@@ -198,6 +199,27 @@ const configText: string = [
 ]
   .map(([key, value]: string[]) => `${key.padEnd(14)}${value}`)
   .join('\n');
+
+// Read back from the context, so this shows what the provider received, not only what .env holds.
+const endpoints: ResolvedEndpoint[] = resolveEndpoints(sdk.baseUrl, sdk.endpoints);
+const overrideCount: number = endpoints.filter((endpoint: ResolvedEndpoint) => endpoint.source === 'override').length;
+
+const groupText = (group: EndpointGroup): string =>
+  endpoints
+    .filter((endpoint: ResolvedEndpoint) => endpoint.group === group)
+    .map(
+      (endpoint: ResolvedEndpoint) =>
+        `${endpoint.key.padEnd(20)}${endpoint.url}${endpoint.source === 'override' ? '  (override)' : ''}`,
+    )
+    .join('\n');
+
+const endpointsText: string = [
+  '# Management APIs',
+  groupText('management'),
+  '',
+  '# Flows and the signed-in user',
+  groupText('selfService'),
+].join('\n');
 </script>
 
 <template>
@@ -313,6 +335,14 @@ const configText: string = [
             <span class="pg-card-meta">.env</span>
           </div>
           <pre class="pg-pre">{{ configText }}</pre>
+        </section>
+
+        <section aria-label="Resource endpoints" class="pg-card">
+          <div class="pg-card-head">
+            <h2>Resource endpoints</h2>
+            <span class="pg-card-meta">{{ overrideCount ? `${overrideCount} overridden` : 'from baseUrl' }}</span>
+          </div>
+          <pre class="pg-pre">{{ endpointsText }}</pre>
         </section>
 
         <EventLog />

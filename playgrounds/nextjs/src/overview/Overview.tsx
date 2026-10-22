@@ -3,8 +3,15 @@
 
 'use client';
 
-import {useThunderID} from '@thunderid/nextjs';
-import {useI18n, useTheme, useThunderID as useReactThunderID, useUser} from '@thunderid/react';
+import {resolveResourceEndpoint} from '@thunderid/browser';
+import {useGrantedPermissions, useThunderID} from '@thunderid/nextjs';
+import {
+  useGrantedPermissions as useReactGrantedPermissions,
+  useI18n,
+  useTheme,
+  useThunderID as useReactThunderID,
+  useUser,
+} from '@thunderid/react';
 import {ReactElement, useEffect, useRef, useState} from 'react';
 import {
   CAPABILITIES,
@@ -20,6 +27,7 @@ import {Bang, Check, Cross, Dash, Play, Spinner} from '../components/Icons';
 import SessionCard from '../components/SessionCard';
 import {logEvent} from '../lib/events';
 import {useServerHealth} from '../lib/health';
+import {defaultCollectionUrl, MANAGEMENT_KEYS, ManagementKey} from '../lib/management';
 import type {ConfigSummary} from '../lib/serverConfig';
 
 interface CapabilityState {
@@ -93,6 +101,8 @@ const Overview = (): ReactElement => {
   const i18n = useI18n();
   const theme = useTheme();
   const health = useServerHealth();
+  const granted = useGrantedPermissions();
+  const reactGranted = useReactGrantedPermissions();
 
   const [results, setResults] = useState<Record<string, CapabilityState>>({});
   const [lastRun, setLastRun] = useState<LastRun | null>(null);
@@ -102,10 +112,10 @@ const Overview = (): ReactElement => {
   const [now, setNow] = useState<number>(0);
   const [config, setConfig] = useState<ConfigSummary | null>(null);
 
-  const contextRef = useRef<CapabilityContext>({i18n, reactSdk, sdk, theme, user});
+  const contextRef = useRef<CapabilityContext>({granted, i18n, reactGranted, reactSdk, sdk, theme, user});
 
   useEffect(() => {
-    contextRef.current = {i18n, reactSdk, sdk, theme, user};
+    contextRef.current = {granted, i18n, reactGranted, reactSdk, sdk, theme, user};
   });
 
   // Results survive the sign-in redirect in sessionStorage. Read them after hydration so the server
@@ -214,6 +224,22 @@ const Overview = (): ReactElement => {
       ]
         .map(([key, value]: string[]) => `${key.padEnd(15)}${value}`)
         .join('\n')
+    : 'Loading from the server';
+
+  // The management collections, resolved from the overrides the client provider received, as the
+  // SDK's hooks resolve them.
+  const endpointsText: string = config
+    ? [
+        `${'baseUrl'.padEnd(15)}${sdk.baseUrl ?? config.baseUrl}`,
+        '',
+        ...MANAGEMENT_KEYS.map((key: ManagementKey) => {
+          const override: string | undefined = resolveResourceEndpoint(key, {endpoints: reactSdk.endpoints});
+
+          const source: string | undefined = config.endpointSources[key];
+
+          return `${key.padEnd(15)}${override ?? defaultCollectionUrl(config.baseUrl, key)}${source ? `  (${source})` : ''}`;
+        }),
+      ].join('\n')
     : 'Loading from the server';
 
   return (
@@ -355,6 +381,14 @@ const Overview = (): ReactElement => {
               <span className="pg-card-meta">server .env</span>
             </div>
             <pre className="pg-pre">{configText}</pre>
+          </section>
+
+          <section aria-label="Management endpoints" className="pg-card">
+            <div className="pg-card-head">
+              <h2>Management endpoints</h2>
+              <span className="pg-card-meta">endpoints · via server action</span>
+            </div>
+            <pre className="pg-pre">{endpointsText}</pre>
           </section>
 
           <EventLog />

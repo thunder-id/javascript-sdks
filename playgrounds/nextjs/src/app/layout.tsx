@@ -6,7 +6,7 @@ import type {Metadata} from 'next';
 import {ReactElement, ReactNode} from 'react';
 import SdkObserver from '../components/SdkObserver';
 import TopBar from '../components/TopBar';
-import {getConfigSummary} from '../lib/serverConfig';
+import {getConfigSummary, getManagementEndpointOverrides} from '../lib/serverConfig';
 import './globals.css';
 
 // The session lives in a cookie, so every page renders per request.
@@ -28,8 +28,9 @@ const RootLayout = ({children}: {children: ReactNode}): ReactElement => (
       />
     </head>
     <body>
-      {/* Reads NEXT_PUBLIC_THUNDERID_* and THUNDERID_* from the environment. */}
-      <ThunderIDProvider>
+      {/* Reads NEXT_PUBLIC_THUNDERID_* and THUNDERID_* from the environment. The SDK reads no variable for
+          `endpoints`, so the playground's management overrides are passed as a prop. */}
+      <ThunderIDProvider endpoints={getManagementEndpointOverrides()}>
         <div className="pg-app">
           <SdkObserver />
           <TopBar baseUrl={getConfigSummary().baseUrl} />

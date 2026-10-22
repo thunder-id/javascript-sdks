@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import {
+  ResourceInvalidator,
+  fallbackResourceInvalidator,
   ApiFetcher,
   EmbeddedRecoveryFlowRequest,
   EmbeddedRecoveryFlowResponse,
@@ -20,7 +22,6 @@ import {
 import {Context, createContext} from 'react';
 import {ThunderIDReactConfig} from '../../models/config';
 import ThunderIDReactClient from '../../ThunderIDReactClient';
-import {ResourceInvalidator, fallbackResourceInvalidator} from '../../utils/createResourceInvalidator';
 
 /**
  * Props interface of {@link ThunderIDContext}

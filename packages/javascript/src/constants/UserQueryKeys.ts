@@ -8,9 +8,11 @@
 const UserQueryKeys: {
   USER: 'user';
   USERS: 'users';
+  USER_TYPES: 'user-types';
 } = {
   USER: 'user',
   USERS: 'users',
+  USER_TYPES: 'user-types',
 };
 
 export default UserQueryKeys;

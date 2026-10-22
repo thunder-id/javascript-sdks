@@ -15,6 +15,7 @@ import {
 import type {Nuxt} from '@nuxt/schema';
 import {VendorConstants} from '@thunderid/node';
 import {createDefu} from 'defu';
+import {MANAGEMENT_COMPONENTS, MANAGEMENT_COMPOSABLES} from './runtime/constants/ManagementAutoImports';
 import NuxtAPIRoutes from './runtime/constants/NuxtAPIRoutes';
 import type {ThunderIDNuxtConfig, ThunderIDSessionPayload, ThunderIDSSRData} from './runtime/types';
 import getEnabledResourcePickers from './runtime/utils/getEnabledResourcePickers';
@@ -113,6 +114,7 @@ export default defineNuxtModule<ThunderIDNuxtConfig>({
         baseUrl: publicConfig.baseUrl,
         clientId: publicConfig.clientId,
         endpoints: publicConfig.endpoints,
+        management: userOptions.management === true,
         platform: publicConfig.platform,
         preferences: publicConfig.preferences,
         scopes: publicConfig.scopes,
@@ -128,6 +130,7 @@ export default defineNuxtModule<ThunderIDNuxtConfig>({
       baseUrl: string;
       clientId: string;
       endpoints?: ThunderIDNuxtConfig['endpoints'];
+      management: boolean;
       platform?: ThunderIDNuxtConfig['platform'];
       preferences: ThunderIDNuxtConfig['preferences'];
       scopes: string | string[];
@@ -295,6 +298,22 @@ export default defineNuxtModule<ThunderIDNuxtConfig>({
       addComponent({filePath: resolve(componentPath), name: component});
     });
 
+    // ── Admin (management) ──────────────────────────────────────────────────
+    // Opt-in: the route performs management requests with the signed-in user's session. The admin
+    // components and composables come straight from @thunderid/vue — no Nuxt wrappers — since they
+    // only need the `http.fetcher` the client plugin installs when this is on.
+    if (userOptions.management === true) {
+      addServerHandler({
+        handler: resolve('./runtime/server/routes/auth/management.post'),
+        method: 'post',
+        route: NuxtAPIRoutes.MANAGEMENT,
+      });
+      addImports(MANAGEMENT_COMPOSABLES.map((name: string) => ({from: '@thunderid/vue', name})));
+      MANAGEMENT_COMPONENTS.forEach((name: string) => {
+        addComponent({export: name, filePath: '@thunderid/vue', name});
+      });
+    }
+
     // ── Auth callback ────────────────────────────────────────────────────────
     addComponent({filePath: resolve('./runtime/components/auth/Callback'), name: 'Callback'});
 
@@ -345,6 +364,7 @@ declare module '@nuxt/schema' {
       baseUrl: string;
       clientId: string;
       endpoints?: ThunderIDNuxtConfig['endpoints'];
+      management?: boolean;
       platform?: ThunderIDNuxtConfig['platform'];
       preferences?: ThunderIDNuxtConfig['preferences'];
       scopes: string | string[];
