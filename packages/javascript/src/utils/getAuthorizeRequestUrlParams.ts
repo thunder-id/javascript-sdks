@@ -4,7 +4,7 @@
 import generateStateParamForRequestCorrelation from './generateStateParamForRequestCorrelation';
 import OIDCRequestConstants from '../constants/OIDCRequestConstants';
 import ThunderIDRuntimeError from '../errors/ThunderIDRuntimeError';
-import {ExtendedAuthorizeRequestUrlParams} from '../models/oauth-request';
+import {AuthorizeRequestParamValue, ExtendedAuthorizeRequestUrlParams} from '../models/oauth-request';
 
 /**
  * Generates a map of authorization request URL parameters for OIDC authorization requests.
@@ -12,9 +12,10 @@ import {ExtendedAuthorizeRequestUrlParams} from '../models/oauth-request';
  * This utility ensures the `openid` scope is always included, handles both string and array forms of the `scope` parameter,
  * and supports PKCE and custom parameters. Throws if a code challenge is provided without a code challenge method.
  *
- * @param options - The main options for the authorization request, including redirectUri, clientId, scope, responseMode, codeChallenge, codeChallengeMethod, prompt, and randomState (a value generated from random bytes that makes the `state` unique to this request).
+ * @param options - The main options for the authorization request, including redirectUri, clientId, scope, responseMode, codeChallenge, codeChallengeMethod, prompt, authorizationDetails, and randomState (a value generated from random bytes that makes the `state` unique to this request).
  * @param pkceOptions - PKCE options, including the PKCE key for state correlation.
  * @param customParams - Optional custom parameters to include in the request (excluding the `state` param, which is handled separately).
+ * An object or array value, such as RFC 9396 `authorization_details`, is sent JSON-encoded.
  * @returns A Map of key-value pairs representing the authorization request URL parameters.
  *
  * @throws {ThunderIDRuntimeError} If a code challenge is provided without a code challenge method.
@@ -48,9 +49,18 @@ const getAuthorizeRequestUrlParams = (
     scopes?: string;
   } & ExtendedAuthorizeRequestUrlParams,
   pkceOptions: {key: string},
-  customParams: Record<string, string | number | boolean>,
+  customParams: Record<string, AuthorizeRequestParamValue>,
 ): Map<string, string> => {
-  const {redirectUri, clientId, scopes, responseMode, codeChallenge, codeChallengeMethod, prompt} = options;
+  const {
+    authorizationDetails,
+    redirectUri,
+    clientId,
+    scopes,
+    responseMode,
+    codeChallenge,
+    codeChallengeMethod,
+    prompt,
+  } = options;
   const authorizeRequestParams: Map<string, string> = new Map<string, string>();
 
   authorizeRequestParams.set('response_type', 'code');
@@ -86,16 +96,21 @@ const getAuthorizeRequestUrlParams = (
     authorizeRequestParams.set('prompt', prompt);
   }
 
+  if (authorizationDetails?.length) {
+    authorizeRequestParams.set('authorization_details', JSON.stringify(authorizationDetails));
+  }
+
   if (customParams) {
-    Object.entries(customParams).forEach(([key, value]: [string, string | number | boolean]) => {
+    Object.entries(customParams).forEach(([key, value]: [string, AuthorizeRequestParamValue]) => {
       if (key !== '' && value !== '' && key !== OIDCRequestConstants.Params.STATE) {
-        authorizeRequestParams.set(key, value.toString());
+        authorizeRequestParams.set(key, typeof value === 'object' ? JSON.stringify(value) : value.toString());
       }
     });
   }
 
   const AUTH_INSTANCE_PREFIX = 'instance_';
-  const customState: string = customParams?.[OIDCRequestConstants.Params.STATE]?.toString() ?? '';
+  const customState: string =
+    (customParams?.[OIDCRequestConstants.Params.STATE] as string | number | boolean | undefined)?.toString() ?? '';
   let customStateValue: string = customState;
 
   // Keep a caller-supplied state after the instance prefix rather than dropping it: the prefix routes

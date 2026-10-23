@@ -119,6 +119,48 @@ describe('getAuthorizeRequestUrlParams', (): void => {
     expect(params.get(OIDCRequestConstants.Params.STATE)).not.toBe('shouldNotAppear');
   });
 
+  it('should send authorization details JSON-encoded as authorization_details', (): void => {
+    const authorizationDetails = [{actions: ['initiate'], type: 'payment'}, {type: 'account_information'}];
+    const params: Map<string, string> = getAuthorizeRequestUrlParams(
+      {
+        authorizationDetails,
+        clientId: 'client123',
+        redirectUri: 'https://app/callback',
+      },
+      {key: pkceKey},
+      {},
+    );
+
+    expect(params.get('authorization_details')).toBe(JSON.stringify(authorizationDetails));
+  });
+
+  it('should not send authorization_details when none are given', (): void => {
+    const params: Map<string, string> = getAuthorizeRequestUrlParams(
+      {
+        authorizationDetails: [],
+        clientId: 'client123',
+        redirectUri: 'https://app/callback',
+      },
+      {key: pkceKey},
+      {},
+    );
+
+    expect(params.has('authorization_details')).toBe(false);
+  });
+
+  it('should JSON-encode an object custom param', (): void => {
+    const params: Map<string, string> = getAuthorizeRequestUrlParams(
+      {
+        clientId: 'client123',
+        redirectUri: 'https://app/callback',
+      },
+      {key: pkceKey},
+      {authorization_details: [{type: 'payment'}]},
+    );
+
+    expect(params.get('authorization_details')).toBe('[{"type":"payment"}]');
+  });
+
   it('should generate state param using pkceKey and custom state', (): void => {
     const params: Map<string, string> = getAuthorizeRequestUrlParams(
       {

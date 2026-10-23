@@ -184,6 +184,20 @@ const translations: I18nTranslations = {
   'consent.essential_claims.info': 'సేవ సరిగ్గా పనిచేయడానికి ఈ లక్షణాలు అవసరం.',
   'consent.optional_claims.info': 'ఈ లక్షణాలు ఐచ్ఛికం మరియు మీ విచక్షణ మేరకు అందించవచ్చు.',
   'consent.authorize_scope.info': 'ఈ అనుమతులు సేవను అదనపు ఫీచర్‌లను యాక్సెస్ చేయడానికి అనుమతిస్తాయి.',
+  'consent.authorization_details.approve': 'ఆమోదించు',
+  'consent.authorization_details.show_more': 'మరిన్ని చూపించు',
+  'consent.authorization_details.show_less': 'తక్కువ చూపించు',
+  'consent.authorization_details.more_items': '+{count} మరిన్ని',
+  'consent.authorization_details.invalid_number': 'ఒక సంఖ్యను నమోదు చేయండి.',
+  'consent.authorization_details.number_max': '{value} లేదా అంతకంటే తక్కువ నమోదు చేయండి.',
+  'consent.authorization_details.number_min': '{value} లేదా అంతకంటే ఎక్కువ నమోదు చేయండి.',
+  'consent.authorization_details.invalid_date': 'ఒక తేదీని నమోదు చేయండి.',
+  'consent.authorization_details.date_max': '{value} లేదా అంతకు ముందు తేదీని ఎంచుకోండి.',
+  'consent.authorization_details.date_min': '{value} లేదా ఆ తర్వాతి తేదీని ఎంచుకోండి.',
+  'consent.authorization_details.remove_item': '{item}, తీసివేయి',
+  'consent.authorization_details.add_item': '{item}, జోడించు',
+  'consent.authorization_details.add_back_item': '{item}, మళ్లీ జోడించు',
+  'consent.authorization_details.new_item': '{label}, జోడించు',
 
   /* |---------------------------------------------------------------| */
   /* |                        Errors                                 | */

@@ -11,6 +11,7 @@ import {
   EmbeddedFlowEventType,
   SelectPage,
 } from '@thunderid/browser';
+import {type ReactElement, useState} from 'react';
 import {afterEach, describe, expect, it, vi} from 'vitest';
 import I18nProvider from '../../../../contexts/I18n/I18nProvider';
 import ThemeContext, {ThemeContextValue} from '../../../../contexts/Theme/ThemeContext';
@@ -404,6 +405,186 @@ describe('AuthOptionFactory consent decisions', () => {
     expect(purpose.purposeName).toBe('permissions:app1');
     expect(purpose.elements).toHaveLength(1);
     expect(purpose.elements[0]).toEqual({approved: true, name: 'system'});
+  });
+
+  const paymentElement = (name: string, amount: number) => ({
+    detailType: 'payment_initiation',
+    name,
+    rows: [
+      {as: 'number', label: 'Amount', modification: 'decrease', path: 'instructedAmount.amount', value: amount},
+      {label: 'Pay to', path: 'creditorName', value: 'Merchant A'},
+    ],
+  });
+
+  const detailPurpose = {
+    essential: [],
+    optional: [paymentElement('d-1', 35), paymentElement('d-2', 12)],
+    purposeId: 'authorization_details:app1',
+    purposeName: 'authorization_details:app1',
+    type: 'authorization_details',
+  };
+
+  it('sends the values the user modified on each approved authorization detail', () => {
+    const decisions = submitConsent('PRIMARY', [detailPurpose], {
+      '__consent_modified__authorization_details:app1__d-1__instructedAmount.amount': '20',
+      '__consent_opt__authorization_details:app1__d-1': 'true',
+      '__consent_opt__authorization_details:app1__d-2': 'true',
+    });
+
+    expect(decisions.purposes[0].purposeName).toBe('authorization_details:app1');
+    expect(decisions.purposes[0].elements).toEqual([
+      {approved: true, name: 'd-1', modified: {'instructedAmount.amount': 20}},
+      {approved: true, name: 'd-2'},
+    ]);
+  });
+
+  it('sends no modified values for a detail approved as shown or declined', () => {
+    const asShown = submitConsent('PRIMARY', [detailPurpose], {
+      '__consent_opt__authorization_details:app1__d-1': 'true',
+    });
+    const declined = submitConsent('PRIMARY', [detailPurpose], {
+      '__consent_modified__authorization_details:app1__d-1__instructedAmount.amount': '20',
+      '__consent_opt__authorization_details:app1__d-1': 'false',
+    });
+
+    expect(asShown.purposes[0].elements[0]).toEqual({approved: true, name: 'd-1'});
+    expect(declined.purposes[0].elements[0]).toEqual({approved: false, name: 'd-1'});
+  });
+
+  const renderConsentAction = (
+    variant: string,
+    formValues: Record<string, string>,
+  ): {button: HTMLButtonElement; onSubmit: ReturnType<typeof vi.fn>} => {
+    const onSubmit = vi.fn();
+    const elements = renderSignInComponents(
+      [consentAction(variant)],
+      formValues,
+      {},
+      {},
+      false,
+      true,
+      () => undefined,
+      () => undefined,
+      {additionalData: {consentPrompt: {purposes: [detailPurpose]}}, onSubmit},
+    );
+    const {container} = render(
+      <ThemeContext.Provider value={themeContextValue}>
+        <div>{elements}</div>
+      </ThemeContext.Provider>,
+    );
+
+    return {button: container.querySelector('button')!, onSubmit};
+  };
+
+  const invalidAmount: Record<string, string> = {
+    '__consent_invalid__authorization_details:app1__d-1__instructedAmount.amount': 'true',
+    '__consent_opt__authorization_details:app1__d-1': 'true',
+    '__consent_opt__authorization_details:app1__d-2': 'true',
+  };
+
+  it('blocks approval while an approved detail shows a value that cannot be submitted', () => {
+    const {button, onSubmit} = renderConsentAction('PRIMARY', invalidAmount);
+
+    expect(button.disabled).toBe(true);
+    button.click();
+    expect(onSubmit).not.toHaveBeenCalled();
+  });
+
+  it('allows approval once the field is valid again, or when its detail is declined', () => {
+    const corrected = renderConsentAction('PRIMARY', {
+      ...invalidAmount,
+      '__consent_invalid__authorization_details:app1__d-1__instructedAmount.amount': '',
+    });
+    const declined = renderConsentAction('PRIMARY', {
+      ...invalidAmount,
+      '__consent_opt__authorization_details:app1__d-1': 'false',
+    });
+
+    expect(corrected.button.disabled).toBe(false);
+    expect(declined.button.disabled).toBe(false);
+  });
+
+  it('never approves a value other than the one the consent screen shows', () => {
+    const onSubmit = vi.fn();
+    const Form = (): ReactElement => {
+      const [formValues, setFormValues] = useState<Record<string, string>>({});
+      const onInputChange = (name: string, value: string): void =>
+        setFormValues((prev: Record<string, string>) => ({...prev, [name]: value}));
+
+      return (
+        <div>
+          {renderSignInComponents(
+            [
+              {id: 'consent', type: EmbeddedFlowComponentType.Consent} as unknown as EmbeddedFlowComponent,
+              consentAction('PRIMARY'),
+            ],
+            formValues,
+            {},
+            {},
+            false,
+            true,
+            () => undefined,
+            onInputChange,
+            {additionalData: {consentPrompt: {purposes: [detailPurpose]}}, onSubmit},
+          )}
+        </div>
+      );
+    };
+    const {container} = render(
+      <ThemeContext.Provider value={themeContextValue}>
+        <Form />
+      </ThemeContext.Provider>,
+    );
+    const amountInput: HTMLInputElement = container.querySelector(
+      '#consent_modify_authorization_details\\:app1_d-1_instructedAmount\\.amount',
+    )!;
+    const allow: HTMLButtonElement = container.querySelector('#action_PRIMARY')!;
+
+    fireEvent.change(amountInput, {target: {value: '5'}});
+    fireEvent.change(amountInput, {target: {value: '50'}});
+    expect(amountInput.value).toBe('50');
+    expect(allow.disabled).toBe(true);
+
+    fireEvent.change(amountInput, {target: {value: '20'}});
+    expect(allow.disabled).toBe(false);
+    allow.click();
+
+    const decisions = JSON.parse(
+      (onSubmit.mock.calls[0][1] as Record<string, string>)['consent_decisions'],
+    ) as ConsentDecisions;
+    expect(decisions.purposes[0].elements[0]).toEqual({
+      approved: true,
+      modified: {'instructedAmount.amount': 20},
+      name: 'd-1',
+    });
+  });
+
+  it('lets the user deny while a field is invalid', () => {
+    const {button, onSubmit} = renderConsentAction('SECONDARY', invalidAmount);
+
+    expect(button.disabled).toBe(false);
+    button.click();
+    const submitted = onSubmit.mock.calls[0][1] as Record<string, string>;
+
+    expect((JSON.parse(submitted['consent_decisions']) as ConsentDecisions).approved).toBe(false);
+  });
+
+  it('passes the consent form keys on with the decisions, so the container reads the same choices', () => {
+    const formValues: Record<string, string> = {
+      '__consent_modified__authorization_details:app1__d-1__instructedAmount.amount': '20',
+      '__consent_opt__authorization_details:app1__d-1': 'true',
+    };
+    const {button, onSubmit} = renderConsentAction('PRIMARY', formValues);
+
+    button.click();
+    const submitted = onSubmit.mock.calls[0][1] as Record<string, string>;
+
+    expect(submitted).toMatchObject(formValues);
+    expect((JSON.parse(submitted['consent_decisions']) as ConsentDecisions).purposes[0].elements[0]).toEqual({
+      approved: true,
+      modified: {'instructedAmount.amount': 20},
+      name: 'd-1',
+    });
   });
 });
 

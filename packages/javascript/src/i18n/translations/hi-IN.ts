@@ -182,6 +182,20 @@ const translations: I18nTranslations = {
   'consent.essential_claims.info': 'सेवा के सही ढंग से कार्य करने के लिए ये विशेषताएँ आवश्यक हैं।',
   'consent.optional_claims.info': 'ये विशेषताएँ वैकल्पिक हैं और आपके विवेकानुसार प्रदान की जा सकती हैं।',
   'consent.authorize_scope.info': 'ये अनुमतियाँ सेवा को अतिरिक्त सुविधाओं तक पहुँचने की अनुमति देती हैं।',
+  'consent.authorization_details.approve': 'स्वीकृत करें',
+  'consent.authorization_details.show_more': 'और दिखाएँ',
+  'consent.authorization_details.show_less': 'कम दिखाएँ',
+  'consent.authorization_details.more_items': '+{count} और',
+  'consent.authorization_details.invalid_number': 'एक संख्या दर्ज करें।',
+  'consent.authorization_details.number_max': '{value} या उससे कम दर्ज करें।',
+  'consent.authorization_details.number_min': '{value} या उससे अधिक दर्ज करें।',
+  'consent.authorization_details.invalid_date': 'एक तारीख दर्ज करें।',
+  'consent.authorization_details.date_max': '{value} या उससे पहले की तारीख चुनें।',
+  'consent.authorization_details.date_min': '{value} या उसके बाद की तारीख चुनें।',
+  'consent.authorization_details.remove_item': '{item}, हटाएँ',
+  'consent.authorization_details.add_item': '{item}, जोड़ें',
+  'consent.authorization_details.add_back_item': '{item}, फिर से जोड़ें',
+  'consent.authorization_details.new_item': '{label}, जोड़ें',
 
   /* |---------------------------------------------------------------| */
   /* |                        Errors                                 | */

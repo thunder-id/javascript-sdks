@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import {
+  AuthorizeRequestParamValue,
   ThunderIDAuthException,
   User,
   IsomorphicCrypto,
@@ -432,13 +433,13 @@ class AuthenticationHelper<T> {
    * @returns The user session, or `false` if the user is not signed in.
    */
   public async signInSilently(
-    constructSilentSignInUrl: (additionalParams?: Record<string, string | boolean>) => Promise<string>,
+    constructSilentSignInUrl: (additionalParams?: Record<string, AuthorizeRequestParamValue>) => Promise<string>,
     requestAccessToken: (
       authzCode: string,
       state: string,
       tokenRequestConfig?: {params: Record<string, unknown>},
     ) => Promise<User>,
-    additionalParams?: Record<string, string | boolean>,
+    additionalParams?: Record<string, AuthorizeRequestParamValue>,
     tokenRequestConfig?: {params: Record<string, unknown>},
     timeout: number = SILENT_SIGN_IN_TIMEOUT,
   ): Promise<User | boolean> {

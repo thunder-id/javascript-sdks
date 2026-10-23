@@ -182,6 +182,20 @@ const translations: I18nTranslations = {
   'consent.essential_claims.info': 'These attributes are required for the service to function properly.',
   'consent.optional_claims.info': 'These attributes are optional and can be provided at your discretion.',
   'consent.authorize_scope.info': 'These permissions allow the service to access additional features.',
+  'consent.authorization_details.approve': 'Approve',
+  'consent.authorization_details.show_more': 'Show more',
+  'consent.authorization_details.show_less': 'Show less',
+  'consent.authorization_details.more_items': '+{count} more',
+  'consent.authorization_details.invalid_number': 'Enter a number.',
+  'consent.authorization_details.number_max': 'Enter {value} or less.',
+  'consent.authorization_details.number_min': 'Enter {value} or more.',
+  'consent.authorization_details.invalid_date': 'Enter a date.',
+  'consent.authorization_details.date_max': 'Choose {value} or earlier.',
+  'consent.authorization_details.date_min': 'Choose {value} or later.',
+  'consent.authorization_details.remove_item': '{item}, remove',
+  'consent.authorization_details.add_item': '{item}, add',
+  'consent.authorization_details.add_back_item': '{item}, add back',
+  'consent.authorization_details.new_item': '{label}, add',
 
   /* |---------------------------------------------------------------| */
   /* |                        Errors                                 | */

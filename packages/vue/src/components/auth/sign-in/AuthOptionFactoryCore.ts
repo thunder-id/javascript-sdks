@@ -21,6 +21,7 @@ import {
   ConsentAttributeElement,
   KeyValuePair,
   parseKeyValuePairs,
+  getConsentElementDecision,
 } from '@thunderid/browser';
 import type {FetchAuthFlows, FetchUsers, FetchUserTypes} from '@thunderid/browser';
 import DOMPurify from 'dompurify';
@@ -299,10 +300,13 @@ const createAuthComponentFromFlow = (
                     // Permission purposes carry no essential elements, so the server sends null here
                     ...(p.essential ?? []).map((e): ConsentAttributeElement => ({approved: !isDeny, name: e.name})),
                     ...(p.optional ?? []).map(
-                      (e): ConsentAttributeElement => ({
-                        approved: !isDeny && formValues[getConsentOptionalKey(p.purposeId, e.name)] === 'true',
-                        name: e.name,
-                      }),
+                      (e): ConsentAttributeElement =>
+                        getConsentElementDecision(
+                          p.purposeId,
+                          e,
+                          !isDeny && formValues[getConsentOptionalKey(p.purposeId, e.name)] === 'true',
+                          formValues,
+                        ),
                     ),
                   ],
                   purposeName: p.purposeName ?? '',

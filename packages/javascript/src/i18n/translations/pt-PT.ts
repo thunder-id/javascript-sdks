@@ -182,6 +182,20 @@ const translations: I18nTranslations = {
   'consent.essential_claims.info': 'Estes atributos são necessários para o correto funcionamento do serviço.',
   'consent.optional_claims.info': 'Estes atributos são opcionais e podem ser fornecidos ao seu critério.',
   'consent.authorize_scope.info': 'Estas permissões permitem que o serviço aceda a funcionalidades adicionais.',
+  'consent.authorization_details.approve': 'Aprovar',
+  'consent.authorization_details.show_more': 'Mostrar mais',
+  'consent.authorization_details.show_less': 'Mostrar menos',
+  'consent.authorization_details.more_items': '+{count} a mais',
+  'consent.authorization_details.invalid_number': 'Introduza um número.',
+  'consent.authorization_details.number_max': 'Introduza {value} ou menos.',
+  'consent.authorization_details.number_min': 'Introduza {value} ou mais.',
+  'consent.authorization_details.invalid_date': 'Introduza uma data.',
+  'consent.authorization_details.date_max': 'Escolha {value} ou uma data anterior.',
+  'consent.authorization_details.date_min': 'Escolha {value} ou uma data posterior.',
+  'consent.authorization_details.remove_item': '{item}, remover',
+  'consent.authorization_details.add_item': '{item}, adicionar',
+  'consent.authorization_details.add_back_item': '{item}, adicionar novamente',
+  'consent.authorization_details.new_item': '{label}, adicionar',
 
   /* |---------------------------------------------------------------| */
   /* |                        Errors                                 | */

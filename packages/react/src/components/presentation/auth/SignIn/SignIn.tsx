@@ -15,6 +15,9 @@ import {
   FlowMetadataResponse,
   Preferences,
   logger,
+  CONSENT_INVALID_KEY_PREFIX,
+  CONSENT_MODIFIED_KEY_PREFIX,
+  getConsentElementDecision,
 } from '@thunderid/browser';
 import {FC, ReactElement, useState, useEffect, useRef, ReactNode} from 'react';
 // eslint-disable-next-line import/no-named-as-default
@@ -793,10 +796,9 @@ const SignIn: FC<SignInProps> = ({
               })),
               ...(p.optional || []).map((e: any) => {
                 const key = `__consent_opt__${p.purposeId}__${e.name}`;
-                return {
-                  approved: !isDeny && processedInputs[key] === 'true',
-                  name: e.name,
-                };
+                const approved: boolean = !isDeny && processedInputs[key] === 'true';
+                // eslint-disable-next-line @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-member-access
+                return getConsentElementDecision(p.purposeId, e, approved, processedInputs);
               }),
             ],
             purposeName: p.purposeName,
@@ -806,7 +808,11 @@ const SignIn: FC<SignInProps> = ({
 
         // Cleanup temporary consent tracking fields from inputs
         Object.keys(processedInputs).forEach((key: string) => {
-          if (key.startsWith('__consent_opt__')) {
+          if (
+            key.startsWith('__consent_opt__') ||
+            key.startsWith(CONSENT_MODIFIED_KEY_PREFIX) ||
+            key.startsWith(CONSENT_INVALID_KEY_PREFIX)
+          ) {
             delete processedInputs[key];
           }
         });

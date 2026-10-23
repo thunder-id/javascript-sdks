@@ -3,7 +3,10 @@
 
 import {navigateTo} from '#app';
 import {
+  CONSENT_INVALID_KEY_PREFIX,
+  CONSENT_MODIFIED_KEY_PREFIX,
   ConsentConstants,
+  getConsentElementDecision,
   ThunderIDRuntimeError,
   type ConsentPurposeData,
   type EmbeddedFlowComponent,
@@ -412,7 +415,12 @@ const SignIn: Component = defineComponent({
                 ...(p.essential ?? []).map((e) => ({approved: !isDeny, name: e.name})),
                 ...(p.optional ?? []).map((e) => {
                   const key = `__consent_opt__${p.purposeId}__${e.name}`;
-                  return {approved: !isDeny && processedInputs[key] === 'true', name: e.name};
+                  return getConsentElementDecision(
+                    p.purposeId,
+                    e,
+                    !isDeny && processedInputs[key] === 'true',
+                    processedInputs,
+                  );
                 }),
               ],
               purposeName: p.purposeName,
@@ -421,7 +429,13 @@ const SignIn: Component = defineComponent({
           processedInputs['consent_decisions'] = JSON.stringify(decisions);
 
           Object.keys(processedInputs).forEach((key: string) => {
-            if (key.startsWith('__consent_opt__')) delete processedInputs[key];
+            if (
+              key.startsWith('__consent_opt__') ||
+              key.startsWith(CONSENT_MODIFIED_KEY_PREFIX) ||
+              key.startsWith(CONSENT_INVALID_KEY_PREFIX)
+            ) {
+              delete processedInputs[key];
+            }
           });
         } catch {
           // Ignore consent construction failures
