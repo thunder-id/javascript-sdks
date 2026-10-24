@@ -1,6 +1,7 @@
 // Copyright 2025-2026 The ThunderID Authors
 // SPDX-License-Identifier: Apache-2.0
 
+import type {BackendEndpoints} from './backend';
 import {ComponentsExtensions} from './extensions/components';
 import type {OAuthResponseMode} from './oauth-response';
 import type {OIDCEndpoints} from './oidc-endpoints';
@@ -46,6 +47,15 @@ export type SignUpOptions = Record<string, unknown>;
  * Options for the ThunderID SSO session. See {@link BaseConfig.session}.
  */
 export interface SessionConfig {
+  /**
+   * How often to ask the app's backend whether the session is still live, in seconds. Only applies
+   * when sign-in runs on a backend (`endpoints.backend`): the backend's check endpoint reports
+   * liveness without refreshing the session or counting as activity, so polling it does not keep an
+   * idle session alive. Unset or `0` leaves only the check that runs when the page regains focus.
+   * @default 0
+   */
+  checkInterval?: number;
+
   /**
    * Silent sign-in: a `prompt=none` authorize request in a hidden iframe that signs the user in from
    * an existing ThunderID SSO session without any interaction.
@@ -286,6 +296,12 @@ export interface BaseConfig<T = unknown> extends WithPreferences, WithExtensions
      * If not provided, resolved from the well-known discovery document.
      */
     authorization?: string;
+    /**
+     * The app backend's auth endpoints. Setting them hands sign-in to the backend: the SDK then signs
+     * in, reads the session, and sends API calls through the backend, and never holds a token.
+     * Browser clients only. Unset entries default to a fixed path under `/api/auth`.
+     */
+    backend?: BackendEndpoints;
     /**
      * The end-session (logout) endpoint URL.
      * If not provided, resolved from the well-known discovery document.

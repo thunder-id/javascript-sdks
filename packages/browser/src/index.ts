@@ -8,6 +8,8 @@
 // Client
 export {default as ThunderIDBrowserClient} from './ThunderIDBrowserClient';
 export {default as FetchHttpClient} from './FetchHttpClient';
+export {default as BackendClient, BACKEND_REQUEST_HEADER} from './BackendClient';
+export {default as BackendHttpClient} from './BackendHttpClient';
 
 // Constants
 export {default as Hooks, Hooks as BrowserHooks} from './constants/Hooks';

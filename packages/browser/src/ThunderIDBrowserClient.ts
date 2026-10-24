@@ -17,11 +17,18 @@ import {
   HttpRequestConfig,
   HttpResponse,
   UserProfile,
+  BackendEndpointConfig,
+  ResolvedBackendEndpoints,
+  SessionData,
+  TokenConstants,
   createPackageComponentLogger,
   generateFlattenedUserProfile,
   getUsersMe,
+  resolveBackendEndpoints,
   resolveResourceEndpoint,
 } from '@thunderid/javascript';
+import BackendClient from './BackendClient';
+import BackendHttpClient from './BackendHttpClient';
 import Hooks from './constants/Hooks';
 import {REFRESH_ACCESS_TOKEN_ERR0R, SILENT_SIGN_IN_STATE, TOKEN_REQUEST_CONFIG_KEY} from './constants/SPAConstants';
 import FetchHttpClient from './FetchHttpClient';
@@ -73,6 +80,9 @@ class ThunderIDBrowserClient<T = BrowserAuthConfig> extends ThunderIDJavaScriptC
   private _hookCallbacks = new Map<string, Set<HookCallback>>();
   private _initialized = false;
   private _startedInitialize = false;
+  private _backend: BackendClient | undefined;
+  private _stopBackendWatch: (() => void) | undefined;
+  private _backendTokenRequest: Promise<string> | undefined;
 
   public constructor(instanceId = 0) {
     super(undefined, new SPACryptoUtils());
@@ -104,7 +114,41 @@ class ThunderIDBrowserClient<T = BrowserAuthConfig> extends ThunderIDJavaScriptC
       await this._authHelper?.attachTokenToRequestConfig(request);
     };
 
-    this._httpClient = FetchHttpClient.getInstance(this._browserInstanceId, true, attachToken);
+    const backendEndpoints: ResolvedBackendEndpoints | undefined = resolveBackendEndpoints(
+      merged as BackendEndpointConfig,
+      window.location.origin,
+    );
+
+    if (backendEndpoints) {
+      // The backend holds the tokens, so requests carry the session cookie instead of a token. A
+      // repeated initialization with the same endpoints, as React's strict mode does in development,
+      // keeps the client and its session read.
+      if (!this._backend?.hasEndpoints(backendEndpoints)) {
+        this._backend = new BackendClient(backendEndpoints);
+        // A session that ends elsewhere, such as a sign-out in another app, signs the app out too.
+        this._backend.onSignedOut(() => {
+          void this.getStorageManager().removeSessionData();
+          void this._emitHook(Hooks.SignOut);
+        });
+      }
+      // Poll the backend every `session.checkInterval` seconds. Checks on focus run either way.
+      this._stopBackendWatch?.();
+      const {session} = merged as {session?: SessionConfig};
+      this._stopBackendWatch = this._backend.watch(Number(session?.checkInterval ?? 0));
+      this._httpClient = new BackendHttpClient(this._backend, (renew: boolean) => this._getBackendAccessToken(renew));
+      FetchHttpClient.setInstance(this._browserInstanceId, this._httpClient);
+      // Read the session now, so the client reports loading until it is known whether the user is
+      // signed in. Route guards otherwise see "not loading, not signed in" and start a sign-in.
+      this._backend.getSession().catch((error: unknown) => {
+        logger.debug('Could not read the backend session.', error);
+      });
+    } else {
+      this._stopBackendWatch?.();
+      this._stopBackendWatch = undefined;
+      this._backend = undefined;
+      this._httpClient = FetchHttpClient.getInstance(this._browserInstanceId, true, attachToken);
+    }
+
     this._httpClient.setHttpRequestStartCallback((request: HttpRequestConfig) => {
       void this._emitHook(Hooks.HttpRequestStart, request);
     });
@@ -187,7 +231,24 @@ class ThunderIDBrowserClient<T = BrowserAuthConfig> extends ThunderIDJavaScriptC
   }
 
   public override isLoading(): boolean {
-    return false;
+    return this._backend?.isLoading() ?? false;
+  }
+
+  /**
+   * Whether sign-in runs on the app's backend, which holds the tokens so the browser never does.
+   */
+  public isBackendMode(): boolean {
+    return this._backend !== undefined;
+  }
+
+  private _rejectInBackendMode<R>(operation: string): Promise<R> {
+    return Promise.reject(
+      new ThunderIDAuthException(
+        'SPA-AUTH_CLIENT-BACKEND-NS01',
+        'Not supported when sign-in runs on the backend.',
+        `${operation} is not available when sign-in runs on the backend, because the browser holds no tokens.`,
+      ),
+    );
   }
 
   public override async signIn(
@@ -197,6 +258,17 @@ class ThunderIDBrowserClient<T = BrowserAuthConfig> extends ThunderIDJavaScriptC
     tokenRequestConfig?: {params: Record<string, unknown>},
   ): Promise<User | undefined> {
     await this.isInitialized();
+
+    if (this._backend) {
+      if (config?.callOnlyOnRedirect) {
+        return undefined;
+      }
+
+      location.href = this._backend.getSignInUrl(`${window.location.pathname}${window.location.search}`);
+      await SPAUtils.waitTillPageRedirect();
+
+      return undefined;
+    }
 
     if (!SPAUtils.canContinueSignIn(Boolean(config?.callOnlyOnRedirect), authorizationCode)) {
       return undefined;
@@ -321,6 +393,10 @@ class ThunderIDBrowserClient<T = BrowserAuthConfig> extends ThunderIDJavaScriptC
   ): Promise<User | boolean | undefined> {
     await this.isInitialized();
 
+    if (this._backend) {
+      return (await this.isSignedIn()) ? this.getUser() : false;
+    }
+
     if (SPAUtils.wasSignInCalled()) {
       return undefined;
     }
@@ -362,6 +438,16 @@ class ThunderIDBrowserClient<T = BrowserAuthConfig> extends ThunderIDJavaScriptC
     } else if (typeof sessionIdOrAfterSignOut === 'string') {
       sessionId = sessionIdOrAfterSignOut;
       afterSignOut = afterSignOutParam;
+    }
+
+    if (this._backend) {
+      await this.getStorageManager().removeSessionData();
+      const backendSignOutUrl: string = await this._backend.signOut();
+      afterSignOut?.(backendSignOutUrl);
+      location.href = backendSignOutUrl;
+      await SPAUtils.waitTillPageRedirect();
+
+      return backendSignOutUrl;
     }
 
     const sm = this.getStorageManager();
@@ -435,6 +521,10 @@ class ThunderIDBrowserClient<T = BrowserAuthConfig> extends ThunderIDJavaScriptC
   public async httpRequest(requestConfig: HttpRequestConfig): Promise<HttpResponse | undefined> {
     await this._validateMethod(false);
 
+    if (this._backend) {
+      return this._backendRequest(requestConfig);
+    }
+
     const response: HttpResponse = await this._authHelper!.httpRequest(
       this._httpClient!,
       requestConfig,
@@ -453,6 +543,10 @@ class ThunderIDBrowserClient<T = BrowserAuthConfig> extends ThunderIDJavaScriptC
   public async httpRequestAll(configs: HttpRequestConfig[]): Promise<HttpResponse[] | undefined> {
     await this._validateMethod(false);
 
+    if (this._backend) {
+      return Promise.all(configs.map((requestConfig: HttpRequestConfig) => this._backendRequest(requestConfig)));
+    }
+
     const responses: HttpResponse[] | undefined = await this._authHelper!.httpRequestAll(
       configs,
       this._httpClient!,
@@ -468,8 +562,28 @@ class ThunderIDBrowserClient<T = BrowserAuthConfig> extends ThunderIDJavaScriptC
     return responses;
   }
 
+  private async _backendRequest(requestConfig: HttpRequestConfig): Promise<HttpResponse> {
+    try {
+      return await this._httpClient!.request(requestConfig);
+    } catch (error) {
+      if (this._isHttpHandlerEnabled) {
+        await this._emitHttpError(error as HttpError);
+      }
+
+      throw error;
+    } finally {
+      if (this._isHttpHandlerEnabled) {
+        this._emitHttpFinish();
+      }
+    }
+  }
+
   public override async getUser(userId?: string): Promise<User> {
     await this._validateMethod();
+
+    if (this._backend) {
+      return ((await this._backend.getSession()).user ?? {}) as User;
+    }
 
     return super.getUser(userId);
   }
@@ -498,16 +612,61 @@ class ThunderIDBrowserClient<T = BrowserAuthConfig> extends ThunderIDJavaScriptC
   }
 
   public override async getAccessToken(sessionId?: string): Promise<string> {
+    if (this._backend) {
+      return this._getBackendAccessToken();
+    }
+
     return super.getAccessToken(sessionId);
+  }
+
+  /**
+   * The access token for requests under `endpoints.backend.bypass`. Like a client credentials token it
+   * has no refresh token: it is kept in the session storage until it nears expiry, then requested again.
+   *
+   * @param renew - Request a new token even when the stored one is still valid.
+   */
+  private async _getBackendAccessToken(renew = false): Promise<string> {
+    const storageManager = this.getStorageManager();
+    const session: Partial<SessionData> | undefined = await storageManager.getSessionData();
+    const expiresAt: number = (session?.created_at ?? 0) + Number(session?.expires_in ?? 0) * 1000;
+
+    if (
+      !renew &&
+      session?.access_token &&
+      expiresAt - TokenConstants.Lifecycle.CLIENT_CREDENTIALS_REFRESH_MARGIN_MS > Date.now()
+    ) {
+      return session.access_token;
+    }
+
+    this._backendTokenRequest ??= this._backend!.requestAccessToken()
+      .then(async (response: Partial<SessionData>) => {
+        await storageManager.setSessionData({...response, created_at: Date.now()});
+
+        return response.access_token ?? '';
+      })
+      .finally(() => {
+        this._backendTokenRequest = undefined;
+      });
+
+    return this._backendTokenRequest;
   }
 
   public override async getDecodedIdToken(userId?: string, idToken?: string): Promise<IdToken> {
     await this._validateMethod();
 
+    if (this._backend) {
+      // The backend keeps the ID token and returns its user claims, which is what callers read from it.
+      return ((await this._backend.getSession()).user ?? {}) as IdToken;
+    }
+
     return super.getDecodedIdToken(userId, idToken);
   }
 
   public override async getIdToken(userId?: string): Promise<string> {
+    if (this._backend) {
+      return this._rejectInBackendMode('getIdToken');
+    }
+
     await this._validateMethod();
 
     return super.getIdToken(userId);
@@ -540,6 +699,10 @@ class ThunderIDBrowserClient<T = BrowserAuthConfig> extends ThunderIDJavaScriptC
   public override async isSignedIn(userId?: string): Promise<boolean> {
     await this.isInitialized();
 
+    if (this._backend) {
+      return (await this._backend.getSession()).isSignedIn;
+    }
+
     return super.isSignedIn(userId);
   }
 
@@ -550,11 +713,29 @@ class ThunderIDBrowserClient<T = BrowserAuthConfig> extends ThunderIDJavaScriptC
   public async isSessionActive(): Promise<boolean | undefined> {
     await this.isInitialized();
 
+    if (this._backend) {
+      return this.isSignedIn();
+    }
+
     return (await (this.getStorageManager() as any).getSessionStatus()) === 'true';
   }
 
   public override async refreshAccessToken(userId?: string): Promise<User | TokenResponse> {
     await this._validateMethod(false);
+
+    if (this._backend) {
+      if (!(await this._backend.refresh())) {
+        return Promise.reject(
+          new ThunderIDAuthException(
+            'SPA-AUTH_CLIENT-BACKEND-RF01',
+            'Refresh failed.',
+            'The backend could not refresh the session.',
+          ),
+        );
+      }
+
+      return this.getUser();
+    }
 
     try {
       return await this._authHelper!.refreshAccessToken((cfg) => this._enableRetrievingSignOutURLFromSession(cfg));
@@ -564,6 +745,10 @@ class ThunderIDBrowserClient<T = BrowserAuthConfig> extends ThunderIDJavaScriptC
   }
 
   public override async revokeAccessToken(userId?: string): Promise<boolean | Response> {
+    if (this._backend) {
+      return this._rejectInBackendMode('revokeAccessToken');
+    }
+
     await this._validateMethod();
 
     const timer: number = await this._spaHelper!.getRefreshTimeoutTimer();
@@ -577,6 +762,10 @@ class ThunderIDBrowserClient<T = BrowserAuthConfig> extends ThunderIDJavaScriptC
   }
 
   public override async exchangeToken(config: SPATokenExchangeConfig): Promise<Response | User> {
+    if (this._backend) {
+      return this._rejectInBackendMode('exchangeToken');
+    }
+
     if (config.signInRequired) {
       await this._validateMethod();
     }
@@ -608,6 +797,11 @@ class ThunderIDBrowserClient<T = BrowserAuthConfig> extends ThunderIDJavaScriptC
 
   public async startAutoRefreshToken(): Promise<void> {
     await this.isInitialized();
+
+    if (this._backend) {
+      // The backend refreshes on demand: a request that finds the session expired refreshes it once.
+      return;
+    }
 
     await this._spaHelper!.clearRefreshTokenTimeout();
     await this._spaHelper!.refreshAccessTokenAutomatically(() => this.refreshAccessToken() as any);
@@ -666,6 +860,9 @@ class ThunderIDBrowserClient<T = BrowserAuthConfig> extends ThunderIDJavaScriptC
         this._addHookCallback(hook, callback);
         break;
       case Hooks.SignOut:
+        // The hook fires on the way back from a sign-out redirect, and later whenever the session
+        // ends without this app signing out, which only the backend can report.
+        this._addHookCallback(hook, callback);
         if (
           await SPAUtils.isSignOutSuccessful(
             ThunderIDBrowserClient.isSignOutSuccessful.bind(ThunderIDBrowserClient),

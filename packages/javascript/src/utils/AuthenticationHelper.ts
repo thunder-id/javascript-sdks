@@ -61,7 +61,7 @@ class AuthenticationHelper<T> {
    * Maps the config-defined OIDC endpoint overrides to their discovery-metadata form.
    *
    * Endpoint names are converted from camelCase to snake_case, and resource-server endpoints
-   * (`RESOURCE_ENDPOINT_KEYS`) are excluded — those are resolved separately via
+   * (`RESOURCE_ENDPOINT_KEYS`) and the backend overrides are excluded — those are resolved separately via
    * `resolveResourceEndpoint` and must not leak into the OIDC provider metadata.
    *
    * @param configData - The resolved auth client config.
@@ -75,7 +75,9 @@ class AuthenticationHelper<T> {
     }
 
     Object.keys(configData.endpoints)
-      .filter((endpointName: string) => !RESOURCE_ENDPOINT_KEYS.includes(endpointName as never))
+      .filter(
+        (endpointName: string) => endpointName !== 'backend' && !RESOURCE_ENDPOINT_KEYS.includes(endpointName as never),
+      )
       .forEach((endpointName: string) => {
         const snakeCasedName: string = endpointName.replace(/[A-Z]/g, (letter: string) => `_${letter.toLowerCase()}`);
 
