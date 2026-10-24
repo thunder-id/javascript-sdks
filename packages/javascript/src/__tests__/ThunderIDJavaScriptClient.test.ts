@@ -2,12 +2,21 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import {describe, expect, it, vi, beforeEach, afterEach} from 'vitest';
+import type {Config} from '../models/config';
+import type {Crypto} from '../models/crypto';
+import type {AuthorizationDetail, ExtendedAuthorizeRequestUrlParams} from '../models/oauth-request';
+import type {SessionData, UserSession} from '../models/session';
 import type {Storage} from '../models/store';
+import type {TokenResponse} from '../models/token';
+import type StorageManager from '../StorageManager';
 import ThunderIDJavaScriptClient from '../ThunderIDJavaScriptClient';
 
 vi.mock('../IsomorphicCrypto', () => ({
   IsomorphicCrypto: class MockIsomorphicCrypto {
     constructor(_cryptoUtils: unknown) {}
+    generateState(): string {
+      return 'randomstate';
+    }
   },
 }));
 
@@ -419,6 +428,102 @@ describe('ThunderIDJavaScriptClient', () => {
       } finally {
         globalThis.clearTimeout(abortTimer);
       }
+    });
+  });
+
+  describe('authorization details', () => {
+    const AUTHORIZE = 'https://example.com/oauth2/authorize';
+    const PAYMENT: AuthorizationDetail = {
+      actions: ['initiate'],
+      instructedAmount: {amount: '20', currency: 'EUR'},
+      type: 'payment',
+    };
+    const ACCOUNT: AuthorizationDetail = {type: 'account_information'};
+
+    class AuthorizationDetailsClient extends ThunderIDJavaScriptClient {
+      public buildSignInUrl(requestConfig?: ExtendedAuthorizeRequestUrlParams): Promise<string> {
+        return this.getSignInUrl(requestConfig);
+      }
+
+      public fetchClientCredentialsToken(): Promise<TokenResponse> {
+        return this.requestClientCredentialsToken();
+      }
+
+      public readUserSession(): Promise<UserSession> {
+        return this.getUserSession();
+      }
+
+      public storage(): StorageManager<Config> {
+        return this.getStorageManager();
+      }
+    }
+
+    async function initWith(overrides: Partial<Config>): Promise<AuthorizationDetailsClient> {
+      const client = new AuthorizationDetailsClient(store, {} as Crypto);
+      await client.initialize({
+        afterSignInUrl: 'https://app.example.com/callback',
+        baseUrl: 'https://example.com',
+        clientId: 'test-client',
+        clientSecret: 'test-secret',
+        enablePKCE: false,
+        ...overrides,
+      });
+      await client.storage().setOIDCProviderMetaData({...OIDC_META, authorization_endpoint: AUTHORIZE});
+      await client.storage().setTemporaryDataParameter('op_config_initiated', true);
+      return client;
+    }
+
+    const tokenRequestBody = (): URLSearchParams => vi.mocked(fetch).mock.calls[0][1]!.body as URLSearchParams;
+
+    const authorizationDetailsOf = (url: string): unknown =>
+      JSON.parse(new URL(url).searchParams.get('authorization_details') ?? 'null');
+
+    it('sends the configured authorization details JSON-encoded on the authorize request', async () => {
+      const client = await initWith({authorizationDetails: [PAYMENT]});
+
+      expect(authorizationDetailsOf(await client.buildSignInUrl())).toEqual([PAYMENT]);
+    });
+
+    it('lets the authorization details of a sign-in call take precedence over the configured ones', async () => {
+      const client = await initWith({authorizationDetails: [PAYMENT]});
+
+      const url = await client.buildSignInUrl({authorizationDetails: [ACCOUNT]});
+
+      expect(authorizationDetailsOf(url)).toEqual([ACCOUNT]);
+      expect(new URL(url).searchParams.has('authorizationDetails')).toBe(false);
+    });
+
+    it('sends no authorization details when none are configured or requested', async () => {
+      const client = await initWith({});
+
+      expect(new URL(await client.buildSignInUrl()).searchParams.has('authorization_details')).toBe(false);
+    });
+
+    it('sends the configured authorization details on a client credentials token request and returns the granted ones', async () => {
+      const client = await initWith({authorizationDetails: [PAYMENT], grantType: 'client_credentials'});
+      mockFetchOnce({access_token: 'm2m-token', authorization_details: [PAYMENT], expires_in: '3600'});
+
+      const response = await client.fetchClientCredentialsToken();
+
+      expect(JSON.parse(tokenRequestBody().get('authorization_details') ?? 'null')).toEqual([PAYMENT]);
+      expect(response.authorizationDetails).toEqual([PAYMENT]);
+    });
+
+    it('sends no authorization details on a client credentials token request when none are configured', async () => {
+      const client = await initWith({grantType: 'client_credentials'});
+      mockFetchOnce({access_token: 'm2m-token', expires_in: '3600'});
+
+      const response = await client.fetchClientCredentialsToken();
+
+      expect(tokenRequestBody().has('authorization_details')).toBe(false);
+      expect(response.authorizationDetails).toBeUndefined();
+    });
+
+    it('exposes the granted authorization details on the user session', async () => {
+      const client = await initWith({});
+      await client.storage().setSessionData({authorization_details: [ACCOUNT], scope: 'openid'} as SessionData);
+
+      expect(await client.readUserSession()).toEqual({authorizationDetails: [ACCOUNT], scopes: ['openid']});
     });
   });
 

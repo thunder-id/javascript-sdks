@@ -83,6 +83,7 @@ class ThunderIDNodeClient<T extends ThunderIDNodeConfig = ThunderIDNodeConfig> e
       const sessionData: SessionData = await sm.getSessionData(userId);
       return Promise.resolve({
         accessToken: sessionData.access_token,
+        authorizationDetails: sessionData.authorization_details,
         createdAt: sessionData.created_at,
         expiresIn: sessionData.expires_in,
         idToken: sessionData.id_token,
@@ -121,6 +122,7 @@ class ThunderIDNodeClient<T extends ThunderIDNodeConfig = ThunderIDNodeConfig> e
     await this.indexSession(userId, sessionData);
     return Promise.resolve({
       accessToken: sessionData.access_token,
+      authorizationDetails: sessionData.authorization_details,
       createdAt: sessionData.created_at,
       expiresIn: sessionData.expires_in,
       idToken: sessionData.id_token,

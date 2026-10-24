@@ -183,6 +183,20 @@ const translations: I18nTranslations = {
   'consent.essential_claims.info': 'සේවාව නිසි ලෙස ක්‍රියාත්මක වීම සඳහා මෙම ගුණාංග අවශ්‍ය වේ.',
   'consent.optional_claims.info': 'මෙම ගුණාංග විකල්ප වන අතර ඔබේ අභිමතය පරිදි සැපයිය හැක.',
   'consent.authorize_scope.info': 'මෙම අවසරයන් මගින් සේවාවට අමතර විශේෂාංග වෙත ප්‍රවේශ වීමට ඉඩ සලසයි.',
+  'consent.authorization_details.approve': 'අනුමත කරන්න',
+  'consent.authorization_details.show_more': 'තවත් පෙන්වන්න',
+  'consent.authorization_details.show_less': 'අඩුවෙන් පෙන්වන්න',
+  'consent.authorization_details.more_items': 'තවත් {count}',
+  'consent.authorization_details.invalid_number': 'අංකයක් ඇතුළත් කරන්න.',
+  'consent.authorization_details.number_max': '{value} හෝ ඊට අඩු අගයක් ඇතුළත් කරන්න.',
+  'consent.authorization_details.number_min': '{value} හෝ ඊට වැඩි අගයක් ඇතුළත් කරන්න.',
+  'consent.authorization_details.invalid_date': 'දිනයක් ඇතුළත් කරන්න.',
+  'consent.authorization_details.date_max': '{value} හෝ ඊට පෙර දිනයක් තෝරන්න.',
+  'consent.authorization_details.date_min': '{value} හෝ ඊට පසු දිනයක් තෝරන්න.',
+  'consent.authorization_details.remove_item': '{item}, ඉවත් කරන්න',
+  'consent.authorization_details.add_item': '{item}, එක් කරන්න',
+  'consent.authorization_details.add_back_item': '{item}, නැවත එක් කරන්න',
+  'consent.authorization_details.new_item': '{label}, එක් කරන්න',
 
   /* |---------------------------------------------------------------| */
   /* |                        Errors                                 | */

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import {
+  AuthorizeRequestParamValue,
   ThunderIDJavaScriptClient,
   ThunderIDAuthException,
   User,
@@ -316,7 +317,7 @@ class ThunderIDBrowserClient<T = BrowserAuthConfig> extends ThunderIDJavaScriptC
   }
 
   public override async signInSilently(
-    additionalParams?: Record<string, string | boolean>,
+    additionalParams?: Record<string, AuthorizeRequestParamValue>,
     tokenRequestConfig?: {params: Record<string, unknown>},
   ): Promise<User | boolean | undefined> {
     await this.isInitialized();
@@ -335,7 +336,7 @@ class ThunderIDBrowserClient<T = BrowserAuthConfig> extends ThunderIDJavaScriptC
   }
 
   private async _signInSilentlyInternal(
-    additionalParams?: Record<string, string | boolean>,
+    additionalParams?: Record<string, AuthorizeRequestParamValue>,
     tokenRequestConfig?: {params: Record<string, unknown>},
   ): Promise<User | boolean> {
     const {session} = await this.getStorageManager().getConfigData();
@@ -717,7 +718,9 @@ class ThunderIDBrowserClient<T = BrowserAuthConfig> extends ThunderIDJavaScriptC
     }
   }
 
-  private async _constructSilentSignInUrl(additionalParams: Record<string, string | boolean> = {}): Promise<string> {
+  private async _constructSilentSignInUrl(
+    additionalParams: Record<string, AuthorizeRequestParamValue> = {},
+  ): Promise<string> {
     const sm = this.getStorageManager();
     const config = await (sm as any).getConfigData();
 

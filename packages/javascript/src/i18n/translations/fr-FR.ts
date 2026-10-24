@@ -192,6 +192,20 @@ const translations: I18nTranslations = {
   /* |---------------------------------------------------------------| */
 
   'errors.heading': 'Erreur',
+  'consent.authorization_details.approve': 'Approuver',
+  'consent.authorization_details.show_more': 'Afficher plus',
+  'consent.authorization_details.show_less': 'Afficher moins',
+  'consent.authorization_details.more_items': '+{count} de plus',
+  'consent.authorization_details.invalid_number': 'Saisissez un nombre.',
+  'consent.authorization_details.number_max': 'Saisissez {value} ou moins.',
+  'consent.authorization_details.number_min': 'Saisissez {value} ou plus.',
+  'consent.authorization_details.invalid_date': 'Saisissez une date.',
+  'consent.authorization_details.date_max': 'Choisissez le {value} ou une date antérieure.',
+  'consent.authorization_details.date_min': 'Choisissez le {value} ou une date ultérieure.',
+  'consent.authorization_details.remove_item': '{item}, retirer',
+  'consent.authorization_details.add_item': '{item}, ajouter',
+  'consent.authorization_details.add_back_item': '{item}, rajouter',
+  'consent.authorization_details.new_item': '{label}, ajouter',
   'errors.signin.initialization': "Une erreur est survenue lors de l'initialisation. Veuillez réessayer plus tard.",
   'errors.signin.flow.failure': 'Une erreur est survenue lors du flux de connexion. Veuillez réessayer plus tard.',
   'errors.signin.flow.completion.failure':

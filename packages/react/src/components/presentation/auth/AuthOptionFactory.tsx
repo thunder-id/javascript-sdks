@@ -26,6 +26,7 @@ import {
   FetchAuthFlows,
   FetchUserTypes,
   FetchUsers,
+  getConsentElementDecision,
 } from '@thunderid/browser';
 import DOMPurify from 'dompurify';
 import {ChangeEvent, cloneElement, CSSProperties, FormEvent, ReactElement} from 'react';
@@ -36,6 +37,7 @@ import {
 } from '../../../contexts/ComponentRenderer/ComponentRendererContext';
 import {UseTranslation} from '../../../hooks/useTranslation';
 import {css, cx} from '../../../styles/emotion';
+import isConsentApprovalBlocked from '../../../utils/isConsentApprovalBlocked';
 import Consent from '../../adapters/Consent';
 import {getConsentOptionalKey} from '../../adapters/ConsentCheckboxList';
 import FacebookButton from '../../adapters/FacebookButton';
@@ -435,6 +437,15 @@ const createAuthComponentFromFlow = (
       };
       const buttonType: HTMLButtonElement['type'] = buttonTypeEnum[eventType.toUpperCase()] ?? 'submit';
 
+      // Approval waits while an approved authorization detail shows a modified value that cannot be submitted.
+      const hasInvalidConsentApproval: boolean =
+        !shouldSkipValidation &&
+        componentVariant.toLowerCase() === 'primary' &&
+        isConsentApprovalBlocked(
+          (options.additionalData?.['consentPrompt'] as ConsentPromptData | undefined)?.purposes ?? [],
+          formValues,
+        );
+
       const handleClick = (): any => {
         if (options.onSubmit) {
           const formData: Record<string, any> = {};
@@ -461,10 +472,13 @@ const createAuthComponentFromFlow = (
                     // Permission purposes carry no essential elements, so the server sends null here
                     ...(p.essential ?? []).map((e): ConsentAttributeElement => ({approved: !isDeny, name: e.name})),
                     ...(p.optional ?? []).map(
-                      (e): ConsentAttributeElement => ({
-                        approved: !isDeny && formValues[getConsentOptionalKey(p.purposeId, e.name)] === 'true',
-                        name: e.name,
-                      }),
+                      (e): ConsentAttributeElement =>
+                        getConsentElementDecision(
+                          p.purposeId,
+                          e,
+                          !isDeny && formValues[getConsentOptionalKey(p.purposeId, e.name)] === 'true',
+                          formValues,
+                        ),
                     ),
                   ],
                   purposeName: p.purposeName!,
@@ -534,6 +548,7 @@ const createAuthComponentFromFlow = (
           disabled={
             isLoading ||
             (!isFormValid && !shouldSkipValidation) ||
+            hasInvalidConsentApproval ||
             options.isTimeoutDisabled ||
             (component as any).config?.disabled
           }

@@ -658,7 +658,7 @@ export interface EmbeddedFlowResponseData {
  *
  * @experimental This type may change in future versions
  */
-export type ConsentPurposeType = 'attributes' | 'permissions';
+export type ConsentPurposeType = 'attributes' | 'permissions' | 'authorization_details';
 
 /**
  * Individual consent attribute/element decision.
@@ -670,6 +670,11 @@ export interface ConsentAttributeElement {
   approved: boolean;
   /** The name of the attribute being consented */
   name: string;
+  /**
+   * Values the user modified on an authorization detail element before approving it, keyed by the
+   * dot-separated path of the field. Left out when the detail is approved as it was shown.
+   */
+  modified?: Record<string, unknown>;
 }
 
 /**
@@ -681,13 +686,22 @@ export interface ConsentAttributeElement {
  * @experimental This interface may change in future versions
  */
 export interface PromptElement {
-  /** Canonical element name (attribute name or permission string) */
+  /** Canonical element name (attribute name, permission string or authorization detail identifier) */
   name: string;
   /**
    * Canonical name of the rollup parent, permission-purpose only. Undefined for attribute
    * elements and for top-level permissions.
    */
   parent?: string;
+  /**
+   * RFC 9396 authorization details type, present only on an authorization detail element. Such an
+   * element is named by the detail's identifier and is approved or denied as a whole.
+   */
+  detailType?: string;
+  /** Server-rendered sentence describing an authorization detail element. */
+  summary?: string;
+  /** Fields of an authorization detail element. A field is read-only unless it carries a modification. */
+  rows?: ConsentDetailRow[];
 }
 
 /**
@@ -747,9 +761,57 @@ export interface ConsentPurposeData {
   /** Human-readable purpose name */
   purposeName?: string;
   /**
-   * Discriminator selecting between attribute and permission consent semantics.
+   * Discriminator selecting between attribute, permission and authorization details consent
+   * semantics. An authorization details purpose carries one optional element per detail.
    */
   type?: ConsentPurposeType;
+}
+
+/**
+ * Ordering an authorization detail field with a modification is compared by: a `number`, a `date` in
+ * `YYYY-MM-DD` form, or a `dateTime` in RFC 3339 form.
+ *
+ * @experimental This type may change in future versions
+ */
+export type ConsentDetailValueType = 'number' | 'date' | 'dateTime';
+
+/**
+ * Change a field policy allows on an authorization detail field: `none`, `decrease` or `increase` for an
+ * ordered value, `removeItems` or `addItems` for a list.
+ *
+ * @experimental This type may change in future versions
+ */
+export type ConsentDetailModification = 'none' | 'decrease' | 'increase' | 'removeItems' | 'addItems';
+
+/**
+ * One field of an RFC 9396 authorization detail presented for consent.
+ *
+ * @experimental This interface may change in future versions
+ */
+export interface ConsentDetailRow {
+  /** Display label declared by the type, or the path when none is declared. */
+  label: string;
+  /**
+   * Ordering a field with a modification is compared by: `number`, `date` or `dateTime`. Present only
+   * with `modification`.
+   */
+  as?: ConsentDetailValueType;
+  /**
+   * Change the user may make to the field before approving: `decrease` or `increase` for an ordered
+   * value, `removeItems` or `addItems` for a list. Absent when the field is read-only.
+   */
+  modification?: ConsentDetailModification;
+  /** Set to `server` when the value was supplied by the server rather than the client. */
+  origin?: string;
+  /**
+   * Values the user may add to a list whose rule is `addItems`, as the type allows them. Absent when
+   * any value may be added.
+   */
+  options?: unknown[];
+  /** Dot-separated location of the field within the detail. */
+  path: string;
+  /** Field value as it appears in the detail. */
+  value: unknown;
 }
 
 /**

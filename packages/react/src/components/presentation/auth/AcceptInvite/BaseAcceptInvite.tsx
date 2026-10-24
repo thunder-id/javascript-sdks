@@ -8,6 +8,9 @@ import {
   FlowMetadataResponse,
   Preferences,
   buildValidatorFromRules,
+  CONSENT_INVALID_KEY_PREFIX,
+  CONSENT_MODIFIED_KEY_PREFIX,
+  getConsentElementDecision,
 } from '@thunderid/browser';
 import {FC, ReactElement, ReactNode, useCallback, useContext, useEffect, useRef, useState} from 'react';
 import useStyles from './BaseAcceptInvite.styles';
@@ -563,14 +566,22 @@ const BaseAcceptInvite: FC<BaseAcceptInviteProps> = ({
                   ...(p.essential || []).map((e: any) => ({approved: !isDeny, name: e.name})),
                   ...(p.optional || []).map((e: any) => {
                     const key = `__consent_opt__${p.purposeId}__${e.name}`;
-                    return {approved: !isDeny && inputs[key] === 'true', name: e.name};
+                    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-member-access
+                    return getConsentElementDecision(p.purposeId, e, !isDeny && inputs[key] === 'true', inputs);
                   }),
                 ],
               })),
             };
             inputs.consent_decisions = JSON.stringify(decisions);
             Object.keys(inputs).forEach((k: string) => {
-              if (k.startsWith('__consent_opt__')) delete inputs[k];
+              if (
+                k.startsWith('__consent_opt__') ||
+                k.startsWith(CONSENT_MODIFIED_KEY_PREFIX) ||
+                k.startsWith(CONSENT_INVALID_KEY_PREFIX)
+              ) {
+                // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+                delete inputs[k];
+              }
             });
           } catch {
             // Leave inputs as-is if consent building fails

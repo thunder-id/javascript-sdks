@@ -557,6 +557,7 @@ class ThunderIDJavaScriptClient<T = Config> implements ThunderIDClient<T> {
     const authRequestConfig: ExtendedAuthorizeRequestUrlParams = {...requestConfig};
 
     delete authRequestConfig?.forceInit;
+    delete authRequestConfig?.authorizationDetails;
 
     const buildSignInUrl = async (): Promise<string> => {
       const authorizeEndpoint: string = (await this.storageManager.getOIDCProviderMetaDataParameter(
@@ -593,6 +594,7 @@ class ThunderIDJavaScriptClient<T = Config> implements ThunderIDClient<T> {
       const authorizeRequestParams: Map<string, string> = getAuthorizeRequestUrlParams(
         Object.fromEntries(
           Object.entries({
+            authorizationDetails: requestConfig?.authorizationDetails ?? configData.authorizationDetails,
             clientId: configData.clientId ?? '',
             codeChallenge,
             codeChallengeMethod: PKCEConstants.DEFAULT_CODE_CHALLENGE_METHOD,
@@ -843,6 +845,7 @@ class ThunderIDJavaScriptClient<T = Config> implements ThunderIDClient<T> {
     const sessionData: SessionData = await this.storageManager.getSessionData(userId);
 
     return {
+      authorizationDetails: sessionData?.authorization_details,
       scopes: sessionData?.scope?.split(' '),
     };
   }
@@ -950,6 +953,10 @@ class ThunderIDJavaScriptClient<T = Config> implements ThunderIDClient<T> {
       body.set('scope', scope);
     }
 
+    if (configData.authorizationDetails?.length) {
+      body.set('authorization_details', JSON.stringify(configData.authorizationDetails));
+    }
+
     if (configData.tokenRequest?.params) {
       Object.entries(configData.tokenRequest.params).forEach(([key, value]: [string, unknown]) => {
         body.set(key, value as string);
@@ -998,6 +1005,7 @@ class ThunderIDJavaScriptClient<T = Config> implements ThunderIDClient<T> {
 
     return {
       accessToken: parsedResponse.access_token,
+      authorizationDetails: parsedResponse.authorization_details,
       createdAt: parsedResponse.created_at,
       expiresIn: parsedResponse.expires_in,
       idToken: parsedResponse.id_token ?? '',

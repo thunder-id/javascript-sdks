@@ -182,6 +182,20 @@ const translations: I18nTranslations = {
   'consent.essential_claims.info': 'これらの属性は、サービスが正常に機能するために必要です。',
   'consent.optional_claims.info': 'これらの属性は任意であり、お客様の判断で提供できます。',
   'consent.authorize_scope.info': 'これらの権限により、サービスが追加機能にアクセスできるようになります。',
+  'consent.authorization_details.approve': '承認',
+  'consent.authorization_details.show_more': 'さらに表示',
+  'consent.authorization_details.show_less': '表示を減らす',
+  'consent.authorization_details.more_items': '他 {count} 件',
+  'consent.authorization_details.invalid_number': '数値を入力してください。',
+  'consent.authorization_details.number_max': '{value} 以下で入力してください。',
+  'consent.authorization_details.number_min': '{value} 以上で入力してください。',
+  'consent.authorization_details.invalid_date': '日付を入力してください。',
+  'consent.authorization_details.date_max': '{value} 以前の日付を選択してください。',
+  'consent.authorization_details.date_min': '{value} 以降の日付を選択してください。',
+  'consent.authorization_details.remove_item': '{item}、削除',
+  'consent.authorization_details.add_item': '{item}、追加',
+  'consent.authorization_details.add_back_item': '{item}、再追加',
+  'consent.authorization_details.new_item': '{label}、追加',
 
   /* |---------------------------------------------------------------| */
   /* |                        Errors                                 | */

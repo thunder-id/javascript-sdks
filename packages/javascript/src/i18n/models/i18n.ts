@@ -185,6 +185,20 @@ export interface I18nTranslations {
   'consent.essential_claims.info': string;
   'consent.optional_claims.info': string;
   'consent.authorize_scope.info': string;
+  'consent.authorization_details.approve': string;
+  'consent.authorization_details.show_more': string;
+  'consent.authorization_details.show_less': string;
+  'consent.authorization_details.more_items': string;
+  'consent.authorization_details.invalid_number': string;
+  'consent.authorization_details.number_max': string;
+  'consent.authorization_details.number_min': string;
+  'consent.authorization_details.invalid_date': string;
+  'consent.authorization_details.date_max': string;
+  'consent.authorization_details.date_min': string;
+  'consent.authorization_details.remove_item': string;
+  'consent.authorization_details.add_item': string;
+  'consent.authorization_details.add_back_item': string;
+  'consent.authorization_details.new_item': string;
 
   /* |---------------------------------------------------------------| */
   /* |                        Errors                                 | */

@@ -83,4 +83,46 @@ describe('AuthenticationHelper', () => {
       });
     });
   });
+
+  describe('handleTokenResponse()', () => {
+    const tokenResponse = (body: Record<string, unknown>): Response =>
+      ({json: () => Promise.resolve(body), ok: true, status: 200, statusText: 'OK'}) as unknown as Response;
+
+    const TOKEN_BODY = {
+      access_token: 'access-token',
+      expires_in: '3600',
+      refresh_token: 'refresh-token',
+      scope: 'openid',
+      token_type: 'Bearer',
+    };
+
+    it('returns the authorization details the server granted', async () => {
+      const granted = [{actions: ['initiate'], instructedAmount: {amount: '20', currency: 'EUR'}, type: 'payment'}];
+
+      const response = await helper.handleTokenResponse(tokenResponse({...TOKEN_BODY, authorization_details: granted}));
+
+      expect(response.authorizationDetails).toEqual(granted);
+      expect(response.accessToken).toBe('access-token');
+    });
+
+    it('keeps the granted authorization details in the stored session', async () => {
+      const storageManager = new StorageManager<unknown>('test-instance', new MemoryStore());
+      await storageManager.setConfigData({baseUrl: BASE_URL, clientId: 'test-client'});
+      const sessionHelper = new AuthenticationHelper<unknown>(
+        storageManager,
+        {} as unknown as IsomorphicCrypto<unknown>,
+      );
+      const granted = [{type: 'account_information'}];
+
+      await sessionHelper.handleTokenResponse(tokenResponse({...TOKEN_BODY, authorization_details: granted}));
+
+      expect((await storageManager.getSessionData()).authorization_details).toEqual(granted);
+    });
+
+    it('leaves the authorization details out when the server granted none', async () => {
+      const response = await helper.handleTokenResponse(tokenResponse(TOKEN_BODY));
+
+      expect(response.authorizationDetails).toBeUndefined();
+    });
+  });
 });

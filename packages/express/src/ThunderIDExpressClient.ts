@@ -4,6 +4,7 @@
 import {
   ThunderIDNodeClient,
   ThunderIDAuthException,
+  ExtendedAuthorizeRequestUrlParams,
   Storage,
   TokenResponse,
   User,
@@ -59,7 +60,7 @@ class ThunderIDExpressClient<T extends ExpressClientConfig = ExpressClientConfig
     req: express.Request,
     res: express.Response,
     next?: express.NextFunction,
-    signInConfig?: Record<string, string | boolean>,
+    signInConfig?: ExtendedAuthorizeRequestUrlParams,
   ): Promise<TokenResponse> {
     if (hasErrorInURL(req.originalUrl)) {
       return Promise.reject(

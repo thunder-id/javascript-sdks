@@ -1,6 +1,8 @@
 // Copyright 2020 The ThunderID Authors
 // SPDX-License-Identifier: Apache-2.0
 
+import type {AuthorizationDetail} from './oauth-request';
+
 /**
  * Represents a processed token response with standardized camelCase properties.
  * This interface provides a clean, normalized structure for token data after
@@ -16,6 +18,12 @@ export interface TokenResponse {
    * of subsequent API requests.
    */
   accessToken: string;
+
+  /**
+   * RFC 9396 authorization details the server granted to the access token.
+   * Present only when the server returns them, and may differ from what was requested.
+   */
+  authorizationDetails?: AuthorizationDetail[];
 
   /**
    * Unix timestamp (in seconds) when the token was created.
@@ -75,6 +83,12 @@ export interface AccessTokenApiResponse {
    * before any processing or validation.
    */
   access_token: string;
+
+  /**
+   * Raw RFC 9396 authorization details granted to the access token.
+   * Returned only when the server granted authorization details.
+   */
+  authorization_details?: AuthorizationDetail[];
 
   /**
    * Server-provided creation timestamp in Unix seconds.

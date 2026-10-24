@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import {type ConsentPurposeData, PromptElement} from '@thunderid/browser';
-import {type ChangeEvent, FC, ReactNode} from 'react';
+import {type ChangeEvent, FC, ReactNode, useEffect} from 'react';
+import ConsentAuthorizationDetail from './ConsentAuthorizationDetail';
 import ConsentCheckboxList, {getConsentOptionalKey} from './ConsentCheckboxList';
 import Typography from '../primitives/Typography/Typography';
 import Toggle from '../primitives/Toggle/Toggle';
@@ -10,6 +11,7 @@ import {Info} from '../primitives/Icons';
 import Tooltip from '../primitives/Tooltip/Tooltip';
 import {UseTranslation} from '../../hooks/useTranslation';
 import {css} from '../../styles/emotion';
+import isConsentApprovalBlocked from '../../utils/isConsentApprovalBlocked';
 
 /**
  * Backward-compatible consent purpose type exported by @thunderid/react.
@@ -24,6 +26,12 @@ export type ConsentPurpose = ConsentPurposeData;
 export interface ConsentRenderProps {
   /** Current form values - used to read optional checkbox state. */
   formValues: Record<string, string>;
+  /**
+   * Whether the consent cannot be approved yet, because an authorization detail the user has not declined
+   * shows a modified value that cannot be submitted. Disable the approve action while it holds; denying
+   * stays possible.
+   */
+  isApprovalBlocked: boolean;
   /** Callback invoked when a user toggles an optional attribute. */
   onInputChange: (name: string, value: string) => void;
   /** The resolved list of consent purposes parsed from `consentData`. */
@@ -142,6 +150,31 @@ const Consent: FC<ConsentProps> = ({consentData, formValues, onInputChange, chil
     });
   };
 
+  // An authorization detail is the transaction the user is asked to allow, so it starts approved. The value
+  // is seeded into the form so the submitted decision matches the screen.
+  useEffect(() => {
+    let detailPurposes: ConsentPurposeData[] = [];
+    try {
+      const parsed: ConsentPurposeData[] | {purposes: ConsentPurposeData[]} | undefined =
+        typeof consentData === 'string'
+          ? (JSON.parse(consentData) as ConsentPurposeData[] | {purposes: ConsentPurposeData[]})
+          : consentData;
+      detailPurposes = (Array.isArray(parsed) ? parsed : (parsed?.purposes ?? [])).filter(
+        (purpose: ConsentPurposeData) => purpose.type === 'authorization_details',
+      );
+    } catch {
+      return;
+    }
+    detailPurposes.forEach((purpose: ConsentPurposeData) => {
+      (purpose.optional ?? []).forEach((element: PromptElement) => {
+        const key: string = getConsentOptionalKey(purpose.purposeId, element.name);
+        if (formValues[key] === undefined) {
+          onInputChange(key, 'true');
+        }
+      });
+    });
+  }, [consentData, formValues, onInputChange]);
+
   if (!consentData) return null;
 
   let purposes: ConsentPurposeData[] = [];
@@ -159,7 +192,16 @@ const Consent: FC<ConsentProps> = ({consentData, formValues, onInputChange, chil
   if (purposes.length === 0) return null;
 
   if (children) {
-    return <>{children({formValues, onInputChange, purposes: purposes})}</>;
+    return (
+      <>
+        {children({
+          formValues,
+          isApprovalBlocked: isConsentApprovalBlocked(purposes, formValues),
+          onInputChange,
+          purposes,
+        })}
+      </>
+    );
   }
 
   return (
@@ -174,7 +216,19 @@ const Consent: FC<ConsentProps> = ({consentData, formValues, onInputChange, chil
             {purpose.description}
           </Typography> */}
 
-          {purpose.essential && purpose.essential.length > 0 && (
+          {purpose.type === 'authorization_details' &&
+            (purpose.optional ?? []).map((element: PromptElement) => (
+              <ConsentAuthorizationDetail
+                key={element.name}
+                purposeId={purpose.purposeId}
+                element={element}
+                formValues={formValues}
+                onInputChange={onInputChange}
+                t={t}
+              />
+            ))}
+
+          {purpose.type !== 'authorization_details' && purpose.essential && purpose.essential.length > 0 && (
             <div className={sectionClass}>
               <div className={sectionHeaderClass}>
                 <Typography variant="subtitle2" fontWeight="bold">
@@ -196,7 +250,7 @@ const Consent: FC<ConsentProps> = ({consentData, formValues, onInputChange, chil
             </div>
           )}
 
-          {purpose.optional && purpose.optional.length > 0 && (
+          {purpose.type !== 'authorization_details' && purpose.optional && purpose.optional.length > 0 && (
             <div className={sectionClass}>
               <div className={optionalSectionHeaderClass}>
                 <div className={optionalSectionLabelClass}>

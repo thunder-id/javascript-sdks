@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import {ComponentsExtensions} from './extensions/components';
+import type {AuthorizationDetail} from './oauth-request';
 import type {OAuthResponseMode} from './oauth-response';
 import type {OIDCEndpoints} from './oidc-endpoints';
 import {TokenEndpointAuthMethod} from './token-endpoint-auth';
@@ -74,6 +75,23 @@ export interface SilentSignInConfig {
 }
 
 export interface BaseConfig<T = unknown> extends WithPreferences, WithExtensions {
+  /**
+   * Optional RFC 9396 authorization details to request, sent as the JSON-encoded `authorization_details`
+   * parameter on the authorization request, and on the token request under the `client_credentials` grant.
+   * Each entry names its `type`; the members that type defines go alongside it.
+   * The authorization details the server granted are returned on the token response (`authorizationDetails`
+   * from `signIn` on a server SDK). A browser app reads them from the `authorization_details` claim of the
+   * access token.
+   * The user consents to authorization details only on a hosted (redirect-based) sign-in, where the
+   * authorization server renders the consent; an app-native sign-in flow cannot carry them.
+   *
+   * @see {@link https://datatracker.ietf.org/doc/html/rfc9396}
+   *
+   * @example
+   * authorizationDetails: [{type: "payment_initiation", actions: ["initiate"], instructedAmount: {currency: "EUR", amount: "123.50"}}]
+   */
+  authorizationDetails?: AuthorizationDetail[];
+
   /**
    * Whether to enable PKCE (Proof Key for Code Exchange) for the authorization request.
    * Defaults to `true`. Disable only if your authorization server does not support PKCE.

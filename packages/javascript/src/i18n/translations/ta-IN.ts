@@ -184,6 +184,20 @@ const translations: I18nTranslations = {
   'consent.essential_claims.info': 'சேவை சரியாக செயல்பட இந்த பண்புகள் தேவை.',
   'consent.optional_claims.info': 'இந்த பண்புகள் விருப்பத்தேர்வு மற்றும் உங்கள் விருப்பப்படி வழங்கப்படலாம்.',
   'consent.authorize_scope.info': 'இந்த அனுமதிகள் கூடுதல் அம்சங்களை அணுக சேவைக்கு உதவுகின்றன.',
+  'consent.authorization_details.approve': 'அனுமதி',
+  'consent.authorization_details.show_more': 'மேலும் காட்டு',
+  'consent.authorization_details.show_less': 'குறைவாகக் காட்டு',
+  'consent.authorization_details.more_items': '+{count} மேலும்',
+  'consent.authorization_details.invalid_number': 'ஒரு எண்ணை உள்ளிடவும்.',
+  'consent.authorization_details.number_max': '{value} அல்லது அதற்குக் குறைவாக உள்ளிடவும்.',
+  'consent.authorization_details.number_min': '{value} அல்லது அதற்கு மேல் உள்ளிடவும்.',
+  'consent.authorization_details.invalid_date': 'ஒரு தேதியை உள்ளிடவும்.',
+  'consent.authorization_details.date_max': '{value} அல்லது அதற்கு முந்தைய தேதியைத் தேர்ந்தெடுக்கவும்.',
+  'consent.authorization_details.date_min': '{value} அல்லது அதற்குப் பிந்தைய தேதியைத் தேர்ந்தெடுக்கவும்.',
+  'consent.authorization_details.remove_item': '{item}, அகற்று',
+  'consent.authorization_details.add_item': '{item}, சேர்',
+  'consent.authorization_details.add_back_item': '{item}, மீண்டும் சேர்',
+  'consent.authorization_details.new_item': '{label}, சேர்',
 
   /* |---------------------------------------------------------------| */
   /* |                        Errors                                 | */

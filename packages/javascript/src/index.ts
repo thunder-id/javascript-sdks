@@ -99,6 +99,9 @@ export type {
   ConsentPurposeDecision,
   ConsentDecisions,
   ConsentPurposeData,
+  ConsentDetailRow,
+  ConsentDetailValueType,
+  ConsentDetailModification,
   ConsentPromptData,
   KeyValuePair,
   I18nMessage,
@@ -257,6 +260,8 @@ export type {
   AuthorizeRequestUrlParams,
   KnownExtendedAuthorizeRequestUrlParams,
   ExtendedAuthorizeRequestUrlParams,
+  AuthorizeRequestParamValue,
+  AuthorizationDetail,
 } from './models/oauth-request';
 export type {OIDCEndpoints} from './models/oidc-endpoints';
 export type {OIDCDiscoveryApiResponse} from './models/oidc-discovery';
@@ -286,6 +291,10 @@ export {default as extractPkceStorageKeyFromState} from './utils/extractPkceStor
 export {default as getLatestStateParam} from './utils/getLatestStateParam';
 export {default as generateFlattenedUserProfile} from './utils/generateFlattenedUserProfile';
 export {default as getRedirectBasedSignUpUrl} from './utils/getRedirectBasedSignUpUrl';
+export {default as getConsentModifiedKey, CONSENT_MODIFIED_KEY_PREFIX} from './utils/getConsentModifiedKey';
+export {default as getConsentModifiedValues} from './utils/getConsentModifiedValues';
+export {default as getConsentElementDecision} from './utils/getConsentElementDecision';
+export {default as getConsentInvalidKey, CONSENT_INVALID_KEY_PREFIX} from './utils/getConsentInvalidKey';
 export {default as isEmpty} from './utils/isEmpty';
 export {default as isEmojiUri, EMOJI_URI_SCHEME} from './utils/isEmojiUri';
 export {default as extractEmojiFromUri} from './utils/extractEmojiFromUri';
