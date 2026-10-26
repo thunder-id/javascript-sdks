@@ -12,33 +12,45 @@ allowBuilds:
 
 overrides:
   # JUSTIFICATION: Fixes GHSA-v422-hmwv-36x6 — body-parser silently disables its size limit on an
-  # invalid `limit` value, allowing a DoS. Transitive via samples/express/quickstart's `express`
-  # dependency (express > body-parser). express@4's own body-parser range (~1.20.5) already
-  # permits 1.20.6; remove once a fresh install picks it up without the override.
-  body-parser: 1.20.6
+  # invalid `limit` value, allowing a DoS — plus GHSA-27r3-jxmh-p828, a DoS via trailing bytes after
+  # a compressed request body, which needs >=1.20.9, above the previous 1.20.6 pin. Transitive via
+  # samples/express/quickstart's `express` dependency (express > body-parser). express@4's own
+  # body-parser range (~1.20.5) already permits 1.20.9; remove once a fresh install picks it up
+  # without the override.
+  body-parser: 1.20.9
   # JUSTIFICATION: Fixes GHSA-3jxr-9vmj-r5cp / GHSA-mh99-v99m-4gvg / GHSA-rgw5-rvv9-x895 —
-  # brace-expansion DoS via exponential/unbounded expansion of `{}` groups. Three major lines are
+  # brace-expansion DoS via exponential/unbounded expansion of `{}` groups — plus GHSA-qhr7-859c-m2p7
+  # / GHSA-6j4f-fj2g-mc7p (2026-10-02), stack exhaustion via uncontrolled recursion on nested brace
+  # groups and in `parseCommaParts`, which need >=1.1.20 / >=2.1.6 / >=5.0.11, above the previous
+  # 1.1.18 / 2.1.4 / 5.0.9 pins. Three major lines are
   # pulled in transitively, each needing its own pin: v1 via the root `@thunderid/eslint-plugin`
   # toolchain (eslint > minimatch > brace-expansion), v2 via packages/nuxt and packages/vue's
   # `@vue/test-utils` (js-beautify > glob > minimatch > brace-expansion), and v5 via the root
   # `rimraf` clean scripts (rimraf > glob > minimatch > brace-expansion). Upstream minimatch@latest
   # already depends on brace-expansion ^5.0.8, so the v5 pin can likely be dropped on the next
   # `pnpm update` once eslint/js-beautify's own lockfile entries catch up too.
-  brace-expansion@1: 1.1.18
-  brace-expansion@2: 2.1.4
-  brace-expansion@5: 5.0.9
+  brace-expansion@1: 1.1.21
+  brace-expansion@2: 2.1.7
+  brace-expansion@5: 5.0.12
+  # JUSTIFICATION: Fixes GHSA-j22f-vq7h-c4qm / GHSA-mcm9-63f2-9j32 / GHSA-x5rw-q4pp-hg5g — devalue
+  # `stringify`/`uneval` serializing shared memory, quadratic expansion of repeated primitive
+  # strings in `uneval`, and an unhandled rejection from `stringifyAsync`. Transitive via
+  # packages/nuxt's `nuxt` and `@nuxt/nitro-server`. Added 2026-10-02;
+  # remove once nuxt's own lockfile entry resolves devalue >=5.9.3 without the override.
+  devalue: 5.9.4
   # JUSTIFICATION: Fixes GHSA-52cp-r559-cp3m / GHSA-5p4m-2wfm-xmqj — js-yaml quadratic CPU
-  # consumption via YAML merge-key chains and `!!omap` resolution. Transitive via the root
-  # `eslint` > `@eslint/eslintrc` > `js-yaml`. `@eslint/eslintrc`@latest already declares
-  # `js-yaml: ^4.3.0`, which permits 4.3.1 — this pin can likely be removed once its lockfile
-  # entry is refreshed.
-  js-yaml: 4.3.1
+  # consumption via YAML merge-key chains and `!!omap` resolution — plus GHSA-2883-xcg3-v3hh
+  # (2026-09-11), where `maxTotalMergeKeys` fails to bound CPU use for empty merge sources, which
+  # the previous 4.3.1 pin did not cover. Transitive via the root `eslint` > `@eslint/eslintrc` >
+  # `js-yaml`. `@eslint/eslintrc`@latest already declares `js-yaml: ^4.3.0`, which permits 4.3.2 —
+  # this pin can likely be removed once its lockfile entry is refreshed.
+  js-yaml: 4.3.2
   # JUSTIFICATION: Fixes GHSA-28wg-ghj8-5hjv / GHSA-2v37-7h3g-55p8 — nanoid can loop indefinitely
   # given a negative or zero size. Two major lines are pulled in: v3 transitively via
   # packages/nextjs's `next` > `postcss` > `nanoid` (next still pins `postcss@8.4.31`, which pulls
   # an old nanoid — see the `postcss` override below), and v5 via packages/nuxt's
   # `@nuxt/devtools` > `@vue/devtools-core` > `nanoid`.
-  nanoid@3: 3.3.17
+  nanoid@3: 3.3.18
   nanoid@5: 5.1.16
   # JUSTIFICATION: Fixes GHSA-qx2v-qp2m-jg93 (XSS via unescaped `</style>` in stringify output),
   # GHSA-6g55-p6wh-862q / GHSA-r28c-9q8g-f849 / GHSA-fxqj-rqcc-2cmp (arbitrary file read via
@@ -48,20 +60,36 @@ overrides:
   # the override until Next.js bumps its own postcss pin (https://github.com/vercel/next.js).
   postcss: 8.5.23
   # JUSTIFICATION: Fixes GHSA-f88m-g3jw-g9cj — sharp inherits several libvips CVEs
-  # (CVE-2026-33327/33328/35590/35591). Transitive via packages/nextjs and
+  # (CVE-2026-33327/33328/35590/35591) — plus GHSA-rgj7-g3m4-5g8c (2026-09-11), which bundles the
+  # libheif flaws GHSA-g89c-p67h-r497 / GHSA-2jg2-4ch7-h545 and needs >=0.35.4, plus
+  # GHSA-wq5f-xc86-pv6w (2026-10-06), a librsvg memory flaw that can lead to RCE on glibc-based Linux
+  # and needs >=0.35.5, above the previous 0.35.4 pin. Transitive via packages/nextjs and
   # samples/nextjs/quickstart's `next` > `sharp` (Next.js image optimization).
-  sharp: 0.35.0
+  # `next`@latest already declares `sharp: ^0.35.4`, which permits 0.35.5 — this pin can likely be
+  # dropped once the lockfile entry is refreshed.
+  sharp: 0.35.5
   # JUSTIFICATION: Fixes GHSA-395f-4hp3-45gv — quadratic-complexity DoS in shell-quote's `parse()`.
   # Transitive via packages/nuxt's `@nuxt/devtools` > `launch-editor` > `shell-quote`. Note the
   # advisory's own "patched" floor (>=1.8.5) is stale — 1.8.5 was never published; 1.10.0 is the
-  # first published fix.
-  shell-quote: 1.10.0
+  # first published fix. Also fixes GHSA-pqg4-j6r4-53mv (2026-10-06, critical), `quote()` command
+  # injection via a line terminator in a token after a `{ comment }` token, which needs >=1.11.0,
+  # above the previous 1.10.0 pin. `launch-editor`@latest already declares `shell-quote: ^1.10.0`,
+  # which permits 1.12.0 — this pin can likely be dropped once the lockfile entry is refreshed.
+  shell-quote: 1.12.0
+  # JUSTIFICATION: Fixes GHSA-68fv-2mgg-jv7q — source-map-js event-loop DoS through indexed
+  # source-map section offsets. Transitive via `postcss`, `@vue/compiler-core`, `css-tree` and
+  # `magicast` across the vitest/vite/nuxt toolchains. Their ranges already permit 1.2.2; the
+  # lockfile just kept resolving 1.2.1, so this pin can likely be dropped once those entries are
+  # refreshed. Added 2026-10-06.
+  source-map-js: 1.2.2
   # JUSTIFICATION: Fixes GHSA-2p49-hgcm-8545 — SVGO's `removeScripts` plugin leaves some executable
-  # script content intact. Transitive via packages/nuxt's Vite build pipeline
+  # script content intact — plus GHSA-w27v-7q3p-w38r (2026-09-11), a follow-up bypass of the same
+  # plugin via namespaced and control-character-obfuscated links that needs >=4.1.0, above the
+  # previous 4.0.2 pin. Transitive via packages/nuxt's Vite build pipeline
   # (`@nuxt/vite-builder` > `cssnano` > `cssnano-preset-default` > `postcss-svgo` > `svgo`).
-  # `postcss-svgo`@latest already depends on `svgo: ^4.0.2`, so this pin can likely be dropped once
-  # nuxt's own lockfile entry for `postcss-svgo` is refreshed.
-  svgo: 4.0.2
+  # `postcss-svgo`@latest already depends on `svgo: ^4.0.2`, which permits 4.1.0, so this pin can
+  # likely be dropped once nuxt's own lockfile entry for `postcss-svgo` is refreshed.
+  svgo: 4.1.0
   # JUSTIFICATION: Fixes 5 node-tar advisories (GHSA-w8wr-v893-vjvp, GHSA-23hp-3jrh-7fpw,
   # GHSA-8x88-c5mf-7j5w, GHSA-gvwx-54wh-qm9j, GHSA-r292-9mhp-454m) — PAX path/NUL-byte parsing
   # crashes, an unbounded-decompression DoS, and a mapHas/filesFilter stack-overflow DoS. Transitive
@@ -70,6 +98,44 @@ overrides:
   # `@mapbox/node-pre-gyp`@latest already depends on `tar: ^7.4.0`, which permits 7.5.21 — this pin
   # can likely be dropped once nitropack/@vercel/nft's own lockfile entries are refreshed.
   tar: 7.5.21
+  # JUSTIFICATION: Fixes GHSA-587h-7wmj-h5pm (2026-10-21), where launch-editor's `fs.existsSync()`
+  # existence check can be bypassed on Windows; the 8.x line needs >=8.2.4. Transitive via the
+  # vite 8 that pnpm auto-installs for `vitest`'s peer range (`@thunderid/eslint-plugin` >
+  # `@vitest/eslint-plugin` > `vitest` > `vite`). `vitest` already permits 8.2.4, but pnpm keeps the
+  # peer at the locked 8.2.1 through `pnpm update` and `pnpm dedupe`. Drop the pin once a fresh
+  # lockfile resolves vite 8 at >=8.2.4 on its own. The same advisory also needs vite >=6.4.4
+  # (samples' `vite: ^6.3.5`) and >=7.3.7, and launch-editor >=2.14.2 (packages/nuxt's
+  # `@nuxt/devtools` > `launch-editor`). On main these came from a plain `pnpm update`; on this
+  # 1.0.3 maintenance branch they are pinned instead, so the lockfile doesn't drift.
+  launch-editor: 2.14.2
+  vite@6: 6.4.4
+  vite@7: 7.3.7
+  vite@8: 8.2.4
+  # The pins below backport fixes that main picked up through lockfile refreshes or head-dependency
+  # bumps. On this 1.0.3 maintenance branch they are pinned instead, so the lockfile doesn't drift
+  # and the SDKs' own dependency ranges stay as released. None of them affects what the published
+  # SDKs install for consumers; they are all reached through devDependencies or the samples.
+  # JUSTIFICATION: Fixes GHSA-c83g-rgw3-j3cx / GHSA-73wf-gq98-2v4g (browserslist). Transitive via
+  # packages/nuxt's `@nuxt/module-builder` and the vite/nuxt build toolchains.
+  browserslist: 4.28.8
+  # JUSTIFICATION: Fixes GHSA-jqcg-44mw-7w3h (critical, proxy-addr). Transitive via
+  # packages/express and samples/express/quickstart's `express` > `proxy-addr`.
+  proxy-addr: 2.0.8
+  # JUSTIFICATION: Fixes GHSA-p6vx-979v-rg4c (critical) / GHSA-jp82-f5mq-hwhp (seroval). Transitive
+  # via packages/tanstack-router's `@tanstack/react-router` > `@tanstack/router-core` (declares
+  # `seroval: ^1.4.2`) and packages/nuxt's `nuxt`.
+  seroval: 1.6.8
+  # JUSTIFICATION: Fixes GHSA-rfgv-xxqx-mfg5 / GHSA-w293-vg96-wgc3 / GHSA-vp8m-p9jh-q5pm /
+  # GHSA-xjj6-f33q-929c (undici 8.x). Transitive via samples/nuxt/quickstart's `nuxt` (4.x).
+  undici@8: 8.12.3
+  # JUSTIFICATION: Fixes GHSA-g2v6-rqmx-r4w6 (`@vue/server-renderer` >=3.5.42). `vue` pins every
+  # `@vue/*` runtime package to its own exact version, so `vue` itself is pinned to keep them in
+  # lockstep. Transitive via packages/nuxt and packages/vue's dev/test toolchain and the vue/nuxt
+  # samples.
+  vue: 3.5.43
+  # JUSTIFICATION: Fixes GHSA-mrhx-c7xc-m3w5 (zod). Transitive via the root
+  # `@thunderid/eslint-plugin` > `eslint-plugin-react-hooks` > `zod` (lint tooling only).
+  zod: 4.6.7
 
 auditConfig:
   ignoreGhsas:
@@ -82,6 +148,35 @@ auditConfig:
     # (chrome87/edge88/firefox78/safari14). Revisit once esbuild backports the fix to 0.27.x or
     # the sample's target list is modernized.
     - GHSA-g7r4-m6w7-qqqr
+    # JUSTIFICATION: GHSA-86w9-cpqp-85rv — node-forge accepts extra nested DigestAlgorithm elements
+    # during RSA PKCS#1 v1.5 signature verification. No patched release exists (1.4.0 is the
+    # latest and is affected). Transitive via nuxt's dev tooling (`@nuxt/cli` / `nitropack` >
+    # `listhen` > `node-forge`), which only uses it to generate RSA keys and self-signed
+    # certificates for the local HTTPS dev server — it never verifies signatures. Added
+    # 2026-10-02; revisit once node-forge publishes a fixed release.
+    - GHSA-86w9-cpqp-85rv
+    # JUSTIFICATION: GHSA-vfj7-8cjw-p6xm — braces stack-exhaustion DoS through deeply nested brace
+    # patterns. No patched release exists (3.0.3 is the latest and is affected). Transitive via
+    # nuxt's build tooling (`@nuxt/nitro-server` > `nitropack` > `globby` > `fast-glob` >
+    # `micromatch` > `braces`), which only expands glob patterns taken from the project's own
+    # config and filesystem at build time; no untrusted input reaches it at runtime and it is not
+    # part of the published SDK output. Added 2026-10-06; revisit once braces publishes a fix.
+    - GHSA-vfj7-8cjw-p6xm
+    # JUSTIFICATION: GHSA-x6jw-m9v5-85vh / GHSA-g4wm-2vf7-vfgr / GHSA-858h-whjf-mvg5 (simple-git) and
+    # GHSA-v5rq-49vh-5v5c (`@simple-git/argv-parser`) — simple-git's unsafe-operations guard can be
+    # bypassed (`trailer.<token>.cmd`, config includes, long-option abbreviations, `VISUAL`), but
+    # only when untrusted values reach `SimpleGitOptions.config` or the arguments passed to git.
+    # Transitive via packages/nuxt's `nuxt` > `@nuxt/devtools` >
+    # `simple-git`, where devtools (a dev-time tool) only runs `branch()`, `revparse(['--short',
+    # 'HEAD'])` and `status()` with fixed arguments on the project's own checkout. The patched
+    # 4.x line cannot be forced with an override: it drops the default export that
+    # `@nuxt/devtools` imports (`import Git from 'simple-git'`), which breaks the nuxt build, and
+    # `@nuxt/devtools`@latest (3.4.2) still declares `simple-git: ^3.36.0`. Added 2026-10-06;
+    # revisit once `@nuxt/devtools` ships a release that supports simple-git >=4.0.1.
+    - GHSA-x6jw-m9v5-85vh
+    - GHSA-g4wm-2vf7-vfgr
+    - GHSA-858h-whjf-mvg5
+    - GHSA-v5rq-49vh-5v5c
 
 catalog:
   '@emotion/css': 11.13.5
@@ -98,7 +193,7 @@ catalog:
   buffer: 6.0.3
   core-js: 3.42.0
   cross-fetch: 4.1.0
-  dompurify: 3.4.13
+  dompurify: 3.4.17
   eslint: 9.39.4
   fast-sha256: 1.3.0
   jose: 6.2.3
