@@ -47,6 +47,32 @@ describe('generateAvatarDataUri — letter variants', () => {
   });
 });
 
+describe('generateAvatarDataUri — untrusted content', () => {
+  it('counts letters by code point so an emoji is never split', () => {
+    expect(decodeURIComponent(generateAvatarDataUri(params({content: 'B😈'})))).toContain('>B😈<');
+    expect(decodeURIComponent(generateAvatarDataUri(params({content: '😈B', variant: 'one_letter'})))).toContain(
+      '>😈<',
+    );
+  });
+
+  it('replaces a lone surrogate in content instead of throwing', () => {
+    expect(decodeURIComponent(generateAvatarDataUri(params({content: '\uD83DB'})))).toContain('>\uFFFDB<');
+    expect(decodeURIComponent(generateAvatarDataUri(params({content: 'B\uDE08'})))).toContain('>B\uFFFD<');
+  });
+
+  it('replaces a lone surrogate in bg instead of throwing', () => {
+    expect(() => generateAvatarDataUri(params({content: 'AC', bg: '\uD83D'}))).not.toThrow();
+    expect(() => generateAvatarDataUri(params({content: '', variant: 'blank', bg: '\uD83D'}))).not.toThrow();
+    expect(() => generateAvatarDataUri(params({variant: 'anonymous_animal', bg: '\uD83D'}))).not.toThrow();
+    expect(() => generateAvatarDataUri(params({variant: 'anonymous_entity', bg: '\uD83D'}))).not.toThrow();
+  });
+
+  it('escapes markup characters in content', () => {
+    const svg = decodeURIComponent(generateAvatarDataUri(params({content: '<&'})));
+    expect(svg).toContain('>&lt;&amp;<');
+  });
+});
+
 describe('generateAvatarDataUri — blank variant', () => {
   it('renders the gradient background with no text', () => {
     const svg = decodeURIComponent(generateAvatarDataUri(params({content: '', variant: 'blank'})));
