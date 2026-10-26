@@ -1,6 +1,6 @@
 {
   "name": "@thunderid/nextjs",
-  "version": "1.0.8",
+  "version": "1.0.9",
   "description": "Next.js SDK for ThunderID",
   "keywords": [
     "thunderid",
@@ -48,8 +48,8 @@
     "test": "vitest"
   },
   "dependencies": {
-    "@thunderid/node": "workspace:^",
-    "@thunderid/react": "workspace:^",
+    "@thunderid/node": "workspace:*",
+    "@thunderid/react": "workspace:*",
     "@types/react": "catalog:",
     "jose": "catalog:",
     "tslib": "catalog:"

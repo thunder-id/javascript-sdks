@@ -403,7 +403,7 @@ importers:
   packages/browser:
     dependencies:
       '@thunderid/javascript':
-        specifier: workspace:^
+        specifier: workspace:*
         version: link:../javascript
       base64url:
         specifier: 'catalog:'
@@ -556,10 +556,10 @@ importers:
   packages/nextjs:
     dependencies:
       '@thunderid/node':
-        specifier: workspace:^
+        specifier: workspace:*
         version: link:../node
       '@thunderid/react':
-        specifier: workspace:^
+        specifier: workspace:*
         version: link:../react
       '@types/react':
         specifier: 'catalog:'
@@ -669,13 +669,13 @@ importers:
         specifier: 3.21.11
         version: 3.21.11(magicast@0.5.4)
       '@thunderid/browser':
-        specifier: workspace:^
+        specifier: workspace:*
         version: link:../browser
       '@thunderid/node':
-        specifier: workspace:^
+        specifier: workspace:*
         version: link:../node
       '@thunderid/vue':
-        specifier: workspace:^
+        specifier: workspace:*
         version: link:../vue
       defu:
         specifier: 6.1.5
@@ -733,7 +733,7 @@ importers:
         specifier: 'catalog:'
         version: 0.27.12(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
       '@thunderid/browser':
-        specifier: workspace:^
+        specifier: workspace:*
         version: link:../browser
       dompurify:
         specifier: 'catalog:'
@@ -904,7 +904,7 @@ importers:
   packages/vue:
     dependencies:
       '@thunderid/browser':
-        specifier: workspace:^
+        specifier: workspace:*
         version: link:../browser
       dompurify:
         specifier: 'catalog:'

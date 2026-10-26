@@ -1,6 +1,6 @@
 {
   "name": "@thunderid/react",
-  "version": "1.0.8",
+  "version": "1.0.9",
   "description": "React SDK for ThunderID",
   "keywords": [
     "thunderid",
@@ -73,7 +73,7 @@
   "dependencies": {
     "@emotion/css": "catalog:",
     "@floating-ui/react": "catalog:",
-    "@thunderid/browser": "workspace:^",
+    "@thunderid/browser": "workspace:*",
     "dompurify": "catalog:",
     "tslib": "catalog:"
   },

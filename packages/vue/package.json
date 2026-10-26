@@ -1,6 +1,6 @@
 {
   "name": "@thunderid/vue",
-  "version": "1.0.7",
+  "version": "1.0.9",
   "description": "Vue SDK for ThunderID",
   "keywords": [
     "thunderid",
@@ -69,7 +69,7 @@
     }
   },
   "dependencies": {
-    "@thunderid/browser": "workspace:^",
+    "@thunderid/browser": "workspace:*",
     "dompurify": "catalog:",
     "tslib": "catalog:"
   },
