@@ -76,10 +76,17 @@ runs:
         # instead of hanging the step waiting for keystrokes that never come. Runners have no
         # controlling terminal anyway, but this keeps the behavior guaranteed rather than
         # incidental — see the identical note in tests/e2e/run-e2e.sh.
-        THUNDERID_ADMIN_USERNAME=admin THUNDERID_ADMIN_PASSWORD=admin \
-          setsid npx --yes thunderid --verbose < /dev/null || true
+        #
+        # The release download from GitHub occasionally fails with a transient 5xx, so retry it.
+        for attempt in 1 2 3; do
+          THUNDERID_ADMIN_USERNAME=admin THUNDERID_ADMIN_PASSWORD=admin \
+            setsid npx --yes thunderid --verbose < /dev/null || true
 
-        DIST_HOME=$(find "$PWD/thunderid" -maxdepth 1 -type d -name 'v*' | head -1)
+          DIST_HOME=$(find "$PWD/thunderid" -maxdepth 1 -type d -name 'v*' 2>/dev/null | head -1 || true)
+          [ -n "$DIST_HOME" ] && break
+          echo "npx thunderid did not install a release (attempt $attempt/3), retrying in 15s"
+          sleep 15
+        done
         if [ -z "$DIST_HOME" ]; then
           echo "ERROR: npx thunderid did not produce an installed ThunderID release" && exit 1
         fi
