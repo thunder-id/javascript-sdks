@@ -5,6 +5,9 @@ import {
   AuthClientConfig,
   BackchannelLogoutConstants,
   BackchannelLogoutResult,
+  EmbeddedSelfFlowRequest,
+  EmbeddedSelfFlowResponse,
+  executeEmbeddedSelfFlow,
   ExtendedAuthorizeRequestUrlParams,
   getFlows,
   getUsers,
@@ -440,6 +443,27 @@ class ThunderIDNodeClient<T extends ThunderIDNodeConfig = ThunderIDNodeConfig> e
       },
       payload,
       url: resolveResourceEndpoint('usersMeCredentials', configData),
+    });
+  }
+
+  /**
+   * Executes one step of a `SELF` flow, such as self attribute verification, for the signed-in
+   * user of the session identified by `userId`. The server takes the user from the access token, which
+   * stays on the server; the caller sends no user identifier.
+   */
+  public async executeEmbeddedSelfFlow(
+    payload: EmbeddedSelfFlowRequest,
+    userId?: string,
+  ): Promise<EmbeddedSelfFlowResponse> {
+    const configData: AuthClientConfig<T> = await this.getStorageManager().getConfigData();
+
+    return executeEmbeddedSelfFlow({
+      baseUrl: configData?.baseUrl,
+      headers: {
+        Authorization: `Bearer ${await this.getAccessToken(userId)}`,
+      },
+      payload,
+      url: resolveResourceEndpoint('flowExecute', configData),
     });
   }
 

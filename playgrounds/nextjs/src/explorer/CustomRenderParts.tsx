@@ -22,7 +22,13 @@ import {
   BaseUserList,
   type BaseUserListRenderProps,
 } from '@thunderid/nextjs';
-import {type DataTableColumn, type ManagedUser, useTheme} from '@thunderid/react';
+import {
+  type BaseVerifyAttributeRenderProps,
+  type DataTableColumn,
+  type EmbeddedFlowComponent,
+  type ManagedUser,
+  useTheme,
+} from '@thunderid/react';
 import {ReactElement, ReactNode, useMemo, useState} from 'react';
 import {SAMPLE_USERS} from './customRenderSamples';
 import {bool, num, str} from './helpers';
@@ -204,5 +210,73 @@ export const SampleUserGrid = ({action, args}: {action: Action; args: Args}): Re
     >
       {(props: BaseUserListRenderProps) => <UserDataGrid {...props} />}
     </BaseUserList>
+  );
+};
+
+// The step's components of the given types, at any depth.
+const flowComponents = (components: EmbeddedFlowComponent[], types: string[]): EmbeddedFlowComponent[] =>
+  components.flatMap((component: EmbeddedFlowComponent) => [
+    ...(types.includes(component.type) ? [component] : []),
+    ...flowComponents(component.components ?? [], types),
+  ]);
+
+const INPUT_TYPES: string[] = ['TEXT_INPUT', 'EMAIL_INPUT', 'PHONE_INPUT', 'OTP_INPUT', 'PASSWORD_INPUT'];
+
+/** A verification step's render props drawn with MUI: the step's inputs and actions, resend and cancel. */
+export const VerifyForm = (step: BaseVerifyAttributeRenderProps): ReactElement => {
+  const isActive: boolean = !step.isComplete && !step.isFailed;
+
+  return (
+    <Card variant="outlined">
+      <CardHeader title={step.title} subheader={[step.subtitle, step.destinationText].filter(Boolean).join(' ')} />
+      <CardContent>
+        <Stack spacing={2}>
+          {step.error && <MuiAlert severity="error">{step.error}</MuiAlert>}
+          {step.isComplete && <MuiAlert severity="success">{step.successMessage}</MuiAlert>}
+          {isActive &&
+            flowComponents(step.components, INPUT_TYPES).map((input: EmbeddedFlowComponent) => {
+              const name: string = input.ref ?? input.id;
+
+              return (
+                <TextField
+                  key={name}
+                  label={String(input.label ?? name)}
+                  autoComplete="one-time-code"
+                  size="small"
+                  value={step.values[name] ?? ''}
+                  error={!!(step.touched[name] && step.fieldErrors[name])}
+                  helperText={step.touched[name] ? step.fieldErrors[name] : undefined}
+                  onChange={(event) => step.handleInputChange(name, event.target.value)}
+                />
+              );
+            })}
+        </Stack>
+      </CardContent>
+      <CardActions sx={{justifyContent: 'flex-end'}}>
+        {step.onCancel && <Button onClick={step.onCancel}>{isActive ? 'Cancel' : 'Close'}</Button>}
+        {step.handleResend && (
+          <Button disabled={step.isLoading} onClick={() => void step.handleResend?.()}>
+            Send a new code
+          </Button>
+        )}
+        {step.onDone && (
+          <Button variant="contained" onClick={step.onDone}>
+            Done
+          </Button>
+        )}
+        {isActive &&
+          flowComponents(step.components, ['ACTION']).map((action: EmbeddedFlowComponent) => (
+            <Button
+              key={action.id}
+              variant="contained"
+              disabled={!step.isValid || step.isLoading}
+              loading={step.isLoading}
+              onClick={() => void step.handleSubmit(action, step.values)}
+            >
+              {String(action.label ?? action.id)}
+            </Button>
+          ))}
+      </CardActions>
+    </Card>
   );
 };

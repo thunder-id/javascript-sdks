@@ -17,7 +17,7 @@ import I18nProvider from '../../../../contexts/I18n/I18nProvider';
 import ThemeContext, {ThemeContextValue} from '../../../../contexts/Theme/ThemeContext';
 import {UseTranslation} from '../../../../hooks/useTranslation';
 import {chooseOption} from '../../../primitives/Select/__tests__/selectTestUtils';
-import {renderInviteUserComponents, renderSignInComponents} from '../AuthOptionFactory';
+import {renderInviteUserComponents, renderSignInComponents, renderVerificationComponents} from '../AuthOptionFactory';
 
 const richTextWithLink = (label: string, action?: {ref: string; eventType?: string}): EmbeddedFlowComponent => ({
   action,
@@ -938,5 +938,112 @@ describe('AuthOptionFactory custom renderers', () => {
     expect(elements.map((element) => element.key)).toEqual(['action_a', 'action_b']);
     expect(errorSpy.mock.calls.some(([message]) => String(message).includes('unique "key" prop'))).toBe(false);
     errorSpy.mockRestore();
+  });
+});
+
+describe('AuthOptionFactory RESEND', () => {
+  afterEach(cleanup);
+
+  const resend: EmbeddedFlowComponent = {
+    eventType: EmbeddedFlowEventType.Submit,
+    id: 'action_resend',
+    label: 'Resend code',
+    type: EmbeddedFlowComponentType.Resend,
+  };
+
+  // The code prompt the server ships: a required code, the primary submit and a resend in one block.
+  const codeBlock: EmbeddedFlowComponent = {
+    components: [
+      {id: 'input_otp', label: 'Code', ref: 'otp', required: true, type: EmbeddedFlowComponentType.OtpInput},
+      {
+        eventType: EmbeddedFlowEventType.Submit,
+        id: 'action_verify',
+        label: 'Verify',
+        type: EmbeddedFlowComponentType.Action,
+        variant: 'PRIMARY',
+      },
+      resend,
+    ],
+    id: 'block_otp',
+    type: EmbeddedFlowComponentType.Block,
+  };
+
+  // Renders a step whose code is only partly typed, so the step is not valid yet.
+  const renderStep = (
+    components: EmbeddedFlowComponent[],
+    onSubmit: (submitted: EmbeddedFlowComponent, data?: Record<string, string>, skipValidation?: boolean) => void,
+    {
+      isLoading = false,
+      isTimeoutDisabled = false,
+      renderer = renderVerificationComponents,
+    }: {isLoading?: boolean; isTimeoutDisabled?: boolean; renderer?: typeof renderSignInComponents} = {},
+  ): ReturnType<typeof render> =>
+    render(
+      <I18nProvider>
+        <ThemeContext.Provider
+          value={{colorScheme: 'light', direction: 'ltr', theme: createTheme(), toggleTheme: vi.fn()}}
+        >
+          {renderer(
+            components,
+            {otp: '12'},
+            {otp: true},
+            {otp: 'Enter the full code.'},
+            isLoading,
+            false,
+            () => undefined,
+            () => undefined,
+            {isTimeoutDisabled, onSubmit},
+          )}
+        </ThemeContext.Provider>
+      </I18nProvider>,
+    );
+
+  it('submits its own action from the code block without the entered code or its validation', () => {
+    const onSubmit = vi.fn();
+    renderStep([codeBlock], onSubmit);
+
+    expect(screen.getByRole('button', {name: 'Verify'})).toBeDisabled();
+    fireEvent.click(screen.getByRole('button', {name: 'Resend code'}));
+
+    expect(onSubmit).toHaveBeenCalledTimes(1);
+    expect(onSubmit).toHaveBeenCalledWith(resend, {}, true);
+  });
+
+  it('submits its own action when it stands outside a block', () => {
+    const onSubmit = vi.fn();
+    renderStep([resend], onSubmit);
+
+    fireEvent.click(screen.getByRole('button', {name: 'Resend code'}));
+
+    expect(onSubmit).toHaveBeenCalledWith(resend, {}, true);
+  });
+
+  it('cannot be pressed while a request is in flight', () => {
+    renderStep([resend], vi.fn(), {isLoading: true});
+
+    expect(screen.getByRole('button', {name: 'Resend code'})).toBeDisabled();
+  });
+
+  it('cannot be pressed once the time allowed for the step has run out', () => {
+    renderStep([resend], vi.fn(), {isTimeoutDisabled: true});
+
+    expect(screen.getByRole('button', {name: 'Resend code'})).toBeDisabled();
+  });
+
+  it('is skipped by sign-in, which renders the step as if it had no resend', () => {
+    const {container} = renderStep([codeBlock], vi.fn(), {renderer: renderSignInComponents});
+    expect(screen.queryByRole('button', {name: 'Resend code'})).toBeNull();
+    const withResend: string = container.innerHTML;
+    cleanup();
+
+    const withoutResend: string = renderStep(
+      [{...codeBlock, components: codeBlock.components!.filter((c: EmbeddedFlowComponent) => c !== resend)}],
+      vi.fn(),
+      {renderer: renderSignInComponents},
+    ).container.innerHTML;
+
+    // Each render gets its own React-generated ids.
+    const withoutIds = (html: string): string => html.replace(/_r_[^_]+_/g, '_r_');
+    expect(withoutIds(withResend)).toBe(withoutIds(withoutResend));
   });
 });

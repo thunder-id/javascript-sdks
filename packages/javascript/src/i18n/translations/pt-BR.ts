@@ -124,6 +124,26 @@ const translations: I18nTranslations = {
   'user.profile.update.generic.error': 'Ocorreu um erro ao atualizar seu perfil. Tente novamente.',
 
   /* |---------------------------------------------------------------| */
+  /* |                       User Verification                       | */
+  /* |---------------------------------------------------------------| */
+
+  'user.verification.status.verified': 'Verificado',
+  'user.verification.status.unverified': 'Não verificado',
+  'user.verification.status.verified_at': 'Verificado em {date}',
+  'user.verification.buttons.verify.text': 'Verificar',
+  'user.verification.buttons.cancel.text': 'Cancelar',
+  'user.verification.buttons.close.text': 'Fechar',
+  'user.verification.buttons.done.text': 'Concluído',
+  'user.verification.heading': 'Verificar {attribute}',
+  'user.verification.subheading': 'Digite o código enviado para {destination}.',
+  'user.verification.subheading.generic': 'Digite o código enviado para você.',
+  'user.verification.subheading.link':
+    'Enviamos um link de verificação para {destination}. Abra-o e selecione Concluído.',
+  'user.verification.destination': 'Enviado para {destination}.',
+  'user.verification.success': 'Verificação de {attribute} concluída.',
+  'user.verification.error': 'Falha na verificação. Tente novamente.',
+
+  /* |---------------------------------------------------------------| */
   /* |                        Change Password                        | */
   /* |---------------------------------------------------------------| */
 

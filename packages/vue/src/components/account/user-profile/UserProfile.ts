@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import {
+  AttributeVerificationConstants,
   Preferences,
   ThunderIDError,
   User,
@@ -20,11 +21,12 @@ import {
   ref,
   type Ref,
 } from 'vue';
-import BaseUserProfile from './BaseUserProfile';
+import BaseUserProfile, {type BaseUserProfileVerificationSlotProps} from './BaseUserProfile';
 import updateMeProfile from '../../../api/account/updateMeProfile';
 import useI18n from '../../../composables/useI18n';
 import useThunderID from '../../../composables/useThunderID';
 import useUser from '../../../composables/useUser';
+import VerifyAttribute from '../verify-attribute/VerifyAttribute';
 
 type UserProfileProps = Readonly<{
   avatarSize: 'sm' | 'md' | 'lg';
@@ -38,6 +40,7 @@ type UserProfileProps = Readonly<{
   showAvatar: boolean;
   showFields: string[];
   title: string;
+  verificationFlowHandle: string;
 }>;
 
 const UserProfile: Component = defineComponent({
@@ -74,6 +77,8 @@ const UserProfile: Component = defineComponent({
     showFields: {default: () => [], type: Array as PropType<string[]>},
     /** Card header title. */
     title: {default: 'Profile', type: String},
+    /** Handle of the `SELF` flow that verifies an attribute. */
+    verificationFlowHandle: {default: AttributeVerificationConstants.DEFAULT_FLOW_HANDLE, type: String},
   },
   setup(props: UserProfileProps, {slots}: SetupContext): () => VNode {
     const {baseUrl, endpoints, instanceId, preferences: contextPreferences} = useThunderID();
@@ -139,6 +144,25 @@ const UserProfile: Component = defineComponent({
       }
     }
 
+    const renderVerification = ({
+      attribute,
+      attributeDisplayName,
+      onCancel,
+      onComplete,
+    }: BaseUserProfileVerificationSlotProps): VNode =>
+      h(VerifyAttribute, {
+        attribute,
+        attributeDisplayName,
+        flowHandle: props.verificationFlowHandle,
+        key: attribute,
+        onCancel,
+        onComplete,
+        onDone: onCancel,
+        preferences: resolvedPreferences.value,
+        // A compact profile shows the panel under the row as a card; otherwise it opens in a dialog.
+        variant: props.compact ? 'outlined' : 'flat',
+      });
+
     return (): VNode =>
       h(
         BaseUserProfile,
@@ -162,7 +186,7 @@ const UserProfile: Component = defineComponent({
           title: props.title,
           userSchema: userSchema?.value,
         },
-        slots,
+        isEditableProfile.value ? {verification: renderVerification, ...slots} : slots,
       );
   },
 });

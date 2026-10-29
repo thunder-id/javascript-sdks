@@ -9,6 +9,7 @@ import {
   hasPermission,
   type AgentConfig,
   type CIBAInitiateOptions,
+  type EmbeddedSelfFlowRequest,
   type ExtendedAuthorizeRequestUrlParams,
   type ManagementListOptions,
   type RoleAssigneeType,
@@ -192,6 +193,11 @@ const getUserTypes: Runner = ({client, params, sessionId}) =>
   client.getUserTypes({limit: num(params['limit']), offset: num(params['offset'])}, sessionId);
 // #endregion
 
+// #region executeEmbeddedSelfFlow
+const executeEmbeddedSelfFlow: Runner = ({args, client, sessionId}) =>
+  client.executeEmbeddedSelfFlow(args as EmbeddedSelfFlowRequest, sessionId);
+// #endregion
+
 // #region updateUserCredentials
 const updateUserCredentials: Runner = async ({args, client, sessionId}) => {
   await client.updateUserCredentials(args as Record<string, string>, sessionId);
@@ -277,6 +283,7 @@ const runners: Record<string, Runner> = {
   clientCredentials,
   decodeJwtToken,
   exchangeToken,
+  executeEmbeddedSelfFlow,
   getAccessToken,
   getConfiguration,
   getDecodedIdToken,
