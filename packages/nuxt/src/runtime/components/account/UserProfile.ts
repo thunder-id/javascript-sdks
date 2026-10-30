@@ -1,9 +1,10 @@
 // Copyright 2025 The ThunderID Authors
 // SPDX-License-Identifier: Apache-2.0
 
-import {deepMerge, withVendorCSSClassPrefix} from '@thunderid/browser';
-import {BaseUserProfile} from '@thunderid/vue';
-import {type Component, type PropType, type SetupContext, type VNode, defineComponent, h} from 'vue';
+import {AttributeVerificationConstants, deepMerge, withVendorCSSClassPrefix} from '@thunderid/browser';
+import {BaseUserProfile, type BaseUserProfileVerificationSlotProps, useI18n} from '@thunderid/vue';
+import {type Component, type PropType, type Ref, type SetupContext, type VNode, defineComponent, h, ref} from 'vue';
+import VerifyAttribute from './VerifyAttribute';
 import {useUser} from '#imports';
 
 /**
@@ -30,6 +31,8 @@ const UserProfile: Component = defineComponent({
     hideFields: {default: () => [], type: Array as PropType<string[]>},
     showFields: {default: () => [], type: Array as PropType<string[]>},
     title: {default: 'Profile', type: String},
+    /** Handle of the `SELF_SERVICE` flow that verifies an attribute. */
+    verificationFlowHandle: {default: AttributeVerificationConstants.DEFAULT_FLOW_HANDLE, type: String},
   },
   setup(
     props: Readonly<{
@@ -39,10 +42,15 @@ const UserProfile: Component = defineComponent({
       hideFields: string[];
       showFields: string[];
       title: string;
+      verificationFlowHandle: string;
     }>,
     {slots}: SetupContext,
   ): () => VNode {
     const {flattenedProfile, profile, updateProfile, userSchema} = useUser();
+    const {t} = useI18n();
+
+    // A failed save is shown, and drops the verification the save would have opened.
+    const error: Ref<string | null> = ref<string | null>(null);
 
     // `BaseUserProfile` saves one field at a time (`onUpdate({fieldName: value})`), but
     // `PATCH /api/auth/user/profile` -> the backend's `PUT /users/me` validates the submitted
@@ -65,8 +73,29 @@ const UserProfile: Component = defineComponent({
         }
       });
 
-      await updateProfile({payload: updatedAttributes} as any);
+      error.value = null;
+      const result: Awaited<ReturnType<NonNullable<typeof updateProfile>>> = await updateProfile({
+        payload: updatedAttributes,
+      } as any);
+      // `result.error` carries the route and server text, which is not meant for the user.
+      if (result && !result.success) {
+        error.value = t('user.profile.update.generic.error');
+      }
     }
+
+    const renderVerification = ({
+      attribute,
+      attributeDisplayName,
+      onCancel,
+    }: BaseUserProfileVerificationSlotProps): VNode =>
+      h(VerifyAttribute, {
+        attribute,
+        attributeDisplayName,
+        flowHandle: props.verificationFlowHandle,
+        key: attribute,
+        onCancel,
+        onDone: onCancel,
+      });
 
     return (): VNode =>
       h(
@@ -76,15 +105,17 @@ const UserProfile: Component = defineComponent({
           class: withVendorCSSClassPrefix('user-profile--styled'),
           className: props.className,
           editable: props.editable,
+          error: error.value,
           flattenedProfile: flattenedProfile?.value,
           hideFields: props.hideFields,
           onUpdate: updateProfile ? handleProfileUpdate : undefined,
           profile: profile?.value?.profile ?? flattenedProfile?.value,
           showFields: props.showFields,
+          t,
           title: props.title,
           userSchema: userSchema?.value,
         },
-        slots,
+        updateProfile ? {verification: renderVerification, ...slots} : slots,
       );
   },
 });

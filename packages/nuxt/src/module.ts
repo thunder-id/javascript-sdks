@@ -206,6 +206,11 @@ export default defineNuxtModule<ThunderIDNuxtConfig>({
         method: 'patch' as const,
         route: NuxtAPIRoutes.USER_CREDENTIALS,
       },
+      {
+        handler: resolve('./runtime/server/routes/auth/user/self-service-flow.post'),
+        method: 'post' as const,
+        route: NuxtAPIRoutes.USER_SELF_SERVICE_FLOW,
+      },
     ];
 
     // Opt-in: the route accepts unauthenticated requests, so it is served only when asked for.
@@ -290,6 +295,7 @@ export default defineNuxtModule<ThunderIDNuxtConfig>({
     addComponent({filePath: resolve('./runtime/components/account/UserProfile'), name: 'UserProfile'});
     addComponent({filePath: resolve('./runtime/components/account/UserDropdown'), name: 'UserDropdown'});
     addComponent({filePath: resolve('./runtime/components/account/ChangeCredential'), name: 'ChangeCredential'});
+    addComponent({filePath: resolve('./runtime/components/account/VerifyAttribute'), name: 'VerifyAttribute'});
 
     // ── Management pickers ──────────────────────────────────────────────────
     // Opt-in: each picker's route lists a management resource with the signed-in user's session, so the route and its

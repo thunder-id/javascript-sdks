@@ -1,20 +1,33 @@
-// Copyright 2025 The ThunderID Authors
+// Copyright 2025-2026 The ThunderID Authors
 // SPDX-License-Identifier: Apache-2.0
 
-import {ThunderIDError, User, deepMerge, resolveResourceEndpoint} from '@thunderid/browser';
-import {FC, ReactElement, useState} from 'react';
+import {
+  AttributeVerificationConstants,
+  ThunderIDError,
+  User,
+  deepMerge,
+  resolveResourceEndpoint,
+} from '@thunderid/browser';
+import {FC, ReactElement, ReactNode, useState} from 'react';
 // eslint-disable-next-line import/no-named-as-default
-import BaseUserProfile, {BaseUserProfileProps} from './BaseUserProfile';
+import BaseUserProfile, {BaseUserProfileProps, BaseUserProfileVerificationRenderProps} from './BaseUserProfile';
 import updateMeProfile from '../../../api/account/updateMeProfile';
 import useThunderID from '../../../contexts/ThunderID/useThunderID';
 import useUser from '../../../contexts/User/useUser';
 import useTranslation from '../../../hooks/useTranslation';
+import VerifyAttribute from '../VerifyAttribute/VerifyAttribute';
 
 /**
  * Props for the UserProfile component.
  * Extends BaseUserProfileProps but makes the user prop optional since it will be obtained from useThunderID
  */
-export type UserProfileProps = Omit<BaseUserProfileProps, 'user' | 'profile' | 'flattenedProfile'>;
+export type UserProfileProps = Omit<BaseUserProfileProps, 'user' | 'profile' | 'flattenedProfile'> & {
+  /**
+   * Handle of the `SELF_SERVICE` flow that verifies an attribute. Defaults to the server's shipped
+   * `default-self-attribute-verification-flow`.
+   */
+  verificationFlowHandle?: string;
+};
 
 /**
  * UserProfile component displays the authenticated user's profile information in a
@@ -49,7 +62,12 @@ export type UserProfileProps = Omit<BaseUserProfileProps, 'user' | 'profile' | '
  * />
  * ```
  */
-const UserProfile: FC<UserProfileProps> = ({preferences, editable = true, ...rest}: UserProfileProps): ReactElement => {
+const UserProfile: FC<UserProfileProps> = ({
+  preferences,
+  editable = true,
+  verificationFlowHandle = AttributeVerificationConstants.DEFAULT_FLOW_HANDLE,
+  ...rest
+}: UserProfileProps): ReactElement => {
   const {baseUrl, endpoints, instanceId, preferences: contextPreferences} = useThunderID();
   const {profile, flattenedProfile, onUpdateProfile, userSchema} = useUser();
   const resolvedPreferences = {
@@ -98,8 +116,25 @@ const UserProfile: FC<UserProfileProps> = ({preferences, editable = true, ...res
     }
   };
 
+  const renderVerification = ({
+    attribute,
+    attributeDisplayName,
+    onCancel,
+  }: BaseUserProfileVerificationRenderProps): ReactNode => (
+    <VerifyAttribute
+      key={attribute}
+      attribute={attribute}
+      attributeDisplayName={attributeDisplayName}
+      flowHandle={verificationFlowHandle}
+      preferences={resolvedPreferences}
+      onCancel={onCancel}
+      onDone={onCancel}
+    />
+  );
+
   return (
     <BaseUserProfile
+      renderVerification={isEditableProfile ? renderVerification : undefined}
       profile={profile ?? undefined}
       flattenedProfile={flattenedProfile ?? undefined}
       userSchema={userSchema ?? undefined}

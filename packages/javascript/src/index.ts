@@ -16,6 +16,8 @@ export {default as executeEmbeddedSignUpFlow} from './api/auth/executeEmbeddedSi
 export {default as executeEmbeddedRecoveryFlow} from './api/auth/executeEmbeddedRecoveryFlow';
 export {default as executeEmbeddedUserOnboardingFlow} from './api/auth/executeEmbeddedUserOnboardingFlow';
 export type {EmbeddedUserOnboardingFlowResponse} from './api/auth/executeEmbeddedUserOnboardingFlow';
+export {default as executeEmbeddedSelfServiceFlow} from './api/auth/executeEmbeddedSelfServiceFlow';
+export type {ExecuteEmbeddedSelfServiceFlowConfig} from './api/auth/executeEmbeddedSelfServiceFlow';
 export {default as getFlowMeta} from './api/auth/getFlowMeta';
 export {default as getOrganizationUnitChildren} from './api/management/organization-units/getOrganizationUnitChildren';
 export type {GetOrganizationUnitChildrenConfig} from './api/management/organization-units/getOrganizationUnitChildren';
@@ -427,6 +429,7 @@ export {default as UserSelectConstants} from './constants/UserSelectConstants';
 export {default as AuthFlowSelectConstants} from './constants/AuthFlowSelectConstants';
 export {default as UserTypeSelectConstants} from './constants/UserTypeSelectConstants';
 export {default as SelectConstants} from './constants/SelectConstants';
+export {default as AttributeVerificationConstants} from './constants/AttributeVerificationConstants';
 
 export {default as ThunderIDError} from './errors/ThunderIDError';
 export {default as ThunderIDAPIError} from './errors/ThunderIDAPIError';
@@ -507,6 +510,11 @@ export type {
   EmbeddedRecoveryFlowRequest,
   EmbeddedRecoveryFlowErrorResponse,
 } from './models/embedded-recovery-flow';
+export {EmbeddedSelfServiceFlowStatus} from './models/embedded-self-service-flow';
+export type {
+  EmbeddedSelfServiceFlowResponse,
+  EmbeddedSelfServiceFlowRequest,
+} from './models/embedded-self-service-flow';
 export {FlowMetaType} from './models/flow-meta';
 export type {
   ApplicationMetadata,
@@ -851,7 +859,7 @@ export type {
 export type {OIDCEndpoints} from './models/oidc-endpoints';
 export type {OIDCDiscoveryApiResponse} from './models/oidc-discovery';
 export type {Storage, TemporaryStore} from './models/store';
-export type {User, UserProfile} from './models/user';
+export type {User, UserProfile, VerifiedAttribute} from './models/user';
 export type {SessionData} from './models/session';
 export type {BackendBypass, BackendEndpoints, BackendSession, ResolvedBackendEndpoints} from './models/backend';
 export type {TranslationFn} from './models/translation';
@@ -893,6 +901,10 @@ export {default as isRecognizedBaseUrlPattern} from './utils/isRecognizedBaseUrl
 export {default as extractPkceStorageKeyFromState} from './utils/extractPkceStorageKeyFromState';
 export {default as getLatestStateParam} from './utils/getLatestStateParam';
 export {default as generateFlattenedUserProfile} from './utils/generateFlattenedUserProfile';
+export {default as getFlowStepComponents} from './utils/getFlowStepComponents';
+export type {FlowStepComponents} from './utils/getFlowStepComponents';
+export {default as getVerifiedAttributes} from './utils/getVerifiedAttributes';
+export {default as isVerifiableAttribute} from './utils/isVerifiableAttribute';
 export {default as getRedirectBasedSignUpUrl} from './utils/getRedirectBasedSignUpUrl';
 export {default as getConsentModifiedKey, CONSENT_MODIFIED_KEY_PREFIX} from './utils/getConsentModifiedKey';
 export {default as getConsentModifiedValues} from './utils/getConsentModifiedValues';
@@ -927,6 +939,8 @@ export {default as loadUntilOptionsGrow} from './utils/loadUntilOptionsGrow';
 export {default as capPageSize} from './utils/capPageSize';
 export {default as resolvePageSize} from './utils/resolvePageSize';
 export {default as parseSelectPageQuery} from './utils/parseSelectPageQuery';
+export {default as parseSelfServiceFlowRequest} from './utils/parseSelfServiceFlowRequest';
+export type {SelfServiceFlowRequestParseResult} from './utils/parseSelfServiceFlowRequest';
 export {default as getSelectMessages} from './utils/getSelectMessages';
 export {default as toError} from './utils/toError';
 export type {OptionsBatchIssue, OptionsMergeResult, OptionsMergeState} from './utils/mergeOptionsBatch';

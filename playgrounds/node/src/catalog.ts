@@ -436,6 +436,24 @@ const operations: OperationSpec[] = [
     summary: 'List user types.',
   },
   {
+    args: json({
+      flowType: 'SELF_SERVICE',
+      handle: 'default-self-attribute-verification-flow',
+      inputs: {attribute: 'email'},
+    }),
+    call: 'client.executeEmbeddedSelfServiceFlow(payload, sessionId)',
+    description:
+      "Runs one step of a SELF_SERVICE flow for the signed-in user, with the session access token. The starting step shown verifies the user's email and sends a real code; continue with the returned executionId, challengeToken and the action and inputs of the next step.",
+    group: 'Management API',
+    id: 'executeEmbeddedSelfServiceFlow',
+    network: true,
+    params: [],
+    regions: ['executeEmbeddedSelfServiceFlow'],
+    returns: 'Promise<EmbeddedSelfServiceFlowResponse>',
+    session: true,
+    summary: 'Run a self-service flow step.',
+  },
+  {
     args: json({password: ''}),
     call: 'client.updateUserCredentials(payload, sessionId)',
     description:

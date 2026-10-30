@@ -125,6 +125,25 @@ export interface I18nTranslations {
   'user.profile.update.generic.error': string;
 
   /* |---------------------------------------------------------------| */
+  /* |                       User Verification                       | */
+  /* |---------------------------------------------------------------| */
+
+  'user.verification.status.verified': string;
+  'user.verification.status.unverified': string;
+  'user.verification.status.verified_at': string;
+  'user.verification.buttons.verify.text': string;
+  'user.verification.buttons.cancel.text': string;
+  'user.verification.buttons.close.text': string;
+  'user.verification.buttons.done.text': string;
+  'user.verification.heading': string;
+  'user.verification.subheading': string;
+  'user.verification.subheading.generic': string;
+  'user.verification.subheading.link': string;
+  'user.verification.destination': string;
+  'user.verification.success': string;
+  'user.verification.error': string;
+
+  /* |---------------------------------------------------------------| */
   /* |                        Change Password                        | */
   /* |---------------------------------------------------------------| */
 

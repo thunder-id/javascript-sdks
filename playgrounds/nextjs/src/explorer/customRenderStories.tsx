@@ -12,10 +12,21 @@ import {
   GroupCreate,
   UserDetails,
   UserList,
+  VerifyAttribute,
 } from '@thunderid/nextjs';
+import {
+  BaseVerifyAttribute,
+  type BaseVerifyAttributeRenderProps,
+  type EmbeddedSelfServiceFlowRequest,
+} from '@thunderid/react';
 import {NeedsId} from './AdminParts';
-import {GroupForm, Mui, SampleUserGrid, UserCard, UserDataGrid} from './CustomRenderParts';
-import {SAMPLE_MEMBERSHIPS, SAMPLE_USERS} from './customRenderSamples';
+import {GroupForm, Mui, SampleUserGrid, UserCard, UserDataGrid, VerifyForm} from './CustomRenderParts';
+import {
+  SAMPLE_MEMBERSHIPS,
+  SAMPLE_USERS,
+  SAMPLE_VERIFICATION_STEP,
+  submitSampleVerification,
+} from './customRenderSamples';
 import {bool, isLive, num, str} from './helpers';
 import Narrow from './Narrow';
 import type {Action, Args, ComponentDef, PropControl} from './types';
@@ -77,6 +88,29 @@ const MUI_CARD_SNIPPET = `<UserDetails userId={userId} deletable>
     </Card>
   )}
 </UserDetails>`;
+
+const MUI_VERIFY_SNIPPET = `<VerifyAttribute attribute="email" onCancel={close} onComplete={close}>
+  {({title, subtitle, destinationText, components, values, handleInputChange, handleSubmit, handleResend, onCancel, isLoading, isValid, isComplete, successMessage, error}) => (
+    <Card>
+      <CardHeader title={title} subheader={\`\${subtitle} \${destinationText ?? ''}\`} />
+      <CardContent>
+        {error && <Alert severity="error">{error}</Alert>}
+        {isComplete ? (
+          <Alert severity="success">{successMessage}</Alert>
+        ) : (
+          <TextField label="Code" value={values.otp ?? ''} onChange={(e) => handleInputChange('otp', e.target.value)} />
+        )}
+      </CardContent>
+      <CardActions>
+        {onCancel && <Button onClick={onCancel}>Cancel</Button>}
+        {handleResend && <Button onClick={handleResend}>Send a new code</Button>}
+        <Button variant="contained" disabled={!isValid} loading={isLoading} onClick={() => handleSubmit(components[0].components[1], values)}>
+          Verify
+        </Button>
+      </CardActions>
+    </Card>
+  )}
+</VerifyAttribute>`;
 
 /**
  * Stories that replace an admin component's default UI through its `children` render function,
@@ -215,6 +249,63 @@ export const CUSTOM_RENDER_COMPONENTS: ComponentDef[] = [
       {id: 'base', name: 'Sample user'},
       {args: {deletable: false}, id: 'readonly', name: 'Without delete'},
       {args: {source: 'live'}, id: 'live', name: 'Live (needs userId)'},
+    ],
+  },
+  {
+    code: () => ({
+      imports: ['VerifyAttribute'],
+      jsx: MUI_VERIFY_SNIPPET,
+      otherImports: [
+        "import {Alert, Button, Card, CardActions, CardContent, CardHeader, TextField} from '@mui/material';",
+      ],
+    }),
+    controls: [
+      {
+        ...SOURCE_CONTROL,
+        description:
+          'base renders the Base component with a sample flow; live renders the connected component, whose steps go through the SDK server action.',
+      },
+      {control: 'text', description: 'Live only: attribute to verify.', name: 'attribute', type: 'string'},
+    ],
+    defaults: {attribute: 'email', source: 'base'},
+    group: 'Custom rendering',
+    id: 'custom-verifyattribute-form',
+    live: true,
+    name: 'VerifyAttribute → MUI form',
+    render: (args: Args, action: Action) => (
+      <Mui>
+        <Narrow width={440}>
+          {isLive(args) ? (
+            <VerifyAttribute
+              key={str(args, 'attribute')}
+              attribute={str(args, 'attribute') || 'email'}
+              onCancel={() => action('onCancel')}
+              onComplete={() => action('onComplete')}
+              onError={(error: Error) => action('onError', error.message)}
+            >
+              {(props: BaseVerifyAttributeRenderProps) => <VerifyForm {...props} />}
+            </VerifyAttribute>
+          ) : (
+            <BaseVerifyAttribute
+              attributeDisplayName="Email"
+              onCancel={() => action('onCancel')}
+              onComplete={() => action('onComplete')}
+              onInitialize={() => Promise.resolve(SAMPLE_VERIFICATION_STEP)}
+              onSubmit={(payload: EmbeddedSelfServiceFlowRequest) => {
+                action('onSubmit', JSON.stringify(payload));
+
+                return submitSampleVerification(payload);
+              }}
+            >
+              {(props: BaseVerifyAttributeRenderProps) => <VerifyForm {...props} />}
+            </BaseVerifyAttribute>
+          )}
+        </Narrow>
+      </Mui>
+    ),
+    stories: [
+      {id: 'base', name: 'Sample flow (code 123456)'},
+      {args: {source: 'live'}, id: 'live', name: 'Live (needs sign-in, sends a code)'},
     ],
   },
 ];

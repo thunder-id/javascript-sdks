@@ -1,8 +1,19 @@
-// Copyright 2025 The ThunderID Authors
+// Copyright 2025-2026 The ThunderID Authors
 // SPDX-License-Identifier: Apache-2.0
 
-import {User, withVendorCSSClassPrefix, bem, Preferences, startCase, AttributeSchema} from '@thunderid/browser';
-import {FC, ReactElement, useState, useCallback, useEffect} from 'react';
+import {
+  User,
+  withVendorCSSClassPrefix,
+  bem,
+  Preferences,
+  startCase,
+  AttributeSchema,
+  AttributeVerificationConstants,
+  VerifiedAttribute,
+  getVerifiedAttributes,
+  isVerifiableAttribute,
+} from '@thunderid/browser';
+import {FC, ReactElement, ReactNode, useState, useCallback, useEffect, useMemo} from 'react';
 import useStyles from './BaseUserProfile.styles';
 import useTheme from '../../../contexts/Theme/useTheme';
 import useTranslation from '../../../hooks/useTranslation';
@@ -71,10 +82,33 @@ export interface BaseUserProfileProps {
    */
   preferences?: Preferences;
   profile?: User;
+  /**
+   * Renders the verification panel for an attribute. When omitted, or when the profile is not
+   * editable, verification statuses are shown without a Verify action.
+   */
+  renderVerification?: (props: BaseUserProfileVerificationRenderProps) => ReactNode;
   showFields?: string[];
 
   title?: string;
   userSchema?: Record<string, AttributeSchema> | null;
+}
+
+/**
+ * Props passed to `renderVerification`.
+ */
+export interface BaseUserProfileVerificationRenderProps {
+  /**
+   * Name of the attribute to verify.
+   */
+  attribute: string;
+  /**
+   * Label of the attribute.
+   */
+  attributeDisplayName: string;
+  /**
+   * Closes the panel.
+   */
+  onCancel: () => void;
 }
 
 // Fields to skip based on schema.name
@@ -101,10 +135,17 @@ const fieldsToSkip: string[] = [
   'picture',
   'isReadOnly',
   'isReadonly',
+  AttributeVerificationConstants.VERIFIED_ATTRIBUTES_KEY,
 ];
 
 // Fields that should be readonly
 const readonlyFields: string[] = ['attributes', 'id', 'isReadOnly', 'ouId', 'username', 'sub'];
+
+const isStatusType = (type?: string): boolean =>
+  !!type && AttributeVerificationConstants.VERIFIABLE_ATTRIBUTE_TYPES.includes(type.toLowerCase());
+
+const isVerifiedAfterSave = (type?: string): boolean =>
+  !!type && AttributeVerificationConstants.VERIFY_AFTER_SAVE_ATTRIBUTE_TYPES.includes(type.toLowerCase());
 
 const BaseUserProfile: FC<BaseUserProfileProps> = ({
   fallback = null,
@@ -126,12 +167,59 @@ const BaseUserProfile: FC<BaseUserProfileProps> = ({
   showFields = [],
   hideFields = [],
   displayNameAttributes = [],
+  renderVerification = undefined,
 }: BaseUserProfileProps): ReactElement | null => {
   const {theme, colorScheme} = useTheme();
   const [editedUser, setEditedUser] = useState(flattenedProfile || profile);
   const [editingFields, setEditingFields] = useState<Record<string, boolean>>({});
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
-  const {t} = useTranslation(preferences?.i18n);
+  // Attribute whose verification panel is open.
+  const [verifyingField, setVerifyingField] = useState<string | null>(null);
+  // A saved attribute to verify once the profile reflects the change.
+  const [pendingVerification, setPendingVerification] = useState<{name: string; previousValue: unknown} | null>(null);
+  // Fields whose save is in flight; their stored value is about to change.
+  const [savingFields, setSavingFields] = useState<Record<string, boolean>>({});
+  const {t, currentLanguage} = useTranslation(preferences?.i18n);
+
+  const reportedVerifiedAttributes: Record<string, VerifiedAttribute> | undefined = useMemo(
+    () => getVerifiedAttributes(profile ?? flattenedProfile),
+    [profile, flattenedProfile],
+  );
+  // A server without verification support omits the field, so no status is known.
+  const supportsVerification: boolean = reportedVerifiedAttributes !== undefined;
+  const verifiedAttributes: Record<string, VerifiedAttribute> = useMemo(
+    () => reportedVerifiedAttributes ?? {},
+    [reportedVerifiedAttributes],
+  );
+
+  useEffect(() => {
+    if (!pendingVerification) return;
+
+    if (error) {
+      setPendingVerification(null);
+      return;
+    }
+
+    const {name, previousValue} = pendingVerification;
+    const storedUser: User | undefined = flattenedProfile ?? profile;
+    const storedAttributes: Record<string, unknown> | undefined = storedUser?.['attributes'] as
+      | Record<string, unknown>
+      | undefined;
+    const storedValue: unknown = storedAttributes?.[name] ?? storedUser?.[name];
+
+    if (storedValue === previousValue) return;
+
+    // An absent verification record leaves the status unknown, so nothing opens on that basis.
+    if (
+      supportsVerification &&
+      typeof storedValue === 'string' &&
+      storedValue.trim() !== '' &&
+      !verifiedAttributes[name]
+    ) {
+      setVerifyingField(name);
+    }
+    setPendingVerification(null);
+  }, [pendingVerification, flattenedProfile, profile, error, verifiedAttributes, supportsVerification]);
 
   useEffect(() => {
     const nextUser = flattenedProfile ?? profile;
@@ -224,6 +312,8 @@ const BaseUserProfile: FC<BaseUserProfileProps> = ({
   );
 
   const styles: any = useStyles(theme, colorScheme);
+  // Typed view of the same classes for the verification markup.
+  const verificationStyles: Record<string, string> = styles as Record<string, string>;
 
   const ObjectDisplay: FC<{data: unknown}> = ({data}: {data: unknown}): ReactElement | null => {
     if (!data || typeof data !== 'object') return null;
@@ -323,11 +413,40 @@ const BaseUserProfile: FC<BaseUserProfileProps> = ({
       let payload: Record<string, any> = {};
       set(payload, fieldName, fieldValue);
 
-      onUpdate(payload);
+      setSavingFields((prev: Record<string, boolean>) => ({...prev, [fieldName]: true}));
+      // A failed save is reported through `error`; it only drops the verification it would have opened.
+      Promise.resolve(onUpdate(payload))
+        .catch((): void => setPendingVerification(null))
+        .finally((): void =>
+          setSavingFields((prev: Record<string, boolean>) => {
+            const next: Record<string, boolean> = {...prev};
+            delete next[fieldName];
+            return next;
+          }),
+        );
 
       toggleFieldEdit(fieldName);
+
+      // Offer verification once a changed, verifiable value is saved.
+      const savedUser: User | undefined = flattenedProfile ?? profile;
+      const savedAttributes: Record<string, unknown> | undefined = savedUser?.['attributes'] as
+        | Record<string, unknown>
+        | undefined;
+      const storedValue: unknown = savedAttributes?.[fieldName] ?? savedUser?.[fieldName];
+      if (
+        renderVerification &&
+        isVerifiedAfterSave(schema.type) &&
+        isVerifiableAttribute(userSchema, fieldName) &&
+        typeof fieldValue === 'string' &&
+        fieldValue.trim() !== '' &&
+        fieldValue !== storedValue
+      ) {
+        setPendingVerification({name: fieldName, previousValue: storedValue});
+      } else {
+        setPendingVerification(null);
+      }
     },
-    [editedUser, flattenedProfile, profile, onUpdate, toggleFieldEdit, t],
+    [editedUser, flattenedProfile, profile, onUpdate, toggleFieldEdit, t, renderVerification, userSchema],
   );
 
   const handleFieldCancel: any = useCallback(
@@ -581,6 +700,59 @@ const BaseUserProfile: FC<BaseUserProfileProps> = ({
     );
   };
 
+  const renderVerificationStatus = (schema: Schema): ReactElement | null => {
+    const verification: VerifiedAttribute | undefined = verifiedAttributes[schema.name!];
+    let verifiedAtTitle: string | undefined;
+
+    if (verification?.verifiedAt) {
+      const verifiedAt: Date = new Date(verification.verifiedAt);
+      const date: string = Number.isNaN(verifiedAt.getTime())
+        ? verification.verifiedAt
+        : verifiedAt.toLocaleString(currentLanguage);
+      verifiedAtTitle = t('user.verification.status.verified_at', {date});
+    }
+
+    return (
+      <span
+        className={cx(
+          withVendorCSSClassPrefix(bem('user-profile', 'verification-status')),
+          withVendorCSSClassPrefix(
+            bem('user-profile', 'verification-status', verification ? 'verified' : 'unverified'),
+          ),
+          verificationStyles['verificationStatus'],
+          verification ? verificationStyles['verified'] : verificationStyles['unverified'],
+        )}
+        title={verifiedAtTitle}
+        data-testid={`thunderid-verification-status-${schema.name}`}
+      >
+        {verification ? t('user.verification.status.verified') : t('user.verification.status.unverified')}
+        {/* A title is not reachable by keyboard or touch, so the time is also given as text. */}
+        {verifiedAtTitle && <span className={verificationStyles['visuallyHidden']}>{` (${verifiedAtTitle})`}</span>}
+      </span>
+    );
+  };
+
+  const renderVerificationPanel = (schema: Schema): ReactNode => {
+    if (!renderVerification || !schema.name || verifyingField !== schema.name) {
+      return null;
+    }
+
+    return (
+      <div
+        className={cx(
+          withVendorCSSClassPrefix(bem('user-profile', 'verification')),
+          verificationStyles['verification'],
+        )}
+      >
+        {renderVerification({
+          attribute: schema.name,
+          attributeDisplayName: schema.displayName ?? startCase(schema.name),
+          onCancel: (): void => setVerifyingField(null),
+        })}
+      </div>
+    );
+  };
+
   const renderUserInfo = (schema: Schema): any => {
     if (!schema?.name) return null;
 
@@ -593,6 +765,30 @@ const BaseUserProfile: FC<BaseUserProfileProps> = ({
     if (!shouldShow) {
       return null;
     }
+
+    // Status describes the stored value, so it is shown only while the row shows that value and no
+    // save is about to replace it.
+    const storedUser: User | undefined = flattenedProfile ?? profile;
+    const storedAttributes: Record<string, unknown> | undefined = storedUser?.['attributes'] as
+      | Record<string, unknown>
+      | undefined;
+    const storedValue: unknown = storedAttributes?.[schema.name] ?? storedUser?.[schema.name];
+    const showsVerificationStatus: boolean =
+      supportsVerification &&
+      !!hasValue &&
+      !isFieldEditing &&
+      !savingFields[schema.name] &&
+      schema.value === storedValue &&
+      isStatusType(schema.type);
+    // A read-only profile shows the status only.
+    const canVerify: boolean =
+      editable &&
+      !!renderVerification &&
+      showsVerificationStatus &&
+      !verifiedAttributes[schema.name] &&
+      verifyingField !== schema.name &&
+      isVerifiableAttribute(userSchema, schema.name) &&
+      typeof schema.value === 'string';
 
     return (
       <div className={styles.field}>
@@ -607,12 +803,27 @@ const BaseUserProfile: FC<BaseUserProfileProps> = ({
             },
             () => toggleFieldEdit(schema.name),
           )}
+          {showsVerificationStatus && renderVerificationStatus(schema)}
           {fieldErrors[schema.name] && (
             <div style={{color: '#d32f2f', fontSize: '0.8rem', marginTop: '4px', fontWeight: 500}}>
               {fieldErrors[schema.name]}
             </div>
           )}
         </div>
+        {canVerify && (
+          <div className={verificationStyles['fieldActions']}>
+            <Button
+              size="small"
+              color="primary"
+              variant="text"
+              onClick={(): void => setVerifyingField(schema.name!)}
+              className={withVendorCSSClassPrefix(bem('user-profile', 'verify-button'))}
+              data-testid={`thunderid-verify-${schema.name}`}
+            >
+              {t('user.verification.buttons.verify.text')}
+            </Button>
+          </div>
+        )}
         {editable && schema.mutability !== 'READ_ONLY' && !isReadonlyField && (
           <div className={styles.fieldActions}>
             {isFieldEditing && (
@@ -635,7 +846,10 @@ const BaseUserProfile: FC<BaseUserProfileProps> = ({
                 size="small"
                 color="tertiary"
                 variant="icon"
-                onClick={(): any => toggleFieldEdit(schema.name)}
+                onClick={(): any => {
+                  if (verifyingField === schema.name) setVerifyingField(null);
+                  toggleFieldEdit(schema.name);
+                }}
                 title="Edit"
                 className={styles.editButton}
               >
@@ -733,6 +947,7 @@ const BaseUserProfile: FC<BaseUserProfileProps> = ({
         {schemaItems.map((schemaWithValue: Schema) => (
           <div key={schemaWithValue.name} className={styles.info}>
             {renderUserInfo(schemaWithValue)}
+            {renderVerificationPanel(schemaWithValue)}
           </div>
         ))}
       </>

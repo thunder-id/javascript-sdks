@@ -197,6 +197,41 @@ const useStyles = (theme: Theme, colorScheme: string): Record<string, string> =>
       margin-bottom: calc(${theme.vars.spacing.unit} * 3);
     `;
 
+    const verificationStatus: string = css`
+      flex-shrink: 0;
+      padding: 0 ${theme.vars.spacing.unit};
+      border: 1px solid currentColor;
+      border-radius: ${theme.vars.borderRadius.small};
+      font-size: 0.75rem;
+      line-height: 20px;
+      white-space: nowrap;
+    `;
+
+    const verified: string = css`
+      color: ${theme.vars.colors.success.main};
+    `;
+
+    const unverified: string = css`
+      color: ${theme.vars.colors.text.secondary};
+    `;
+
+    const verification: string = css`
+      padding: ${theme.vars.spacing.unit} 0;
+    `;
+
+    // Hidden from sight, read by assistive technology.
+    const visuallyHidden: string = css`
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    `;
+
     return {
       alert,
       card,
@@ -220,15 +255,22 @@ const useStyles = (theme: Theme, colorScheme: string): Record<string, string> =>
       sectionLabel,
       sectionRow,
       sectionValue,
+      unverified,
       value,
       valuePlaceholder,
+      verification,
+      verificationStatus,
+      verified,
+      visuallyHidden,
     };
   }, [
     theme.vars.colors.background.surface,
     theme.vars.colors.text.primary,
     theme.vars.colors.text.secondary,
     theme.vars.colors.border,
+    theme.vars.colors.success.main,
     theme.vars.borderRadius.large,
+    theme.vars.borderRadius.small,
     theme.vars.borderRadius.medium,
     theme.vars.spacing.unit,
     theme.vars.typography.fontFamily,

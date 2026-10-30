@@ -125,6 +125,26 @@ const translations: I18nTranslations = {
     'உங்கள் சுயவிவரத்தை புதுப்பிக்கும் போது பிழை ஏற்பட்டது. மீண்டும் முயற்சிக்கவும்.',
 
   /* |---------------------------------------------------------------| */
+  /* |                       User Verification                       | */
+  /* |---------------------------------------------------------------| */
+
+  'user.verification.status.verified': 'சரிபார்க்கப்பட்டது',
+  'user.verification.status.unverified': 'சரிபார்க்கப்படவில்லை',
+  'user.verification.status.verified_at': '{date} அன்று சரிபார்க்கப்பட்டது',
+  'user.verification.buttons.verify.text': 'சரிபார்',
+  'user.verification.buttons.cancel.text': 'ரத்து செய்',
+  'user.verification.buttons.close.text': 'மூடு',
+  'user.verification.buttons.done.text': 'முடிந்தது',
+  'user.verification.heading': '{attribute} சரிபார்',
+  'user.verification.subheading': '{destination} க்கு அனுப்பப்பட்ட குறியீட்டை உள்ளிடவும்.',
+  'user.verification.subheading.generic': 'உங்களுக்கு அனுப்பப்பட்ட குறியீட்டை உள்ளிடவும்.',
+  'user.verification.subheading.link':
+    '{destination} க்கு சரிபார்ப்பு இணைப்பை அனுப்பியுள்ளோம். அதைத் திறந்து, பின்னர் முடிந்தது என்பதைத் தேர்ந்தெடுக்கவும்.',
+  'user.verification.destination': '{destination} க்கு அனுப்பப்பட்டது.',
+  'user.verification.success': '{attribute} சரிபார்க்கப்பட்டது.',
+  'user.verification.error': 'சரிபார்ப்பு தோல்வியடைந்தது. மீண்டும் முயற்சிக்கவும்.',
+
+  /* |---------------------------------------------------------------| */
   /* |                        Change Password                        | */
   /* |---------------------------------------------------------------| */
 

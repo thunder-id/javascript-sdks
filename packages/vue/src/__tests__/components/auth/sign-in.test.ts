@@ -1,10 +1,11 @@
 // Copyright 2026 The ThunderID Authors
 // SPDX-License-Identifier: Apache-2.0
 
-import {ThunderIDRuntimeError} from '@thunderid/browser';
+import {EmbeddedFlowComponent, ThunderIDRuntimeError} from '@thunderid/browser';
 import {flushPromises, mount} from '@vue/test-utils';
 import {describe, expect, it, vi, type Mock} from 'vitest';
-import {ref} from 'vue';
+import {defineComponent, h, ref, type VNode} from 'vue';
+import {renderSignInComponents, renderVerificationComponents} from '../../../components/auth/flow/AuthOptionFactory';
 import BaseSignIn from '../../../components/auth/sign-in/BaseSignIn';
 import SignIn from '../../../components/auth/sign-in/SignIn';
 import {FLOW_KEY, FLOW_META_KEY, I18N_KEY, THUNDERID_KEY} from '../../../keys';
@@ -100,5 +101,51 @@ describe('SignIn', () => {
     expect(wrapper.emitted('error')?.[0]?.[0]).toBeInstanceOf(ThunderIDRuntimeError);
     expect(slot).toHaveBeenLastCalledWith(expect.objectContaining({error: expect.any(ThunderIDRuntimeError)}));
     expect(unhandled).not.toHaveBeenCalled();
+  });
+});
+
+describe('AuthOptionFactory RESEND', () => {
+  const resend: EmbeddedFlowComponent = {
+    eventType: 'SUBMIT',
+    id: 'action_resend',
+    label: 'Resend code',
+    type: 'RESEND',
+  } as EmbeddedFlowComponent;
+
+  const codeBlock = (withResend: boolean): EmbeddedFlowComponent =>
+    ({
+      components: [
+        {id: 'input_otp', label: 'Code', ref: 'otp', required: true, type: 'OTP_INPUT'},
+        {eventType: 'SUBMIT', id: 'action_verify', label: 'Verify', type: 'ACTION', variant: 'PRIMARY'},
+        ...(withResend ? [resend] : []),
+      ],
+      id: 'block_otp',
+      type: 'BLOCK',
+    }) as EmbeddedFlowComponent;
+
+  const renderHtml = (render: typeof renderSignInComponents, withResend: boolean): string => {
+    const nodes: VNode[] = render(
+      [codeBlock(withResend)],
+      {},
+      {},
+      {},
+      false,
+      false,
+      () => undefined,
+      () => undefined,
+      {onSubmit: vi.fn()},
+    );
+    return mount(defineComponent({render: (): VNode => h('div', nodes)})).html();
+  };
+
+  it('is skipped by sign-in, which renders the step as if it had no resend', () => {
+    const html: string = renderHtml(renderSignInComponents, true);
+
+    expect(html).not.toContain('Resend code');
+    expect(html).toBe(renderHtml(renderSignInComponents, false));
+  });
+
+  it('is rendered for attribute verification', () => {
+    expect(renderHtml(renderVerificationComponents, true)).toContain('Resend code');
   });
 });

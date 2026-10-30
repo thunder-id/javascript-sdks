@@ -181,6 +181,12 @@ export * from './components/account/UserProfile/BaseUserProfile';
 export {default as UserProfile} from './components/account/UserProfile/UserProfile';
 export * from './components/account/UserProfile/UserProfile';
 
+export {default as BaseVerifyAttribute} from './components/account/VerifyAttribute/BaseVerifyAttribute';
+export * from './components/account/VerifyAttribute/BaseVerifyAttribute';
+
+export {default as VerifyAttribute} from './components/account/VerifyAttribute/VerifyAttribute';
+export * from './components/account/VerifyAttribute/VerifyAttribute';
+
 export * from './components/admin/shared/AdminListRenderProps';
 export type {AdminSearchValue} from './components/admin/shared/AdminSearch';
 
@@ -406,6 +412,8 @@ export {default as updateMeProfile} from './api/account/updateMeProfile';
 export type {UpdateMeProfileConfig} from './api/account/updateMeProfile';
 export {default as updateMeCredentials} from './api/account/updateMeCredentials';
 export type {UpdateMeCredentialsConfig} from './api/account/updateMeCredentials';
+export {default as executeEmbeddedSelfServiceFlow} from './api/auth/executeEmbeddedSelfServiceFlow';
+export type {ExecuteEmbeddedSelfServiceFlowConfig} from './api/auth/executeEmbeddedSelfServiceFlow';
 export {default as getMeProfile} from './api/account/getUsersMe';
 export * from './api/account/getUsersMe';
 export {default as getUsersMeMeta} from './api/account/getUsersMeMeta';
@@ -477,6 +485,13 @@ export {
   type EmbeddedRecoveryFlowInitiateRequest,
   type EmbeddedRecoveryFlowRequest,
   type EmbeddedRecoveryFlowErrorResponse,
+  EmbeddedSelfServiceFlowStatus,
+  type EmbeddedSelfServiceFlowResponse,
+  type EmbeddedSelfServiceFlowRequest,
+  AttributeVerificationConstants,
+  getVerifiedAttributes,
+  isVerifiableAttribute,
+  type VerifiedAttribute,
   normalizeSelectOptions,
   toSelectOption,
   toSelectOptions,

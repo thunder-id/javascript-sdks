@@ -2,7 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import {cleanup, render, waitFor} from '@testing-library/react';
+import {ReactElement, useEffect} from 'react';
 import {Mock, afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
+import {UserContextProps} from '../../User/UserContext';
+import useUser from '../../User/useUser';
 import ThunderIDProvider from '../ThunderIDProvider';
 
 type Noop = Mock<() => void>;
@@ -247,5 +250,57 @@ describe('ThunderIDProvider updateSession single-flight', () => {
 
     await mocks.client.handlers['sign-in']();
     expect(mocks.getUsersMe).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe('ThunderIDProvider revalidateProfile', () => {
+  let user: UserContextProps | null = null;
+
+  const Probe = (): ReactElement => {
+    const current: UserContextProps | null = useUser();
+
+    useEffect(() => {
+      user = current;
+    });
+
+    return <div data-testid="probe" />;
+  };
+
+  const renderWithProbe = (fetchUserProfile?: boolean): void => {
+    render(
+      <ThunderIDProvider
+        baseUrl="https://localhost:8090"
+        clientId="test-client"
+        preferences={{resolveFromMeta: false, user: {fetchUserProfile}}}
+      >
+        <Probe />
+      </ThunderIDProvider>,
+    );
+  };
+
+  afterEach(() => {
+    user = null;
+  });
+
+  it('re-reads /users/me into the profile', async () => {
+    mocks.client.signedIn = true;
+    renderWithProbe();
+    await waitFor(() => expect(user?.profile?.['userName']).toBe('alice'));
+
+    mocks.getUsersMe = vi.fn(() => Promise.resolve({sub: 'user-1', userName: 'alice', verified: 'yes'}));
+    await user!.revalidateProfile();
+
+    await waitFor(() => expect(user?.profile?.['verified']).toBe('yes'));
+    expect(user?.flattenedProfile?.['verified']).toBe('yes');
+    expect(mocks.getUsersMe).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not fetch the profile when the app turned profile fetching off', async () => {
+    renderWithProbe(false);
+    await waitFor(() => expect(user).not.toBeNull());
+
+    await user!.revalidateProfile();
+
+    expect(mocks.getUsersMe).not.toHaveBeenCalled();
   });
 });

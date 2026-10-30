@@ -146,6 +146,7 @@ const CLIENT_METHODS: Record<string, number> = {
   clearSessionAsync: 0,
   decodeJwtToken: -1,
   exchangeToken: 1,
+  executeEmbeddedSelfServiceFlow: 1,
   getAccessToken: 0,
   getConfiguration: -1,
   getDecodedIdToken: 0,

@@ -1,13 +1,14 @@
 // Copyright 2026 The ThunderID Authors
 // SPDX-License-Identifier: Apache-2.0
 
-import type {ManagedUser, MembershipGroup} from '@thunderid/browser';
+import type {EmbeddedFlowComponent, ManagedUser, MembershipGroup} from '@thunderid/browser';
 import {
   type AdminListRenderProps,
   type BaseApplicationCreateRenderProps,
   type BaseApplicationDetailsRenderProps,
   type BaseGroupCreateRenderProps,
   type BaseUserDetailsRenderProps,
+  type BaseVerifyAttributeRenderProps,
   type DataTableColumn,
   useTheme,
 } from '@thunderid/vue';
@@ -300,3 +301,83 @@ export const applicationCard = (state: BaseApplicationDetailsRenderProps): VNode
       title: () => (state.isLoading && !state.application ? 'Loading…' : (state.application?.name ?? '')),
     },
   );
+
+// The step's components of one kind, at any depth.
+const flowComponents = (components: EmbeddedFlowComponent[], types: string[]): EmbeddedFlowComponent[] =>
+  components.flatMap((component: EmbeddedFlowComponent) => [
+    ...(types.includes(component.type) ? [component] : []),
+    ...flowComponents(component.components ?? [], types),
+  ]);
+
+const INPUT_TYPES: string[] = ['TEXT_INPUT', 'EMAIL_INPUT', 'PHONE_INPUT', 'OTP_INPUT', 'PASSWORD_INPUT'];
+
+/** The verification's default scoped slot drawn as a PrimeVue card: inputs, actions, resend and cancel. */
+export const verifyForm = (state: BaseVerifyAttributeRenderProps): VNode => {
+  const isActive: boolean = !state.isComplete && !state.isFailed;
+
+  return h(
+    Card,
+    {},
+    {
+      content: () =>
+        h('div', {class: 'pg-prime-stack'}, [
+          state.error ? h(Message, {severity: 'error'}, {default: () => state.error}) : null,
+          state.isComplete ? h(Message, {severity: 'success'}, {default: () => state.successMessage}) : null,
+          state.isLoading && !state.components.length ? h('p', 'Sending…') : null,
+          ...(isActive
+            ? flowComponents(state.components, INPUT_TYPES).map((input: EmbeddedFlowComponent) => {
+                const name: string = input.ref ?? input.id;
+                return h('label', {class: 'pg-prime-field', key: name}, [
+                  h('span', String(input.label ?? name)),
+                  h(InputText, {
+                    autocomplete: 'one-time-code',
+                    modelValue: state.values[name],
+                    'onUpdate:modelValue': (value: string | undefined) => state.handleInputChange(name, value ?? ''),
+                  }),
+                  state.touched[name] && state.fieldErrors[name]
+                    ? h(
+                        Message,
+                        {severity: 'error', size: 'small', variant: 'simple'},
+                        {default: () => state.fieldErrors[name]},
+                      )
+                    : null,
+                ]);
+              })
+            : []),
+        ]),
+      footer: () =>
+        h('div', {class: 'pg-prime-actions'}, [
+          state.onCancel
+            ? h(Button, {
+                label: isActive ? 'Cancel' : 'Close',
+                onClick: state.onCancel,
+                severity: 'secondary',
+                text: true,
+              })
+            : null,
+          state.handleResend
+            ? h(Button, {
+                disabled: state.isLoading,
+                label: 'Send a new code',
+                onClick: () => void state.handleResend?.(),
+                severity: 'secondary',
+              })
+            : null,
+          state.onDone ? h(Button, {label: 'Done', onClick: state.onDone}) : null,
+          ...(isActive
+            ? flowComponents(state.components, ['ACTION']).map((action: EmbeddedFlowComponent) =>
+                h(Button, {
+                  disabled: !state.isValid || state.isLoading,
+                  key: action.id,
+                  label: String(action.label ?? action.id),
+                  loading: state.isLoading,
+                  onClick: () => void state.handleSubmit(action, state.values),
+                }),
+              )
+            : []),
+        ]),
+      subtitle: () => [state.subtitle, state.destinationText].filter(Boolean).join(' '),
+      title: () => state.title,
+    },
+  );
+};

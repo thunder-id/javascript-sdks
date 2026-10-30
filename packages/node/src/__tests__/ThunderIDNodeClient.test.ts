@@ -12,6 +12,7 @@ vi.mock('@thunderid/javascript', async (importOriginal) => {
     getFlows: vi.fn().mockResolvedValue({count: 1, flows: [{id: 'f1'}], links: [], startIndex: 1, totalResults: 1}),
     getUsers: vi.fn().mockResolvedValue({count: 1, links: [], startIndex: 0, totalResults: 1, users: [{id: 'u1'}]}),
     getUserTypes: vi.fn().mockResolvedValue({count: 1, links: [], startIndex: 1, totalResults: 1, types: [{id: 't1'}]}),
+    executeEmbeddedSelfServiceFlow: vi.fn().mockResolvedValue({executionId: 'exec-1', flowStatus: 'INCOMPLETE'}),
     updateMeCredentials: vi.fn().mockResolvedValue(undefined),
   };
 });
@@ -38,6 +39,31 @@ describe('ThunderIDNodeClient', () => {
         payload,
         url: undefined,
       });
+    });
+  });
+
+  describe('executeEmbeddedSelfServiceFlow', () => {
+    it("sends the step with the session's bearer token to the flow endpoint, and returns the step", async () => {
+      const client = new ThunderIDNodeClient();
+      await client.initialize({
+        baseUrl: 'https://auth.example.com',
+        clientId: 'test-client',
+        endpoints: {flowExecute: 'https://rs.example.com/flow/execute'},
+      });
+
+      const getAccessToken = vi.spyOn(client, 'getAccessToken').mockResolvedValue('test-access-token');
+      const payload = {flowType: 'SELF_SERVICE', handle: 'default-self-attribute-verification-flow'} as const;
+
+      const step = await client.executeEmbeddedSelfServiceFlow(payload as never, 'session-1');
+
+      expect(getAccessToken).toHaveBeenCalledWith('session-1');
+      expect(thunderJS.executeEmbeddedSelfServiceFlow).toHaveBeenCalledWith({
+        baseUrl: 'https://auth.example.com',
+        headers: {Authorization: 'Bearer test-access-token'},
+        payload,
+        url: 'https://rs.example.com/flow/execute',
+      });
+      expect(step).toEqual({executionId: 'exec-1', flowStatus: 'INCOMPLETE'});
     });
   });
 

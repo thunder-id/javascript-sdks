@@ -30,6 +30,7 @@ const NuxtAPIRoutes: {
   USER: string;
   USER_CREDENTIALS: string;
   USER_PROFILE: string;
+  USER_SELF_SERVICE_FLOW: string;
   USER_TYPES: string;
   USERS: string;
 } = {
@@ -59,6 +60,8 @@ const NuxtAPIRoutes: {
   USER_CREDENTIALS: '/api/auth/user/credentials',
   /** Fetches (GET) and updates (PATCH) the user profile. */
   USER_PROFILE: '/api/auth/user/profile',
+  /** Executes (POST) one step of a self-service flow, such as attribute verification, for the signed-in user. */
+  USER_SELF_SERVICE_FLOW: '/api/auth/user/self-service-flow',
   /** Loads one page of user types for a `USER_TYPE_SELECT` picker, using the signed-in session. */
   USER_TYPES: '/api/auth/user-types',
   /** Loads one page of the user directory for a `USER_SELECT` picker, using the signed-in session. */

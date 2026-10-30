@@ -20,7 +20,11 @@ import {
   BaseUserCreate,
   BaseUserDetails,
   BaseUserList,
+  BaseVerifyAttribute,
   type BasicAgent,
+  type EmbeddedSelfServiceFlowRequest,
+  type EmbeddedSelfServiceFlowResponse,
+  EmbeddedSelfServiceFlowStatus,
   type BasicApplication,
   type Group,
   type ManagedUser,
@@ -54,10 +58,57 @@ import {
   PermissionCards,
   UserCard,
   UserForm,
+  VerifyForm,
 } from './CustomRenderWidgets';
 import {num, str} from './storyHelpers';
 import {Narrow} from './StoryWidgets';
 import type {Action, Args, ComponentDef, PropControl, Snippet, StoryDef} from './types';
+
+// A self attribute verification flow that accepts the code 123456, for the Base verification stories.
+export const SAMPLE_VERIFICATION_STEP: EmbeddedSelfServiceFlowResponse = {
+  challengeToken: 'sample',
+  data: {
+    additionalData: {maskedDestination: 'l•••@acme.io'},
+    components: [
+      {id: 'heading', label: 'Verify your email address', type: 'TEXT', variant: 'HEADING_1'},
+      {
+        id: 'message',
+        label: 'Enter the verification code sent to your email address.',
+        type: 'TEXT',
+        variant: 'HEADING_6',
+      },
+      {
+        components: [
+          {id: 'input_otp', label: 'Verification code', ref: 'otp', required: true, type: 'OTP_INPUT'},
+          {eventType: 'SUBMIT', id: 'action_verify', label: 'Verify', type: 'ACTION', variant: 'PRIMARY'},
+          {eventType: 'SUBMIT', id: 'action_resend', label: 'Resend code', type: 'RESEND'},
+        ],
+        id: 'block_otp',
+        type: 'BLOCK',
+      },
+    ],
+  },
+  executionId: 'sample',
+  flowStatus: EmbeddedSelfServiceFlowStatus.Incomplete,
+} as unknown as EmbeddedSelfServiceFlowResponse;
+
+export const submitSampleVerification = (
+  payload: EmbeddedSelfServiceFlowRequest,
+): Promise<EmbeddedSelfServiceFlowResponse> => {
+  if (payload.action === 'action_resend' || payload.inputs?.['otp'] === '123456') {
+    return Promise.resolve(
+      payload.action === 'action_resend'
+        ? SAMPLE_VERIFICATION_STEP
+        : {executionId: 'sample', flowStatus: EmbeddedSelfServiceFlowStatus.Complete},
+    );
+  }
+
+  return Promise.resolve({
+    ...SAMPLE_VERIFICATION_STEP,
+    data: {components: SAMPLE_VERIFICATION_STEP.data?.components},
+    error: {message: {defaultValue: 'The code is incorrect.', key: 'otp.invalid'}},
+  } as unknown as EmbeddedSelfServiceFlowResponse);
+};
 
 /** The `source` control, with the custom renderer as a third option. */
 const SOURCE_WITH_CUSTOM: PropControl = {
@@ -287,6 +338,34 @@ const CODE: Record<string, () => Snippet> = {
     otherImports: [MUI_CARD],
   }),
   userlist: () => listSnippet('UserList', 'users'),
+  verifyattribute: () => ({
+    imports: ['VerifyAttribute'],
+    jsx: `<VerifyAttribute attribute="email" onCancel={close} onComplete={close}>
+  {({title, subtitle, destinationText, components, values, handleInputChange, handleSubmit, handleResend, onCancel, isLoading, isValid, isComplete, successMessage, error}) => (
+    <Card>
+      <CardHeader title={title} subheader={\`\${subtitle} \${destinationText ?? ''}\`} />
+      <CardContent>
+        {error && <Alert severity="error">{error}</Alert>}
+        {isComplete ? (
+          <Alert severity="success">{successMessage}</Alert>
+        ) : (
+          <TextField label="Code" value={values.otp ?? ''} onChange={(e) => handleInputChange('otp', e.target.value)} />
+        )}
+      </CardContent>
+      <CardActions>
+        {onCancel && <Button onClick={onCancel}>Cancel</Button>}
+        {handleResend && <Button onClick={handleResend}>Send a new code</Button>}
+        <Button variant="contained" disabled={!isValid} loading={isLoading} onClick={() => handleSubmit(components[0].components[1], values)}>
+          Verify
+        </Button>
+      </CardActions>
+    </Card>
+  )}
+</VerifyAttribute>`,
+    otherImports: [
+      "import {Alert, Button, Card, CardActions, CardContent, CardHeader, TextField} from '@mui/material';",
+    ],
+  }),
 };
 
 interface PagedListState<T> {
@@ -577,10 +656,27 @@ const RENDER: Record<string, (args: Args, action: Action) => ReactNode> = {
         valueOf: (user: ManagedUser, attribute: string) => user.attributes?.[attribute],
       },
     ),
+  verifyattribute: (_args: Args, action: Action) => (
+    <Narrow width={440}>
+      <BaseVerifyAttribute
+        attributeDisplayName="Email"
+        onCancel={() => action('onCancel')}
+        onComplete={() => action('onComplete')}
+        onInitialize={() => Promise.resolve(SAMPLE_VERIFICATION_STEP)}
+        onSubmit={(payload: EmbeddedSelfServiceFlowRequest) => {
+          action('onSubmit', JSON.stringify(payload));
+
+          return submitSampleVerification(payload);
+        }}
+      >
+        {VerifyForm}
+      </BaseVerifyAttribute>
+    </Narrow>
+  ),
 };
 
 /**
- * Replaces an admin component's live stories with a "Custom (MUI)" story. It renders the Base component
+ * Replaces a component's live stories with a "Custom (MUI)" story. It renders the Base component
  * with sample data through its `children` render function, drawn with MUI.
  */
 export const withCustomStory = (def: ComponentDef): ComponentDef => {

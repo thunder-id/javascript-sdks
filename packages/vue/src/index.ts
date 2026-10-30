@@ -141,6 +141,16 @@ export {default as Loading} from './components/auth/guards/Loading';
 export {default as User} from './components/account/user/User';
 export {default as UserProfile} from './components/account/user-profile/UserProfile';
 export {default as BaseUserProfile} from './components/account/user-profile/BaseUserProfile';
+export type {
+  BaseUserProfileVerificationSlotProps,
+  BaseUserProfileVerificationState,
+} from './components/account/user-profile/BaseUserProfile';
+export {default as VerifyAttribute} from './components/account/verify-attribute/VerifyAttribute';
+export {default as BaseVerifyAttribute} from './components/account/verify-attribute/BaseVerifyAttribute';
+export type {
+  BaseVerifyAttributeProps,
+  BaseVerifyAttributeRenderProps,
+} from './components/account/verify-attribute/BaseVerifyAttribute';
 export {default as Attribution} from './components/common/attribution/Attribution';
 export {default as ChangeCredential} from './components/account/change-credential/ChangeCredential';
 export {default as BaseChangeCredential} from './components/account/change-credential/BaseChangeCredential';
@@ -262,6 +272,8 @@ export type {FlowErrorResponse, FlowTransformOptions} from './utils/flowTransfor
 export {handlePasskeyAuthentication, handlePasskeyRegistration} from './utils/passkey';
 export {default as getUsersMeMeta} from './api/account/getUsersMeMeta';
 export * from './api/account/getUsersMeMeta';
+export {default as executeEmbeddedSelfServiceFlow} from './api/auth/executeEmbeddedSelfServiceFlow';
+export type {ExecuteEmbeddedSelfServiceFlowConfig} from './api/auth/executeEmbeddedSelfServiceFlow';
 
 // ── Phase 4 — Router Helpers ──
 export {createThunderIDGuard} from './router/guard';
@@ -302,6 +314,13 @@ export {
   type EmbeddedSignUpFlowInitiateRequest,
   type EmbeddedSignUpFlowRequest,
   type EmbeddedSignUpFlowErrorResponse,
+  EmbeddedSelfServiceFlowStatus,
+  type EmbeddedSelfServiceFlowResponse,
+  type EmbeddedSelfServiceFlowRequest,
+  AttributeVerificationConstants,
+  getVerifiedAttributes,
+  isVerifiableAttribute,
+  type VerifiedAttribute,
   type ComponentRenderContext,
   type ComponentsExtensions,
   type ComponentRenderer,

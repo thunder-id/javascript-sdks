@@ -1,7 +1,14 @@
 // Copyright 2026 The ThunderID Authors
 // SPDX-License-Identifier: Apache-2.0
 
-import type {Application, ManagedUser, MembershipGroup} from '@thunderid/browser';
+import {
+  type Application,
+  type EmbeddedSelfServiceFlowRequest,
+  type EmbeddedSelfServiceFlowResponse,
+  EmbeddedSelfServiceFlowStatus,
+  type ManagedUser,
+  type MembershipGroup,
+} from '@thunderid/browser';
 import {
   type AdminListRenderProps,
   ApplicationCreate,
@@ -16,12 +23,23 @@ import {
   BaseUserDetails,
   type BaseUserDetailsRenderProps,
   BaseUserList,
+  BaseVerifyAttribute,
+  type BaseVerifyAttributeRenderProps,
   GroupCreate,
   UserDetails,
   UserList,
+  VerifyAttribute,
 } from '@thunderid/vue';
 import {Component, defineComponent, h, PropType, Ref, ref, VNode} from 'vue';
-import {applicationCard, applicationForm, groupForm, PrimeTheme, userCard, userTable} from './PrimeRenderers';
+import {
+  applicationCard,
+  applicationForm,
+  groupForm,
+  PrimeTheme,
+  userCard,
+  userTable,
+  verifyForm,
+} from './PrimeRenderers';
 import {bool, num, quoted, SOURCE_CONTROL, str} from './storyKit';
 import type {Action, Args, ComponentDef} from './types';
 import {narrow} from './widgets';
@@ -70,6 +88,52 @@ const SAMPLE_APPLICATION: Application = {
 
 /** A secret shown in the "secret shown once" stories. Sample only, never a real credential. */
 const SAMPLE_SECRET = 'sample-secret-5f1c9e2a';
+
+// A self attribute verification flow that accepts the code 123456, for the Base verification stories.
+export const SAMPLE_VERIFICATION_STEP: EmbeddedSelfServiceFlowResponse = {
+  challengeToken: 'sample',
+  data: {
+    additionalData: {maskedDestination: 'l•••@acme.io'},
+    components: [
+      {id: 'heading', label: 'Verify your email address', type: 'TEXT', variant: 'HEADING_1'},
+      {
+        id: 'message',
+        label: 'Enter the verification code sent to your email address.',
+        type: 'TEXT',
+        variant: 'HEADING_6',
+      },
+      {
+        components: [
+          {id: 'input_otp', label: 'Verification code', ref: 'otp', required: true, type: 'OTP_INPUT'},
+          {eventType: 'SUBMIT', id: 'action_verify', label: 'Verify', type: 'ACTION', variant: 'PRIMARY'},
+          {eventType: 'SUBMIT', id: 'action_resend', label: 'Resend code', type: 'RESEND'},
+        ],
+        id: 'block_otp',
+        type: 'BLOCK',
+      },
+    ],
+  },
+  executionId: 'sample',
+  flowStatus: EmbeddedSelfServiceFlowStatus.Incomplete,
+} as unknown as EmbeddedSelfServiceFlowResponse;
+
+export const submitSampleVerification = (
+  payload: EmbeddedSelfServiceFlowRequest,
+): Promise<EmbeddedSelfServiceFlowResponse> => {
+  if (payload.action === 'action_resend' || payload.inputs?.['otp'] === '123456') {
+    return Promise.resolve(
+      payload.action === 'action_resend'
+        ? SAMPLE_VERIFICATION_STEP
+        : {executionId: 'sample', flowStatus: EmbeddedSelfServiceFlowStatus.Complete},
+    );
+  }
+
+  return Promise.resolve({
+    ...SAMPLE_VERIFICATION_STEP,
+    data: {components: SAMPLE_VERIFICATION_STEP.data?.components},
+    error: {message: {defaultValue: 'The code is incorrect.', key: 'otp.invalid'}},
+  } as unknown as EmbeddedSelfServiceFlowResponse);
+};
 
 const isLive = (args: Args): boolean => str(args, 'source') === 'live';
 
@@ -202,6 +266,25 @@ const APPLICATION_CARD_TEMPLATE = `<ApplicationDetails :application-id="applicat
     </Card>
   </template>
 </ApplicationDetails>`;
+
+const VERIFY_TEMPLATE = `<VerifyAttribute attribute="email" @cancel="close" @complete="close">
+  <template #default="{title, subtitle, destinationText, components, values, handleInputChange, handleSubmit, handleResend, onCancel, isLoading, isValid, isComplete, successMessage, error}">
+    <Card>
+      <template #title>{{ title }}</template>
+      <template #subtitle>{{ subtitle }} {{ destinationText }}</template>
+      <template #content>
+        <Message v-if="error" severity="error">{{ error }}</Message>
+        <Message v-if="isComplete" severity="success">{{ successMessage }}</Message>
+        <InputText v-else :model-value="values.otp" @update:model-value="(value) => handleInputChange('otp', value)" />
+      </template>
+      <template #footer>
+        <Button v-if="onCancel" label="Cancel" severity="secondary" text @click="onCancel" />
+        <Button v-if="handleResend" label="Send a new code" severity="secondary" @click="handleResend" />
+        <Button label="Verify" :disabled="!isValid" :loading="isLoading" @click="handleSubmit(components[0].components[1], values)" />
+      </template>
+    </Card>
+  </template>
+</VerifyAttribute>`;
 
 /**
  * Stories that replace an admin component's default UI through its default scoped slot, here with
@@ -359,6 +442,61 @@ export const CUSTOM_RENDER_COMPONENTS: ComponentDef[] = [
       {id: 'base', name: 'Sample user'},
       {args: {deletable: false}, id: 'readonly', name: 'Without delete'},
       {args: {source: 'live'}, id: 'live', name: 'Live (needs userId)'},
+    ],
+  },
+  {
+    code: () => ({
+      imports: ['VerifyAttribute'],
+      otherImports: [
+        "import Button from 'primevue/button';",
+        "import Card from 'primevue/card';",
+        "import InputText from 'primevue/inputtext';",
+        "import Message from 'primevue/message';",
+      ],
+      template: VERIFY_TEMPLATE,
+    }),
+    controls: [
+      SOURCE_CONTROL,
+      {control: 'text', description: 'Live only: attribute to verify.', name: 'attribute', type: 'string'},
+    ],
+    defaults: {attribute: 'email', source: 'base'},
+    group: 'Custom rendering',
+    id: 'custom-verifyattribute-form',
+    live: true,
+    name: 'VerifyAttribute → PrimeVue form',
+    render: (args: Args, action: Action): VNode =>
+      themed(
+        440,
+        isLive(args)
+          ? h(
+              VerifyAttribute,
+              {
+                attribute: str(args, 'attribute') || 'email',
+                key: `live-${str(args, 'attribute')}`,
+                onCancel: (): void => action('cancel'),
+                onComplete: (): void => action('complete'),
+                onError: (error: Error): void => action('error', quoted(error.message)),
+              },
+              {default: (state: BaseVerifyAttributeRenderProps) => verifyForm(state)},
+            )
+          : h(
+              BaseVerifyAttribute,
+              {
+                attributeDisplayName: 'Email',
+                onCancel: (): void => action('cancel'),
+                onComplete: (): void => action('complete'),
+                onInitialize: (): Promise<EmbeddedSelfServiceFlowResponse> => Promise.resolve(SAMPLE_VERIFICATION_STEP),
+                onSubmit: (payload: EmbeddedSelfServiceFlowRequest): Promise<EmbeddedSelfServiceFlowResponse> => {
+                  action('submit', JSON.stringify(payload));
+                  return submitSampleVerification(payload);
+                },
+              },
+              {default: (state: BaseVerifyAttributeRenderProps) => verifyForm(state)},
+            ),
+      ),
+    stories: [
+      {id: 'base', name: 'Sample flow (code 123456)'},
+      {args: {source: 'live'}, id: 'live', name: 'Live (needs sign-in, sends a code)'},
     ],
   },
   {

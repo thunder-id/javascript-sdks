@@ -229,6 +229,40 @@ img.thunderid-user-profile__avatar {
   gap: calc(var(--thunderid-spacing-unit) * 0.5);
 }
 
+.thunderid-user-profile__verification-status {
+  flex-shrink: 0;
+  padding: 0 var(--thunderid-spacing-unit);
+  border: 1px solid currentColor;
+  border-radius: var(--thunderid-border-radius-small, 4px);
+  font-size: 0.75rem;
+  line-height: 20px;
+  white-space: nowrap;
+}
+
+.thunderid-user-profile__verification-status--verified {
+  color: var(--thunderid-color-success-main);
+}
+
+.thunderid-user-profile__verification-status--unverified {
+  color: var(--thunderid-color-text-secondary);
+}
+
+.thunderid-user-profile__verification {
+  padding: var(--thunderid-spacing-unit) 0;
+}
+
+.thunderid-user-profile__visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 .thunderid-user-profile__field-error {
   color: var(--thunderid-color-error, #d32f2f);
   font-size: var(--thunderid-typography-fontSize-xs, 0.8rem);

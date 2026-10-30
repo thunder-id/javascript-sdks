@@ -9,6 +9,7 @@ import {
   BaseUserAvatar,
   BaseUserDropdown,
   BaseUserProfile,
+  BaseVerifyAttribute,
   Button,
   Card,
   Checkbox,
@@ -38,9 +39,12 @@ import {
   UserAvatar,
   UserDropdown,
   UserProfile,
+  VerifyAttribute,
+  EmbeddedSelfServiceFlowRequest,
 } from '@thunderid/react';
 import {ChangeEvent, FC, ReactNode} from 'react';
 import {ADMIN_COMPONENTS} from './adminStories';
+import {SAMPLE_VERIFICATION_STEP, submitSampleVerification, withCustomStory} from './customRenderStories';
 import {bool, jsx, num, omit, SOURCE_CONTROL, str} from './storyHelpers';
 import {Narrow, OtpFieldStory, PasswordFieldStory, SelectStory} from './StoryWidgets';
 import type {Action, Args, ComponentDef} from './types';
@@ -939,6 +943,57 @@ export const COMPONENTS: ComponentDef[] = [
       {args: {source: 'live'}, id: 'live', name: 'Signed-in user (editable)'},
     ],
   },
+  withCustomStory({
+    code: (args: Args) =>
+      str(args, 'source') === 'live'
+        ? {
+            imports: ['VerifyAttribute'],
+            jsx: jsx('VerifyAttribute', omit(args, 'source'), {extra: ['onComplete={handleComplete}']}),
+          }
+        : {
+            imports: ['BaseVerifyAttribute'],
+            jsx: jsx('BaseVerifyAttribute', {}, {extra: ['onInitialize={startFlow}', 'onSubmit={submitStep}']}),
+          },
+    controls: [
+      SOURCE_CONTROL,
+      {control: 'text', description: 'Live only: attribute to verify.', name: 'attribute', type: 'string'},
+      {control: 'text', description: 'Live only: handle of the SELF_SERVICE flow.', name: 'flowHandle', type: 'string'},
+    ],
+    defaults: {attribute: 'email', flowHandle: '', source: 'base'},
+    group: 'User',
+    id: 'verifyattribute',
+    live: true,
+    name: 'VerifyAttribute',
+    render: (args: Args, action: Action) =>
+      str(args, 'source') === 'live' ? (
+        <Narrow width={440}>
+          <VerifyAttribute
+            key={`${str(args, 'attribute')}:${str(args, 'flowHandle')}`}
+            attribute={str(args, 'attribute') || 'email'}
+            flowHandle={str(args, 'flowHandle') || undefined}
+            onComplete={() => action('onComplete')}
+            onError={(error: Error) => action('onError', error.message)}
+          />
+        </Narrow>
+      ) : (
+        <Narrow width={440}>
+          <BaseVerifyAttribute
+            attributeDisplayName="Email"
+            onInitialize={() => Promise.resolve(SAMPLE_VERIFICATION_STEP)}
+            onSubmit={(payload: EmbeddedSelfServiceFlowRequest) => {
+              action('onSubmit', JSON.stringify(payload));
+
+              return submitSampleVerification(payload);
+            }}
+            onComplete={() => action('onComplete')}
+          />
+        </Narrow>
+      ),
+    stories: [
+      {id: 'base', name: 'Sample flow (code 123456)'},
+      {args: {source: 'live'}, id: 'live', name: 'Signed-in user (sends a code)'},
+    ],
+  }),
   {
     code: () => ({
       imports: ['User'],

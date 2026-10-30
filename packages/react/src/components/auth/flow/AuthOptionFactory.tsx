@@ -125,7 +125,7 @@ function getAuthOptionIconClass(): string {
   return authOptionIconClassCache;
 }
 
-export type AuthType = 'signin' | 'signup' | 'recovery';
+export type AuthType = 'signin' | 'signup' | 'recovery' | 'verification';
 
 /**
  * Get the appropriate FieldType for an input component.
@@ -259,6 +259,8 @@ const createAuthComponentFromFlow = (
     /** Called with the error of a failed picker load. The form itself shows no error for it. */
     onPickerError?: (error: Error) => void;
     onSubmit?: (component: EmbeddedFlowComponent, data?: Record<string, any>, skipValidation?: boolean) => void;
+    /** Renders RESEND actions; only attribute verification sets it, so other flows skip them as before. */
+    renderResend?: boolean;
     size?: 'small' | 'medium' | 'large';
     /** Translation function for resolving {{t(...)}} expressions at render time */
     t?: UseTranslation['t'];
@@ -330,6 +332,25 @@ const createAuthComponentFromFlow = (
 
     return null;
   };
+
+  // A resend asks for a new code, so it submits its own action without the step's values or validation.
+  if (component.type === EmbeddedFlowComponentType.Resend && options.renderResend) {
+    return (
+      <Button
+        fullWidth
+        key={key}
+        id={component.id}
+        onClick={(): void => options.onSubmit?.(component, {}, true)}
+        disabled={isLoading || options.isTimeoutDisabled}
+        className={cx(options.buttonClassName, component.classes)}
+        variant="text"
+        color="primary"
+        type="button"
+      >
+        {resolve(component.label)}
+      </Button>
+    );
+  }
 
   switch (component.type) {
     case EmbeddedFlowComponentType.TextInput:
@@ -1138,6 +1159,41 @@ export const renderRecoveryComponents = (
         {
           ...options,
           key: component.id || index,
+        },
+      ),
+    )
+    .filter((x): x is ReactElement => x !== null);
+
+/**
+ * Processes an array of components and renders them as React elements for attribute verification.
+ */
+export const renderVerificationComponents = (
+  components: EmbeddedFlowComponent[],
+  formValues: Record<string, string>,
+  touchedFields: Record<string, boolean>,
+  formErrors: Record<string, string>,
+  isLoading: boolean,
+  isFormValid: boolean,
+  resetForm: () => void,
+  onInputChange: (name: string, value: string) => void,
+  options?: Parameters<typeof renderRecoveryComponents>[8],
+): ReactElement[] =>
+  components
+    .map((component: EmbeddedFlowComponent, index: number) =>
+      createAuthComponentFromFlow(
+        component,
+        formValues,
+        touchedFields,
+        formErrors,
+        isLoading,
+        isFormValid,
+        resetForm,
+        onInputChange,
+        'verification',
+        {
+          ...options,
+          key: component.id ?? index,
+          renderResend: true,
         },
       ),
     )

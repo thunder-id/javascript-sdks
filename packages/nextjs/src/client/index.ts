@@ -42,6 +42,9 @@ export type {UserProfileProps} from './components/account/UserProfile/UserProfil
 export {default as ChangeCredential} from './components/account/ChangeCredential/ChangeCredential';
 export type {ChangeCredentialProps} from './components/account/ChangeCredential/ChangeCredential';
 
+export {default as VerifyAttribute} from './components/account/VerifyAttribute/VerifyAttribute';
+export type {VerifyAttributeProps} from './components/account/VerifyAttribute/VerifyAttribute';
+
 export {default as UserSelect} from './components/primitives/UserSelect/UserSelect';
 export type {UserSelectProps} from './components/primitives/UserSelect/UserSelect';
 

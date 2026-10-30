@@ -125,6 +125,26 @@ const translations: I18nTranslations = {
   'user.profile.update.generic.error': 'ప్రొఫైల్ అప్‌డేట్ చేస్తూ లోపం వచ్చింది. దయచేసి మళ్లీ ప్రయత్నించండి.',
 
   /* |---------------------------------------------------------------| */
+  /* |                       User Verification                       | */
+  /* |---------------------------------------------------------------| */
+
+  'user.verification.status.verified': 'ధృవీకరించబడింది',
+  'user.verification.status.unverified': 'ధృవీకరించబడలేదు',
+  'user.verification.status.verified_at': '{date}న ధృవీకరించబడింది',
+  'user.verification.buttons.verify.text': 'ధృవీకరించండి',
+  'user.verification.buttons.cancel.text': 'రద్దు చేయండి',
+  'user.verification.buttons.close.text': 'మూసివేయండి',
+  'user.verification.buttons.done.text': 'పూర్తయింది',
+  'user.verification.heading': '{attribute} ధృవీకరించండి',
+  'user.verification.subheading': '{destination}కు పంపిన కోడ్‌ను నమోదు చేయండి.',
+  'user.verification.subheading.generic': 'మీకు పంపిన కోడ్‌ను నమోదు చేయండి.',
+  'user.verification.subheading.link':
+    '{destination}కు ధృవీకరణ లింక్‌ను పంపాము. దాన్ని తెరిచి, ఆపై పూర్తయింది ఎంచుకోండి.',
+  'user.verification.destination': '{destination}కు పంపబడింది.',
+  'user.verification.success': '{attribute} ధృవీకరించబడింది.',
+  'user.verification.error': 'ధృవీకరణ విఫలమైంది. దయచేసి మళ్లీ ప్రయత్నించండి.',
+
+  /* |---------------------------------------------------------------| */
   /* |                        Change Password                        | */
   /* |---------------------------------------------------------------| */
 

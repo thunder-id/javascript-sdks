@@ -10,7 +10,7 @@ import {FlowMetadataResponse} from '../flow-meta';
  */
 export interface ComponentRenderContext {
   additionalData?: Record<string, any>;
-  authType: 'signin' | 'signup' | 'recovery';
+  authType: 'signin' | 'signup' | 'recovery' | 'verification';
   formErrors: Record<string, string>;
   formValues: Record<string, string>;
   isFormValid: boolean;

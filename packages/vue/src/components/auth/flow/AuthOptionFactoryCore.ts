@@ -179,6 +179,8 @@ const createAuthComponentFromFlow = (
     /** Called with the error of a failed picker load. The form itself shows no error for it. */
     onPickerError?: (error: Error) => void;
     onSubmit?: (component: EmbeddedFlowComponent, data?: Record<string, any>, skipValidation?: boolean) => void;
+    /** Renders RESEND actions; only attribute verification sets it, so other flows skip them as before. */
+    renderResend?: boolean;
     size?: 'small' | 'medium' | 'large';
     t?: TranslationFn;
     variant?: any;
@@ -221,6 +223,25 @@ const createAuthComponentFromFlow = (
 
     return null;
   };
+
+  // A resend asks for a new code, so it submits its own action without the step's values or validation.
+  if (component.type === EmbeddedFlowComponentType.Resend && options.renderResend) {
+    return h(
+      Button,
+      {
+        class: options.buttonClassName,
+        color: 'primary',
+        disabled: isLoading || options.isTimeoutDisabled,
+        fullWidth: true,
+        id: component.id,
+        key,
+        onClick: (): void => options.onSubmit?.(component, {}, true),
+        type: 'button',
+        variant: 'text',
+      },
+      {default: () => resolve(component.label)},
+    );
+  }
 
   switch (component.type) {
     case EmbeddedFlowComponentType.TextInput:
@@ -739,6 +760,41 @@ export const renderSignUpComponents = (
         {
           ...options,
           key: component.id || index,
+        },
+      ),
+    )
+    .filter((v): v is VNode => v !== null);
+
+/**
+ * Processes an array of components and renders them as VNodes for self attribute verification.
+ * Identical to renderSignUpComponents, except that it renders RESEND actions.
+ */
+export const renderVerificationComponents = (
+  components: EmbeddedFlowComponent[],
+  formValues: Record<string, string>,
+  touchedFields: Record<string, boolean>,
+  formErrors: Record<string, string>,
+  isLoading: boolean,
+  isFormValid: boolean,
+  resetForm: () => void,
+  onInputChange: (name: string, value: string) => void,
+  options?: Parameters<typeof renderSignUpComponents>[8],
+): VNode[] =>
+  components
+    .map((component: EmbeddedFlowComponent, index: number) =>
+      createAuthComponentFromFlow(
+        component,
+        formValues,
+        touchedFields,
+        formErrors,
+        isLoading,
+        isFormValid,
+        resetForm,
+        onInputChange,
+        {
+          ...options,
+          key: component.id ?? index,
+          renderResend: true,
         },
       ),
     )

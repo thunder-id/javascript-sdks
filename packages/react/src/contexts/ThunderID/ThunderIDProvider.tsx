@@ -426,6 +426,23 @@ const ThunderIDProvider: FC<PropsWithChildren<ThunderIDProviderProps>> = ({
     }));
   };
 
+  /**
+   * Re-reads `/users/me` into the session profile, so a change made outside the profile API, such as a
+   * recorded verification, shows. Like a profile update, the result replaces the profile; ID token
+   * claims are not merged back in, since they may hold a value the user has since changed.
+   */
+  const revalidateProfile = async (): Promise<void> => {
+    if (preferences?.user?.fetchUserProfile === false) return;
+
+    handleProfileUpdate(
+      await getUsersMe({
+        baseUrl,
+        instanceId,
+        url: resolveResourceEndpoint('usersMe', config),
+      }),
+    );
+  };
+
   const getDecodedIdToken: () => Promise<IdToken> = useCallback(
     async (): Promise<IdToken> => client.getDecodedIdToken(),
     [client],
@@ -595,7 +612,12 @@ const ThunderIDProvider: FC<PropsWithChildren<ThunderIDProviderProps>> = ({
             }}
           >
             <FlowProvider>
-              <UserProvider profile={userProfile!} userSchema={userSchema} onUpdateProfile={handleProfileUpdate}>
+              <UserProvider
+                profile={userProfile!}
+                userSchema={userSchema}
+                onUpdateProfile={handleProfileUpdate}
+                revalidateProfile={revalidateProfile}
+              >
                 <ComponentRendererProvider renderers={(extensions?.components?.renderers ?? {}) as any}>
                   {children}
                 </ComponentRendererProvider>

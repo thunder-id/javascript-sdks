@@ -29,6 +29,8 @@ import {AppRouterInstance} from 'next/dist/shared/lib/app-router-context.shared-
 import {useRouter, useSearchParams} from 'next/navigation';
 import {FC, PropsWithChildren, RefObject, useEffect, useMemo, useRef, useState} from 'react';
 import ThunderIDContext, {ThunderIDContextProps} from './ThunderIDContext';
+import getUserProfileAction from '../../../server/actions/account/getUserProfileAction';
+import getSessionId from '../../../server/actions/getSessionId';
 import {RefreshResult} from '../../../server/actions/refreshToken';
 import logger from '../../../utils/logger';
 import fetchFlowMetaFromServer from '../../fetchFlowMetaFromServer';
@@ -313,6 +315,22 @@ const ThunderIDClientProvider: FC<PropsWithChildren<ThunderIDClientProviderProps
     }));
   };
 
+  /**
+   * Re-reads `/users/me` through the server-held session, so a change made outside the profile API,
+   * such as a recorded verification, shows.
+   */
+  const revalidateProfile = async (): Promise<void> => {
+    if (preferences?.user?.fetchUserProfile === false) return;
+
+    const result: Awaited<ReturnType<typeof getUserProfileAction>> = await getUserProfileAction(
+      (await getSessionId()) ?? '',
+    );
+
+    if (result.success) {
+      handleProfileUpdate(result.data.userProfile.profile);
+    }
+  };
+
   // Bridge into @thunderid/react's own ThunderIDContext. Internal react components rendered by
   // BaseSignIn/BaseSignUp — most notably FlowMetaProvider, which fetches `/flow/meta` and injects
   // its i18n bundle — call react's `useThunderID()` directly. Without this bridge they'd only see
@@ -408,6 +426,7 @@ const ThunderIDClientProvider: FC<PropsWithChildren<ThunderIDClientProviderProps
                   profile={userProfile}
                   userSchema={userSchema}
                   onUpdateProfile={handleProfileUpdate}
+                  revalidateProfile={revalidateProfile}
                   updateProfile={updateProfile}
                 >
                   {children}
