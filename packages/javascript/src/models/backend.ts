@@ -16,7 +16,7 @@
  *
  * @example
  * baseUrl: 'https://app.example.com',
- * endpoints: {backend: {signIn: '/api/auth/signin', apiBaseUrl: 'https://api.example.com'}}
+ * endpoints: {backend: {signIn: '/api/auth/signin', proxy: '/api/auth/proxy'}}
  */
 export interface BackendEndpoints {
   /** Starts sign-in. Defaults to `/api/auth/signin`. */
@@ -33,16 +33,12 @@ export interface BackendEndpoints {
   /** Ends the session. Defaults to `/api/auth/signout`. */
   signOut?: string;
   /**
-   * Prefix of the API proxy. Requests under `apiBaseUrl` are sent through it. Defaults to
-   * `/api/auth/proxy`.
+   * The backend's API proxy, which forwards to the API with the access token. The backend maps it to
+   * the API from its own configuration, so the app never needs the API's address. The SDK builds its
+   * API requests, such as `/users/me` and the management APIs, on it, and sends a relative request
+   * (`/users`) to it. Defaults to `/api/auth/proxy`.
    */
   proxy?: string;
-  /**
-   * Base URL of the API behind the proxy: requests under it are sent through `proxy`, and the SDK
-   * builds its API requests, such as `/users/me` and the management APIs, on it. Defaults to
-   * `baseUrl`, then to the app's origin.
-   */
-  apiBaseUrl?: string;
   /**
    * Issues the access token for `bypass`, as an OAuth token response without a refresh token.
    * Defaults to `/api/auth/token`.
@@ -70,7 +66,7 @@ export interface BackendBypass {
 }
 
 /**
- * The backend endpoints, fully resolved, with the API base whose requests go through the proxy.
+ * The backend endpoints, fully resolved.
  */
 export type ResolvedBackendEndpoints = Required<Omit<BackendEndpoints, 'bypass'>> & {
   bypass: Required<BackendBypass>;

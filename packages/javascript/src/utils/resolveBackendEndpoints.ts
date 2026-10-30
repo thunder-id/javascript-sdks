@@ -1,7 +1,6 @@
 // Copyright 2026 The ThunderID Authors
 // SPDX-License-Identifier: Apache-2.0
 
-import resolveApiBaseUrl from './resolveApiBaseUrl';
 import {BackendEndpoints, ResolvedBackendEndpoints} from '../models/backend';
 
 const DEFAULT_BACKEND_BASE_PATH = '/api/auth';
@@ -20,22 +19,23 @@ export interface BackendEndpointConfig {
  *
  * In backend mode `baseUrl` is the backend. Each endpoint given as a path (starting with `/`) is
  * resolved against it, and an absolute URL is used as it is. Without `baseUrl` the paths stay
- * relative to the app's origin. The API base, whose requests go through the proxy, is
- * `endpoints.backend.apiBaseUrl`, falling back to `baseUrl` and then to the app's origin.
+ * relative to the app's origin. The API's own address is the backend's to know: the app reaches it
+ * only through `proxy`.
  *
  * @param config - The client config.
- * @param origin - The app's origin, the API base when neither `apiBaseUrl` nor `baseUrl` is set.
+ * @param _origin - Unused; kept so existing callers don't change.
  * @returns The resolved endpoints, or `undefined` when `endpoints.backend` is not set.
  *
  * @example
  * ```typescript
  * resolveBackendEndpoints({baseUrl: 'https://bff.example.com', endpoints: {backend: {}}}, window.location.origin);
- * // {signIn: 'https://bff.example.com/api/auth/signin', ..., apiBaseUrl: 'https://bff.example.com'}
+ * // {signIn: 'https://bff.example.com/api/auth/signin', ..., proxy: 'https://bff.example.com/api/auth/proxy'}
  * ```
  */
 const resolveBackendEndpoints = (
   config: BackendEndpointConfig | undefined,
-  origin: string,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  _origin?: string,
 ): ResolvedBackendEndpoints | undefined => {
   const endpoints: BackendEndpoints | undefined = config?.endpoints?.backend;
 
@@ -51,9 +51,6 @@ const resolveBackendEndpoints = (
   };
 
   return {
-    // `||`, not `??`: an empty base, which the providers default to, falls back to the origin too.
-    // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
-    apiBaseUrl: (resolveApiBaseUrl(config) || origin).replace(/\/+$/, ''),
     bypass: {
       attachToken: endpoints.bypass?.attachToken ?? true,
       urls: (endpoints.bypass?.urls ?? []).map((url: string) => url.replace(/\/+$/, '')),

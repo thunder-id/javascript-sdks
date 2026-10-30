@@ -4,8 +4,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-argument, @typescript-eslint/require-await */
 import {describe, expect, it} from 'vitest';
 import AuthenticationHelper from '../AuthenticationHelper';
-import resolveApiBaseUrl from '../resolveApiBaseUrl';
 import resolveBackendEndpoints from '../resolveBackendEndpoints';
+import resolveRequestBaseUrl from '../resolveRequestBaseUrl';
 
 const ORIGIN = 'https://app.example.com';
 
@@ -15,9 +15,8 @@ describe('resolveBackendEndpoints', () => {
     expect(resolveBackendEndpoints(undefined, ORIGIN)).toBeUndefined();
   });
 
-  it('defaults every unset endpoint under /api/auth and the API base to the app origin', () => {
+  it('defaults every unset endpoint under /api/auth', () => {
     expect(resolveBackendEndpoints({endpoints: {backend: {}}}, ORIGIN)).toEqual({
-      apiBaseUrl: ORIGIN,
       bypass: {attachToken: true, urls: []},
       checkSession: '/api/auth/checksession',
       proxy: '/api/auth/proxy',
@@ -29,7 +28,7 @@ describe('resolveBackendEndpoints', () => {
     });
   });
 
-  it('resolves endpoint paths against baseUrl, the backend, and uses it as the API base by default', () => {
+  it('resolves endpoint paths, the proxy included, against baseUrl, the backend', () => {
     const resolved = resolveBackendEndpoints(
       {
         baseUrl: 'https://bff.example.com/',
@@ -42,7 +41,6 @@ describe('resolveBackendEndpoints', () => {
     expect(resolved?.session).toBe('https://bff.example.com/gateway/me');
     expect(resolved?.proxy).toBe('https://bff.example.com/gateway/api');
     expect(resolved?.signOut).toBe('https://bff.example.com/api/auth/signout');
-    expect(resolved?.apiBaseUrl).toBe('https://bff.example.com');
   });
 
   it('uses absolute endpoint URLs as they are', () => {
@@ -63,17 +61,7 @@ describe('resolveBackendEndpoints', () => {
     const resolved = resolveBackendEndpoints({baseUrl: '', endpoints: {backend: {session: '/gateway/me'}}}, ORIGIN);
 
     expect(resolved?.session).toBe('/gateway/me');
-    expect(resolved?.apiBaseUrl).toBe(ORIGIN);
-  });
-
-  it('uses endpoints.backend.apiBaseUrl as the API base when set', () => {
-    const resolved = resolveBackendEndpoints(
-      {baseUrl: 'https://bff.example.com', endpoints: {backend: {apiBaseUrl: 'https://api.example.com/v1/'}}},
-      ORIGIN,
-    );
-
-    expect(resolved?.apiBaseUrl).toBe('https://api.example.com/v1');
-    expect(resolved?.proxy).toBe('https://bff.example.com/api/auth/proxy');
+    expect(resolved?.proxy).toBe('/api/auth/proxy');
   });
 
   it('applies the token endpoint and the bypass, trimming its URLs', () => {
@@ -91,22 +79,26 @@ describe('resolveBackendEndpoints', () => {
   });
 });
 
-describe('resolveApiBaseUrl', () => {
-  it('is endpoints.backend.apiBaseUrl in backend mode, falling back to baseUrl', () => {
+describe('resolveRequestBaseUrl', () => {
+  it("is the backend's proxy, resolved against baseUrl, in backend mode", () => {
     expect(
-      resolveApiBaseUrl({
-        baseUrl: 'https://bff.example.com',
-        endpoints: {backend: {apiBaseUrl: 'https://api.example.com'}},
-      }),
-    ).toBe('https://api.example.com');
-    expect(resolveApiBaseUrl({baseUrl: 'https://bff.example.com', endpoints: {backend: {}}})).toBe(
-      'https://bff.example.com',
+      resolveRequestBaseUrl({baseUrl: 'https://bff.example.com', endpoints: {backend: {proxy: '/gateway/api'}}}),
+    ).toBe('https://bff.example.com/gateway/api');
+    expect(resolveRequestBaseUrl({baseUrl: 'https://bff.example.com', endpoints: {backend: {}}})).toBe(
+      'https://bff.example.com/api/auth/proxy',
     );
+    expect(resolveRequestBaseUrl({endpoints: {backend: {proxy: '/gateway/api'}}})).toBe('/gateway/api');
+    expect(
+      resolveRequestBaseUrl({
+        baseUrl: 'https://bff.example.com',
+        endpoints: {backend: {proxy: 'https://api.example.com/p'}},
+      }),
+    ).toBe('https://api.example.com/p');
   });
 
   it('is baseUrl outside backend mode', () => {
-    expect(resolveApiBaseUrl({baseUrl: 'https://auth.example.com'})).toBe('https://auth.example.com');
-    expect(resolveApiBaseUrl(undefined)).toBeUndefined();
+    expect(resolveRequestBaseUrl({baseUrl: 'https://auth.example.com'})).toBe('https://auth.example.com');
+    expect(resolveRequestBaseUrl(undefined)).toBeUndefined();
   });
 });
 

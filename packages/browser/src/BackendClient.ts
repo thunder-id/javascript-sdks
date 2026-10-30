@@ -208,24 +208,28 @@ class BackendClient {
   }
 
   /**
-   * Maps an API URL to its backend proxy URL.
+   * Maps an API URL to its backend proxy URL. A URL already on the proxy is sent as it is, and any
+   * other path (`/users`) goes under the proxy. The backend, not the app, knows the API's address.
    *
-   * @returns The proxy URL, or `undefined` when the URL is not under the API base and so cannot be
-   * sent with the session's credentials.
+   * @returns The proxy URL, or `undefined` for an absolute URL that isn't on the proxy and so cannot
+   * be sent with the session's credentials.
    */
   toProxyUrl(url: string): string | undefined {
-    const {apiBaseUrl, proxy} = this.endpoints;
-    let rest: string;
+    const {proxy} = this.endpoints;
+    const origin: string = typeof window !== 'undefined' ? window.location.origin : '';
+    const isPath = (value: string): boolean => value.startsWith('/') && !value.startsWith('//');
+    const isUnder = (base: string): boolean => url === base || url.startsWith(`${base}/`) || url.startsWith(`${base}?`);
+    // The proxy as a full URL and, when it's on this origin, as a path too.
+    const absoluteProxy: string = isPath(proxy) ? `${origin}${proxy}` : proxy;
+    const proxyPath: string | undefined = absoluteProxy.startsWith(`${origin}/`)
+      ? absoluteProxy.slice(origin.length)
+      : undefined;
 
-    if (url === apiBaseUrl || url.startsWith(`${apiBaseUrl}/`) || url.startsWith(`${apiBaseUrl}?`)) {
-      rest = url.slice(apiBaseUrl.length);
-    } else if (url.startsWith('/') && !url.startsWith('//')) {
-      rest = url;
-    } else {
-      return undefined;
+    if (isUnder(proxy) || isUnder(absoluteProxy) || (proxyPath !== undefined && isUnder(proxyPath))) {
+      return url;
     }
 
-    return `${proxy}${rest.startsWith('/') ? rest : `/${rest}`}`;
+    return isPath(url) ? `${proxy}${url}` : undefined;
   }
 
   /**

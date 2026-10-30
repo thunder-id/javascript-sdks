@@ -35,8 +35,8 @@ export interface ThunderIDContext {
   /** The ThunderID application ID from the config. */
   applicationId: string | undefined;
   /**
-   * The base URL the SDK's API requests are built on: the ThunderID tenant, or in backend mode
-   * `endpoints.backend.apiBaseUrl` (falling back to `baseUrl`, the backend).
+   * The base URL the SDK's API requests are built on: the ThunderID tenant, or in backend mode the
+   * backend's proxy (`endpoints.backend.proxy`, resolved against `baseUrl`).
    */
   baseUrl: string | undefined;
   /**

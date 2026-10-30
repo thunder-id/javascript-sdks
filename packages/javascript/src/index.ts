@@ -912,7 +912,7 @@ export {
 export {default as removeTrailingSlash} from './utils/removeTrailingSlash';
 export {default as resolveFieldName} from './utils/resolveFieldName';
 export {default as resolveResourceEndpoint} from './utils/resolveResourceEndpoint';
-export {default as resolveApiBaseUrl} from './utils/resolveApiBaseUrl';
+export {default as resolveRequestBaseUrl} from './utils/resolveRequestBaseUrl';
 export {default as resolveBackendEndpoints} from './utils/resolveBackendEndpoints';
 export type {BackendEndpointConfig} from './utils/resolveBackendEndpoints';
 export type {ResourceEndpointKey, ResourceEndpointConfig} from './utils/resolveResourceEndpoint';

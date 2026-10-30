@@ -8,7 +8,6 @@ import BackendClient, {BACKEND_REQUEST_HEADER} from '../BackendClient';
 import BackendHttpClient from '../BackendHttpClient';
 
 const ENDPOINTS: ResolvedBackendEndpoints = {
-  apiBaseUrl: 'https://auth.example.com',
   bypass: {attachToken: true, urls: ['https://dp.example.com/api']},
   checkSession: '/api/auth/checksession',
   proxy: '/api/auth/proxy',
@@ -95,15 +94,35 @@ describe('BackendClient', () => {
     expect((await backend.getSession()).isSignedIn).toBe(false);
   });
 
-  it('maps API URLs to the proxy and refuses other origins', () => {
+  it('sends paths through the proxy and refuses other absolute URLs', () => {
     const backend = new BackendClient(ENDPOINTS);
 
-    expect(backend.toProxyUrl('https://auth.example.com/users?limit=5')).toBe('/api/auth/proxy/users?limit=5');
-    expect(backend.toProxyUrl('https://auth.example.com')).toBe('/api/auth/proxy/');
     expect(backend.toProxyUrl('/applications')).toBe('/api/auth/proxy/applications');
-    expect(backend.toProxyUrl('https://auth.example.com.evil.com/users')).toBeUndefined();
+    expect(backend.toProxyUrl('/users?limit=5')).toBe('/api/auth/proxy/users?limit=5');
+    expect(backend.toProxyUrl('https://auth.example.com/users')).toBeUndefined();
     expect(backend.toProxyUrl('https://other.example.com/users')).toBeUndefined();
     expect(backend.toProxyUrl('//other.example.com/users')).toBeUndefined();
+  });
+
+  it('sends a URL already on the proxy as it is, without a second prefix', () => {
+    const backend = new BackendClient(ENDPOINTS);
+    const {origin} = window.location;
+
+    expect(backend.toProxyUrl('/api/auth/proxy/users')).toBe('/api/auth/proxy/users');
+    expect(backend.toProxyUrl('/api/auth/proxy')).toBe('/api/auth/proxy');
+    expect(backend.toProxyUrl(`${origin}/api/auth/proxy/users?x=1`)).toBe(`${origin}/api/auth/proxy/users?x=1`);
+    // Only the proxy itself, not a path that merely starts with the same characters.
+    expect(backend.toProxyUrl('/api/auth/proxyish/users')).toBe('/api/auth/proxy/api/auth/proxyish/users');
+  });
+
+  it('recognises an absolute proxy on the backend, by its full URL', () => {
+    const backend = new BackendClient({...ENDPOINTS, proxy: 'https://bff.example.com/gateway/api'});
+
+    expect(backend.toProxyUrl('https://bff.example.com/gateway/api/users')).toBe(
+      'https://bff.example.com/gateway/api/users',
+    );
+    expect(backend.toProxyUrl('/users')).toBe('https://bff.example.com/gateway/api/users');
+    expect(backend.toProxyUrl('https://bff.example.com/other')).toBeUndefined();
   });
 });
 
@@ -127,7 +146,7 @@ describe('BackendHttpClient', () => {
       data: {name: 'a'},
       headers: {'Content-Type': 'application/json'},
       method: 'POST',
-      url: 'https://auth.example.com/users',
+      url: '/users',
     });
 
     expect(response.status).toBe(201);
@@ -147,7 +166,7 @@ describe('BackendHttpClient', () => {
       .mockResolvedValueOnce(json(200, {ok: true}));
     const client = new BackendHttpClient(new BackendClient(ENDPOINTS), noToken);
 
-    const response = await client.request({url: 'https://auth.example.com/users'});
+    const response = await client.request({url: '/users'});
 
     expect(response.data).toEqual({ok: true});
     expect(fetchMock).toHaveBeenCalledTimes(3);
@@ -157,7 +176,7 @@ describe('BackendHttpClient', () => {
     fetchMock.mockResolvedValueOnce(json(401, {code: 'unauthorized'}));
     const client = new BackendHttpClient(new BackendClient(ENDPOINTS), noToken);
 
-    await expect(client.request({url: 'https://auth.example.com/users'})).rejects.toMatchObject({
+    await expect(client.request({url: '/users'})).rejects.toMatchObject({
       response: {status: 401},
     });
     expect(fetchMock).toHaveBeenCalledTimes(1);
@@ -167,12 +186,12 @@ describe('BackendHttpClient', () => {
     fetchMock.mockResolvedValueOnce(json(401, {error: 'session_expired'})).mockResolvedValueOnce(json(401, {}));
     const client = new BackendHttpClient(new BackendClient(ENDPOINTS), noToken);
 
-    await expect(client.request({url: 'https://auth.example.com/users'})).rejects.toMatchObject({
+    await expect(client.request({url: '/users'})).rejects.toMatchObject({
       response: {status: 401},
     });
   });
 
-  it('refuses URLs outside the API base', async () => {
+  it('refuses absolute URLs that are not on the proxy', async () => {
     const client = new BackendHttpClient(new BackendClient(ENDPOINTS), noToken);
 
     await expect(client.request({url: 'https://other.example.com/x'})).rejects.toMatchObject({

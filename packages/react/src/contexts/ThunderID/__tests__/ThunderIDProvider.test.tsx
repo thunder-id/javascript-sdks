@@ -253,7 +253,7 @@ describe('ThunderIDProvider updateSession single-flight', () => {
 });
 
 describe('ThunderIDProvider in backend mode', () => {
-  it('initializes the client with the backend as baseUrl and builds API requests on apiBaseUrl', async () => {
+  it('initializes the client with the backend as baseUrl and builds API requests on its proxy', async () => {
     function ReadBaseUrl(): ReactElement {
       return <div data-testid="base-url">{useThunderID().baseUrl}</div>;
     }
@@ -262,7 +262,7 @@ describe('ThunderIDProvider in backend mode', () => {
       <ThunderIDProvider
         baseUrl="https://app.example.com"
         clientId="test-client"
-        endpoints={{backend: {apiBaseUrl: 'https://api.example.com'}}}
+        endpoints={{backend: {proxy: '/gateway/api'}}}
         preferences={{resolveFromMeta: false}}
       >
         <ReadBaseUrl />
@@ -271,6 +271,6 @@ describe('ThunderIDProvider in backend mode', () => {
 
     await waitFor(() => expect(mocks.client.initialize).toHaveBeenCalled());
     expect(mocks.client.initialize.mock.calls[0][0]).toMatchObject({baseUrl: 'https://app.example.com'});
-    expect(screen.getByTestId('base-url').textContent).toBe('https://api.example.com');
+    expect(screen.getByTestId('base-url').textContent).toBe('https://app.example.com/gateway/api');
   });
 });

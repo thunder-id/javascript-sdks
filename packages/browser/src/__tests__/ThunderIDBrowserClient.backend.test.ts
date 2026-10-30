@@ -10,14 +10,14 @@ import ThunderIDBrowserClient from '../ThunderIDBrowserClient';
 const json = (status: number, body: unknown): Response =>
   new Response(JSON.stringify(body), {headers: {'Content-Type': 'application/json'}, status});
 
-// In backend mode `baseUrl` is the backend, and the API whose requests go through its proxy is
-// `endpoints.backend.apiBaseUrl`.
+// In backend mode `baseUrl` is the backend, and the API is reached through its proxy, which the
+// backend maps to the API from its own configuration.
 const BFF = 'https://app.example.com';
 
 const CONFIG = {
   baseUrl: BFF,
   clientId: 'my-app',
-  endpoints: {backend: {apiBaseUrl: 'https://auth.example.com', bypass: {urls: ['https://dp.example.com']}}},
+  endpoints: {backend: {bypass: {urls: ['https://dp.example.com']}}},
   storage: 'browserMemory',
 };
 
@@ -68,7 +68,7 @@ describe('ThunderIDBrowserClient with sign-in on the backend', () => {
     await client.on('sign-out', onSignOut);
     fetchMock.mockResolvedValueOnce(json(401, {error: 'login_required'}));
 
-    await expect(client.httpRequest({url: 'https://auth.example.com/users'})).rejects.toBeDefined();
+    await expect(client.httpRequest({url: '/users'})).rejects.toBeDefined();
 
     expect(onSignOut).toHaveBeenCalledTimes(1);
     expect(await client.isSignedIn()).toBe(false);
@@ -82,7 +82,7 @@ describe('ThunderIDBrowserClient with sign-in on the backend', () => {
   it('sends httpRequest through the proxy', async () => {
     fetchMock.mockResolvedValue(json(200, {users: []}));
 
-    const response = await client.httpRequest({method: 'GET', url: 'https://auth.example.com/users'});
+    const response = await client.httpRequest({method: 'GET', url: '/users'});
 
     expect(response?.data).toEqual({users: []});
     expect(fetchMock.mock.calls[0][0]).toBe(`${BFF}/api/auth/proxy/users`);
@@ -118,7 +118,7 @@ describe('ThunderIDBrowserClient with sign-in on the backend', () => {
     FetchHttpClient.destroyInstance(8);
   });
 
-  it('builds /users/me on the API base and sends it through the proxy', async () => {
+  it('builds /users/me on the proxy, resolved against baseUrl, without a second prefix', async () => {
     fetchMock.mockResolvedValueOnce(json(200, {id: 'u1', username: 'ada'}));
 
     await client.getUserProfile();
@@ -167,7 +167,7 @@ describe('ThunderIDBrowserClient with sign-in on the backend', () => {
       .mockResolvedValueOnce(json(200, {access_token: 't2', expires_in: 300}));
 
     expect(await client.getAccessToken()).toBe('t1');
-    await expect(client.httpRequest({url: 'https://auth.example.com/users'})).rejects.toBeDefined();
+    await expect(client.httpRequest({url: '/users'})).rejects.toBeDefined();
     await vi.waitFor(async () => expect(await client.getAccessToken()).toBe('t2'));
   });
 
@@ -176,7 +176,7 @@ describe('ThunderIDBrowserClient with sign-in on the backend', () => {
     const onError = vi.fn();
     await client.on('http-request-error', onError);
 
-    await expect(client.httpRequest({url: 'https://auth.example.com/users'})).rejects.toBeDefined();
+    await expect(client.httpRequest({url: '/users'})).rejects.toBeDefined();
     expect(onError).toHaveBeenCalledTimes(1);
   });
 
