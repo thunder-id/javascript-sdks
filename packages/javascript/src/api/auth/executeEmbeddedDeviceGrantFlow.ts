@@ -192,6 +192,49 @@ const executeEmbeddedDeviceGrantFlow = async ({
 
   if (!response.ok) {
     const errorText: string = await response.text();
+    let errorResponse: Record<string, unknown> | undefined;
+    try {
+      const parsed: unknown = JSON.parse(errorText);
+      if (typeof parsed === 'object' && parsed !== null) errorResponse = parsed as Record<string, unknown>;
+    } catch {
+      // Preserve the API error below when the response is not a JSON flow error.
+    }
+
+    const errorData: unknown = errorResponse?.['data'];
+    const additionalData: unknown =
+      typeof errorData === 'object' && errorData !== null
+        ? (errorData as Record<string, unknown>)['additionalData']
+        : undefined;
+    const errorAssertion: unknown = errorResponse?.['errorAssertion'];
+    const authId: unknown =
+      typeof additionalData === 'object' && additionalData !== null
+        ? (additionalData as Record<string, unknown>)['authId']
+        : undefined;
+    const callbackType: unknown =
+      typeof additionalData === 'object' && additionalData !== null
+        ? (additionalData as Record<string, unknown>)['callbackType']
+        : undefined;
+
+    if (
+      typeof errorAssertion === 'string' &&
+      typeof authId === 'string' &&
+      typeof callbackType === 'string' &&
+      errorResponse
+    ) {
+      const callbackResponse: Record<string, unknown> = await postAuthCallback(
+        callbackUrl,
+        {assertion: errorAssertion, authId, type: callbackType},
+        requestConfig.headers,
+        true,
+      );
+      const redirectUri: unknown = callbackResponse['redirect_uri'];
+      return {
+        ...errorResponse,
+        errorAssertion,
+        flowStatus: EmbeddedSignInFlowStatus.Error,
+        ...(typeof redirectUri === 'string' ? {redirectUrl: redirectUri} : {}),
+      } as EmbeddedDeviceGrantFlowResponse;
+    }
 
     throw new ThunderIDAPIError(
       errorText,

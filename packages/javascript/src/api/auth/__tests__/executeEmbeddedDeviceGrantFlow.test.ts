@@ -318,6 +318,41 @@ describe('executeEmbeddedDeviceGrantFlow', () => {
     ).rejects.toMatchObject({code: 'executeEmbeddedDeviceGrantFlow-FlowError-001', statusCode: 503});
   });
 
+  it('relays error assertions returned with a failed flow HTTP response', async () => {
+    const fetchMock = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            error: 'server_error',
+            errorAssertion: 'signed-error-assertion',
+            data: {additionalData: {authId: 'request-1', callbackType: 'urn:ietf:params:oauth:grant-type:device_code'}},
+          }),
+          {status: 500},
+        ),
+      )
+      .mockResolvedValueOnce(new Response(JSON.stringify({status: 'OK'}), {status: 200}));
+
+    await expect(
+      executeEmbeddedDeviceGrantFlow({
+        url: URL,
+        payload: {executionId: 'execution-1', action: 'continue'},
+      }),
+    ).resolves.toMatchObject({flowStatus: 'ERROR', errorAssertion: 'signed-error-assertion'});
+
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      2,
+      'https://localhost:8090/oauth2/auth/callback',
+      expect.objectContaining({
+        body: JSON.stringify({
+          assertion: 'signed-error-assertion',
+          authId: 'request-1',
+          type: 'urn:ietf:params:oauth:grant-type:device_code',
+        }),
+      }),
+    );
+  });
+
   it('returns the callback redirect URI on a completed flow', async () => {
     vi.spyOn(globalThis, 'fetch')
       .mockResolvedValueOnce(

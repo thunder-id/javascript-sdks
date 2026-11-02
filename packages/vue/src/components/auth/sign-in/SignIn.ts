@@ -2,10 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import {
-  CONSENT_INVALID_KEY_PREFIX,
-  CONSENT_MODIFIED_KEY_PREFIX,
   ConsentConstants,
-  getConsentElementDecision,
+  compileConsentDecisions,
   ThunderIDRuntimeError,
   type ConsentPurposeData,
   EmbeddedFlowComponent,
@@ -34,7 +32,6 @@ import {useOAuthCallback, type OAuthCallbackPayload} from '../../../composables/
 import useFlowMeta from '../../../composables/useFlowMeta';
 import useI18n from '../../../composables/useI18n';
 import useThunderID from '../../../composables/useThunderID';
-import {getConsentOptionalKey} from '../flow/Consent';
 import {extractErrorMessage, normalizeFlowResponse} from '../../../utils/flowTransformer';
 import {initiateOAuthRedirect} from '../../../utils/oauth';
 import {handlePasskeyAuthentication, handlePasskeyRegistration} from '../../../utils/passkey';
@@ -316,7 +313,7 @@ const SignIn: Component = defineComponent({
         throw new Error('No active flow ID');
       }
 
-      const processedInputs: Record<string, any> = {...payload.inputs};
+      let processedInputs: Record<string, any> = {...payload.inputs};
 
       // Auto-compile consent decisions if on a consent prompt step
       if (additionalData.value?.['consentPrompt']) {
@@ -339,36 +336,9 @@ const SignIn: Component = defineComponent({
             }
           }
 
-          const decisions: Record<string, unknown> = {
+          processedInputs = compileConsentDecisions(processedInputs, purposes, {
             approved: !isDeny,
             ...(isDeny ? {reason: ConsentConstants.REASON_USER_DENIED} : {}),
-            purposes: purposes.map((p) => ({
-              approved: !isDeny,
-              elements: [
-                ...(p.essential ?? []).map((e) => ({approved: !isDeny, name: e.name})),
-                ...(p.optional ?? []).map((e) => {
-                  const key: string = getConsentOptionalKey(p.purposeId, e.name);
-                  return getConsentElementDecision(
-                    p.purposeId,
-                    e,
-                    !isDeny && processedInputs[key] === 'true',
-                    processedInputs,
-                  );
-                }),
-              ],
-              purposeName: p.purposeName,
-            })),
-          };
-          processedInputs['consent_decisions'] = JSON.stringify(decisions);
-
-          Object.keys(processedInputs).forEach((key: string) => {
-            if (
-              key.startsWith('__consent_opt__') ||
-              key.startsWith(CONSENT_MODIFIED_KEY_PREFIX) ||
-              key.startsWith(CONSENT_INVALID_KEY_PREFIX)
-            ) {
-              delete processedInputs[key];
-            }
           });
         } catch {
           // Ignore consent construction failures

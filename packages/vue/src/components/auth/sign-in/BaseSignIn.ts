@@ -190,6 +190,7 @@ const BaseSignIn: Component = defineComponent({
     // Form state
     const formValues: Ref<Record<string, string>> = ref({});
     const touchedFields: Ref<Record<string, boolean>> = ref({});
+    const serverFormErrors: Ref<Record<string, string>> = ref({});
 
     // Reset form state when components change (new flow step)
     watch(
@@ -202,6 +203,7 @@ const BaseSignIn: Component = defineComponent({
         });
         formValues.value = freshValues;
         touchedFields.value = {};
+        serverFormErrors.value = {};
       },
       {deep: false, immediate: true},
     );
@@ -214,13 +216,30 @@ const BaseSignIn: Component = defineComponent({
       {deep: true},
     );
 
+    // Keep server validation errors in editable form state so users can correct and resubmit fields.
+    watch(
+      () => props.serverFieldErrors,
+      (fieldErrors: FieldError[] | null) => {
+        const errors: Record<string, string> = {};
+        const touched: Record<string, boolean> = {};
+        (fieldErrors ?? []).forEach((fieldError: FieldError) => {
+          if (!(fieldError.identifier in errors)) {
+            errors[fieldError.identifier] = fieldError.message;
+            touched[fieldError.identifier] = true;
+          }
+        });
+        serverFormErrors.value = errors;
+        if (Object.keys(touched).length > 0) {
+          touchedFields.value = {...touchedFields.value, ...touched};
+        }
+      },
+      {immediate: true},
+    );
+
     // Computed form errors based on current values + touched
     const formErrors: ComputedRef<Record<string, string>> = computed<Record<string, string>>(() => {
       const fields: FieldDefinition[] = extractFormFields(props.components || []);
-      const errors: Record<string, string> = {};
-      (props.serverFieldErrors ?? []).forEach((fieldError: FieldError) => {
-        if (!(fieldError.identifier in errors)) errors[fieldError.identifier] = fieldError.message;
-      });
+      const errors: Record<string, string> = {...serverFormErrors.value};
       fields.forEach((field: FieldDefinition) => {
         const value: string = formValues.value[field.name] || '';
         const isTouched: boolean = touchedFields.value[field.name] || false;
@@ -250,6 +269,11 @@ const BaseSignIn: Component = defineComponent({
 
     const handleInputChange = (name: string, value: string): void => {
       formValues.value = {...formValues.value, [name]: value};
+      if (name in serverFormErrors.value) {
+        const errors: Record<string, string> = {...serverFormErrors.value};
+        delete errors[name];
+        serverFormErrors.value = errors;
+      }
     };
 
     const handleInputBlur = (name: string): void => {

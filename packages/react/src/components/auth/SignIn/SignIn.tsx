@@ -15,9 +15,7 @@ import {
   FlowMetadataResponse,
   Preferences,
   logger,
-  CONSENT_INVALID_KEY_PREFIX,
-  CONSENT_MODIFIED_KEY_PREFIX,
-  getConsentElementDecision,
+  compileConsentDecisions,
 } from '@thunderid/browser';
 import {FC, ReactElement, useState, useEffect, useRef, ReactNode} from 'react';
 // eslint-disable-next-line import/no-named-as-default
@@ -738,7 +736,7 @@ const SignIn: FC<SignInProps> = ({
       throw new Error('No active flow ID');
     }
 
-    const processedInputs: Record<string, any> = {...payload.inputs};
+    let processedInputs: Record<string, any> = {...payload.inputs};
 
     // Read and strip the sentinel up front so it can never reach the wire as an input
     const consentReason: string | undefined = processedInputs[CONSENT_REASON_KEY];
@@ -791,37 +789,9 @@ const SignIn: FC<SignInProps> = ({
         // An explicit denial carries a reason too, so the server never has to infer one
         const reason: string | undefined = consentReason ?? (isDeny ? ConsentConstants.REASON_USER_DENIED : undefined);
 
-        const decisions: any = {
+        processedInputs = compileConsentDecisions(processedInputs, purposes, {
           approved: !isDeny,
           ...(reason ? {reason} : {}),
-          purposes: purposes.map((p: any) => ({
-            approved: !isDeny,
-            elements: [
-              ...(p.essential || []).map((e: any) => ({
-                approved: !isDeny,
-                name: e.name,
-              })),
-              ...(p.optional || []).map((e: any) => {
-                const key = `__consent_opt__${p.purposeId}__${e.name}`;
-                const approved: boolean = !isDeny && processedInputs[key] === 'true';
-                // eslint-disable-next-line @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-member-access
-                return getConsentElementDecision(p.purposeId, e, approved, processedInputs);
-              }),
-            ],
-            purposeName: p.purposeName,
-          })),
-        };
-        processedInputs['consent_decisions'] = JSON.stringify(decisions);
-
-        // Cleanup temporary consent tracking fields from inputs
-        Object.keys(processedInputs).forEach((key: string) => {
-          if (
-            key.startsWith('__consent_opt__') ||
-            key.startsWith(CONSENT_MODIFIED_KEY_PREFIX) ||
-            key.startsWith(CONSENT_INVALID_KEY_PREFIX)
-          ) {
-            delete processedInputs[key];
-          }
         });
       } catch (e) {
         // Failed to construct consent_decisions payload automatically
