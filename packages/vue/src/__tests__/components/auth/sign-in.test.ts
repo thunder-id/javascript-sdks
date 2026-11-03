@@ -4,12 +4,71 @@
 import {ThunderIDRuntimeError} from '@thunderid/browser';
 import {flushPromises, mount} from '@vue/test-utils';
 import {describe, expect, it, vi, type Mock} from 'vitest';
-import {ref} from 'vue';
+import {h, ref} from 'vue';
 import BaseSignIn from '../../../components/auth/sign-in/BaseSignIn';
 import SignIn from '../../../components/auth/sign-in/SignIn';
 import {FLOW_KEY, FLOW_META_KEY, I18N_KEY, THUNDERID_KEY} from '../../../keys';
 
 describe('BaseSignIn', () => {
+  it('clears only the edited field server error so corrected fields can be submitted', async () => {
+    const wrapper = mount(BaseSignIn, {
+      global: {
+        provide: {
+          [FLOW_KEY as symbol]: {
+            addMessage: vi.fn(),
+            clearMessages: vi.fn(),
+            messages: ref([]),
+            subtitle: ref(null),
+            title: ref(null),
+          },
+          [FLOW_META_KEY as symbol]: {meta: ref(null)},
+          [I18N_KEY as symbol]: {currentLanguage: ref('en-US'), t: (key: string): string => key},
+        },
+      },
+      props: {
+        components: [
+          {id: 'username', ref: 'username', required: true, type: 'TEXT_INPUT'},
+          {id: 'email', ref: 'email', required: true, type: 'EMAIL_INPUT'},
+        ],
+        serverFieldErrors: [
+          {identifier: 'username', message: 'Username rejected'},
+          {identifier: 'email', message: 'Email rejected'},
+        ],
+      },
+      slots: {
+        default: (props: {
+          fieldErrors: Record<string, string>;
+          handleInputChange: (name: string, value: string) => void;
+          isValid: boolean;
+        }) =>
+          h('div', [
+            h('input', {
+              onInput: (event: Event) => props.handleInputChange('username', (event.target as HTMLInputElement).value),
+            }),
+            h('input', {
+              onInput: (event: Event) => props.handleInputChange('email', (event.target as HTMLInputElement).value),
+            }),
+            h('p', {id: 'username-error'}, props.fieldErrors['username'] ?? ''),
+            h('p', {id: 'email-error'}, props.fieldErrors['email'] ?? ''),
+            h('button', {disabled: !props.isValid}, 'Continue'),
+          ]),
+      },
+    });
+
+    expect(wrapper.get('#username-error').text()).toBe('Username rejected');
+    expect(wrapper.get('#email-error').text()).toBe('Email rejected');
+    expect(wrapper.get('button').attributes('disabled')).toBeDefined();
+
+    await wrapper.findAll('input')[0].setValue('corrected');
+    expect(wrapper.get('#username-error').text()).toBe('');
+    expect(wrapper.get('#email-error').text()).toBe('Email rejected');
+    expect(wrapper.get('button').attributes('disabled')).toBeDefined();
+
+    await wrapper.findAll('input')[1].setValue('ada@example.com');
+    expect(wrapper.get('#email-error').text()).toBe('');
+    expect(wrapper.get('button').attributes('disabled')).toBeUndefined();
+  });
+
   it('applies semantic colors from server-provided flow text', () => {
     const wrapper = mount(BaseSignIn, {
       global: {

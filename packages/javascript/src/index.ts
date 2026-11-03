@@ -898,6 +898,8 @@ export {default as getRedirectBasedSignUpUrl} from './utils/getRedirectBasedSign
 export {default as getConsentModifiedKey, CONSENT_MODIFIED_KEY_PREFIX} from './utils/getConsentModifiedKey';
 export {default as getConsentModifiedValues} from './utils/getConsentModifiedValues';
 export {default as getConsentElementDecision} from './utils/getConsentElementDecision';
+export {default as compileConsentDecisions} from './utils/compileConsentDecisions';
+export type {ConsentDecisionOptions} from './utils/compileConsentDecisions';
 export {default as getConsentInvalidKey, CONSENT_INVALID_KEY_PREFIX} from './utils/getConsentInvalidKey';
 export {default as isEmpty} from './utils/isEmpty';
 export {default as isEmojiUri, EMOJI_URI_SCHEME} from './utils/isEmojiUri';
