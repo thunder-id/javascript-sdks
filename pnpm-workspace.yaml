@@ -145,7 +145,7 @@ auditConfig:
 catalog:
   '@emotion/css': 11.13.5
   '@floating-ui/react': 0.27.12
-  '@playwright/test': 1.60.0
+  '@playwright/test': 1.64.1
   '@testing-library/react': 16.3.0
   '@thunderid/eslint-plugin': 1.0.1
   '@thunderid/prettier-config': 1.0.1
@@ -163,7 +163,7 @@ catalog:
   jose: 6.2.3
   jsdom: 27.0.1
   memory-cache: 0.2.0
-  playwright: 1.60.0
+  playwright: 1.64.1
   prettier: 3.6.2
   process: 0.11.10
   randombytes: 2.1.0
