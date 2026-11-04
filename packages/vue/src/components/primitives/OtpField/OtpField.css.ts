@@ -74,6 +74,13 @@ const OTP_FIELD_CSS = `
   cursor: not-allowed;
 }
 
+.thunderid-otp-field__separator {
+  flex: none;
+  color: var(--thunderid-color-text-secondary);
+  font-size: var(--thunderid-typography-fontSize-xl);
+  font-weight: var(--thunderid-typography-fontWeight-medium);
+}
+
 .thunderid-otp-field__error {
   font-size: var(--thunderid-typography-fontSize-xs);
   color: var(--thunderid-color-error-contrastText);

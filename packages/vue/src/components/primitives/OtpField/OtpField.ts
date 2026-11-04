@@ -18,6 +18,7 @@ type OtpFieldProps = Readonly<{
   name: string | undefined;
   numericOnly: boolean;
   required: boolean;
+  separatorAfter: number | undefined;
 }>;
 
 const OtpField: Component = defineComponent({
@@ -31,6 +32,7 @@ const OtpField: Component = defineComponent({
     name: {default: undefined, type: String},
     numericOnly: {default: true, type: Boolean},
     required: {default: false, type: Boolean},
+    separatorAfter: {default: undefined, type: Number},
   },
   emits: ['update:modelValue'],
   setup(props: OtpFieldProps, {emit, attrs}: SetupContext): () => VNode {
@@ -108,23 +110,47 @@ const OtpField: Component = defineComponent({
             : null,
           h(
             'div',
-            {class: withVendorCSSClassPrefix('otp-field__inputs')},
-            Array.from({length: props.length}, (_: unknown, i: number) =>
+            {
+              class: withVendorCSSClassPrefix('otp-field__inputs'),
+              style:
+                props.separatorAfter && props.separatorAfter > 0 && props.separatorAfter < props.length
+                  ? {flexWrap: 'nowrap', justifyContent: 'center', gap: 'calc(var(--thunderid-spacing-unit) * 0.5)'}
+                  : undefined,
+            },
+            Array.from({length: props.length}, (_: unknown, i: number) => [
               h('input', {
                 'aria-label': `Digit ${i + 1}`,
                 class: withVendorCSSClassPrefix('otp-field__digit'),
                 disabled: props.disabled,
                 inputmode: props.numericOnly ? 'numeric' : 'text',
-                key: i,
+                key: `digit-${i}`,
                 maxlength: 1,
                 onInput: (e: Event) => handleInput(i, e),
                 onKeydown: (e: KeyboardEvent) => handleKeydown(i, e),
                 onPaste: (e: ClipboardEvent) => handlePaste(i, e),
                 ref: (el: unknown) => setRef(el, i),
+                style:
+                  props.separatorAfter && props.separatorAfter > 0 && props.separatorAfter < props.length
+                    ? {
+                        width: 'calc(var(--thunderid-spacing-unit) * 3.5)',
+                        height: 'calc(var(--thunderid-spacing-unit) * 4.5)',
+                      }
+                    : undefined,
                 type: 'text',
                 value: digits[i],
               }),
-            ),
+              props.separatorAfter === i + 1
+                ? h(
+                    'span',
+                    {
+                      'aria-hidden': 'true',
+                      class: withVendorCSSClassPrefix('otp-field__separator'),
+                      key: 'separator',
+                    },
+                    '-',
+                  )
+                : null,
+            ]).flat(),
           ),
           props.error ? h('span', {class: withVendorCSSClassPrefix('otp-field__error')}, props.error) : null,
         ],

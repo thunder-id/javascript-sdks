@@ -12,6 +12,7 @@ import {
   useEffect,
   useState,
   CSSProperties,
+  Fragment,
   useId,
 } from 'react';
 import useStyles from './OtpField.styles';
@@ -51,6 +52,10 @@ export interface OtpInputProps {
    * Number of OTP input fields
    */
   length?: number;
+  /**
+   * Add a visual separator after this many characters without including it in the field value.
+   */
+  separatorAfter?: number;
   /**
    * Callback function called when OTP value changes
    */
@@ -97,6 +102,7 @@ const OtpField: FC<OtpInputProps> = ({
   disabled,
   helperText,
   length = 6,
+  separatorAfter,
   value = '',
   onChange,
   onComplete,
@@ -108,7 +114,7 @@ const OtpField: FC<OtpInputProps> = ({
   uppercase = false,
 }: OtpInputProps) => {
   const {theme, colorScheme}: ReturnType<typeof useTheme> = useTheme();
-  const styles: Record<string, string> = useStyles(theme, colorScheme, !!disabled, !!error, length);
+  const styles: Record<string, string> = useStyles(theme, colorScheme, !!disabled, !!error, length, separatorAfter);
   const [otp, setOtp] = useState<string[]>(Array(length).fill(''));
   const inputRefs: MutableRefObject<HTMLInputElement[]> = useRef<HTMLInputElement[]>([]);
   const fieldId: string = useId();
@@ -198,7 +204,8 @@ const OtpField: FC<OtpInputProps> = ({
     const rawData: string = event.clipboardData.getData('text');
     // Filter first and let the copy loop below bound the result, so surrounding text such as
     // "Your code is 123456" does not push the code itself past the cut-off.
-    const pastedData: string = uppercase ? rawData.toUpperCase() : rawData;
+    const normalizedData: string = separatorAfter ? rawData.replace(/[-\s]/g, '') : rawData;
+    const pastedData: string = uppercase ? normalizedData.toUpperCase() : normalizedData;
 
     let validData = '';
 
@@ -248,32 +255,41 @@ const OtpField: FC<OtpInputProps> = ({
         className={cx(withVendorCSSClassPrefix(bem('otp-field', 'input-container')), styles['inputContainer'])}
       >
         {Array.from({length}, (_: unknown, index: number) => (
-          <input
-            key={index}
-            ref={(el: HTMLInputElement | null): void => {
-              if (el) inputRefs.current[index] = el;
-            }}
-            type={type === 'password' ? 'password' : 'text'}
-            inputMode={type === 'number' ? 'numeric' : 'text'}
-            value={otp[index] || ''}
-            onChange={(event: ChangeEvent<HTMLInputElement>): void => handleChange(index, event)}
-            onKeyDown={(event: KeyboardEvent<HTMLInputElement>): void => handleKeyDown(index, event)}
-            onPaste={handlePaste}
-            className={cx(withVendorCSSClassPrefix(bem('otp-field', 'input')), styles['input'], {
-              [withVendorCSSClassPrefix(bem('otp-field', 'input', 'error'))]: !!error,
-              [styles['inputError']]: !!error,
-              [withVendorCSSClassPrefix(bem('otp-field', 'input', 'disabled'))]: !!disabled,
-              [styles['inputDisabled']]: !!disabled,
-            })}
-            maxLength={1}
-            placeholder={placeholder}
-            disabled={disabled}
-            aria-label={`${label || 'OTP'} digit ${index + 1}`}
-            aria-invalid={!!error}
-            aria-required={required}
-            aria-describedby={helperTextId}
-            autoComplete="one-time-code"
-          />
+          <Fragment key={index}>
+            <input
+              ref={(el: HTMLInputElement | null): void => {
+                if (el) inputRefs.current[index] = el;
+              }}
+              type={type === 'password' ? 'password' : 'text'}
+              inputMode={type === 'number' ? 'numeric' : 'text'}
+              value={otp[index] || ''}
+              onChange={(event: ChangeEvent<HTMLInputElement>): void => handleChange(index, event)}
+              onKeyDown={(event: KeyboardEvent<HTMLInputElement>): void => handleKeyDown(index, event)}
+              onPaste={handlePaste}
+              className={cx(withVendorCSSClassPrefix(bem('otp-field', 'input')), styles['input'], {
+                [withVendorCSSClassPrefix(bem('otp-field', 'input', 'error'))]: !!error,
+                [styles['inputError']]: !!error,
+                [withVendorCSSClassPrefix(bem('otp-field', 'input', 'disabled'))]: !!disabled,
+                [styles['inputDisabled']]: !!disabled,
+              })}
+              maxLength={1}
+              placeholder={placeholder}
+              disabled={disabled}
+              aria-label={`${label || 'OTP'} digit ${index + 1}`}
+              aria-invalid={!!error}
+              aria-required={required}
+              aria-describedby={helperTextId}
+              autoComplete="one-time-code"
+            />
+            {separatorAfter === index + 1 && (
+              <span
+                className={cx(withVendorCSSClassPrefix(bem('otp-field', 'separator')), styles['separator'])}
+                aria-hidden="true"
+              >
+                -
+              </span>
+            )}
+          </Fragment>
         ))}
       </div>
     </FormControl>

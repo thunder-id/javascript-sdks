@@ -21,6 +21,7 @@ export interface FieldConfig {
   length?: number;
   name: string;
   numericOnly?: boolean;
+  separatorAfter?: number;
   onBlur?: () => void;
   onChange: (value: string) => void;
   options?: SelectOption[];
@@ -97,6 +98,7 @@ export const createField = (config: FieldConfig): VNode => {
     placeholder,
     length,
     numericOnly = true,
+    separatorAfter,
   } = config;
 
   const validationError: string | null | undefined = error || validateFieldValue(value, type, required, touched);
@@ -166,6 +168,7 @@ export const createField = (config: FieldConfig): VNode => {
         ...commonProps,
         ...(length ? {length} : {}),
         numericOnly,
+        ...(separatorAfter ? {separatorAfter} : {}),
         'onUpdate:modelValue': onChange,
       } as Record<string, unknown>);
 

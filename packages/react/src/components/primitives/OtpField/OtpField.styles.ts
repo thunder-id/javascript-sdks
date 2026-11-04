@@ -22,19 +22,21 @@ const useStyles = (
   disabled: boolean,
   hasError: boolean,
   length: number,
+  separatorAfter?: number,
 ): Record<string, string> =>
   useMemo(() => {
+    const isGrouped = separatorAfter !== undefined && separatorAfter > 0 && separatorAfter < length;
     const inputContainer: string = css`
       display: flex;
-      gap: ${theme.vars.spacing.unit};
-      justify-content: space-between;
+      gap: calc(${theme.vars.spacing.unit} * ${isGrouped ? 0.5 : 1});
+      justify-content: ${isGrouped ? 'center' : 'space-between'};
       align-items: center;
-      flex-wrap: wrap;
+      flex-wrap: ${isGrouped ? 'nowrap' : 'wrap'};
     `;
 
     const input: string = css`
-      width: calc(${theme.vars.spacing.unit} * 6);
-      height: calc(${theme.vars.spacing.unit} * 6);
+      width: calc(${theme.vars.spacing.unit} * ${isGrouped ? 3.5 : 6});
+      height: calc(${theme.vars.spacing.unit} * ${isGrouped ? 4.5 : 6});
       text-align: center;
       font-size: ${theme.vars.typography.fontSizes.xl};
       font-family: ${theme.vars.typography.fontFamily};
@@ -79,12 +81,20 @@ const useStyles = (
       opacity: 0.6;
     `;
 
+    const separator: string = css`
+      flex: none;
+      color: ${theme.vars.colors.text.secondary};
+      font-size: ${theme.vars.typography.fontSizes.xl};
+      font-weight: 500;
+    `;
+
     return {
       input,
       inputContainer,
       inputDisabled,
       inputError,
+      separator,
     };
-  }, [theme, colorScheme, disabled, hasError, length]);
+  }, [theme, colorScheme, disabled, hasError, length, separatorAfter]);
 
 export default useStyles;
