@@ -408,16 +408,21 @@ const createAuthComponentFromFlow = (
 
     case EmbeddedFlowComponentType.OtpInput: {
       const identifier: string = component.ref!;
-      const value: string = formValues[identifier] || '';
+      const isDeviceUserCode: boolean = identifier === 'user_code';
+      const currentValue: string = formValues[identifier] || '';
+      const value: string = isDeviceUserCode ? currentValue.replace(/[-\s]/g, '').toUpperCase() : currentValue;
       const isTouched: boolean = touchedFields[identifier] || false;
       const error: string = isTouched ? formErrors[identifier] : undefined!;
 
-      // The server reports the length and character set of the code it generated, so the field
-      // matches the OTP the user received. An older server omits both and the defaults apply.
+      // Device Grant user codes are eight uppercase characters today. Keep this fallback in the SDK
+      // until the flow UI metadata can supply the configured code length.
       const reportedLength: number = Number(options.additionalData?.['otpLength']);
-      const otpLength: number | undefined =
-        Number.isInteger(reportedLength) && reportedLength > 0 ? reportedLength : undefined;
-      const numericOnly: boolean = options.additionalData?.['otpNumericOnly'] !== 'false';
+      const otpLength: number | undefined = isDeviceUserCode
+        ? 8
+        : Number.isInteger(reportedLength) && reportedLength > 0
+          ? reportedLength
+          : undefined;
+      const numericOnly: boolean = !isDeviceUserCode && options.additionalData?.['otpNumericOnly'] !== 'false';
 
       const field: any = createField({
         className: cx(options.inputClassName, component.classes),
@@ -427,6 +432,7 @@ const createAuthComponentFromFlow = (
         length: otpLength,
         name: identifier,
         numericOnly,
+        separatorAfter: isDeviceUserCode ? 4 : undefined,
         onBlur: () => options.onInputBlur?.(identifier),
         onChange: (newValue: string) => onInputChange(identifier, newValue),
         placeholder: resolve(component.placeholder) || '',

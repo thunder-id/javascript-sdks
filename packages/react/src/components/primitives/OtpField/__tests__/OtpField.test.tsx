@@ -42,6 +42,16 @@ describe('OtpField', () => {
     expect(boxes()).toHaveLength(8);
   });
 
+  it('shows a visual separator without including it in the field value', () => {
+    const onChange = vi.fn();
+    const {container} = render(withTheme(<OtpField length={8} separatorAfter={4} uppercase onChange={onChange} />));
+
+    expect(container.querySelector('[aria-hidden="true"]')).toHaveTextContent('-');
+    paste(boxes()[0], 'abcd-efgh');
+
+    expect(onChange).toHaveBeenCalledWith({target: {value: 'ABCDEFGH'}});
+  });
+
   it('rejects a letter when the field is numeric', () => {
     const onChange = vi.fn();
     render(withTheme(<OtpField type="number" onChange={onChange} />));

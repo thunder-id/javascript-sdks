@@ -39,6 +39,10 @@ export interface FieldConfig {
    */
   length?: number;
   /**
+   * Add a visual separator after this many characters in OTP fields.
+   */
+  separatorAfter?: number;
+  /**
    * The name of the field.
    */
   name: string;
@@ -148,6 +152,7 @@ export const createField = (config: FieldConfig): ReactElement => {
     touched = false,
     placeholder,
     length,
+    separatorAfter,
     numericOnly = true,
   } = config;
 
@@ -216,6 +221,7 @@ export const createField = (config: FieldConfig): ReactElement => {
         <OtpField
           {...commonProps}
           length={length}
+          separatorAfter={separatorAfter}
           type={numericOnly ? 'number' : 'text'}
           uppercase={!numericOnly}
           onChange={(e: ChangeEvent<HTMLInputElement>): void => onChange(e.target.value)}
