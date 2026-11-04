@@ -18,6 +18,10 @@ import {
   TokenResponse,
   VendorConstants,
   AttributeSchema,
+  CurrentOrganizationUnit,
+  Project,
+  SwitchOrganizationUnitOptions,
+  User,
 } from '@thunderid/browser';
 import {Context, createContext} from 'react';
 import {ThunderIDReactConfig} from '../../models/config';
@@ -35,6 +39,35 @@ export type ThunderIDContextProps = {
    */
   baseUrl: string | undefined;
   clientId: string | undefined;
+  /**
+   * The organization unit the signed-in session was issued for, from its `ouId`, `ouHandle` and
+   * `ouName` claims, or `null`. For display only, never for an authorization decision.
+   */
+  currentOrganizationUnit: CurrentOrganizationUnit | null;
+  /**
+   * The project the user chose for the management UI, for example with `ProjectSwitcher`, or `null`.
+   * It is client-side context, not a sign-in: tokens and permissions do not change with it.
+   * `ApplicationList`, `AgentList`, `ApplicationCreate` and `AgentCreate` send it as `projectId`.
+   */
+  currentProject: Project | null;
+  /**
+   * Chooses the current project, or clears it with `null`. Kept per vendor in `localStorage`.
+   */
+  setCurrentProject: (project: Project | null) => void;
+  /**
+   * Reads the current organization unit from the session's claims. For display only.
+   */
+  getCurrentOrganizationUnit: () => Promise<CurrentOrganizationUnit | null>;
+  /**
+   * Signs in again bounded to the organization unit `organizationUnitId`, replacing the session on
+   * success and refreshing the user. A failed switch keeps the previous session and rejects with an
+   * error whose code is one of `OrganizationUnitSwitchErrorCodes`. In redirect mode the page may leave
+   * for the unit's authorization endpoint, and the promise then resolves with `undefined`.
+   */
+  switchOrganizationUnit: (
+    organizationUnitId: string,
+    options?: SwitchOrganizationUnitOptions,
+  ) => Promise<User | undefined>;
   /**
    * Optional endpoint URL overrides from the client config. Used to resolve resource-server
    * endpoints (e.g. flow/user-management) independently of `baseUrl` — see `resolveResourceEndpoint`.
@@ -250,8 +283,13 @@ const ThunderIDContext: Context<ThunderIDContextProps | null> = createContext<nu
   baseUrl: undefined,
   clearSession: () => {},
   clientId: undefined,
+  currentOrganizationUnit: null,
+  currentProject: null,
+  getCurrentOrganizationUnit: () => Promise.resolve(null),
   preferences: undefined,
+  switchOrganizationUnit: () => Promise.resolve(undefined),
   scopes: undefined,
+  setCurrentProject: () => undefined,
   discovery: {
     wellKnown: null,
   },

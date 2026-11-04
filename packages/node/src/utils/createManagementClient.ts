@@ -2,6 +2,32 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import {
+  createAuthorizationDetailType,
+  createFlowSharingPolicy,
+  createGroupByPath,
+  createProject,
+  createRoleSharingPolicy,
+  deleteAuthorizationDetailType,
+  deleteFlowSharingPolicy,
+  deleteProject,
+  deleteRoleSharingPolicy,
+  getAuthorizationDetailType,
+  getAuthorizationDetailTypes,
+  getFlowOverlayRules,
+  getFlowSharingPolicies,
+  getFlowSharingPolicy,
+  getFlowVariables,
+  getGroupsByPath,
+  getProject,
+  getProjects,
+  getRoleOverlayRules,
+  getRoleSharingPolicies,
+  getRoleSharingPolicy,
+  updateAuthorizationDetailType,
+  updateFlowSharingPolicy,
+  updateFlowVariables,
+  updateProject,
+  updateRoleSharingPolicy,
   addGroupMembers,
   addRoleAssignments,
   applyGatewayConfiguration,
@@ -176,6 +202,23 @@ import {
   updateUser,
   updateUserSharingPolicy,
   updateVariable,
+  createCredentialConfiguration,
+  createPresentationDefinition,
+  deleteClientRegistration,
+  deleteCredentialConfiguration,
+  deletePresentationDefinition,
+  getClientRegistration,
+  getCredentialConfiguration,
+  getCredentialConfigurations,
+  getGatewayMaster,
+  getGatewayMasterHistory,
+  getGatewayMasterResource,
+  getPresentationDefinition,
+  getPresentationDefinitions,
+  registerClient,
+  updateClientRegistration,
+  updateCredentialConfiguration,
+  updatePresentationDefinition,
 } from '@thunderid/javascript';
 import {
   ManagementCallOptions,
@@ -366,6 +409,48 @@ const createManagementClient = (resolve: ManagementRequestConfigResolver): Thund
           ...(await config('applications', options)),
         }),
     },
+    authorizationDetailTypes: {
+      create: async (payload, options) =>
+        createAuthorizationDetailType({payload, ...(await config('authorizationDetailTypes', options))}),
+      delete: async (authorizationDetailTypeId, options) =>
+        deleteAuthorizationDetailType({
+          authorizationDetailTypeId: requireId(authorizationDetailTypeId, 'deleteAuthorizationDetailType'),
+          ...(await config('authorizationDetailTypes', options)),
+        }),
+      get: async (authorizationDetailTypeId, options) =>
+        getAuthorizationDetailType({
+          authorizationDetailTypeId: requireId(authorizationDetailTypeId, 'getAuthorizationDetailType'),
+          ...(await config('authorizationDetailTypes', options)),
+        }),
+      list: async ({limit, offset, ...options} = {}) =>
+        getAuthorizationDetailTypes({limit, offset, ...(await config('authorizationDetailTypes', options))}),
+      update: async (authorizationDetailTypeId, payload, options) =>
+        updateAuthorizationDetailType({
+          authorizationDetailTypeId: requireId(authorizationDetailTypeId, 'updateAuthorizationDetailType'),
+          payload,
+          ...(await config('authorizationDetailTypes', options)),
+        }),
+    },
+    clientRegistrations: {
+      delete: async (clientId, options) =>
+        deleteClientRegistration({
+          clientId: requireId(clientId, 'deleteClientRegistration'),
+          ...(await config('clientRegistrations', options)),
+        }),
+      get: async (clientId, options) =>
+        getClientRegistration({
+          clientId: requireId(clientId, 'getClientRegistration'),
+          ...(await config('clientRegistrations', options)),
+        }),
+      register: async (payload, options) =>
+        registerClient({payload, ...(await config('clientRegistrations', options))}),
+      update: async (clientId, payload, options) =>
+        updateClientRegistration({
+          clientId: requireId(clientId, 'updateClientRegistration'),
+          payload,
+          ...(await config('clientRegistrations', options)),
+        }),
+    },
     configuration: {
       captureVersion: async (payload, options) =>
         createConfigurationVersion({payload, ...(await config('configurationVersions', options))}),
@@ -417,6 +502,27 @@ const createManagementClient = (resolve: ManagementRequestConfigResolver): Thund
           payload,
           type: requireId(type, 'updateConnection'),
           ...(await config('connections', options)),
+        }),
+    },
+    credentialConfigurations: {
+      create: async (payload, options) =>
+        createCredentialConfiguration({payload, ...(await config('credentialConfigurations', options))}),
+      delete: async (configurationId, options) =>
+        deleteCredentialConfiguration({
+          configurationId: requireId(configurationId, 'deleteCredentialConfiguration'),
+          ...(await config('credentialConfigurations', options)),
+        }),
+      get: async (configurationId, options) =>
+        getCredentialConfiguration({
+          configurationId: requireId(configurationId, 'getCredentialConfiguration'),
+          ...(await config('credentialConfigurations', options)),
+        }),
+      list: async (options) => getCredentialConfigurations(await config('credentialConfigurations', options)),
+      update: async (configurationId, payload, options) =>
+        updateCredentialConfiguration({
+          configurationId: requireId(configurationId, 'updateCredentialConfiguration'),
+          payload,
+          ...(await config('credentialConfigurations', options)),
         }),
     },
     design: {
@@ -481,6 +587,57 @@ const createManagementClient = (resolve: ManagementRequestConfigResolver): Thund
         }),
       update: async (flowId, payload, options) =>
         updateFlow({flowId: requireId(flowId, 'updateFlow'), payload, ...(await config('flows', options))}),
+      createSharingPolicy: async (flowId, payload, options) =>
+        createFlowSharingPolicy({
+          payload,
+          flowId: requireId(flowId, 'createFlowSharingPolicy'),
+          ...(await config('flows', options)),
+        }),
+      deleteSharingPolicy: async (flowId, policyId, options) =>
+        deleteFlowSharingPolicy({
+          flowId: requireId(flowId, 'deleteFlowSharingPolicy'),
+          policyId: requireId(policyId, 'deleteFlowSharingPolicy'),
+          ...(await config('flows', options)),
+        }),
+      getOverlayRules: async (flowId, ouId, options) =>
+        getFlowOverlayRules({
+          flowId: requireId(flowId, 'getFlowOverlayRules'),
+          ouId: requireId(ouId, 'getFlowOverlayRules'),
+          ...(await config('flows', options)),
+        }),
+      getSharingPolicy: async (flowId, policyId, options) =>
+        getFlowSharingPolicy({
+          flowId: requireId(flowId, 'getFlowSharingPolicy'),
+          policyId: requireId(policyId, 'getFlowSharingPolicy'),
+          ...(await config('flows', options)),
+        }),
+      listSharingPolicies: async (flowId, {limit, offset, ...options} = {}) =>
+        getFlowSharingPolicies({
+          flowId: requireId(flowId, 'getFlowSharingPolicies'),
+          limit,
+          offset,
+          ...(await config('flows', options)),
+        }),
+      updateSharingPolicy: async (flowId, policyId, payload, options) =>
+        updateFlowSharingPolicy({
+          payload,
+          policyId: requireId(policyId, 'updateFlowSharingPolicy'),
+          flowId: requireId(flowId, 'updateFlowSharingPolicy'),
+          ...(await config('flows', options)),
+        }),
+      getVariables: async (flowId, ouId, options) =>
+        getFlowVariables({
+          flowId: requireId(flowId, 'getFlowVariables'),
+          ouId: requireId(ouId, 'getFlowVariables'),
+          ...(await config('flows', options)),
+        }),
+      updateVariables: async (flowId, ouId, variables, options) =>
+        updateFlowVariables({
+          flowId: requireId(flowId, 'updateFlowVariables'),
+          ouId: requireId(ouId, 'updateFlowVariables'),
+          variables,
+          ...(await config('flows', options)),
+        }),
     },
     gateways: {
       applyConfiguration: async (gatewayId, payload, options) =>
@@ -532,6 +689,20 @@ const createManagementClient = (resolve: ManagementRequestConfigResolver): Thund
         getGatewayConfigurationDiff({
           gatewayId: requireId(gatewayId, 'getGatewayConfigurationDiff'),
           version,
+          ...(await config('gateways', options)),
+        }),
+      getMaster: async (gatewayId, options) =>
+        getGatewayMaster({gatewayId: requireId(gatewayId, 'getGatewayMaster'), ...(await config('gateways', options))}),
+      getMasterHistory: async (gatewayId, options) =>
+        getGatewayMasterHistory({
+          gatewayId: requireId(gatewayId, 'getGatewayMasterHistory'),
+          ...(await config('gateways', options)),
+        }),
+      getMasterResource: async (gatewayId, resourceType, resourceId, options) =>
+        getGatewayMasterResource({
+          gatewayId: requireId(gatewayId, 'getGatewayMasterResource'),
+          resourceId: requireId(resourceId, 'getGatewayMasterResource'),
+          resourceType: requireId(resourceType, 'getGatewayMasterResource'),
           ...(await config('gateways', options)),
         }),
       getSecret: async (gatewayId, name, options) =>
@@ -600,12 +771,16 @@ const createManagementClient = (resolve: ManagementRequestConfigResolver): Thund
           ...(await config('groups', options)),
         }),
       create: async (payload, options) => createGroup({payload, ...(await config('groups', options))}),
+      createByPath: async (path, payload, options) =>
+        createGroupByPath({path, payload, ...(await config('groups', options))}),
       delete: async (groupId, options) =>
         deleteGroup({groupId: requireId(groupId, 'deleteGroup'), ...(await config('groups', options))}),
       get: async (groupId, options) =>
         getGroup({groupId: requireId(groupId, 'getGroup'), ...(await config('groups', options))}),
       list: async ({limit, offset, ...options} = {}) =>
         getGroups({limit, offset, ...(await config('groups', options))}),
+      listByPath: async (path, {limit, offset, ...options} = {}) =>
+        getGroupsByPath({limit, offset, path, ...(await config('groups', options))}),
       listMembers: async (groupId, {limit, offset, ...options} = {}) =>
         getGroupMembers({
           groupId: requireId(groupId, 'getGroupMembers'),
@@ -713,6 +888,42 @@ const createManagementClient = (resolve: ManagementRequestConfigResolver): Thund
         }),
       updateByPath: async (path, payload, options) =>
         updateOrganizationUnitByPath({path, payload, ...(await config('organizationUnits', options))}),
+    },
+    presentationDefinitions: {
+      create: async (payload, options) =>
+        createPresentationDefinition({payload, ...(await config('presentationDefinitions', options))}),
+      delete: async (definitionId, options) =>
+        deletePresentationDefinition({
+          definitionId: requireId(definitionId, 'deletePresentationDefinition'),
+          ...(await config('presentationDefinitions', options)),
+        }),
+      get: async (definitionId, options) =>
+        getPresentationDefinition({
+          definitionId: requireId(definitionId, 'getPresentationDefinition'),
+          ...(await config('presentationDefinitions', options)),
+        }),
+      list: async (options) => getPresentationDefinitions(await config('presentationDefinitions', options)),
+      update: async (definitionId, payload, options) =>
+        updatePresentationDefinition({
+          definitionId: requireId(definitionId, 'updatePresentationDefinition'),
+          payload,
+          ...(await config('presentationDefinitions', options)),
+        }),
+    },
+    projects: {
+      create: async (payload, options) => createProject({payload, ...(await config('projects', options))}),
+      delete: async (projectId, options) =>
+        deleteProject({projectId: requireId(projectId, 'deleteProject'), ...(await config('projects', options))}),
+      get: async (projectId, options) =>
+        getProject({projectId: requireId(projectId, 'getProject'), ...(await config('projects', options))}),
+      list: async ({limit, offset, ...options} = {}) =>
+        getProjects({limit, offset, ...(await config('projects', options))}),
+      update: async (projectId, payload, options) =>
+        updateProject({
+          projectId: requireId(projectId, 'updateProject'),
+          payload,
+          ...(await config('projects', options)),
+        }),
     },
     resourceServers: {
       create: async (payload, options) =>
@@ -837,6 +1048,44 @@ const createManagementClient = (resolve: ManagementRequestConfigResolver): Thund
         }),
       update: async (roleId, payload, options) =>
         updateRole({payload, roleId: requireId(roleId, 'updateRole'), ...(await config('roles', options))}),
+      createSharingPolicy: async (roleId, payload, options) =>
+        createRoleSharingPolicy({
+          payload,
+          roleId: requireId(roleId, 'createRoleSharingPolicy'),
+          ...(await config('roles', options)),
+        }),
+      deleteSharingPolicy: async (roleId, policyId, options) =>
+        deleteRoleSharingPolicy({
+          roleId: requireId(roleId, 'deleteRoleSharingPolicy'),
+          policyId: requireId(policyId, 'deleteRoleSharingPolicy'),
+          ...(await config('roles', options)),
+        }),
+      getOverlayRules: async (roleId, ouId, options) =>
+        getRoleOverlayRules({
+          roleId: requireId(roleId, 'getRoleOverlayRules'),
+          ouId: requireId(ouId, 'getRoleOverlayRules'),
+          ...(await config('roles', options)),
+        }),
+      getSharingPolicy: async (roleId, policyId, options) =>
+        getRoleSharingPolicy({
+          roleId: requireId(roleId, 'getRoleSharingPolicy'),
+          policyId: requireId(policyId, 'getRoleSharingPolicy'),
+          ...(await config('roles', options)),
+        }),
+      listSharingPolicies: async (roleId, {limit, offset, ...options} = {}) =>
+        getRoleSharingPolicies({
+          roleId: requireId(roleId, 'getRoleSharingPolicies'),
+          limit,
+          offset,
+          ...(await config('roles', options)),
+        }),
+      updateSharingPolicy: async (roleId, policyId, payload, options) =>
+        updateRoleSharingPolicy({
+          payload,
+          policyId: requireId(policyId, 'updateRoleSharingPolicy'),
+          roleId: requireId(roleId, 'updateRoleSharingPolicy'),
+          ...(await config('roles', options)),
+        }),
     },
     secrets: {
       create: async (payload, options) => createSecret({payload, ...(await config('secrets', options))}),

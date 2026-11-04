@@ -5,6 +5,8 @@ import {createResourceInvalidator} from '@thunderid/browser';
 import {
   type ApiFetcher,
   AttributeSchema,
+  type CurrentOrganizationUnit,
+  type SwitchOrganizationUnitOptions,
   ThunderIDRuntimeError,
   extractUserClaimsFromIdToken,
   generateFlattenedUserProfile,
@@ -47,6 +49,7 @@ import ThemeProvider from './ThemeProvider';
 import UserProvider from './UserProvider';
 import getUsersMe from '../api/account/getUsersMe';
 import getUsersMeMeta from '../api/account/getUsersMeMeta';
+import useCurrentProjectState, {type CurrentProjectState} from '../composables/useCurrentProjectState';
 import {THUNDERID_KEY} from '../keys';
 import type {ThunderIDVueConfig} from '../models/config';
 import type {ThunderIDContext} from '../models/contexts';
@@ -217,6 +220,9 @@ const ThunderIDProvider: Component = defineComponent({
     const user: ShallowRef<any | null> = shallowRef<any | null>(null);
     const userProfile: ShallowRef<UserProfile | null> = shallowRef<UserProfile | null>(null);
     const userSchema: Ref<Record<string, AttributeSchema> | null> = ref<Record<string, AttributeSchema> | null>(null);
+    const currentOrganizationUnit: ShallowRef<CurrentOrganizationUnit | null> =
+      shallowRef<CurrentOrganizationUnit | null>(null);
+    const projectState: CurrentProjectState = useCurrentProjectState(vendor);
     // The base the SDK's API requests are built on. In backend mode it's the backend's proxy.
     const requestBaseUrl: string = resolveRequestBaseUrl({baseUrl: props.baseUrl, endpoints: props.endpoints}) ?? '';
     const resolvedBaseUrl: Ref<string> = ref<string>(requestBaseUrl);
@@ -304,6 +310,7 @@ const ThunderIDProvider: Component = defineComponent({
         userProfile.value = profileDataObj;
 
         isSignedIn.value = currentSignInStatus;
+        currentOrganizationUnit.value = currentSignInStatus ? await client.getCurrentOrganizationUnit() : null;
       } catch {
         // silent
       } finally {
@@ -369,6 +376,21 @@ const ThunderIDProvider: Component = defineComponent({
       }
     }
 
+    // ── Switch Organization Unit ──
+    // The client keeps the previous session when a switch fails, so the state is only refreshed on success.
+    async function switchOrganizationUnit(
+      organizationUnitId: string,
+      options?: SwitchOrganizationUnitOptions,
+    ): Promise<User | undefined> {
+      const switched: User | undefined = await client.switchOrganizationUnit(organizationUnitId, options);
+
+      if (switched) {
+        await updateSession();
+      }
+
+      return switched;
+    }
+
     // ── Provide Context ──
     const context: ThunderIDContext = {
       afterSignInUrl: props.afterSignInUrl,
@@ -386,6 +408,11 @@ const ThunderIDProvider: Component = defineComponent({
       getDecodedIdToken: (): Promise<IdToken> => client.getDecodedIdToken(),
       getIdToken: (): Promise<string> => client.getIdToken(),
       getStorageManager: () => client.getStorageManager(),
+      currentOrganizationUnit,
+      currentProject: projectState.currentProject,
+      setCurrentProject: projectState.setCurrentProject,
+      getCurrentOrganizationUnit: (): Promise<CurrentOrganizationUnit | null> => client.getCurrentOrganizationUnit(),
+      switchOrganizationUnit,
       http: {
         fetcher: props.http?.fetcher,
         request: (requestConfig?: any): Promise<HttpResponse<any>> => client.request(requestConfig),
@@ -429,6 +456,7 @@ const ThunderIDProvider: Component = defineComponent({
 
     // ── Lifecycle ──
     onMounted(async (): Promise<void> => {
+      projectState.restore();
       // 1. Initialize the client
       const config: ThunderIDVueConfig = buildConfig();
       await client.initialize(config);

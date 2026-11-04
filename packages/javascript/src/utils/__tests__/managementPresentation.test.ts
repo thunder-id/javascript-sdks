@@ -29,6 +29,19 @@ describe('toManagementErrorMessage', () => {
     expect(toManagementErrorMessage(t, apiError(500), 'admin.users.list.error')).toBe('t:admin.users.list.error');
     expect(toManagementErrorMessage(t, new Error('boom'), 'admin.users.list.error')).toBe('t:admin.users.list.error');
   });
+
+  it('names a refusal by the server code, then by status, before the fallback', () => {
+    const refusal = (code: string, statusCode: number): ThunderIDAPIError =>
+      new ThunderIDAPIError(JSON.stringify({code}), 'test-code', 'javascript', statusCode);
+    const keys: Record<string, string> = {'409': 'conflict', 'OU-1006': 'has_children'};
+
+    expect(toManagementErrorMessage(t, refusal('OU-1006', 400), 'fallback', keys)).toBe('t:has_children');
+    expect(toManagementErrorMessage(t, refusal('XYZ-1', 409), 'fallback', keys)).toBe('t:conflict');
+    expect(toManagementErrorMessage(t, refusal('XYZ-1', 400), 'fallback', keys)).toBe('t:fallback');
+    expect(toManagementErrorMessage(t, refusal('XYZ-1', 403), 'fallback', keys)).toBe(
+      't:admin.common.errors.forbidden',
+    );
+  });
 });
 
 describe('resolveManagedIdentityName', () => {

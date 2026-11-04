@@ -314,3 +314,40 @@ describe('SignIn consent approval through render props', () => {
     ]);
   });
 });
+
+describe('SignIn bounded to an organization unit', () => {
+  afterEach(() => {
+    cleanup();
+    sessionStorage.clear();
+  });
+
+  it('sends ouId on the request that starts the flow, and never on a continuation', async () => {
+    const signIn = vi.fn().mockResolvedValueOnce(consentStep).mockResolvedValueOnce(consentStep);
+    const context: ThunderIDContextProps = {
+      applicationId: 'app1',
+      getStorageManager: vi.fn(() => Promise.resolve(undefined)),
+      isInitialized: true,
+      isLoading: false,
+      meta: null,
+      signIn,
+      vendor: 'thunderid',
+    } as unknown as ThunderIDContextProps;
+
+    const {container} = render(
+      <ThunderIDContext.Provider value={context}>
+        <I18nProvider>
+          <ThemeProvider>
+            <SignIn organizationUnitId="ou-acme" />
+          </ThemeProvider>
+        </I18nProvider>
+      </ThunderIDContext.Provider>,
+    );
+
+    await waitFor(() => expect(container.querySelector('#allow')).not.toBeNull());
+    fireEvent.click(container.querySelector('#allow')!);
+    await waitFor(() => expect(signIn).toHaveBeenCalledTimes(2));
+
+    expect(signIn.mock.calls[0][0]).toMatchObject({applicationId: 'app1', flowType: 'AUTHENTICATION', ouId: 'ou-acme'});
+    expect(signIn.mock.calls[1][0]).not.toHaveProperty('ouId');
+  });
+});

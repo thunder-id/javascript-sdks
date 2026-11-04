@@ -4,7 +4,7 @@
 export {IsomorphicCrypto} from './IsomorphicCrypto';
 
 export {default as executeEmbeddedSignInFlow} from './api/auth/executeEmbeddedSignInFlow';
-export {default as executeEmbeddedDeviceGrantFlow} from './api/auth/executeEmbeddedDeviceGrantFlow';
+export {default as executeEmbeddedDeviceGrantFlow, verifyDeviceCode} from './api/auth/executeEmbeddedDeviceGrantFlow';
 export type {
   EmbeddedDeviceGrantFlowContinuationPayload,
   EmbeddedDeviceGrantFlowPayload,
@@ -26,6 +26,8 @@ export {default as getUsersMe} from './api/account/getUsersMe';
 export type {GetUsersMeConfig} from './api/account/getUsersMe';
 export {default as getUsersMeMeta} from './api/account/getUsersMeMeta';
 export type {GetUsersMeMetaConfig, UsersMeMetaResponse, AttributeSchema} from './api/account/getUsersMeMeta';
+export {default as getAccessibleOrganizationUnits} from './api/account/getAccessibleOrganizationUnits';
+export type {GetAccessibleOrganizationUnitsConfig} from './api/account/getAccessibleOrganizationUnits';
 export {default as updateMeCredentials} from './api/account/updateMeCredentials';
 export type {UpdateMeCredentialsConfig} from './api/account/updateMeCredentials';
 export {default as updateMeProfile} from './api/account/updateMeProfile';
@@ -198,6 +200,62 @@ export {default as deleteApplicationSharingPolicy} from './api/management/applic
 export type {DeleteApplicationSharingPolicyConfig} from './api/management/applications/deleteApplicationSharingPolicy';
 export {default as getApplicationOverlayRules} from './api/management/applications/getApplicationOverlayRules';
 export type {GetApplicationOverlayRulesConfig} from './api/management/applications/getApplicationOverlayRules';
+export {default as getRoleSharingPolicies} from './api/management/roles/getRoleSharingPolicies';
+export type {GetRoleSharingPoliciesConfig} from './api/management/roles/getRoleSharingPolicies';
+export {default as createRoleSharingPolicy} from './api/management/roles/createRoleSharingPolicy';
+export type {CreateRoleSharingPolicyConfig} from './api/management/roles/createRoleSharingPolicy';
+export {default as getRoleSharingPolicy} from './api/management/roles/getRoleSharingPolicy';
+export type {GetRoleSharingPolicyConfig} from './api/management/roles/getRoleSharingPolicy';
+export {default as updateRoleSharingPolicy} from './api/management/roles/updateRoleSharingPolicy';
+export type {UpdateRoleSharingPolicyConfig} from './api/management/roles/updateRoleSharingPolicy';
+export {default as deleteRoleSharingPolicy} from './api/management/roles/deleteRoleSharingPolicy';
+export type {DeleteRoleSharingPolicyConfig} from './api/management/roles/deleteRoleSharingPolicy';
+export {default as getRoleOverlayRules} from './api/management/roles/getRoleOverlayRules';
+export type {GetRoleOverlayRulesConfig} from './api/management/roles/getRoleOverlayRules';
+export {default as getFlowSharingPolicies} from './api/management/flows/getFlowSharingPolicies';
+export type {GetFlowSharingPoliciesConfig} from './api/management/flows/getFlowSharingPolicies';
+export {default as createFlowSharingPolicy} from './api/management/flows/createFlowSharingPolicy';
+export type {CreateFlowSharingPolicyConfig} from './api/management/flows/createFlowSharingPolicy';
+export {default as getFlowSharingPolicy} from './api/management/flows/getFlowSharingPolicy';
+export type {GetFlowSharingPolicyConfig} from './api/management/flows/getFlowSharingPolicy';
+export {default as updateFlowSharingPolicy} from './api/management/flows/updateFlowSharingPolicy';
+export type {UpdateFlowSharingPolicyConfig} from './api/management/flows/updateFlowSharingPolicy';
+export {default as deleteFlowSharingPolicy} from './api/management/flows/deleteFlowSharingPolicy';
+export type {DeleteFlowSharingPolicyConfig} from './api/management/flows/deleteFlowSharingPolicy';
+export {default as getFlowOverlayRules} from './api/management/flows/getFlowOverlayRules';
+export type {GetFlowOverlayRulesConfig} from './api/management/flows/getFlowOverlayRules';
+export {default as getFlowVariables} from './api/management/flows/getFlowVariables';
+export type {GetFlowVariablesConfig} from './api/management/flows/getFlowVariables';
+export {default as updateFlowVariables} from './api/management/flows/updateFlowVariables';
+export type {UpdateFlowVariablesConfig} from './api/management/flows/updateFlowVariables';
+export {default as getGroupsByPath} from './api/management/groups/getGroupsByPath';
+export type {GetGroupsByPathConfig} from './api/management/groups/getGroupsByPath';
+export {default as createGroupByPath} from './api/management/groups/createGroupByPath';
+export type {CreateGroupByPathConfig} from './api/management/groups/createGroupByPath';
+export {default as getProjects} from './api/management/projects/getProjects';
+export type {GetProjectsConfig} from './api/management/projects/getProjects';
+export {default as getProject} from './api/management/projects/getProject';
+export type {GetProjectConfig} from './api/management/projects/getProject';
+export {default as createProject} from './api/management/projects/createProject';
+export type {CreateProjectConfig} from './api/management/projects/createProject';
+export {default as updateProject} from './api/management/projects/updateProject';
+export type {UpdateProjectConfig} from './api/management/projects/updateProject';
+export {default as deleteProject} from './api/management/projects/deleteProject';
+export type {DeleteProjectConfig} from './api/management/projects/deleteProject';
+export {default as getAuthorizationDetailTypes} from './api/management/authorization-detail-types/getAuthorizationDetailTypes';
+export type {GetAuthorizationDetailTypesConfig} from './api/management/authorization-detail-types/getAuthorizationDetailTypes';
+export {default as getAuthorizationDetailType} from './api/management/authorization-detail-types/getAuthorizationDetailType';
+export type {GetAuthorizationDetailTypeConfig} from './api/management/authorization-detail-types/getAuthorizationDetailType';
+export {default as createAuthorizationDetailType} from './api/management/authorization-detail-types/createAuthorizationDetailType';
+export type {CreateAuthorizationDetailTypeConfig} from './api/management/authorization-detail-types/createAuthorizationDetailType';
+export {default as updateAuthorizationDetailType} from './api/management/authorization-detail-types/updateAuthorizationDetailType';
+export type {UpdateAuthorizationDetailTypeConfig} from './api/management/authorization-detail-types/updateAuthorizationDetailType';
+export {default as deleteAuthorizationDetailType} from './api/management/authorization-detail-types/deleteAuthorizationDetailType';
+export type {DeleteAuthorizationDetailTypeConfig} from './api/management/authorization-detail-types/deleteAuthorizationDetailType';
+export {default as getSupportedAuthorizationDetailsTypes} from './api/auth/getSupportedAuthorizationDetailsTypes';
+export type {GetSupportedAuthorizationDetailsTypesConfig} from './api/auth/getSupportedAuthorizationDetailsTypes';
+export {default as getSupportedAuthorizationDetailsType} from './api/auth/getSupportedAuthorizationDetailsType';
+export type {GetSupportedAuthorizationDetailsTypeConfig} from './api/auth/getSupportedAuthorizationDetailsType';
 export {default as getResourceServers} from './api/management/resource-servers/getResourceServers';
 export type {GetResourceServersConfig} from './api/management/resource-servers/getResourceServers';
 export {default as getResourceServer} from './api/management/resource-servers/getResourceServer';
@@ -220,6 +278,8 @@ export {default as deleteResource} from './api/management/resource-servers/delet
 export type {DeleteResourceConfig} from './api/management/resource-servers/deleteResource';
 export {default as getActions} from './api/management/resource-servers/getActions';
 export type {GetActionsConfig} from './api/management/resource-servers/getActions';
+export {default as getResourceServerPermissions} from './api/management/resource-servers/getResourceServerPermissions';
+export type {GetResourceServerPermissionsConfig} from './api/management/resource-servers/getResourceServerPermissions';
 export {default as getAction} from './api/management/resource-servers/getAction';
 export type {GetActionConfig} from './api/management/resource-servers/getAction';
 export {default as createAction} from './api/management/resource-servers/createAction';
@@ -370,6 +430,40 @@ export {default as updateGatewaySecret} from './api/management/gateways/updateGa
 export type {UpdateGatewaySecretConfig} from './api/management/gateways/updateGatewaySecret';
 export {default as deleteGatewaySecret} from './api/management/gateways/deleteGatewaySecret';
 export type {DeleteGatewaySecretConfig} from './api/management/gateways/deleteGatewaySecret';
+export {default as getGatewayMaster} from './api/management/gateways/getGatewayMaster';
+export type {GetGatewayMasterConfig} from './api/management/gateways/getGatewayMaster';
+export {default as getGatewayMasterHistory} from './api/management/gateways/getGatewayMasterHistory';
+export type {GetGatewayMasterHistoryConfig} from './api/management/gateways/getGatewayMasterHistory';
+export {default as getGatewayMasterResource} from './api/management/gateways/getGatewayMasterResource';
+export type {GetGatewayMasterResourceConfig} from './api/management/gateways/getGatewayMasterResource';
+export {default as getCredentialConfigurations} from './api/management/credential-configurations/getCredentialConfigurations';
+export type {GetCredentialConfigurationsConfig} from './api/management/credential-configurations/getCredentialConfigurations';
+export {default as getCredentialConfiguration} from './api/management/credential-configurations/getCredentialConfiguration';
+export type {GetCredentialConfigurationConfig} from './api/management/credential-configurations/getCredentialConfiguration';
+export {default as createCredentialConfiguration} from './api/management/credential-configurations/createCredentialConfiguration';
+export type {CreateCredentialConfigurationConfig} from './api/management/credential-configurations/createCredentialConfiguration';
+export {default as updateCredentialConfiguration} from './api/management/credential-configurations/updateCredentialConfiguration';
+export type {UpdateCredentialConfigurationConfig} from './api/management/credential-configurations/updateCredentialConfiguration';
+export {default as deleteCredentialConfiguration} from './api/management/credential-configurations/deleteCredentialConfiguration';
+export type {DeleteCredentialConfigurationConfig} from './api/management/credential-configurations/deleteCredentialConfiguration';
+export {default as getPresentationDefinitions} from './api/management/presentation-definitions/getPresentationDefinitions';
+export type {GetPresentationDefinitionsConfig} from './api/management/presentation-definitions/getPresentationDefinitions';
+export {default as getPresentationDefinition} from './api/management/presentation-definitions/getPresentationDefinition';
+export type {GetPresentationDefinitionConfig} from './api/management/presentation-definitions/getPresentationDefinition';
+export {default as createPresentationDefinition} from './api/management/presentation-definitions/createPresentationDefinition';
+export type {CreatePresentationDefinitionConfig} from './api/management/presentation-definitions/createPresentationDefinition';
+export {default as updatePresentationDefinition} from './api/management/presentation-definitions/updatePresentationDefinition';
+export type {UpdatePresentationDefinitionConfig} from './api/management/presentation-definitions/updatePresentationDefinition';
+export {default as deletePresentationDefinition} from './api/management/presentation-definitions/deletePresentationDefinition';
+export type {DeletePresentationDefinitionConfig} from './api/management/presentation-definitions/deletePresentationDefinition';
+export {default as registerClient} from './api/management/client-registrations/registerClient';
+export type {RegisterClientConfig} from './api/management/client-registrations/registerClient';
+export {default as getClientRegistration} from './api/management/client-registrations/getClientRegistration';
+export type {GetClientRegistrationConfig} from './api/management/client-registrations/getClientRegistration';
+export {default as updateClientRegistration} from './api/management/client-registrations/updateClientRegistration';
+export type {UpdateClientRegistrationConfig} from './api/management/client-registrations/updateClientRegistration';
+export {default as deleteClientRegistration} from './api/management/client-registrations/deleteClientRegistration';
+export type {DeleteClientRegistrationConfig} from './api/management/client-registrations/deleteClientRegistration';
 export {default as getConfigurationVersions} from './api/management/configuration/getConfigurationVersions';
 export type {GetConfigurationVersionsConfig} from './api/management/configuration/getConfigurationVersions';
 export {default as getConfigurationVersion} from './api/management/configuration/getConfigurationVersion';
@@ -417,6 +511,14 @@ export {default as UserQueryKeys} from './constants/UserQueryKeys';
 export {default as AgentQueryKeys} from './constants/AgentQueryKeys';
 export {default as RoleQueryKeys} from './constants/RoleQueryKeys';
 export {default as GroupQueryKeys} from './constants/GroupQueryKeys';
+export {default as ProjectQueryKeys} from './constants/ProjectQueryKeys';
+export {default as OrganizationUnitQueryKeys} from './constants/OrganizationUnitQueryKeys';
+export {default as SharingPolicyQueryKeys} from './constants/SharingPolicyQueryKeys';
+export {
+  ORGANIZATION_UNIT_ERROR_KEYS,
+  PROJECT_ERROR_KEYS,
+  SHARING_POLICY_ERROR_KEYS,
+} from './constants/ManagementErrorKeys';
 export {
   default as AdministrationModes,
   ADMINISTRATION_FLOW_TYPE,
@@ -438,6 +540,20 @@ export {default as ThunderIDRuntimeError} from './errors/ThunderIDRuntimeError';
 export {InvalidLogoutTokenError, ThunderIDAuthException} from './errors/exception';
 
 export type {CIBAInitiateOptions, CIBAInitiateResponse, CIBAErrorCode, CIBAPollOptions} from './models/ciba';
+export type {
+  DeviceAuthorizationOptions,
+  DeviceAuthorizationPollOptions,
+  DeviceAuthorizationResponse,
+} from './models/device-authorization';
+export {OrganizationUnitSwitchErrorCodes} from './models/accessible-organization-unit';
+export type {
+  AccessibleOrganizationUnit,
+  AccessibleOrganizationUnitList,
+  AccessibleOrganizationUnitScope,
+  AccessibleOrganizationUnitsOptions,
+  CurrentOrganizationUnit,
+  SwitchOrganizationUnitOptions,
+} from './models/accessible-organization-unit';
 
 export {
   EmbeddedFlowComponentType,
@@ -666,6 +782,8 @@ export type {
   ManagedFlowVersion,
   ManagedFlowVersionInfo,
   ManagedFlowVersionListResponse,
+  FlowVariableValue,
+  FlowVariables,
 } from './models/managed-flow';
 export type {
   CreateOrganizationUnitRequest,
@@ -697,6 +815,8 @@ export type {
   SharingPolicyOtherTreeRootsSelected,
   SharingPolicyRequest,
   SharingPolicyUpdateRequest,
+  RoleResolvedOverlay,
+  FlowResolvedOverlay,
 } from './models/sharing-policy';
 export type {
   CreateActionRequest,
@@ -705,6 +825,7 @@ export type {
   ManagedAction,
   ManagedActionKind,
   ManagedActionListResponse,
+  ResourceServerPermission,
   ManagedResource,
   ManagedResourceListResponse,
   ResourceServer,
@@ -769,6 +890,24 @@ export type {
 } from './models/i18n-management';
 export type {ServerConfigLayers} from './models/server-config';
 export type {
+  CredentialConfiguration,
+  CredentialConfigurationClaim,
+  CredentialConfigurationDisplay,
+  CredentialConfigurationRequest,
+  CredentialConfigurationSummary,
+} from './models/credential-configuration';
+export type {
+  PresentationDefinition,
+  PresentationDefinitionRequest,
+  PresentationDefinitionSummary,
+} from './models/presentation-definition';
+export type {
+  ClientRegistration,
+  ClientRegistrationMetadata,
+  ClientRegistrationRequest,
+  ClientRegistrationUpdateRequest,
+} from './models/client-registration';
+export type {
   ApplyGatewayConfigurationRequest,
   Gateway,
   GatewayApplyResult,
@@ -776,7 +915,12 @@ export type {
   GatewayAppliedVersion,
   GatewayConfigurationChange,
   GatewayConfigurationDiff,
+  GatewayMaster,
+  GatewayMasterEntry,
+  GatewayMasterEntryFailure,
+  GatewayMasterSummary,
   GatewayRegistration,
+  GatewayResourceHistory,
   GatewayValueChanges,
   RegisterGatewayRequest,
   RevertGatewayConfigurationRequest,
@@ -834,6 +978,7 @@ export type {
   UpdateRoleRequest,
 } from './models/role';
 export type {
+  CreateGroupByPathRequest,
   CreateGroupRequest,
   Group,
   GroupListResponse,
@@ -844,6 +989,17 @@ export type {
   MembershipGroupListResponse,
   UpdateGroupRequest,
 } from './models/group';
+export type {CreateProjectRequest, Project, ProjectListResponse, UpdateProjectRequest} from './models/project';
+export type {
+  AuthorizationDetailProcessor,
+  AuthorizationDetailProcessorAuthentication,
+  AuthorizationDetailType,
+  AuthorizationDetailTypeListResponse,
+  AuthorizationDetailTypeRequest,
+  SupportedAuthorizationDetailsType,
+  SupportedAuthorizationDetailsTypeModification,
+  SupportedAuthorizationDetailsTypesResponse,
+} from './models/authorization-detail-type';
 export type {AuthCodeResponse} from './models/auth-code-response';
 export type {Crypto, JWKInterface} from './models/crypto';
 export type {OAuthResponseMode} from './models/oauth-response';
@@ -884,6 +1040,17 @@ export {default as isApplicationSubmissionValid} from './utils/isApplicationSubm
 export {default as toCreateApplicationRequest} from './utils/toCreateApplicationRequest';
 export {default as toUpdateApplicationRequest} from './utils/toUpdateApplicationRequest';
 export {default as toManagementErrorMessage} from './utils/toManagementErrorMessage';
+export {
+  SHARING_RESOURCE_COLLECTIONS,
+  describeSharingPolicyScope,
+  getSharingPolicyOperations,
+  isSharingPolicyFormValid,
+  parseOrganizationUnitIds,
+  toSharingPolicyFormValues,
+  toSharingPolicyRequest,
+  toSharingPolicyUpdateRequest,
+} from './utils/sharingPolicies';
+export type {SharingPolicyFormValues, SharingPolicyOperations, SharingResourceType} from './utils/sharingPolicies';
 export {default as resolveManagedIdentityName} from './utils/resolveManagedIdentityName';
 export {default as getAgentName} from './utils/getAgentName';
 export {default as getAccountLifecycleActions} from './utils/getAccountLifecycleActions';
@@ -923,6 +1090,8 @@ export {
 export {default as removeTrailingSlash} from './utils/removeTrailingSlash';
 export {default as resolveFieldName} from './utils/resolveFieldName';
 export {default as resolveResourceEndpoint} from './utils/resolveResourceEndpoint';
+export {default as getCurrentOrganizationUnitFromClaims} from './utils/getCurrentOrganizationUnitFromClaims';
+export {default as resolveOrganizationUnitEndpoint} from './utils/resolveOrganizationUnitEndpoint';
 export {default as resolveRequestBaseUrl} from './utils/resolveRequestBaseUrl';
 export {default as resolveBackendEndpoints} from './utils/resolveBackendEndpoints';
 export type {BackendEndpointConfig} from './utils/resolveBackendEndpoints';

@@ -3,8 +3,15 @@
 
 import {getRedirectBasedSignUpUrl, getTokenPermissions} from '@thunderid/browser';
 import {VendorConstants} from '@thunderid/node';
-import type {AttributeSchema, FlowMetadataResponse, UserProfile} from '@thunderid/node';
-import {ThunderIDPlugin, THUNDERID_KEY} from '@thunderid/vue';
+import type {
+  AttributeSchema,
+  CurrentOrganizationUnit,
+  FlowMetadataResponse,
+  SwitchOrganizationUnitOptions,
+  UserProfile,
+} from '@thunderid/node';
+import {ThunderIDPlugin, THUNDERID_KEY, useCurrentProjectState} from '@thunderid/vue';
+import type {CurrentProjectState} from '@thunderid/vue';
 import type {H3Event} from 'h3';
 import {computed} from 'vue';
 import type {ComputedRef, Ref} from 'vue';
@@ -122,6 +129,7 @@ export default defineNuxtPlugin((nuxtApp: NuxtApp) => {
         isLoading: false,
         isSignedIn: ssr.isSignedIn,
         organizationId: ssr.session?.organizationId,
+        organizationUnit: ssr.organizationUnit ?? null,
         scopes: ssr.session?.scopes,
         user: ssr.user,
       };
@@ -166,6 +174,34 @@ export default defineNuxtPlugin((nuxtApp: NuxtApp) => {
       ? `${NuxtAPIRoutes.SIGN_IN}?returnTo=${encodeURIComponent(returnTo)}`
       : NuxtAPIRoutes.SIGN_IN;
     await navigateTo(url, {external: true});
+  };
+
+  const currentOrganizationUnit: ComputedRef<CurrentOrganizationUnit | null> = computed(
+    () => authState.value.organizationUnit ?? null,
+  );
+
+  // Switching signs in again through the sign-in route, bounded to the unit. The server reuses the SSO
+  // session, so normally no credentials are asked, and the callback replaces the session only on success.
+  const switchOrganizationUnit = async (
+    organizationUnitId: string,
+    options?: SwitchOrganizationUnitOptions,
+  ): Promise<undefined> => {
+    const {returnTo: requestedReturnTo} = options ?? {};
+    const returnTo: string | undefined =
+      typeof requestedReturnTo === 'string'
+        ? requestedReturnTo
+        : import.meta.client
+          ? `${window.location.pathname}${window.location.search}`
+          : undefined;
+    const params: URLSearchParams = new URLSearchParams({ouId: organizationUnitId});
+
+    if (returnTo) {
+      params.set('returnTo', returnTo);
+    }
+
+    await navigateTo(`${NuxtAPIRoutes.SIGN_IN}?${params.toString()}`, {external: true});
+
+    return undefined;
   };
 
   const signOut = async (): Promise<void> => {
@@ -213,6 +249,14 @@ export default defineNuxtPlugin((nuxtApp: NuxtApp) => {
 
   const noop = async (): Promise<any> => undefined;
 
+  // The current project is a client-side preference for the management UI. It is restored once the app
+  // is mounted, so the server-rendered page and the first client render agree.
+  const projectState: CurrentProjectState = useCurrentProjectState(vendor);
+
+  if (import.meta.client) {
+    nuxtApp.hook('app:mounted', (): void => projectState.restore());
+  }
+
   // ── 4. Provide THUNDERID_KEY at the app level ────────────────────────────
   nuxtApp.vueApp.provide(THUNDERID_KEY, {
     afterSignInUrl: publicConfig.afterSignInUrl,
@@ -220,6 +264,12 @@ export default defineNuxtPlugin((nuxtApp: NuxtApp) => {
     baseUrl: publicConfig.baseUrl,
     clearSession: noop,
     clientId: publicConfig.clientId,
+    currentOrganizationUnit,
+    currentProject: projectState.currentProject,
+    setCurrentProject: projectState.setCurrentProject,
+    getCurrentOrganizationUnit: (): Promise<CurrentOrganizationUnit | null> =>
+      Promise.resolve(currentOrganizationUnit.value),
+    switchOrganizationUnit,
     // Lets the management composables build the URLs the management route accepts.
     endpoints: publicConfig.endpoints,
     exchangeToken: noop,

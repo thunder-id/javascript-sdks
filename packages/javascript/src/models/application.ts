@@ -346,12 +346,18 @@ export interface ApplicationListResponse {
  * The payload used to create or update an application. The server generates `id`, the timestamps and
  * the access `status`.
  */
-export type CreateApplicationRequest = Omit<Application, 'id' | 'createdAt' | 'updatedAt' | 'status'>;
+export type CreateApplicationRequest = Omit<Application, 'id' | 'createdAt' | 'updatedAt' | 'status'> & {
+  /**
+   * Creates the application in the project's root organization unit, in place of `ouId`. Served by
+   * the control plane.
+   */
+  projectId?: string;
+};
 
 /**
  * The payload used to update an application.
  */
-export type UpdateApplicationRequest = CreateApplicationRequest;
+export type UpdateApplicationRequest = Omit<CreateApplicationRequest, 'projectId'>;
 
 /**
  * The general fields and OAuth basics the application forms collect.

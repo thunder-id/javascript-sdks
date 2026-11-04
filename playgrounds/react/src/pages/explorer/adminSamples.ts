@@ -11,7 +11,9 @@ import type {
   GroupMember,
   ManagedUser,
   MembershipGroup,
+  ResourceServerPermission,
   RoleAssignment,
+  RolePermissionResourceServer,
   RoleResourcePermissions,
   RoleSummary,
 } from '@thunderid/react';
@@ -136,6 +138,26 @@ export const SAMPLE_PERMISSIONS: RoleResourcePermissions[] = [
 export const RESOURCE_SERVER_NAMES: Record<string, string> = {
   'rs-orders': 'Orders API',
   'rs-system': 'ThunderID system',
+};
+
+/** The resource servers an editable permissions story offers, with the permissions of each. */
+export const SAMPLE_RESOURCE_SERVERS: RolePermissionResourceServer[] = [
+  {id: 'rs-orders', name: 'Orders API'},
+  {id: 'rs-system', name: 'ThunderID system'},
+];
+
+export const SAMPLE_AVAILABLE_PERMISSIONS: Record<string, ResourceServerPermission[]> = {
+  'rs-orders': [
+    {name: 'Read', permission: 'orders:read'},
+    {name: 'Refund', permission: 'orders:refund'},
+    {name: 'Cancel', permission: 'orders:cancel', resourceName: 'Orders'},
+  ],
+  'rs-system': [
+    {name: 'View users', permission: 'system:user:view'},
+    {name: 'View groups', permission: 'system:group:view'},
+    {name: 'View roles', permission: 'system:role:view'},
+    {name: 'Manage users', permission: 'system:user'},
+  ],
 };
 
 export const CANDIDATES = {

@@ -46,6 +46,23 @@ export interface SessionCookieConfig {
  */
 export type ThunderIDNodeConfig = Config & {
   /**
+   * Access evaluation (AuthZEN) settings, for `evaluateAccess`, `evaluateAccesses` and `searchActions`.
+   * The endpoints come from the server's `/.well-known/authzen-configuration` unless overridden here,
+   * and an override must be on the origin of `baseUrl`.
+   */
+  accessEvaluation?: {
+    endpoints?: {
+      evaluation?: string;
+      evaluations?: string;
+      searchAction?: string;
+    };
+    /**
+     * The server-level secret sent in the `Direct-Auth-Secret` header. It can also be passed per call.
+     * Never logged.
+     */
+    secret?: string;
+  };
+  /**
    * Flow Secret used to authenticate this application when it initiates a flow directly via the
    * Flow Execution API. Sent in the `Flow-Secret` request header, and only on flow initiation —
    * continuation requests are authenticated by their `executionId` and challenge token.

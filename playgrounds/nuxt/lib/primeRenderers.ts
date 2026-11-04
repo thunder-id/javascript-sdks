@@ -1,15 +1,17 @@
 // Copyright 2026 The ThunderID Authors
 // SPDX-License-Identifier: Apache-2.0
 
-import type {EmbeddedFlowComponent, ManagedUser, MembershipGroup} from '@thunderid/browser';
+import type {AccessibleOrganizationUnit, EmbeddedFlowComponent, ManagedUser, MembershipGroup} from '@thunderid/browser';
 import {
   type AdminListRenderProps,
   type BaseApplicationCreateRenderProps,
   type BaseApplicationDetailsRenderProps,
   type BaseGroupCreateRenderProps,
+  type BaseRolePermissionsRenderProps,
   type BaseUserDetailsRenderProps,
   type BaseVerifyAttributeRenderProps,
   type DataTableColumn,
+  type OrganizationUnitSwitcherRenderProps,
   useTheme,
 } from '@thunderid/vue';
 import Avatar from 'primevue/avatar';
@@ -22,8 +24,20 @@ import DataTable, {type DataTablePageEvent, type DataTableRowSelectEvent} from '
 import InputText from 'primevue/inputtext';
 import Message from 'primevue/message';
 import Password from 'primevue/password';
+import Select from 'primevue/select';
 import Textarea from 'primevue/textarea';
-import {defineComponent, h, onBeforeUnmount, watchEffect, type Component, type VNode, type VNodeChild} from 'vue';
+import {
+  defineComponent,
+  h,
+  onBeforeUnmount,
+  ref,
+  watchEffect,
+  type Component,
+  type PropType,
+  type Ref,
+  type VNode,
+  type VNodeChild,
+} from 'vue';
 
 /**
  * Follows the playground's light or dark preview with PrimeVue's palette. PrimeVue resolves its
@@ -381,3 +395,168 @@ export const verifyForm = (state: BaseVerifyAttributeRenderProps): VNode => {
     },
   );
 };
+
+/**
+ * A role's permissions drawn as one PrimeVue card per resource server. When the render props carry
+ * `onAdd` and `onRemove`, two PrimeVue selects add a permission and a chip's remove icon asks before
+ * revoking it: the custom render owns that confirmation.
+ */
+export const PrimeRolePermissions: Component = defineComponent({
+  name: 'PrimeRolePermissions',
+  props: {
+    state: {required: true, type: Object as PropType<BaseRolePermissionsRenderProps>},
+  },
+  setup(props: {state: BaseRolePermissionsRenderProps}): () => VNode {
+    const serverId: Ref<string> = ref('');
+    const permission: Ref<string> = ref('');
+    const pending: Ref<{permission: string; resourceServerId: string} | null> = ref(null);
+
+    return (): VNode => {
+      const {state} = props;
+      const granted: string[] =
+        state.permissions.find((entry) => entry.resourceServerId === serverId.value)?.permissions ?? [];
+      const options = (state.availablePermissions?.[serverId.value] ?? [])
+        .filter((candidate) => !granted.includes(candidate.permission))
+        .map((candidate) => ({label: candidate.name, value: candidate.permission}));
+
+      return h('div', {class: 'pg-prime-stack'}, [
+        state.error ? h(Message, {severity: 'error'}, {default: () => state.error}) : null,
+        state.onAdd && state.resourceServers
+          ? h('div', {class: 'pg-prime-actions'}, [
+              h(Select, {
+                modelValue: serverId.value,
+                'onUpdate:modelValue': (value: string): void => {
+                  serverId.value = value;
+                  permission.value = '';
+                  state.onResourceServerSelect?.(value);
+                },
+                optionLabel: 'name',
+                optionValue: 'id',
+                options: state.resourceServers,
+                placeholder: 'Resource server',
+              }),
+              h(Select, {
+                disabled: !serverId.value,
+                modelValue: permission.value,
+                'onUpdate:modelValue': (value: string): void => {
+                  permission.value = value;
+                },
+                optionLabel: 'label',
+                optionValue: 'value',
+                options,
+                placeholder: 'Permission',
+              }),
+              h(Button, {
+                disabled: !permission.value || state.isMutating,
+                label: 'Add',
+                onClick: (): void => {
+                  state.onAdd?.({permission: permission.value, resourceServerId: serverId.value});
+                  permission.value = '';
+                },
+              }),
+            ])
+          : null,
+        pending.value && state.onRemove
+          ? h(
+              Message,
+              {severity: 'warn'},
+              {
+                default: () => [
+                  `Remove ${pending.value!.permission}? `,
+                  h(Button, {
+                    label: 'Cancel',
+                    onClick: (): void => void (pending.value = null),
+                    size: 'small',
+                    text: true,
+                  }),
+                  h(Button, {
+                    label: 'Remove',
+                    onClick: (): void => {
+                      state.onRemove?.(pending.value!);
+                      pending.value = null;
+                    },
+                    severity: 'danger',
+                    size: 'small',
+                    text: true,
+                  }),
+                ],
+              },
+            )
+          : null,
+        state.isLoading ? h('p', 'Loading…') : null,
+        ...state.permissions.map((entry) =>
+          h(
+            Card,
+            {key: entry.resourceServerId},
+            {
+              content: () =>
+                h(
+                  'div',
+                  {class: 'pg-prime-chips'},
+                  entry.permissions.map((item: string) =>
+                    h(Chip, {
+                      key: item,
+                      label: item,
+                      onRemove: (): void => {
+                        pending.value = {permission: item, resourceServerId: entry.resourceServerId};
+                      },
+                      removable: Boolean(state.onRemove),
+                    }),
+                  ),
+                ),
+              title: () => state.resolveResourceServerName(entry.resourceServerId),
+            },
+          ),
+        ),
+      ]);
+    };
+  },
+});
+
+/**
+ * The organization unit switcher's default scoped slot drawn with PrimeVue: one row per unit, the current one
+ * tagged, and the SDK's offset paging on PrimeVue buttons.
+ */
+export const organizationUnitPicker = (state: OrganizationUnitSwitcherRenderProps): VNode =>
+  h(
+    Card,
+    {},
+    {
+      content: () =>
+        h('div', {class: 'pg-prime-stack'}, [
+          state.error ? h(Message, {severity: 'error'}, {default: () => state.error}) : null,
+          ...state.organizationUnits.map((unit: AccessibleOrganizationUnit) =>
+            h('div', {class: 'pg-prime-actions', key: unit.id}, [
+              h(Avatar, {label: unit.name.charAt(0), shape: 'circle'}),
+              h('span', {style: 'flex: 1'}, `${unit.name} (${unit.handle})`),
+              unit.id === state.current
+                ? h(Chip, {label: 'Current'})
+                : h(Button, {
+                    disabled: Boolean(state.switchingId),
+                    label: 'Switch',
+                    loading: state.switchingId === unit.id,
+                    onClick: () => state.onSwitch(unit),
+                    size: 'small',
+                  }),
+            ]),
+          ),
+        ]),
+      footer: () =>
+        h('div', {class: 'pg-prime-actions'}, [
+          h(Button, {
+            disabled: state.offset === 0 || state.isLoading,
+            label: 'Previous',
+            onClick: () => state.onPageChange(Math.max(0, state.offset - state.limit)),
+            text: true,
+          }),
+          h(Button, {
+            disabled: state.offset + state.limit >= state.totalResults || state.isLoading,
+            label: 'Next',
+            onClick: () => state.onPageChange(state.offset + state.limit),
+            text: true,
+          }),
+        ]),
+      subtitle: () => "Rendered with PrimeVue from the SDK's default scoped slot",
+      title: () => 'Organization units',
+    },
+  );

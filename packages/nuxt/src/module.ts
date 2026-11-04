@@ -211,6 +211,10 @@ export default defineNuxtModule<ThunderIDNuxtConfig>({
         method: 'post' as const,
         route: NuxtAPIRoutes.USER_SELF_FLOW,
       },
+      {
+        handler: resolve('./runtime/server/routes/auth/user/organization-units.get'),
+        route: NuxtAPIRoutes.USER_ORGANIZATION_UNITS,
+      },
     ];
 
     // Opt-in: the route accepts unauthenticated requests, so it is served only when asked for.
@@ -295,6 +299,15 @@ export default defineNuxtModule<ThunderIDNuxtConfig>({
     addComponent({filePath: resolve('./runtime/components/account/UserProfile'), name: 'UserProfile'});
     addComponent({filePath: resolve('./runtime/components/account/UserDropdown'), name: 'UserDropdown'});
     addComponent({filePath: resolve('./runtime/components/account/ChangeCredential'), name: 'ChangeCredential'});
+    addComponent({
+      filePath: resolve('./runtime/components/account/OrganizationUnitSwitcher'),
+      name: 'OrganizationUnitSwitcher',
+    });
+    addComponent({
+      export: 'BaseOrganizationUnitSwitcher',
+      filePath: '@thunderid/vue',
+      name: 'BaseOrganizationUnitSwitcher',
+    });
     addComponent({filePath: resolve('./runtime/components/account/VerifyAttribute'), name: 'VerifyAttribute'});
 
     // ── Management pickers ──────────────────────────────────────────────────

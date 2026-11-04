@@ -102,8 +102,15 @@ export interface CreateAgentRequest {
   description?: string;
   inboundAuthConfig?: AgentInboundAuthConfig[];
   logoUrl?: string;
-  ouId: string;
+  /**
+   * The organization unit the agent is created in. Required unless `projectId` is given.
+   */
+  ouId?: string;
   owner?: string;
+  /**
+   * Creates the agent in the project's root organization unit. Served by the control plane.
+   */
+  projectId?: string;
   type: string;
 }
 

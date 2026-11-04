@@ -81,7 +81,14 @@ const extractFormFields = (flowComponents: EmbeddedFlowComponent[]): FieldDefini
   const fields: FieldDefinition[] = [];
   const process = (comps: EmbeddedFlowComponent[]): void => {
     comps.forEach((c: any) => {
-      if (c.type === 'TEXT_INPUT' || c.type === 'PASSWORD_INPUT' || c.type === 'EMAIL_INPUT' || c.type === 'SELECT') {
+      if (
+        c.type === 'TEXT_INPUT' ||
+        c.type === 'PASSWORD_INPUT' ||
+        c.type === 'EMAIL_INPUT' ||
+        c.type === 'SELECT' ||
+        // A Resolve OU step's organization unit input.
+        c.type === 'OU_SELECT'
+      ) {
         fields.push({name: c.ref, required: c.required || false, type: c.type});
       }
       if (c.components) {

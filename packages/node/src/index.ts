@@ -33,6 +33,24 @@ export type {
   ThunderIDNodeManagementClient,
 } from './models/management';
 
+export type {
+  AccessAction,
+  AccessActionSearchRequest,
+  AccessActionSearchResponse,
+  AccessEvaluationRequest,
+  AccessEvaluationRequestConfig,
+  AccessEvaluationResponse,
+  AccessEvaluationsRequest,
+  AccessResource,
+  AccessSubject,
+  AuthZENConfiguration,
+} from './models/access-evaluation';
+
+// Access evaluation (AuthZEN). Server-side only: authorized by the server-level Direct-Auth-Secret.
+export {default as evaluateAccess} from './api/access/evaluateAccess';
+export {default as evaluateAccesses} from './api/access/evaluateAccesses';
+export {default as searchActions} from './api/access/searchActions';
+
 // Stores
 export {default as MemoryCacheStore} from './stores/MemoryCacheStore';
 

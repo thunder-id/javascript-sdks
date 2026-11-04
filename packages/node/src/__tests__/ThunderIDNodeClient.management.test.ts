@@ -474,6 +474,133 @@ describe('ThunderIDNodeClient management()', () => {
       url: `${BASE_URL}/gateways/gw1/secrets/S`,
     },
     {
+      call: () => admin.gateways.getMaster('gw1'),
+      method: 'GET',
+      name: 'gateways.getMaster',
+      url: `${BASE_URL}/gateways/gw1/master`,
+    },
+    {
+      call: () => admin.gateways.getMasterHistory('gw1'),
+      method: 'GET',
+      name: 'gateways.getMasterHistory',
+      url: `${BASE_URL}/gateways/gw1/master/history`,
+    },
+    {
+      call: () => admin.gateways.getMasterResource('gw1', 'application', 'app/1'),
+      method: 'GET',
+      name: 'gateways.getMasterResource',
+      url: `${BASE_URL}/gateways/gw1/master/resources/application/app%2F1`,
+    },
+    {
+      body: {childUnits: {mode: 'all'}},
+      call: () => admin.roles.createSharingPolicy('r1', {childUnits: {mode: 'all'}}),
+      method: 'POST',
+      name: 'roles.createSharingPolicy',
+      url: `${BASE_URL}/roles/r1/sharing-policies`,
+    },
+    {
+      call: () => admin.roles.listSharingPolicies('r1', {limit: 3}),
+      method: 'GET',
+      name: 'roles.listSharingPolicies',
+      url: `${BASE_URL}/roles/r1/sharing-policies?limit=3`,
+    },
+    {
+      call: () => admin.roles.getOverlayRules('r1', 'ou2'),
+      method: 'GET',
+      name: 'roles.getOverlayRules',
+      url: `${BASE_URL}/roles/r1/overlay-rules?ouId=ou2`,
+    },
+    {
+      call: () => admin.flows.deleteSharingPolicy('f1', 'p1'),
+      method: 'DELETE',
+      name: 'flows.deleteSharingPolicy',
+      url: `${BASE_URL}/flows/f1/sharing-policies/p1`,
+    },
+    {
+      call: () => admin.flows.getVariables('f1', 'ou2'),
+      method: 'GET',
+      name: 'flows.getVariables',
+      url: `${BASE_URL}/flows/f1/variables?ouId=ou2`,
+    },
+    {
+      body: {ouId: 'ou2', values: {supportEmail: 'help@example.com'}},
+      call: () => admin.flows.updateVariables('f1', 'ou2', {supportEmail: 'help@example.com'}),
+      method: 'PUT',
+      name: 'flows.updateVariables',
+      url: `${BASE_URL}/flows/f1/variables`,
+    },
+    {
+      call: () => admin.groups.listByPath('eng/plat form', {limit: 2}),
+      method: 'GET',
+      name: 'groups.listByPath',
+      url: `${BASE_URL}/groups/tree/eng/plat%20form?include=display&limit=2`,
+    },
+    {
+      body: {name: 'Sports'},
+      call: () => admin.groups.createByPath('eng', {name: 'Sports'}),
+      method: 'POST',
+      name: 'groups.createByPath',
+      url: `${BASE_URL}/groups/tree/eng`,
+    },
+    {
+      call: () => admin.projects.list({limit: 5}),
+      method: 'GET',
+      name: 'projects.list',
+      url: `${BASE_URL}/projects?limit=5`,
+    },
+    {
+      body: {displayName: 'Shop'},
+      call: () => admin.projects.update('p1', {displayName: 'Shop'}),
+      method: 'PUT',
+      name: 'projects.update',
+      url: `${BASE_URL}/projects/p1`,
+    },
+    {
+      call: () => admin.authorizationDetailTypes.get('t1'),
+      method: 'GET',
+      name: 'authorizationDetailTypes.get',
+      url: `${BASE_URL}/authorization-detail-types/t1`,
+    },
+    {
+      call: () => admin.authorizationDetailTypes.delete('t1'),
+      method: 'DELETE',
+      name: 'authorizationDetailTypes.delete',
+      url: `${BASE_URL}/authorization-detail-types/t1`,
+    },
+    {
+      call: () => admin.credentialConfigurations.list(),
+      method: 'GET',
+      name: 'credentialConfigurations.list',
+      url: `${BASE_URL}/openid4vci/credential-configurations`,
+    },
+    {
+      body: {handle: 'pid', ouId: 'ou1', vct: 'urn:pid'},
+      call: () => admin.credentialConfigurations.update('vc1', {handle: 'pid', ouId: 'ou1', vct: 'urn:pid'}),
+      method: 'PUT',
+      name: 'credentialConfigurations.update',
+      url: `${BASE_URL}/openid4vci/credential-configurations/vc1`,
+    },
+    {
+      call: () => admin.presentationDefinitions.delete('vp1'),
+      method: 'DELETE',
+      name: 'presentationDefinitions.delete',
+      url: `${BASE_URL}/openid4vp/presentation-definitions/vp1`,
+    },
+    {
+      body: {client_name: 'App', redirect_uris: ['https://app/cb']},
+      call: () => admin.clientRegistrations.register({clientName: 'App', redirectUris: ['https://app/cb']}),
+      method: 'POST',
+      name: 'clientRegistrations.register',
+      url: `${BASE_URL}/oauth2/dcr/register`,
+    },
+    {
+      body: {client_id: 'c1', redirect_uris: ['https://app/cb']},
+      call: () => admin.clientRegistrations.update('c1', {redirectUris: ['https://app/cb']}),
+      method: 'PUT',
+      name: 'clientRegistrations.update',
+      url: `${BASE_URL}/oauth2/dcr/register/c1`,
+    },
+    {
       call: () => admin.variables.list({names: ['A', 'B']}),
       method: 'GET',
       name: 'variables.list',
@@ -694,6 +821,12 @@ describe('ThunderIDNodeClient management()', () => {
     });
     await expect(admin.connections.get('google', undefined as never)).rejects.toMatchObject({
       code: 'getConnection-ValidationError-002',
+    });
+    await expect(admin.clientRegistrations.get('' as never)).rejects.toMatchObject({
+      code: 'getClientRegistration-ValidationError-002',
+    });
+    await expect(admin.gateways.getMasterResource('gw1', 'application', '' as never)).rejects.toMatchObject({
+      code: 'getGatewayMasterResource-ValidationError-002',
     });
     expect(fetchMock).not.toHaveBeenCalled();
   });

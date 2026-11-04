@@ -165,3 +165,18 @@ export interface UpdateActionRequest {
   description?: string;
   name?: string;
 }
+
+/**
+ * A permission a role can be granted on a resource server: the permission string of one of its actions.
+ */
+export interface ResourceServerPermission {
+  /**
+   * Display name of the action that grants the permission.
+   */
+  name: string;
+  permission: string;
+  /**
+   * Display name of the resource the action belongs to. Absent for an action on the resource server itself.
+   */
+  resourceName?: string;
+}

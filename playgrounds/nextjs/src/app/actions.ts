@@ -3,6 +3,8 @@
 
 'use server';
 
+import type {AccessibleOrganizationUnitList} from '@thunderid/browser';
+import {thunderid} from '@thunderid/nextjs/server';
 import {ConfigSummary, getConfigSummary} from '../lib/serverConfig';
 import {loadServerSession, ServerSession} from '../lib/serverSession';
 
@@ -39,3 +41,10 @@ export const readConfig = async (): Promise<ConfigSummary> => Promise.resolve(ge
  * decode it. Do not copy this into an application.
  */
 export const readServerSession = async (): Promise<ServerSession> => loadServerSession();
+
+/**
+ * Lists the signed-in user's organization units through the public `thunderid()` server API, so the
+ * access token stays on the server.
+ */
+export const readOrganizationUnits = async (): Promise<AccessibleOrganizationUnitList> =>
+  (await thunderid()).getAccessibleOrganizationUnits({limit: 5});

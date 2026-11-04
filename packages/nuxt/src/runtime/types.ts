@@ -4,6 +4,7 @@
 import type {
   AttributeSchema,
   AuthClientConfig,
+  CurrentOrganizationUnit,
   FlowMetadataResponse,
   I18nPreferences,
   SelectPageErrorResult,
@@ -131,6 +132,11 @@ export interface ThunderIDTempSessionPayload extends JWTPayload {
 export interface ThunderIDSSRData {
   isSignedIn: boolean;
   /**
+   * The organization unit the session was issued for, from the ID token's `ouId`, `ouHandle` and `ouName`
+   * claims, or `null` when they are absent. For display only.
+   */
+  organizationUnit?: CurrentOrganizationUnit | null;
+  /**
    * The base URL actually used for this request.
    * Equals `${baseUrl}/o` when the user is acting within an organisation
    * (derived from the `user_org` claim in the ID token), otherwise equals
@@ -153,6 +159,8 @@ export interface ThunderIDAuthState {
   isSignedIn: boolean;
   /** Organization the session acts within, from the session's `organizationId`. */
   organizationId?: string;
+  /** The organization unit the session was issued for, from its ID token claims. For display only. */
+  organizationUnit?: CurrentOrganizationUnit | null;
   /** Space-separated scopes granted to the session, from the session's `scopes`. */
   scopes?: string;
   user: User | null;

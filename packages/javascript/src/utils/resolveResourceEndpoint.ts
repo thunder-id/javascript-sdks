@@ -16,8 +16,11 @@ export type ResourceEndpointKey =
   | 'agents'
   | 'agentTypes'
   | 'applications'
+  | 'authorizationDetailTypes'
+  | 'clientRegistrations'
   | 'configurationVersions'
   | 'connections'
+  | 'credentialConfigurations'
   | 'design'
   | 'export'
   | 'flowExecute'
@@ -29,6 +32,8 @@ export type ResourceEndpointKey =
   | 'import'
   | 'notificationTemplates'
   | 'organizationUnits'
+  | 'presentationDefinitions'
+  | 'projects'
   | 'resourceServers'
   | 'roles'
   | 'secrets'
@@ -37,6 +42,7 @@ export type ResourceEndpointKey =
   | 'usersMe'
   | 'usersMeCredentials'
   | 'usersMeMeta'
+  | 'usersMeOrganizationUnits'
   | 'userTypes'
   | 'variables';
 
@@ -48,8 +54,11 @@ export const RESOURCE_ENDPOINT_KEYS: readonly ResourceEndpointKey[] = [
   'agents',
   'agentTypes',
   'applications',
+  'authorizationDetailTypes',
+  'clientRegistrations',
   'configurationVersions',
   'connections',
+  'credentialConfigurations',
   'design',
   'export',
   'flowExecute',
@@ -61,6 +70,8 @@ export const RESOURCE_ENDPOINT_KEYS: readonly ResourceEndpointKey[] = [
   'import',
   'notificationTemplates',
   'organizationUnits',
+  'presentationDefinitions',
+  'projects',
   'resourceServers',
   'roles',
   'secrets',
@@ -69,6 +80,7 @@ export const RESOURCE_ENDPOINT_KEYS: readonly ResourceEndpointKey[] = [
   'usersMe',
   'usersMeCredentials',
   'usersMeMeta',
+  'usersMeOrganizationUnits',
   'userTypes',
   'variables',
 ];

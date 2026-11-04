@@ -42,6 +42,8 @@ export type {UserProfileProps} from './components/account/UserProfile/UserProfil
 export {default as ChangeCredential} from './components/account/ChangeCredential/ChangeCredential';
 export type {ChangeCredentialProps} from './components/account/ChangeCredential/ChangeCredential';
 
+export {default as OrganizationUnitSwitcher} from './components/account/OrganizationUnitSwitcher/OrganizationUnitSwitcher';
+export type {OrganizationUnitSwitcherProps} from './components/account/OrganizationUnitSwitcher/OrganizationUnitSwitcher';
 export {default as VerifyAttribute} from './components/account/VerifyAttribute/VerifyAttribute';
 export type {VerifyAttributeProps} from './components/account/VerifyAttribute/VerifyAttribute';
 
@@ -56,54 +58,84 @@ export type {UserTypeSelectProps} from './components/primitives/UserTypeSelect/U
 
 // Admin (management) components. Their requests run through a server action with the server-held session.
 
-export {default as UserList} from './components/admin/UserList/UserList';
-export type {UserListProps} from './components/admin/UserList/UserList';
+export {default as UserList} from './components/management/UserList/UserList';
+export type {UserListProps} from './components/management/UserList/UserList';
 
-export {default as UserCreate} from './components/admin/UserCreate/UserCreate';
-export type {UserCreateProps} from './components/admin/UserCreate/UserCreate';
+export {default as UserCreate} from './components/management/UserCreate/UserCreate';
+export type {UserCreateProps} from './components/management/UserCreate/UserCreate';
 
-export {default as UserDetails} from './components/admin/UserDetails/UserDetails';
-export type {UserDetailsProps} from './components/admin/UserDetails/UserDetails';
+export {default as UserDetails} from './components/management/UserDetails/UserDetails';
+export type {UserDetailsProps} from './components/management/UserDetails/UserDetails';
 
-export {default as GroupList} from './components/admin/GroupList/GroupList';
-export type {GroupListProps} from './components/admin/GroupList/GroupList';
+export {default as GroupList} from './components/management/GroupList/GroupList';
+export type {GroupListProps} from './components/management/GroupList/GroupList';
 
-export {default as GroupCreate} from './components/admin/GroupCreate/GroupCreate';
-export type {GroupCreateProps} from './components/admin/GroupCreate/GroupCreate';
+export {default as GroupCreate} from './components/management/GroupCreate/GroupCreate';
+export type {GroupCreateProps} from './components/management/GroupCreate/GroupCreate';
 
-export {default as GroupMembers} from './components/admin/GroupMembers/GroupMembers';
-export type {GroupMembersProps} from './components/admin/GroupMembers/GroupMembers';
+export {default as GroupMembers} from './components/management/GroupMembers/GroupMembers';
+export type {GroupMembersProps} from './components/management/GroupMembers/GroupMembers';
 
-export {default as RoleList} from './components/admin/RoleList/RoleList';
-export type {RoleListProps} from './components/admin/RoleList/RoleList';
+export {default as RoleList} from './components/management/RoleList/RoleList';
+export type {RoleListProps} from './components/management/RoleList/RoleList';
 
-export {default as RoleCreate} from './components/admin/RoleCreate/RoleCreate';
-export type {RoleCreateProps} from './components/admin/RoleCreate/RoleCreate';
+export {default as RoleCreate} from './components/management/RoleCreate/RoleCreate';
+export type {RoleCreateProps} from './components/management/RoleCreate/RoleCreate';
 
-export {default as RoleAssignments} from './components/admin/RoleAssignments/RoleAssignments';
-export type {RoleAssignmentsProps} from './components/admin/RoleAssignments/RoleAssignments';
+export {default as RoleAssignments} from './components/management/RoleAssignments/RoleAssignments';
+export type {RoleAssignmentsProps} from './components/management/RoleAssignments/RoleAssignments';
 
-export {default as RolePermissions} from './components/admin/RolePermissions/RolePermissions';
-export type {RolePermissionsProps} from './components/admin/RolePermissions/RolePermissions';
+export {default as RolePermissions} from './components/management/RolePermissions/RolePermissions';
+export type {RolePermissionsProps} from './components/management/RolePermissions/RolePermissions';
 
-export {default as AgentList} from './components/admin/AgentList/AgentList';
-export type {AgentListProps} from './components/admin/AgentList/AgentList';
+export {default as GroupDetails} from './components/management/GroupDetails/GroupDetails';
+export type {GroupDetailsProps} from './components/management/GroupDetails/GroupDetails';
 
-export {default as AgentCreate} from './components/admin/AgentCreate/AgentCreate';
-export type {AgentCreateProps} from './components/admin/AgentCreate/AgentCreate';
+export {default as RoleDetails} from './components/management/RoleDetails/RoleDetails';
+export type {RoleDetailsProps} from './components/management/RoleDetails/RoleDetails';
 
-export {default as AgentDetails} from './components/admin/AgentDetails/AgentDetails';
-export type {AgentDetailsProps} from './components/admin/AgentDetails/AgentDetails';
+export {default as AgentList} from './components/management/AgentList/AgentList';
+export type {AgentListProps} from './components/management/AgentList/AgentList';
 
-export {default as ApplicationList} from './components/admin/ApplicationList/ApplicationList';
-export type {ApplicationListProps} from './components/admin/ApplicationList/ApplicationList';
+export {default as AgentCreate} from './components/management/AgentCreate/AgentCreate';
+export type {AgentCreateProps} from './components/management/AgentCreate/AgentCreate';
 
-export {default as ApplicationCreate} from './components/admin/ApplicationCreate/ApplicationCreate';
-export type {ApplicationCreateProps} from './components/admin/ApplicationCreate/ApplicationCreate';
+export {default as AgentDetails} from './components/management/AgentDetails/AgentDetails';
+export type {AgentDetailsProps} from './components/management/AgentDetails/AgentDetails';
 
-export {default as ApplicationDetails} from './components/admin/ApplicationDetails/ApplicationDetails';
-export type {ApplicationDetailsProps} from './components/admin/ApplicationDetails/ApplicationDetails';
+export {default as ApplicationList} from './components/management/ApplicationList/ApplicationList';
+export type {ApplicationListProps} from './components/management/ApplicationList/ApplicationList';
+
+export {default as ApplicationCreate} from './components/management/ApplicationCreate/ApplicationCreate';
+export type {ApplicationCreateProps} from './components/management/ApplicationCreate/ApplicationCreate';
+
+export {default as ApplicationDetails} from './components/management/ApplicationDetails/ApplicationDetails';
+export type {ApplicationDetailsProps} from './components/management/ApplicationDetails/ApplicationDetails';
+
+export {default as ProjectList} from './components/management/ProjectList/ProjectList';
+export type {ProjectListProps} from './components/management/ProjectList/ProjectList';
+
+export {default as ProjectCreate} from './components/management/ProjectCreate/ProjectCreate';
+export type {ProjectCreateProps} from './components/management/ProjectCreate/ProjectCreate';
+
+export {default as ProjectDetails} from './components/management/ProjectDetails/ProjectDetails';
+export type {ProjectDetailsProps} from './components/management/ProjectDetails/ProjectDetails';
+
+export {default as ProjectSwitcher} from './components/management/ProjectSwitcher/ProjectSwitcher';
+export type {ProjectSwitcherProps} from './components/management/ProjectSwitcher/ProjectSwitcher';
+
+export {default as OrganizationUnitList} from './components/management/OrganizationUnitList/OrganizationUnitList';
+export type {OrganizationUnitListProps} from './components/management/OrganizationUnitList/OrganizationUnitList';
+
+export {default as OrganizationUnitCreate} from './components/management/OrganizationUnitCreate/OrganizationUnitCreate';
+export type {OrganizationUnitCreateProps} from './components/management/OrganizationUnitCreate/OrganizationUnitCreate';
+
+export {default as OrganizationUnitDetails} from './components/management/OrganizationUnitDetails/OrganizationUnitDetails';
+export type {OrganizationUnitDetailsProps} from './components/management/OrganizationUnitDetails/OrganizationUnitDetails';
+
+export {default as SharingPolicies} from './components/management/SharingPolicies/SharingPolicies';
+export type {SharingPoliciesProps} from './components/management/SharingPolicies/SharingPolicies';
 
 export {default as useGrantedPermissions} from './hooks/management/useGrantedPermissions';
 
-export * from './admin';
+export * from './management';

@@ -16,7 +16,9 @@ import {useRuntimeConfig} from '#imports';
  * and redirects the user to ThunderID's authorization endpoint.
  *
  * Accepts an optional `returnTo` query parameter to redirect
- * the user to a specific page after sign-in.
+ * the user to a specific page after sign-in, and an optional `ouId` that bounds the sign-in to that
+ * organization unit (`{baseUrl}/ou/{ouId}/oauth2/authorize`). Switching organization units uses this:
+ * the server reuses the SSO session, and the callback replaces the session only when it succeeds.
  */
 export default defineEventHandler(async (event: H3Event) => {
   const client: ThunderIDNuxtClient = ThunderIDNuxtClient.getInstance();
@@ -29,6 +31,9 @@ export default defineEventHandler(async (event: H3Event) => {
   // Validate returnTo is a relative path to prevent open redirect
   const safeReturnTo: string | undefined =
     returnTo && returnTo.startsWith('/') && !returnTo.startsWith('//') ? returnTo : undefined;
+
+  const ouId: unknown = query.ouId;
+  const organizationUnitId: string | undefined = typeof ouId === 'string' && ouId.trim() !== '' ? ouId : undefined;
 
   const sessionId: string = generateSessionId();
 
@@ -46,7 +51,7 @@ export default defineEventHandler(async (event: H3Event) => {
     sessionId,
     undefined, // no authorization code (initial redirect)
     undefined, // no state
-    {},
+    organizationUnitId ? {organizationUnitId} : {},
   );
 
   if (!authorizationUrl) {

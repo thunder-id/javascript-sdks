@@ -65,6 +65,12 @@ export interface CreateGroupRequest {
 }
 
 /**
+ * The payload used to create a group in the organization unit at a handle path. The unit comes from the
+ * path, so the payload carries no `ouId`.
+ */
+export type CreateGroupByPathRequest = Omit<CreateGroupRequest, 'ouId'>;
+
+/**
  * The payload used to update a group.
  */
 export interface UpdateGroupRequest {

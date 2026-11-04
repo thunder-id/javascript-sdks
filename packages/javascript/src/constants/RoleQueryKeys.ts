@@ -9,10 +9,15 @@ const RoleQueryKeys: {
   ROLE: 'role';
   ROLES: 'roles';
   ROLE_ASSIGNMENTS: 'role-assignments';
+  ROLE_PERMISSION_CANDIDATES: 'role-permission-candidates';
 } = {
   ROLE: 'role',
   ROLES: 'roles',
   ROLE_ASSIGNMENTS: 'role-assignments',
+  /**
+   * The resource servers, and the permissions of one, offered when a role's permissions are edited.
+   */
+  ROLE_PERMISSION_CANDIDATES: 'role-permission-candidates',
 };
 
 export default RoleQueryKeys;

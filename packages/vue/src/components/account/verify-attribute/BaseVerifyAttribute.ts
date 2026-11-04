@@ -33,7 +33,7 @@ import {
 import useFlowMeta from '../../../composables/useFlowMeta';
 import {extractErrorMessage, normalizeFlowResponse} from '../../../utils/flowTransformer';
 import getAuthComponentHeadings, {type AuthComponentHeadingsResult} from '../../../utils/getAuthComponentHeadings';
-import useAdminTranslation from '../../admin/shared/useAdminTranslation';
+import useAdminTranslation from '../../management/shared/useAdminTranslation';
 import {renderVerificationComponents} from '../../auth/flow/AuthOptionFactory';
 import Alert from '../../primitives/Alert';
 import Button from '../../primitives/Button';

@@ -118,6 +118,18 @@ export interface BaseConfig<T = unknown> extends WithPreferences, WithExtensions
   prompt?: string;
 
   /**
+   * Push the authorization request to the server's pushed authorization request endpoint
+   * (RFC 9126, `/oauth2/par`) and redirect with the returned `request_uri` only. Redirect mode only.
+   *
+   * The request is always pushed when the server's metadata sets
+   * `require_pushed_authorization_requests`; setting this to `false` never stops that.
+   *
+   * @default false
+   * @see {@link https://datatracker.ietf.org/doc/html/rfc9126}
+   */
+  pushedAuthorizationRequests?: boolean;
+
+  /**
    * OAuth 2.0 response mode for the authorization request.
    * Controls how the authorization server delivers the response.
    *
@@ -272,7 +284,9 @@ export interface BaseConfig<T = unknown> extends WithPreferences, WithExtensions
    * - **Resource-server endpoints** (`flowExecute`, `flowMeta`, `usersMe`, `usersMeCredentials`, and the
    *   management collections `applications`, `users`, `userTypes`, `flows`, `agents`, `agentTypes`, `roles`, `groups`,
    *   `organizationUnits`, `resourceServers`, `connections`, `notificationTemplates`, `design`, `i18n`,
-   *   `serverConfig`, `gateways`, `variables`, `secrets`, `configurationVersions`, `import`, `export`) —
+   *   `serverConfig`, `gateways`, `variables`, `secrets`, `configurationVersions`, `import`, `export`,
+   *   `credentialConfigurations`, `presentationDefinitions`, `clientRegistrations`, `projects`,
+   *   `authorizationDetailTypes`) —
    *   by default derived by concatenating `baseUrl` with a fixed path (e.g. `{baseUrl}/flow/execute`).
    *   These do not participate in OIDC discovery.
    *
@@ -322,11 +336,23 @@ export interface BaseConfig<T = unknown> extends WithPreferences, WithExtensions
      */
     authorization?: string;
     /**
+     * The authorization details types collection URL used by the authorization details type management
+     * operations. A single type is addressed as `{authorizationDetailTypes}/{id}`.
+     * If not provided, defaults to `{baseUrl}/authorization-detail-types`.
+     */
+    authorizationDetailTypes?: string;
+    /**
      * The app backend's auth endpoints. Setting them hands sign-in to the backend: the SDK then signs
      * in, reads the session, and sends API calls through the backend, and never holds a token.
      * Browser clients only. Unset entries default to a fixed path under `/api/auth`.
      */
     backend?: BackendEndpoints;
+    /**
+     * The dynamic client registration collection URL used by the client registration operations.
+     * A single registration is addressed as `{clientRegistrations}/{clientId}`.
+     * If not provided, defaults to `{baseUrl}/oauth2/dcr/register`.
+     */
+    clientRegistrations?: string;
     /**
      * The configuration versions collection URL used by the configuration versions management operations.
      * A single version is addressed as `{configurationVersions}/{version}`.
@@ -339,6 +365,12 @@ export interface BaseConfig<T = unknown> extends WithPreferences, WithExtensions
      * If not provided, defaults to `{baseUrl}/connections`.
      */
     connections?: string;
+    /**
+     * The OpenID4VCI credential configurations collection URL used by the credential configuration
+     * operations. A single configuration is addressed as `{credentialConfigurations}/{id}`.
+     * If not provided, defaults to `{baseUrl}/openid4vci/credential-configurations`.
+     */
+    credentialConfigurations?: string;
     /**
      * The design collection URL used by the theme, layout and design resolution operations.
      * Themes are addressed as `{design}/themes`, layouts as `{design}/layouts`.
@@ -420,6 +452,18 @@ export interface BaseConfig<T = unknown> extends WithPreferences, WithExtensions
      */
     organizationUnits?: string;
     /**
+     * The OpenID4VP presentation definitions collection URL used by the presentation definition
+     * operations. A single definition is addressed as `{presentationDefinitions}/{id}`.
+     * If not provided, defaults to `{baseUrl}/openid4vp/presentation-definitions`.
+     */
+    presentationDefinitions?: string;
+    /**
+     * The projects collection URL used by the project management operations.
+     * A single project is addressed as `{projects}/{id}`.
+     * If not provided, defaults to `{baseUrl}/projects`.
+     */
+    projects?: string;
+    /**
      * The resource servers collection URL used by the resource server, resource and action operations.
      * A single resource server is addressed as `{resourceServers}/{id}`.
      * If not provided, defaults to `{baseUrl}/resource-servers`.
@@ -475,6 +519,11 @@ export interface BaseConfig<T = unknown> extends WithPreferences, WithExtensions
      * If not provided, defaults to `{baseUrl}/users/me/meta`.
      */
     usersMeMeta?: string;
+    /**
+     * The endpoint URL that lists the organization units the signed-in user can access.
+     * If not provided, defaults to `{baseUrl}/users/me/ous`.
+     */
+    usersMeOrganizationUnits?: string;
     /**
      * The user types collection URL used by the user type listing operation.
      * If not provided, defaults to `{baseUrl}/user-types`.

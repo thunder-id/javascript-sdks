@@ -58,8 +58,11 @@ describe('resolveResourceEndpoint', (): void => {
       'agentTypes',
       'agents',
       'applications',
+      'authorizationDetailTypes',
+      'clientRegistrations',
       'configurationVersions',
       'connections',
+      'credentialConfigurations',
       'design',
       'export',
       'flowExecute',
@@ -71,6 +74,8 @@ describe('resolveResourceEndpoint', (): void => {
       'import',
       'notificationTemplates',
       'organizationUnits',
+      'presentationDefinitions',
+      'projects',
       'resourceServers',
       'roles',
       'secrets',
@@ -80,6 +85,7 @@ describe('resolveResourceEndpoint', (): void => {
       'usersMe',
       'usersMeCredentials',
       'usersMeMeta',
+      'usersMeOrganizationUnits',
       'variables',
     ]);
   });

@@ -304,6 +304,12 @@ export interface EmbeddedSignInFlowInitiateRequest {
   flowType: EmbeddedFlowType;
 
   /**
+   * Identifier of the organization unit to sign in to. Accepted only on the request that starts an
+   * `AUTHENTICATION` flow; the sign-in is then bounded to that unit. Never sent on a continuation.
+   */
+  ouId?: string;
+
+  /**
    * OAuth2 scopes to request during flow initialization.
    * When provided, these scopes are forwarded to the platform at flow start.
    */

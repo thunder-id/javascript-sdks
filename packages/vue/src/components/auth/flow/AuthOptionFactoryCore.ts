@@ -244,10 +244,13 @@ const createAuthComponentFromFlow = (
   }
 
   switch (component.type) {
+    // OU_SELECT: a Resolve OU step asks for the organization unit before sign-in, when no unit is ever listed,
+    // so the user types its handle or identifier. After sign-in the step offers the eligible units as a SELECT.
     case EmbeddedFlowComponentType.TextInput:
     case EmbeddedFlowComponentType.PasswordInput:
     case EmbeddedFlowComponentType.EmailInput:
-    case EmbeddedFlowComponentType.PhoneInput: {
+    case EmbeddedFlowComponentType.PhoneInput:
+    case EmbeddedFlowComponentType.OuSelect: {
       const identifier: string = component.ref ?? '';
       const value: string = formValues[identifier] || '';
       const isTouched: boolean = touchedFields[identifier] || false;

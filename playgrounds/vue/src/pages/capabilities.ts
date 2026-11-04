@@ -11,6 +11,7 @@ import {
   SessionData,
 } from '@thunderid/browser';
 import {
+  AccessibleOrganizationUnitList,
   AgentListResponse,
   AgentRoleListResponse,
   AgentTypeListResponse,
@@ -23,6 +24,7 @@ import {
   getAgentRoles,
   getAgents,
   getAgentTypes,
+  getAccessibleOrganizationUnits,
   getGroup,
   getGroupMembers,
   getGroups,
@@ -526,10 +528,33 @@ export const CAPABILITIES: Capability[] = [
     section: 'User',
   },
   {
-    api: 'useOrganization() · switchOrganization()',
+    api: 'getAccessibleOrganizationUnits() · currentOrganizationUnit',
     id: 'orgs',
-    name: 'Organizations',
-    run: () => unavailable('@thunderid/vue has no organization API'),
+    name: 'Organization units',
+    run: async (context: CapabilityContext) => {
+      const gate: CapabilityResult | null = requireSignedIn(context);
+
+      if (gate) return gate;
+
+      const {sdk} = context;
+      const list: AccessibleOrganizationUnitList = await manage(
+        'getAccessibleOrganizationUnits',
+        'a signed-in user',
+        () =>
+          getAccessibleOrganizationUnits({
+            baseUrl: sdk.baseUrl,
+            instanceId: sdk.instanceId,
+            limit: 5,
+            url: resolveResourceEndpoint('usersMeOrganizationUnits', {endpoints: sdk.endpoints}),
+          }),
+      );
+      const claimed: string = sdk.currentOrganizationUnit?.value?.id ?? 'no ouId claim';
+
+      // Switching is a sign-in, so it is left to the OrganizationUnitSwitcher story.
+      return pass(
+        `${plural(list.totalResults, 'unit')} accessible; current ${list.current || 'unknown'} (token: ${claimed})`,
+      );
+    },
     section: 'User',
   },
   {

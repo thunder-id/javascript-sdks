@@ -8,7 +8,7 @@ import {
   withVendorCSSClassPrefix,
 } from '@thunderid/browser';
 import {type Component, type PropType, type VNode, defineComponent, h} from 'vue';
-import useAdminTranslation, {type AdminTranslate} from '../../admin/shared/useAdminTranslation';
+import useAdminTranslation, {type AdminTranslate} from '../../management/shared/useAdminTranslation';
 
 const cls = (suffix: string): string => withVendorCSSClassPrefix(`attribution${suffix}`);
 

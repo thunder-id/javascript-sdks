@@ -18,8 +18,11 @@ export const MANAGEMENT_COLLECTIONS: Readonly<
       | 'agents'
       | 'agentTypes'
       | 'applications'
+      | 'authorizationDetailTypes'
+      | 'clientRegistrations'
       | 'configurationVersions'
       | 'connections'
+      | 'credentialConfigurations'
       | 'design'
       | 'export'
       | 'flows'
@@ -29,6 +32,8 @@ export const MANAGEMENT_COLLECTIONS: Readonly<
       | 'import'
       | 'notificationTemplates'
       | 'organizationUnits'
+      | 'presentationDefinitions'
+      | 'projects'
       | 'resourceServers'
       | 'roles'
       | 'secrets'
@@ -43,8 +48,11 @@ export const MANAGEMENT_COLLECTIONS: Readonly<
   agentTypes: 'agent-types',
   agents: 'agents',
   applications: 'applications',
+  authorizationDetailTypes: 'authorization-detail-types',
+  clientRegistrations: 'oauth2/dcr/register',
   configurationVersions: 'configuration-versions',
   connections: 'connections',
+  credentialConfigurations: 'openid4vci/credential-configurations',
   design: 'design',
   export: 'export',
   flows: 'flows',
@@ -54,6 +62,8 @@ export const MANAGEMENT_COLLECTIONS: Readonly<
   import: 'import',
   notificationTemplates: 'notification-templates',
   organizationUnits: 'organization-units',
+  presentationDefinitions: 'openid4vp/presentation-definitions',
+  projects: 'projects',
   resourceServers: 'resource-servers',
   roles: 'roles',
   secrets: 'secrets',

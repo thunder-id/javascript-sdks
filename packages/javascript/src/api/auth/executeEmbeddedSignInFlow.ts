@@ -116,9 +116,17 @@ const executeEmbeddedSignInFlow = async ({
     'executionId' in cleanPayload &&
     Object.keys(cleanPayload).length === 1;
 
+  // `ouId` bounds a sign-in to an organization unit, and the server accepts it only on the request that
+  // starts the flow; it is never sent on a continuation.
+  const startPayload: Record<string, unknown> = cleanPayload as Record<string, unknown>;
+  const scopedPayload: Record<string, unknown> =
+    !isNewFlowStart && typeof startPayload === 'object' && startPayload !== null && 'ouId' in startPayload
+      ? Object.fromEntries(Object.entries(startPayload).filter(([key]: [string, unknown]) => key !== 'ouId'))
+      : startPayload;
+
   const basePayload: Record<string, unknown> = isNewFlowStart
-    ? injectRequestedPermissions(cleanPayload as Record<string, unknown>)
-    : (cleanPayload as Record<string, unknown>);
+    ? injectRequestedPermissions(scopedPayload)
+    : scopedPayload;
 
   const requestPayload: Record<string, unknown> =
     isNewFlowStart || hasOnlyFlowId ? {...basePayload, verbose: true} : basePayload;

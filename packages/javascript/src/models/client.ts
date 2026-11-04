@@ -1,6 +1,7 @@
 // Copyright 2025-2026 The ThunderID Authors
 // SPDX-License-Identifier: Apache-2.0
 
+import type {CurrentOrganizationUnit, SwitchOrganizationUnitOptions} from './accessible-organization-unit';
 import type {CIBAInitiateOptions, CIBAInitiateResponse, CIBAPollOptions} from './ciba';
 import {SignInOptions, SignOutOptions, SignUpOptions} from './config';
 import {Storage} from './store';
@@ -57,6 +58,24 @@ export interface ThunderIDClient<T> {
    * @returns User object containing user details.
    */
   getUser(options?: any): Promise<User>;
+
+  /**
+   * Returns the organization unit the signed-in session was issued for, from its `ouId`, `ouHandle`
+   * and `ouName` claims, or `null` when the claims are absent. For display only, never for an
+   * authorization decision.
+   */
+  getCurrentOrganizationUnit(sessionId?: string): Promise<CurrentOrganizationUnit | null>;
+
+  /**
+   * Signs in again bounded to the organization unit `organizationUnitId`. The server reuses the SSO
+   * session when the user can sign in there, so normally no credentials are asked. On success the
+   * client replaces its tokens and refreshes the user; on failure the previous session stays as it was,
+   * and the error carries one of `OrganizationUnitSwitchErrorCodes`.
+   */
+  switchOrganizationUnit(
+    organizationUnitId: string,
+    options?: SwitchOrganizationUnitOptions,
+  ): Promise<User | TokenResponse | undefined>;
 
   /**
    * Initiates a CIBA backchannel authentication request (CIBA Core 1.0 §7.1).

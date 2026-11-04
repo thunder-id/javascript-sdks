@@ -12,6 +12,11 @@ export interface KnownExtendedAuthorizeRequestUrlParams {
   authorizationDetails?: AuthorizationDetail[];
   fidp?: string;
   forceInit?: boolean;
+  /**
+   * Bounds the sign-in to this organization unit: the request goes to `{baseUrl}/ou/{ouId}/oauth2/authorize`
+   * and its code is redeemed at `{baseUrl}/ou/{ouId}/oauth2/token`. The identifier is percent-encoded.
+   */
+  organizationUnitId?: string;
 }
 
 /**

@@ -29,6 +29,7 @@ const NuxtAPIRoutes: {
   TOKEN: string;
   USER: string;
   USER_CREDENTIALS: string;
+  USER_ORGANIZATION_UNITS: string;
   USER_PROFILE: string;
   USER_SELF_FLOW: string;
   USER_TYPES: string;
@@ -58,6 +59,8 @@ const NuxtAPIRoutes: {
   USER: '/api/auth/user',
   /** Updates (PATCH) one of the signed-in user's own credentials, e.g. `password`. */
   USER_CREDENTIALS: '/api/auth/user/credentials',
+  /** Lists (GET) the organization units the signed-in user can access, using the signed-in session. */
+  USER_ORGANIZATION_UNITS: '/api/auth/user/organization-units',
   /** Fetches (GET) and updates (PATCH) the user profile. */
   USER_PROFILE: '/api/auth/user/profile',
   /** Executes (POST) one step of a `SELF` flow, such as attribute verification, for the signed-in user. */

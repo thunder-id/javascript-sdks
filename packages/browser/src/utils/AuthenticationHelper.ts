@@ -33,6 +33,8 @@ import {
 import {SPATokenExchangeConfig} from '../models/TokenExchangeConfig';
 
 interface AuthorizationInfo {
+  /** The OAuth `error` the server answered a silent request with, when it issued no code. */
+  error?: string;
   code: string;
   state: string;
 }
@@ -442,6 +444,7 @@ class AuthenticationHelper<T> {
     additionalParams?: Record<string, AuthorizeRequestParamValue>,
     tokenRequestConfig?: {params: Record<string, unknown>},
     timeout: number = SILENT_SIGN_IN_TIMEOUT,
+    onSignedOut?: (error?: string) => void,
   ): Promise<User | boolean> {
     if (SPAUtils.isInitializedSilentSignIn()) {
       await this.handleSilentSignInResponse();
@@ -488,6 +491,7 @@ class AuthenticationHelper<T> {
 
         if (data?.type === SILENT_SIGN_IN_SIGNED_OUT) {
           cleanUp();
+          onSignedOut?.(typeof data?.data?.error === 'string' ? data.data.error : undefined);
           resolve(false);
         }
 
@@ -524,7 +528,13 @@ class AuthenticationHelper<T> {
     const message: Message<AuthorizationInfo | null> =
       code !== null && code.length !== 0
         ? {data: {code, state}, type: SILENT_SIGN_IN_SIGNED_IN}
-        : {type: SILENT_SIGN_IN_SIGNED_OUT};
+        : {
+            // Only the OAuth error code crosses to the parent, never its description.
+            data: url.searchParams.get('error')
+              ? {code: '', error: url.searchParams.get('error') ?? '', state}
+              : undefined,
+            type: SILENT_SIGN_IN_SIGNED_OUT,
+          };
 
     window.parent.postMessage(message, window.location.origin);
 

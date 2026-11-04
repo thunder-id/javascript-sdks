@@ -9,6 +9,11 @@ import {ApiPaginationLink} from './api';
  */
 export interface SharingPolicyAllUnits {
   excludedOuIds?: string[];
+  /**
+   * The terms the organization units reached hold the resource on, keyed by field: `roles` for a user,
+   * `assignments` for a role, `variables.<identifier>` for a flow.
+   */
+  overlayRules?: Record<string, OverlayRule>;
 }
 
 /**
@@ -20,6 +25,11 @@ export interface SharingPolicyChildUnitsAll {
    */
   excludedOuIds?: string[];
   mode: 'all';
+  /**
+   * The terms the organization units reached hold the resource on, keyed by field: `roles` for a user,
+   * `assignments` for a role, `variables.<identifier>` for a flow.
+   */
+  overlayRules?: Record<string, OverlayRule>;
 }
 
 /**
@@ -27,6 +37,11 @@ export interface SharingPolicyChildUnitsAll {
  */
 export interface SharingPolicyChildUnit {
   ouId: string;
+  /**
+   * The terms the organization units reached hold the resource on, keyed by field: `roles` for a user,
+   * `assignments` for a role, `variables.<identifier>` for a flow.
+   */
+  overlayRules?: Record<string, OverlayRule>;
   /**
    * `unit` reaches the named organization unit only; `subtree` reaches it and everything below it.
    */
@@ -51,7 +66,7 @@ export type SharingPolicyChildUnits = SharingPolicyChildUnitsAll | SharingPolicy
  */
 export interface SharingPolicyOtherTreeRootsSelected {
   mode: 'selected';
-  units: {ouId: string}[];
+  units: {ouId: string; overlayRules?: Record<string, OverlayRule>}[];
 }
 
 /**
@@ -61,6 +76,11 @@ export interface SharingPolicyOtherTreeRootsSelected {
 export interface SharingPolicyOtherTreeRootsAll {
   excludedOuIds?: string[];
   mode: 'all';
+  /**
+   * The terms the organization units reached hold the resource on, keyed by field: `roles` for a user,
+   * `assignments` for a role, `variables.<identifier>` for a flow.
+   */
+  overlayRules?: Record<string, OverlayRule>;
 }
 
 /**
@@ -69,8 +89,8 @@ export interface SharingPolicyOtherTreeRootsAll {
 export type SharingPolicyOtherTreeRoots = SharingPolicyOtherTreeRootsSelected | SharingPolicyOtherTreeRootsAll;
 
 /**
- * A sharing policy: one organization unit's decision about which other organization units a user or an
- * application reaches.
+ * A sharing policy: one organization unit's decision about which other organization units a user, an
+ * application, a role or a flow reaches.
  */
 export interface SharingPolicy {
   allUnits?: SharingPolicyAllUnits;
@@ -135,9 +155,27 @@ export interface OverlayRule {
  * The overlay rules that apply to a user or an application in one organization unit.
  */
 export interface ResolvedOverlay {
+  /**
+   * Whether the organization unit owns the resource. The server spells this flag `isOwned`,
+   * `isOwnedByOU` (roles, users) or `owned` (flows) depending on the resource; read whichever is set.
+   */
   isOwned?: boolean;
+  isOwnedByOU?: boolean;
+  owned?: boolean;
   ouId?: string;
   policyIds?: string[];
   rules?: Record<string, OverlayRule>;
   visible?: boolean;
 }
+
+/**
+ * What one organization unit may do with a role: whether it owns it, which policies reached it, and the
+ * effective rule for `assignments`, which says whether it may assign the role.
+ */
+export type RoleResolvedOverlay = ResolvedOverlay;
+
+/**
+ * What one organization unit may do with a flow: whether it owns or can see it, which policies reached it,
+ * and the effective rule for each variable a policy named, keyed `variables.<identifier>`.
+ */
+export type FlowResolvedOverlay = ResolvedOverlay;

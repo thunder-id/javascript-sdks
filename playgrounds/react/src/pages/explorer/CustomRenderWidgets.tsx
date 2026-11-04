@@ -27,6 +27,8 @@ import {
   type BaseApplicationCreateRenderProps,
   type BaseApplicationDetailsRenderProps,
   type BaseGroupCreateRenderProps,
+  type BaseGroupDetailsRenderProps,
+  type BaseRoleDetailsRenderProps,
   type BaseRolePermissionsRenderProps,
   type BaseUserCreateRenderProps,
   type BaseUserDetailsRenderProps,
@@ -413,6 +415,35 @@ export const AgentCard = (details: BaseAgentDetailsRenderProps): ReactElement =>
   </DetailsCard>
 );
 
+/** The group details' render props drawn as an MUI card. */
+export const GroupCard = (details: BaseGroupDetailsRenderProps): ReactElement => (
+  <DetailsCard
+    title={details.group?.name}
+    subheader={details.group ? (details.group.ouHandle ?? details.group.ouId) : undefined}
+    isLoading={details.isLoading}
+    isDeleting={details.isDeleting}
+    onDelete={details.onDelete}
+  >
+    {details.error && <MuiAlert severity="error">{details.error}</MuiAlert>}
+    {details.group?.description && <Typography variant="body2">{details.group.description}</Typography>}
+  </DetailsCard>
+);
+
+/** The role details' render props drawn as an MUI card. */
+export const RoleCard = (details: BaseRoleDetailsRenderProps): ReactElement => (
+  <DetailsCard
+    title={details.role?.name}
+    subheader={details.role ? (details.role.ouHandle ?? details.role.ouId) : undefined}
+    isLoading={details.isLoading}
+    isDeleting={details.isDeleting}
+    onDelete={details.onDelete}
+  >
+    {details.error && <MuiAlert severity="error">{details.error}</MuiAlert>}
+    {details.role?.description && <Typography variant="body2">{details.role.description}</Typography>}
+    {details.role?.isReadOnly && <Chip size="small" label="Read only" sx={{alignSelf: 'flex-start'}} />}
+  </DetailsCard>
+);
+
 /** A client secret shown once, with the button that confirms it was copied. */
 const SecretAlert = ({onDismiss = undefined, secret}: {onDismiss?: () => void; secret: string}): ReactElement => (
   <MuiAlert
@@ -520,27 +551,132 @@ export const ApplicationCard = (details: BaseApplicationDetailsRenderProps): Rea
   </DetailsCard>
 );
 
-/** The role permissions' render props drawn as one MUI card per resource server. */
+/**
+ * The role permissions' render props drawn as one MUI card per resource server. When editable, each
+ * permission chip can be deleted after a confirmation, and two MUI selects add a permission.
+ */
 export const PermissionCards = ({
+  availablePermissions = undefined,
   error,
   isLoading,
+  isMutating,
+  onAdd = undefined,
+  onRemove = undefined,
+  onResourceServerSelect = undefined,
   permissions,
   resolveResourceServerName,
-}: BaseRolePermissionsRenderProps): ReactElement => (
-  <Stack spacing={1.5}>
-    {isLoading && <Typography variant="body2">Loading…</Typography>}
-    {error && <MuiAlert severity="error">{error}</MuiAlert>}
-    {!isLoading && !error && permissions.length === 0 && <Typography variant="body2">No permissions.</Typography>}
-    {permissions.map((entry: {permissions: string[]; resourceServerId: string}) => (
-      <Card key={entry.resourceServerId} variant="outlined">
-        <CardHeader title={resolveResourceServerName(entry.resourceServerId)} subheader={entry.resourceServerId} />
-        <CardContent>
-          <ChipRow items={entry.permissions.map((permission: string) => ({id: permission, label: permission}))} />
-        </CardContent>
-      </Card>
-    ))}
-  </Stack>
-);
+  resourceServers = undefined,
+}: BaseRolePermissionsRenderProps): ReactElement => {
+  const [serverId, setServerId] = useState<string>('');
+  const [permission, setPermission] = useState<string>('');
+  const [pending, setPending] = useState<{permission: string; resourceServerId: string} | null>(null);
+  const granted: string[] =
+    permissions.find((entry: {resourceServerId: string}) => entry.resourceServerId === serverId)?.permissions ?? [];
+  const options: {name: string; permission: string}[] = (availablePermissions?.[serverId] ?? []).filter(
+    (candidate: {permission: string}) => !granted.includes(candidate.permission),
+  );
+
+  return (
+    <Stack spacing={1.5}>
+      {isLoading && <Typography variant="body2">Loading…</Typography>}
+      {error && <MuiAlert severity="error">{error}</MuiAlert>}
+      {onAdd && resourceServers && (
+        <Stack direction="row" spacing={1} alignItems="center">
+          <TextField
+            select
+            size="small"
+            label="Resource server"
+            value={serverId}
+            sx={{minWidth: 180}}
+            onChange={(event) => {
+              setServerId(event.target.value);
+              setPermission('');
+              onResourceServerSelect?.(event.target.value);
+            }}
+          >
+            {resourceServers.map((server: {id: string; name: string}) => (
+              <MenuItem key={server.id} value={server.id}>
+                {server.name}
+              </MenuItem>
+            ))}
+          </TextField>
+          <TextField
+            select
+            size="small"
+            label="Permission"
+            value={permission}
+            disabled={!serverId}
+            sx={{minWidth: 180}}
+            onChange={(event) => setPermission(event.target.value)}
+          >
+            {options.map((candidate: {name: string; permission: string}) => (
+              <MenuItem key={candidate.permission} value={candidate.permission}>
+                {candidate.name}
+              </MenuItem>
+            ))}
+          </TextField>
+          <Button
+            variant="contained"
+            disabled={!permission || isMutating}
+            onClick={() => {
+              onAdd({permission, resourceServerId: serverId});
+              setPermission('');
+            }}
+          >
+            Add
+          </Button>
+        </Stack>
+      )}
+      {pending && onRemove && (
+        <MuiAlert
+          severity="warning"
+          action={
+            <>
+              <Button size="small" onClick={() => setPending(null)}>
+                Cancel
+              </Button>
+              <Button
+                size="small"
+                color="error"
+                onClick={() => {
+                  onRemove(pending);
+                  setPending(null);
+                }}
+              >
+                Remove
+              </Button>
+            </>
+          }
+        >
+          {`Remove ${pending.permission}?`}
+        </MuiAlert>
+      )}
+      {!isLoading && !error && permissions.length === 0 && <Typography variant="body2">No permissions.</Typography>}
+      {permissions.map((entry: {permissions: string[]; resourceServerId: string}) => (
+        <Card key={entry.resourceServerId} variant="outlined">
+          <CardHeader title={resolveResourceServerName(entry.resourceServerId)} subheader={entry.resourceServerId} />
+          <CardContent>
+            <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
+              {entry.permissions.map((item: string) => (
+                <Chip
+                  key={item}
+                  size="small"
+                  variant="outlined"
+                  label={item}
+                  onDelete={
+                    onRemove
+                      ? () => setPending({permission: item, resourceServerId: entry.resourceServerId})
+                      : undefined
+                  }
+                />
+              ))}
+            </Stack>
+          </CardContent>
+        </Card>
+      ))}
+    </Stack>
+  );
+};
 
 interface Identity {
   display?: string;

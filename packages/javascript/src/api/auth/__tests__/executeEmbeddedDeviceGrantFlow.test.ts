@@ -3,7 +3,10 @@
 
 import {afterEach, describe, expect, it, vi} from 'vitest';
 import {EmbeddedFlowType} from '../../../models/embedded-flow';
-import executeEmbeddedDeviceGrantFlow, {type EmbeddedDeviceGrantFlowPayload} from '../executeEmbeddedDeviceGrantFlow';
+import executeEmbeddedDeviceGrantFlow, {
+  type EmbeddedDeviceGrantFlowPayload,
+  verifyDeviceCode,
+} from '../executeEmbeddedDeviceGrantFlow';
 
 const URL = 'https://localhost:8090/flow/execute';
 
@@ -373,5 +376,9 @@ describe('executeEmbeddedDeviceGrantFlow', () => {
     await expect(
       executeEmbeddedDeviceGrantFlow({url: URL, payload: {executionId: 'execution-1'}}),
     ).resolves.toMatchObject({redirectUrl: 'https://client.example.com/device-complete'});
+  });
+
+  it('is the deprecated alias of verifyDeviceCode', (): void => {
+    expect(executeEmbeddedDeviceGrantFlow).toBe(verifyDeviceCode);
   });
 });

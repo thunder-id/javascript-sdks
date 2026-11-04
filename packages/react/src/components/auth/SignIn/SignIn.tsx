@@ -104,6 +104,12 @@ export interface SignInProps {
   className?: string;
 
   /**
+   * Bounds the sign-in to this organization unit. Sent as `ouId` on the request that starts the
+   * `AUTHENTICATION` flow only, never on a continuation.
+   */
+  organizationUnitId?: string;
+
+  /**
    * Callback function called when authentication fails.
    * @param error - The error that occurred during authentication.
    */
@@ -249,6 +255,7 @@ const SignIn: FC<SignInProps> = ({
   variant,
   children,
   revalidateOnChangeAfterBlur,
+  organizationUnitId,
 }: SignInProps): ReactElement => {
   const {applicationId, afterSignInUrl, signIn, isInitialized, isLoading, meta, getStorageManager, scopes, vendor} =
     useThunderID();
@@ -623,6 +630,7 @@ const SignIn: FC<SignInProps> = ({
               applicationId: effectiveApplicationId,
               flowType: EmbeddedFlowType.Authentication,
               ...(scopes && {scopes}),
+              ...(organizationUnitId && {ouId: organizationUnitId}),
             })) as EmbeddedSignInFlowResponse;
           } else {
             throw resumeError;
@@ -633,6 +641,7 @@ const SignIn: FC<SignInProps> = ({
           applicationId: effectiveApplicationId,
           flowType: EmbeddedFlowType.Authentication,
           ...(scopes && {scopes}),
+          ...(organizationUnitId && {ouId: organizationUnitId}),
         })) as EmbeddedSignInFlowResponse;
       }
 

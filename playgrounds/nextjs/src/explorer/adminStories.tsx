@@ -17,20 +17,24 @@ import {
   BaseApplicationDetails,
   BaseApplicationList,
   BaseGroupCreate,
+  BaseGroupDetails,
   BaseGroupList,
   BaseGroupMembers,
   BaseRoleAssignments,
   BaseRoleCreate,
+  BaseRoleDetails,
   BaseRoleList,
   BaseRolePermissions,
   BaseUserCreate,
   BaseUserDetails,
   BaseUserList,
   GroupCreate,
+  GroupDetails,
   GroupList,
   GroupMembers,
   RoleAssignments,
   RoleCreate,
+  RoleDetails,
   RoleList,
   RolePermissions,
   UserCreate,
@@ -47,6 +51,7 @@ import type {
   ManagedUser,
   MembershipGroup,
   RoleAssignment,
+  RolePermissionChange,
   RoleSummary,
 } from '@thunderid/react';
 import {ReactElement, ReactNode} from 'react';
@@ -447,6 +452,45 @@ export const ADMIN_COMPONENTS: ComponentDef[] = [
       ),
   }),
   admin({
+    baseExtra: [
+      'group={group}',
+      'members={<GroupMembers groupId={group.id} ouId={group.ouId} />}',
+      'onDelete={handleDelete}',
+    ],
+    controls: [idControl('groupId', 'GroupList'), EDITABLE, DELETABLE],
+    defaults: {deletable: false, editable: true, groupId: ''},
+    id: 'GroupDetails',
+    liveExtra: ['onDeleted={handleDeleted}'],
+    liveOnly: ['groupId', 'editable', 'deletable'],
+    name: 'GroupDetails',
+    renderBase: (_args: Args, action: Action) => (
+      <BaseGroupDetails
+        group={SAMPLE_GROUPS[1]}
+        onDelete={() => action('onDelete')}
+        members={
+          <BaseGroupMembers
+            members={SAMPLE_MEMBERS}
+            candidates={CANDIDATES}
+            onAdd={(member: {id: string; type: string}) => action('onAdd', `${member.type} ${member.id}`)}
+            onRemove={(member: GroupMember) => action('onRemove', `${member.type} ${member.id}`)}
+          />
+        }
+      />
+    ),
+    renderLive: (args: Args, action: Action) =>
+      str(args, 'groupId') ? (
+        <GroupDetails
+          key={str(args, 'groupId')}
+          groupId={str(args, 'groupId')}
+          editable={bool(args, 'editable')}
+          deletable={bool(args, 'deletable')}
+          onDeleted={() => action('onDeleted')}
+        />
+      ) : (
+        <NeedsId name="groupId" from="GroupList" />
+      ),
+  }),
+  admin({
     baseExtra: listBaseExtra('roles'),
     controls: [TITLE, LIMIT],
     defaults: {limit: 20, title: ''},
@@ -530,25 +574,111 @@ export const ADMIN_COMPONENTS: ComponentDef[] = [
       ),
   }),
   admin({
-    baseExtra: ['permissions={permissions}', 'resourceServerNames={names}'],
-    controls: [idControl('roleId', 'RoleList')],
-    defaults: {roleId: ''},
+    baseExtra: [
+      'permissions={permissions}',
+      'resourceServerNames={names}',
+      'resourceServers={resourceServers}',
+      'availablePermissions={availablePermissions}',
+      'onResourceServerSelect={loadPermissions}',
+      'onAdd={handleAdd}',
+      'onRemove={handleRemove}',
+    ],
+    controls: [idControl('roleId', 'RoleList'), EDITABLE],
+    defaults: {editable: false, roleId: ''},
     id: 'RolePermissions',
     liveExtra: [],
-    liveOnly: ['roleId'],
+    liveOnly: ['roleId', 'editable'],
     name: 'RolePermissions',
-    renderBase: () => (
+    renderBase: (args: Args, action: Action) => (
       <BaseRolePermissions
         permissions={[
           {permissions: ['system:user:view', 'system:group'], resourceServerId: 'rs_system'},
           {permissions: ['orders:read'], resourceServerId: 'rs_orders'},
         ]}
         resourceServerNames={{rs_orders: 'Orders API', rs_system: 'System'}}
+        resourceServers={
+          bool(args, 'editable')
+            ? [
+                {id: 'rs_orders', name: 'Orders API'},
+                {id: 'rs_system', name: 'System'},
+              ]
+            : undefined
+        }
+        availablePermissions={{
+          rs_orders: [
+            {name: 'Read', permission: 'orders:read'},
+            {name: 'Refund', permission: 'orders:refund'},
+          ],
+          rs_system: [{name: 'Manage users', permission: 'system:user'}],
+        }}
+        onResourceServerSelect={(id: string) => action('onResourceServerSelect', id)}
+        onAdd={
+          bool(args, 'editable')
+            ? (change: RolePermissionChange) => action('onAdd', `${change.resourceServerId} ${change.permission}`)
+            : undefined
+        }
+        onRemove={
+          bool(args, 'editable')
+            ? (change: RolePermissionChange) => action('onRemove', `${change.resourceServerId} ${change.permission}`)
+            : undefined
+        }
       />
     ),
     renderLive: (args: Args) =>
       str(args, 'roleId') ? (
-        <RolePermissions key={str(args, 'roleId')} roleId={str(args, 'roleId')} />
+        <RolePermissions
+          key={`${str(args, 'roleId')}:${String(bool(args, 'editable'))}`}
+          roleId={str(args, 'roleId')}
+          editable={bool(args, 'editable')}
+        />
+      ) : (
+        <NeedsId name="roleId" from="RoleList" />
+      ),
+  }),
+  admin({
+    baseExtra: [
+      'role={role}',
+      'permissions={<BaseRolePermissions permissions={role.permissions} />}',
+      'assignments={<RoleAssignments roleId={role.id} ouId={role.ouId} />}',
+      'onDelete={handleDelete}',
+    ],
+    controls: [idControl('roleId', 'RoleList'), EDITABLE, DELETABLE],
+    defaults: {deletable: false, editable: true, roleId: ''},
+    id: 'RoleDetails',
+    liveExtra: ['onDeleted={handleDeleted}'],
+    liveOnly: ['roleId', 'editable', 'deletable'],
+    name: 'RoleDetails',
+    renderBase: (_args: Args, action: Action) => (
+      <BaseRoleDetails
+        role={SAMPLE_ROLES[0]}
+        onDelete={() => action('onDelete')}
+        permissions={
+          <BaseRolePermissions
+            permissions={[{permissions: ['system:user', 'system:group'], resourceServerId: 'rs_system'}]}
+            resourceServerNames={{rs_system: 'System'}}
+          />
+        }
+        assignments={
+          <BaseRoleAssignments
+            assignments={SAMPLE_ASSIGNMENTS}
+            candidates={CANDIDATES}
+            onAssign={(assignment: {id: string; type: string}) =>
+              action('onAssign', `${assignment.type} ${assignment.id}`)
+            }
+            onUnassign={(assignment: RoleAssignment) => action('onUnassign', `${assignment.type} ${assignment.id}`)}
+          />
+        }
+      />
+    ),
+    renderLive: (args: Args, action: Action) =>
+      str(args, 'roleId') ? (
+        <RoleDetails
+          key={str(args, 'roleId')}
+          roleId={str(args, 'roleId')}
+          editable={bool(args, 'editable')}
+          deletable={bool(args, 'deletable')}
+          onDeleted={() => action('onDeleted')}
+        />
       ) : (
         <NeedsId name="roleId" from="RoleList" />
       ),

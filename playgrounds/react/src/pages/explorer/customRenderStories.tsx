@@ -11,11 +11,12 @@ import {
   BaseApplicationDetails,
   BaseApplicationList,
   BaseGroupCreate,
+  BaseGroupDetails,
   BaseGroupList,
   type BaseGroupMembersRenderProps,
   BaseRoleCreate,
+  BaseRoleDetails,
   BaseRoleList,
-  BaseRolePermissions,
   type BaseRoleAssignmentsRenderProps,
   BaseUserCreate,
   BaseUserDetails,
@@ -33,29 +34,29 @@ import {
 } from '@thunderid/react';
 import {ReactElement, ReactNode} from 'react';
 import {
-  RESOURCE_SERVER_NAMES,
   SAMPLE_AGENT,
   SAMPLE_AGENTS,
   SAMPLE_APPLICATION,
   SAMPLE_APPLICATIONS,
   SAMPLE_GROUPS,
   SAMPLE_MEMBERSHIPS,
-  SAMPLE_PERMISSIONS,
   SAMPLE_ROLES,
   SAMPLE_USERS,
   TYPE_OPTIONS,
 } from './adminSamples';
-import {GroupMembersStory, Paged, RoleAssignmentsStory, SampleSearch} from './AdminStoryWidgets';
+import {GroupMembersStory, Paged, RoleAssignmentsStory, RolePermissionsStory, SampleSearch} from './AdminStoryWidgets';
 import {
   AgentCard,
   AgentForm,
   ApplicationCard,
   ApplicationForm,
+  GroupCard,
   IdentityGrid,
   ListGrid,
   Mui,
   NamedForm,
   PermissionCards,
+  RoleCard,
   UserCard,
   UserForm,
   VerifyForm,
@@ -270,19 +271,53 @@ const CODE: Record<string, () => Snippet> = {
   applicationlist: () => listSnippet('ApplicationList', 'applications'),
   groupcreate: () => formSnippet('GroupCreate', ['name', 'description']),
   grouplist: () => listSnippet('GroupList', 'groups'),
+  groupdetails: () => ({
+    imports: ['GroupDetails'],
+    jsx: `<GroupDetails groupId={groupId} deletable>
+  {({group, onDelete}) => (
+    <Card>
+      <CardHeader title={group?.name} subheader={group?.ouHandle ?? group?.ouId} />
+      <CardContent>{group?.description}</CardContent>
+      {onDelete && <Button color="error" onClick={onDelete}>Delete</Button>}
+    </Card>
+  )}
+</GroupDetails>`,
+    otherImports: [MUI_CARD],
+  }),
   groupmembers: () => identitySnippet('GroupMembers', 'groupId', 'members', 'onRemove'),
   roleassignments: () => identitySnippet('RoleAssignments', 'roleId', 'assignments', 'onUnassign'),
+  roledetails: () => ({
+    imports: ['RoleDetails'],
+    jsx: `<RoleDetails roleId={roleId} deletable>
+  {({role, onDelete}) => (
+    <Card>
+      <CardHeader title={role?.name} subheader={role?.ouHandle ?? role?.ouId} />
+      <CardContent>{role?.description}</CardContent>
+      {onDelete && <Button color="error" onClick={onDelete}>Delete</Button>}
+    </Card>
+  )}
+</RoleDetails>`,
+    otherImports: [MUI_CARD],
+  }),
   rolecreate: () => formSnippet('RoleCreate', ['name', 'description']),
   rolelist: () => listSnippet('RoleList', 'roles'),
   rolepermissions: () => ({
     imports: ['RolePermissions'],
-    jsx: `<RolePermissions roleId={roleId}>
-  {({permissions, resolveResourceServerName}) =>
+    jsx: `<RolePermissions roleId={roleId} editable>
+  {({permissions, resolveResourceServerName, onRemove}) =>
     permissions.map((entry) => (
       <Card key={entry.resourceServerId}>
         <CardHeader title={resolveResourceServerName(entry.resourceServerId)} />
         <CardContent>
-          {entry.permissions.map((permission) => <Chip key={permission} label={permission} />)}
+          {entry.permissions.map((permission) => (
+            <Chip
+              key={permission}
+              label={permission}
+              // Ask before removing: the custom render owns the confirmation.
+              onDelete={onRemove && (() => confirm(\`Remove \${permission}?\`) &&
+                onRemove({permission, resourceServerId: entry.resourceServerId}))}
+            />
+          ))}
         </CardContent>
       </Card>
     ))
@@ -536,6 +571,13 @@ const RENDER: Record<string, (args: Args, action: Action) => ReactNode> = {
         {state.grid}
       </BaseGroupList>
     )),
+  groupdetails: (_args: Args, action: Action) => (
+    <Narrow width={480}>
+      <BaseGroupDetails group={SAMPLE_GROUPS[0]} onDelete={() => action('onDelete', SAMPLE_GROUPS[0].id)}>
+        {GroupCard}
+      </BaseGroupDetails>
+    </Narrow>
+  ),
   groupmembers: (args: Args, action: Action) => (
     <GroupMembersStory args={{...args, editable: true, error: '', isLoading: false}} action={action}>
       {({candidates, members, onAdd, onRemove, ...rest}: BaseGroupMembersRenderProps) => (
@@ -572,6 +614,13 @@ const RENDER: Record<string, (args: Args, action: Action) => ReactNode> = {
       )}
     </RoleAssignmentsStory>
   ),
+  roledetails: (_args: Args, action: Action) => (
+    <Narrow width={480}>
+      <BaseRoleDetails role={SAMPLE_ROLES[1]} onDelete={() => action('onDelete', SAMPLE_ROLES[1].id)}>
+        {RoleCard}
+      </BaseRoleDetails>
+    </Narrow>
+  ),
   rolecreate: (_args: Args, action: Action) => (
     <Narrow width={480}>
       <BaseRoleCreate
@@ -596,12 +645,10 @@ const RENDER: Record<string, (args: Args, action: Action) => ReactNode> = {
         {state.grid}
       </BaseRoleList>
     )),
-  rolepermissions: () => (
-    <Narrow width={560}>
-      <BaseRolePermissions permissions={SAMPLE_PERMISSIONS} resourceServerNames={RESOURCE_SERVER_NAMES}>
-        {PermissionCards}
-      </BaseRolePermissions>
-    </Narrow>
+  rolepermissions: (args: Args, action: Action) => (
+    <RolePermissionsStory args={{...args, editable: true, error: '', isLoading: false}} action={action}>
+      {PermissionCards}
+    </RolePermissionsStory>
   ),
   usercreate: (_args: Args, action: Action) => (
     <Narrow width={480}>

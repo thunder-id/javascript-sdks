@@ -4,6 +4,7 @@
 import {
   ApiFetcher,
   EmbeddedFlowType,
+  getAccessibleOrganizationUnits,
   getAgentGroups,
   getAgentName,
   getAgentRoles,
@@ -72,7 +73,6 @@ export interface Capability {
 const pass = (note: string): CapabilityResult => ({note, status: 'pass'});
 const fail = (note: string): CapabilityResult => ({note, status: 'fail'});
 const skip = (note: string): CapabilityResult => ({note, status: 'skip'});
-const unavailable = (note: string): CapabilityResult => ({note, status: 'unavailable'});
 
 const sleep = (ms: number): Promise<void> =>
   new Promise((resolve: () => void) => {
@@ -488,10 +488,32 @@ export const CAPABILITIES: Capability[] = [
     section: 'User',
   },
   {
-    api: 'useOrganization() · switchOrganization()',
+    api: 'getAccessibleOrganizationUnits() · useThunderID().currentOrganizationUnit',
     id: 'orgs',
-    name: 'Organizations',
-    run: () => unavailable('@thunderid/react has no organization API'),
+    name: 'Organization units',
+    run: async (getContext: () => CapabilityContext) => {
+      const gate: CapabilityResult | null = requireSignedIn(getContext());
+
+      if (gate) return gate;
+
+      const {sdk} = getContext();
+      const list = await track('getAccessibleOrganizationUnits', () =>
+        getAccessibleOrganizationUnits({
+          baseUrl: sdk.baseUrl,
+          fetcher: createTokenFetcher(sdk.getAccessToken),
+          limit: 5,
+          url: resolveResourceEndpoint('usersMeOrganizationUnits', {endpoints: sdk.endpoints}),
+        }),
+      );
+      const current = list.organizationUnits.find((unit) => unit.id === list.current);
+      const claims: string = sdk.currentOrganizationUnit
+        ? `session claims name ${sdk.currentOrganizationUnit.handle ?? sdk.currentOrganizationUnit.id}`
+        : 'session carries no ouId claim';
+
+      return pass(
+        `${plural(list.totalResults, 'unit')}; current ${current?.handle ?? list.current}; ${claims}. Switch in Components > OrganizationUnitSwitcher (live)`,
+      );
+    },
     section: 'User',
   },
   {

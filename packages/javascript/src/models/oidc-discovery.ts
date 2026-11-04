@@ -384,6 +384,22 @@ export interface OIDCDiscoveryEndpointsApiResponse {
   backchannel_authentication_endpoint?: string;
 
   /**
+   * Pushed authorization request endpoint URL (RFC 9126 §5).
+   */
+  pushed_authorization_request_endpoint?: string;
+
+  /**
+   * Whether the server accepts authorization requests only through the pushed authorization request
+   * endpoint (RFC 9126 §5).
+   */
+  require_pushed_authorization_requests?: boolean;
+
+  /**
+   * Device authorization endpoint URL (RFC 8628 §4).
+   */
+  device_authorization_endpoint?: string;
+
+  /**
    * OAuth 2.0 Token Endpoint URL.
    * Used to obtain tokens using various grant types.
    *

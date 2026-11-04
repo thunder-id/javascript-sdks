@@ -595,10 +595,26 @@ export const CAPABILITIES: Capability[] = [
     section: 'User',
   },
   {
-    api: 'useOrganization() · switchOrganization()',
+    api: 'GET /api/auth/user/organization-units · useThunderID().currentOrganizationUnit',
     id: 'orgs',
-    name: 'Organizations',
-    run: () => unavailable('@thunderid/nuxt has no organization API'),
+    name: 'Organization units',
+    run: async (context: CapabilityContext) => {
+      const gate: CapabilityResult | null = requireSignedIn(context);
+
+      if (gate) return gate;
+
+      const response: Response = await fetch('/api/auth/user/organization-units?limit=5', {credentials: 'same-origin'});
+
+      if (!response.ok) return fail(`GET /api/auth/user/organization-units answered ${response.status}`);
+
+      const list: {current?: string; totalResults?: number} = (await response.json()) as {
+        current?: string;
+        totalResults?: number;
+      };
+
+      // Switching is a sign-in, so it is left to the OrganizationUnitSwitcher story.
+      return pass(`${list.totalResults ?? 0} accessible units; current ${list.current ?? 'unknown'}`);
+    },
     section: 'User',
   },
   {

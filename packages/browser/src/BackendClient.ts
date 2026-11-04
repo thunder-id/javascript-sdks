@@ -179,10 +179,11 @@ class BackendClient {
   }
 
   /**
-   * The URL that starts sign-in at the backend and comes back to `returnTo`.
+   * The URL that starts sign-in at the backend and comes back to `returnTo`. With `ouId`, the backend
+   * bounds the sign-in to that organization unit.
    */
-  getSignInUrl(returnTo: string): string {
-    return `${this.endpoints.signIn}?${new URLSearchParams({returnTo}).toString()}`;
+  getSignInUrl(returnTo: string, ouId?: string): string {
+    return `${this.endpoints.signIn}?${new URLSearchParams({returnTo, ...(ouId ? {ouId} : {})}).toString()}`;
   }
 
   /**

@@ -29,6 +29,15 @@ import {
   resolveRequestBaseUrl,
   resolveBackendEndpoints,
   resolveResourceEndpoint,
+  AuthClientConfig,
+  StorageManager,
+  EmbeddedFlowType,
+  EmbeddedSignInFlowResponse,
+  EmbeddedSignInFlowStatus,
+  OrganizationUnitSwitchErrorCodes,
+  SwitchOrganizationUnitOptions,
+  ThunderIDAPIError,
+  executeEmbeddedSignInFlow,
 } from '@thunderid/javascript';
 import BackendClient from './BackendClient';
 import BackendHttpClient from './BackendHttpClient';
@@ -49,6 +58,22 @@ import navigate from './utils/navigate';
 import SPACryptoUtils from './utils/SPACryptoUtils';
 import SPAHelper from './utils/SPAHelper';
 import SPAUtils from './utils/SPAUtils';
+
+/**
+ * OAuth errors that mean the server needs the user, so a silent switch falls back to a redirect.
+ */
+const INTERACTION_ERRORS: string[] = [
+  'interaction_required',
+  'login_required',
+  'consent_required',
+  'account_selection_required',
+];
+
+/**
+ * Temporary-data key that marks a switch to another organization unit left the page, so its callback is
+ * redeemed although the previous session is still signed in.
+ */
+const ORGANIZATION_UNIT_SWITCH_KEY = 'organization_unit_switch';
 
 const logger = createPackageComponentLogger('@thunderid/browser', 'ThunderIDBrowserClient');
 
@@ -267,7 +292,12 @@ class ThunderIDBrowserClient<T = BrowserAuthConfig> extends ThunderIDJavaScriptC
         return undefined;
       }
 
-      location.href = this._backend.getSignInUrl(`${window.location.pathname}${window.location.search}`);
+      const backendOuId: unknown = (config as Record<string, unknown> | undefined)?.['organizationUnitId'];
+
+      location.href = this._backend.getSignInUrl(
+        `${window.location.pathname}${window.location.search}`,
+        typeof backendOuId === 'string' && backendOuId !== '' ? backendOuId : undefined,
+      );
       await SPAUtils.waitTillPageRedirect();
 
       return undefined;
@@ -296,6 +326,14 @@ class ThunderIDBrowserClient<T = BrowserAuthConfig> extends ThunderIDJavaScriptC
   ): Promise<User> {
     const sm = this.getStorageManager();
     const config = await (sm as any).getConfigData();
+
+    // The callback of a switch to another organization unit arrives while the previous session is still
+    // signed in, so it is redeemed here rather than answered with that session.
+    const switchedUser: User | undefined = await this._completeOrganizationUnitSwitch(tokenRequestConfig);
+
+    if (switchedUser) {
+      return switchedUser;
+    }
 
     const basicUserInfo = await this._authHelper!.handleSignIn();
 
@@ -388,6 +426,234 @@ class ThunderIDBrowserClient<T = BrowserAuthConfig> extends ThunderIDJavaScriptC
     await this._spaHelper!.refreshAccessTokenAutomatically(() => this.refreshAccessToken() as any);
 
     return this.getUser();
+  }
+
+  /**
+   * Signs in again bounded to the organization unit `organizationUnitId`, and replaces the session with
+   * the one it gets. The server reuses the SSO session when the user can sign in there, so normally no
+   * credentials are asked.
+   *
+   * - Redirect mode tries a `prompt=none` request to `{baseUrl}/ou/{ouId}/oauth2/authorize` in a hidden
+   *   iframe first. When the server needs the user, it redirects the page there (unless `redirect` is
+   *   `false`), and the callback replaces the session.
+   * - Embedded mode starts an `AUTHENTICATION` flow with `ouId`. A flow that needs input fails with
+   *   `interaction_required`; render the sign-in for the unit instead.
+   * - Backend mode sends the page to the backend's sign-in endpoint with `ouId`.
+   *
+   * A failed switch leaves the previous session as it was.
+   *
+   * @throws {ThunderIDAPIError} With a code from `OrganizationUnitSwitchErrorCodes`.
+   */
+  public override async switchOrganizationUnit(
+    organizationUnitId: string,
+    options: SwitchOrganizationUnitOptions = {},
+  ): Promise<User | undefined> {
+    await this.isInitialized();
+
+    if (typeof organizationUnitId !== 'string' || organizationUnitId.trim() === '') {
+      throw new ThunderIDAPIError(
+        'An organization unit identifier is required.',
+        OrganizationUnitSwitchErrorCodes.InvalidOrganizationUnit,
+        'browser',
+        400,
+      );
+    }
+
+    if (this._backend) {
+      location.href = this._backend.getSignInUrl(
+        `${window.location.pathname}${window.location.search}`,
+        organizationUnitId,
+      );
+      await SPAUtils.waitTillPageRedirect();
+
+      return undefined;
+    }
+
+    const {redirect = true, ...params} = options;
+    const sm: StorageManager<T> = this.getStorageManager();
+    const config: AuthClientConfig<T> = await sm.getConfigData();
+
+    if ((config as {mode?: string})?.mode === 'embedded') {
+      return this._switchOrganizationUnitEmbedded(organizationUnitId, config);
+    }
+
+    let silentError: string | undefined;
+    let silentUser: User | boolean;
+
+    try {
+      silentUser = await this._authHelper!.signInSilently(
+        (additional: Record<string, AuthorizeRequestParamValue> | undefined) =>
+          this._constructSilentSignInUrl(additional),
+        (code: string, s: string, trc?: {params: Record<string, unknown>}) => this._exchangeCodeForTokens(code, s, trc),
+        {...(params as Record<string, AuthorizeRequestParamValue>), organizationUnitId},
+        undefined,
+        (config as BrowserAuthConfig | undefined)?.session?.silentSignIn?.timeout,
+        (error?: string) => {
+          silentError = error;
+        },
+      );
+    } catch (error) {
+      throw ThunderIDBrowserClient._toSwitchError(error instanceof Error ? error.message : undefined, error);
+    }
+
+    if (silentUser && typeof silentUser === 'object') {
+      void this._emitHook(Hooks.SignIn, silentUser);
+
+      return silentUser;
+    }
+
+    if (silentError && !INTERACTION_ERRORS.includes(silentError)) {
+      throw ThunderIDBrowserClient._toSwitchError(silentError);
+    }
+
+    if (!redirect) {
+      throw ThunderIDBrowserClient._toSwitchError('interaction_required');
+    }
+
+    const url: string = await this.getSignInUrl({
+      ...(params as Record<string, AuthorizeRequestParamValue>),
+      organizationUnitId,
+    });
+
+    await sm.setTemporaryDataParameter(ORGANIZATION_UNIT_SWITCH_KEY, organizationUnitId);
+
+    location.href = url;
+    await SPAUtils.waitTillPageRedirect();
+
+    return undefined;
+  }
+
+  /**
+   * Maps an OAuth error from a bounded sign-in onto the switch's documented errors.
+   */
+  private static _toSwitchError(oauthError?: string, cause?: unknown): ThunderIDAPIError {
+    if (
+      cause instanceof ThunderIDAPIError &&
+      (Object.values(OrganizationUnitSwitchErrorCodes) as string[]).includes(cause.code)
+    ) {
+      return cause;
+    }
+
+    let code: string = OrganizationUnitSwitchErrorCodes.Failed;
+
+    if (oauthError === 'unauthorized_client') {
+      code = OrganizationUnitSwitchErrorCodes.UnauthorizedClient;
+    } else if (oauthError && INTERACTION_ERRORS.includes(oauthError)) {
+      code = OrganizationUnitSwitchErrorCodes.InteractionRequired;
+    }
+
+    const serverCode: string = oauthError ?? 'switch_failed';
+
+    return new ThunderIDAPIError(
+      JSON.stringify({code: serverCode, message: {defaultValue: serverCode}}),
+      code,
+      'browser',
+      oauthError === 'unauthorized_client' ? 400 : undefined,
+      undefined,
+      'Switching the organization unit failed',
+    );
+  }
+
+  /**
+   * Embedded mode: starts a sign-in flow bounded to the unit. When the SSO session is reused, the flow
+   * completes at once and its assertion replaces the session.
+   */
+  private async _switchOrganizationUnitEmbedded(
+    organizationUnitId: string,
+    config: AuthClientConfig<T>,
+  ): Promise<User> {
+    let response: EmbeddedSignInFlowResponse;
+
+    try {
+      response = await executeEmbeddedSignInFlow({
+        baseUrl: config?.baseUrl,
+        payload: {
+          applicationId: config?.applicationId ?? '',
+          flowType: EmbeddedFlowType.Authentication,
+          ouId: organizationUnitId,
+        },
+        url: resolveResourceEndpoint('flowExecute', config),
+      });
+    } catch (error) {
+      const serverCode: string | undefined = error instanceof ThunderIDAPIError ? error.serverError?.code : undefined;
+
+      // FES-1023: a unit the application is not accessible from, or one that does not exist.
+      throw ThunderIDBrowserClient._toSwitchError(
+        serverCode === 'FES-1023' ? 'unauthorized_client' : serverCode,
+        error,
+      );
+    }
+
+    if (response?.flowStatus === EmbeddedSignInFlowStatus.Complete && response.assertion) {
+      const claims: Record<string, unknown> = await this.decodeJwtToken<Record<string, unknown>>(response.assertion);
+      const iat: number | undefined = typeof claims['iat'] === 'number' ? claims['iat'] : undefined;
+      const exp: number | undefined = typeof claims['exp'] === 'number' ? claims['exp'] : undefined;
+
+      await this.setSession({
+        access_token: response.assertion,
+        created_at: iat ? iat * 1000 : Date.now(),
+        expires_in: exp && iat ? exp - iat : 3600,
+        id_token: response.assertion,
+        scope: claims['scope'],
+        token_type: 'Bearer',
+      });
+
+      const user: User = await this.getUser();
+
+      void this._emitHook(Hooks.SignIn, user);
+
+      return user;
+    }
+
+    if (response?.flowStatus === EmbeddedSignInFlowStatus.Error) {
+      throw ThunderIDBrowserClient._toSwitchError('access_denied');
+    }
+
+    throw ThunderIDBrowserClient._toSwitchError('interaction_required');
+  }
+
+  /**
+   * Completes a switch that left the page for the unit's authorization endpoint: redeems the returned
+   * code, or reports the returned error and keeps the previous session.
+   */
+  private async _completeOrganizationUnitSwitch(tokenRequestConfig?: {
+    params: Record<string, unknown>;
+  }): Promise<User | undefined> {
+    const sm: StorageManager<T> = this.getStorageManager();
+    const pending: unknown = await sm.getTemporaryDataParameter(ORGANIZATION_UNIT_SWITCH_KEY);
+
+    // A silent sign-in response inside its iframe is relayed to the parent, never redeemed here.
+    if (!pending || SPAUtils.isInitializedSilentSignIn()) {
+      return undefined;
+    }
+
+    const url: URL = new URL(window.location.href);
+    const code: string | null = url.searchParams.get(OIDCRequestConstants.Params.AUTHORIZATION_CODE);
+    const state: string | null = url.searchParams.get(OIDCRequestConstants.Params.STATE);
+    const error: string | null = url.searchParams.get('error');
+
+    if (code && state) {
+      await sm.removeTemporaryDataParameter(ORGANIZATION_UNIT_SWITCH_KEY);
+      SPAUtils.removeAuthorizationCode();
+
+      try {
+        return await this._exchangeCodeForTokens(code, state, tokenRequestConfig);
+      } catch (exchangeError) {
+        throw ThunderIDBrowserClient._toSwitchError(undefined, exchangeError);
+      }
+    }
+
+    if (error) {
+      await sm.removeTemporaryDataParameter(ORGANIZATION_UNIT_SWITCH_KEY);
+      url.searchParams.delete('error');
+      url.searchParams.delete('error_description');
+      url.searchParams.delete(OIDCRequestConstants.Params.STATE);
+      history.replaceState(null, document.title, url.toString());
+
+      throw ThunderIDBrowserClient._toSwitchError(error);
+    }
+
+    return undefined;
   }
 
   public override async signInSilently(
@@ -946,15 +1212,22 @@ class ThunderIDBrowserClient<T = BrowserAuthConfig> extends ThunderIDJavaScriptC
 
     const urlString: string = await this.getSignInUrl({
       prompt: 'none',
+      // eslint-disable-next-line camelcase
+      response_mode: 'query',
       state: SILENT_SIGN_IN_STATE,
       ...additionalParams,
     } as any);
 
     const urlObject = new URL(urlString);
-    urlObject.searchParams.set('response_mode', 'query');
+    // A pushed request carries its parameters server-side, and its URL takes no others.
+    const isPushed: boolean = urlObject.searchParams.has('request_uri');
+
+    if (!isPushed) {
+      urlObject.searchParams.set('response_mode', 'query');
+    }
 
     if (this._storage === BrowserStorage.BrowserMemory && config.enablePKCE) {
-      const state = urlObject.searchParams.get(OIDCRequestConstants.Params.STATE);
+      const state = urlObject.searchParams.get(OIDCRequestConstants.Params.STATE) ?? this.lastAuthorizeRequestState;
       SPAUtils.setPKCE(extractPkceStorageKeyFromState(state ?? ''), await this.getPKCECode(state ?? ''));
     }
 

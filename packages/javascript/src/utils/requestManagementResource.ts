@@ -41,9 +41,38 @@ export interface ManagementResourceRequest {
 }
 
 /**
+ * Rewrites an OAuth 2.0 error body (`{error, error_description}`), which the OAuth endpoints such as
+ * dynamic client registration return, into the server's error envelope, so it reaches the caller the
+ * same way: `error` as the server's code and `error_description` as its message. Any other body is
+ * returned unchanged.
+ */
+const toServerErrorBody = (body: string): string => {
+  try {
+    const parsed: unknown = JSON.parse(body);
+
+    if (
+      parsed &&
+      typeof parsed === 'object' &&
+      typeof (parsed as {error?: unknown}).error === 'string' &&
+      (parsed as {code?: unknown}).code === undefined
+    ) {
+      const {error, error_description: description} = parsed as {error: string; error_description?: unknown};
+      const message: string = typeof description === 'string' && description ? description : error;
+
+      return JSON.stringify({code: error, message: {defaultValue: message}});
+    }
+  } catch {
+    // Not JSON: there is no error to rewrite.
+  }
+
+  return body;
+};
+
+/**
  * Performs a request against a management API resource and maps failures onto
  * {@link ThunderIDAPIError}. HTTP 403 and 404 get their own codes so a caller can tell a missing
- * permission from a missing resource.
+ * permission from a missing resource. An OAuth 2.0 error body is carried the same way as the server's
+ * error envelope.
  *
  * @returns The parsed JSON body, or `undefined` when the server returns no content.
  */
@@ -104,7 +133,7 @@ const requestManagementResource = async <T>(
     const response: Response = await fetchFn(resolvedUrl, requestInit);
 
     if (!response?.ok) {
-      const errorText: string = await response.text();
+      const errorText: string = toServerErrorBody(await response.text());
       let reason = 'ResponseError';
 
       if (response.status === 403) {
