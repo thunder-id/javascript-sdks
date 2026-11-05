@@ -222,6 +222,53 @@ describe('UserCreate', () => {
   });
 });
 
+describe('AgentCreate', () => {
+  it('sends the owner it is given as an object', async () => {
+    const fetcher: FetcherMock = vi.fn<ApiFetcher>().mockImplementation((url: string) =>
+      Promise.resolve(
+        url.includes('/agent-types')
+          ? respond({
+              count: 1,
+              startIndex: 1,
+              totalResults: 1,
+              types: [{displayName: 'Assistant', handle: 'assistant', id: 't-1', ouId: 'ou-1'}],
+            })
+          : respond({id: 'a-9', ouId: 'ou-1', type: 'assistant'}),
+      ),
+    );
+    const onCreated: Mock = vi.fn();
+    const owner = {id: 'jane@example.com', idType: 'email', isLocal: false} as const;
+
+    renderWithProviders(<AgentCreate onCreated={onCreated} owner={owner} />, {fetcher, ouId: 'ou-1'});
+
+    await waitFor(() => expect(screen.getByRole('option', {name: 'Assistant'})).toBeTruthy());
+    fireEvent.change(document.querySelector('input[name="name"]')!, {target: {value: 'Concierge'}});
+    fireEvent.click(screen.getByRole('button', {name: 'Register agent'}));
+
+    await waitFor(() => expect(onCreated).toHaveBeenCalled());
+    const [, init] = fetcher.mock.calls.find(([, request]: [string, RequestInit]) => request.method === 'POST')!;
+    expect(JSON.parse(init.body as string)).toMatchObject({owner});
+  });
+});
+
+describe('BaseAgentDetails', () => {
+  it("shows the owner's ID", () => {
+    renderWithProviders(
+      <BaseAgentDetails
+        agent={{id: 'a-1', ouId: 'ou-1', owner: {id: 'jane@example.com', idType: 'email', isLocal: false}, type: 'x'}}
+      />,
+    );
+
+    expect(screen.getByText('jane@example.com')).toBeTruthy();
+  });
+
+  it('says when the agent has no owner', () => {
+    renderWithProviders(<BaseAgentDetails agent={{id: 'a-1', ouId: 'ou-1', type: 'x'}} />);
+
+    expect(screen.getByText('No owner')).toBeTruthy();
+  });
+});
+
 describe('BaseUserDetails', () => {
   it('hides credentials and lists the user groups', () => {
     renderWithProviders(

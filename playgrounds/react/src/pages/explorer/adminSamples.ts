@@ -84,7 +84,7 @@ export const SAMPLE_AGENTS: BasicAgent[] = [
   },
 ];
 
-export const SAMPLE_AGENT: Agent = {...SAMPLE_AGENTS[0], owner: 'usr-1'};
+export const SAMPLE_AGENT: Agent = {...SAMPLE_AGENTS[0], owner: {id: 'usr-1'}};
 
 export const SAMPLE_APPLICATIONS: BasicApplication[] = [
   {clientId: 'portal_spa', description: 'Customer portal', id: 'app-1', name: 'Customer portal', template: 'browser'},

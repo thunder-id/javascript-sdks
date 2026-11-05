@@ -958,6 +958,8 @@ export type {
   AgentInboundAuthConfig,
   AgentListResponse,
   AgentLoginConsentConfig,
+  AgentOwner,
+  AgentOwnerIdType,
   AgentRoleListResponse,
   AgentType,
   AgentTypeListResponse,

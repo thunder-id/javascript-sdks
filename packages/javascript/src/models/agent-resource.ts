@@ -20,6 +20,27 @@ export interface AgentLoginConsentConfig {
 }
 
 /**
+ * What an agent owner's `id` holds.
+ */
+export type AgentOwnerIdType = 'uuid' | 'email' | 'mobile';
+
+/**
+ * The person accountable for an agent. A local owner is an entity of the same deployment and is
+ * named by its entity ID. An owner managed in another identity system is not looked up.
+ */
+export interface AgentOwner {
+  id: string;
+  /**
+   * Defaults to `uuid`. A local owner must be a `uuid`.
+   */
+  idType?: AgentOwnerIdType;
+  /**
+   * Whether the owner is an entity of this deployment. Defaults to `true`.
+   */
+  isLocal?: boolean;
+}
+
+/**
  * An agent registered in ThunderID.
  */
 export interface Agent {
@@ -49,7 +70,7 @@ export interface Agent {
   logoUrl?: string;
   ouHandle?: string;
   ouId: string;
-  owner?: string;
+  owner?: AgentOwner;
   registrationFlowId?: string;
   /**
    * The effective access status, set by the server on a read.
@@ -106,7 +127,7 @@ export interface CreateAgentRequest {
    * The organization unit the agent is created in. Required unless `projectId` is given.
    */
   ouId?: string;
-  owner?: string;
+  owner?: AgentOwner;
   /**
    * Creates the agent in the project's root organization unit. Served by the control plane.
    */
@@ -135,7 +156,7 @@ export interface UpdateAgentRequest {
   isRegistrationFlowEnabled?: boolean;
   logoUrl?: string;
   ouId?: string;
-  owner?: string;
+  owner?: AgentOwner;
   registrationFlowId?: string;
   type?: string;
 }

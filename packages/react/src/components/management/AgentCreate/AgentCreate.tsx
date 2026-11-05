@@ -3,6 +3,7 @@
 
 import {
   Agent,
+  AgentOwner,
   AgentQueryKeys,
   AgentType,
   AgentTypeListResponse,
@@ -33,7 +34,7 @@ export type AgentCreateProps = Omit<BaseAgentCreateProps, 'agentTypes' | 'error'
   /**
    * The person responsible for the agent. Defaults to the server's choice, usually the creator.
    */
-  owner?: string;
+  owner?: AgentOwner;
 };
 
 /**

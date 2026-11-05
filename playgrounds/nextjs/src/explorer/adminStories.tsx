@@ -749,7 +749,7 @@ export const ADMIN_COMPONENTS: ComponentDef[] = [
     name: 'AgentDetails',
     renderBase: (_args: Args, action: Action) => (
       <BaseAgentDetails
-        agent={{...SAMPLE_AGENTS[0], clientId: 'triage-bot', owner: 'usr_8f2c41'}}
+        agent={{...SAMPLE_AGENTS[0], clientId: 'triage-bot', owner: {id: 'usr_8f2c41'}}}
         groups={SAMPLE_MEMBERSHIPS.slice(1)}
         roles={['Viewer']}
         onDelete={() => action('onDelete')}
