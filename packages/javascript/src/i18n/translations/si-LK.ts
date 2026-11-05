@@ -124,6 +124,26 @@ const translations: I18nTranslations = {
   'user.profile.update.generic.error': 'ඔබේ පැතිකඩ යාවත්කාලීන කිරීමේදී දෝෂයක් ඇතිවිය.කරුණාකර නැවත උත්සාහ කරන්න',
 
   /* |---------------------------------------------------------------| */
+  /* |                       User Verification                       | */
+  /* |---------------------------------------------------------------| */
+
+  'user.verification.status.verified': 'සත්‍යාපනය කර ඇත',
+  'user.verification.status.unverified': 'සත්‍යාපනය කර නැත',
+  'user.verification.status.verified_at': '{date} දින සත්‍යාපනය කරන ලදී',
+  'user.verification.buttons.verify.text': 'සත්‍යාපනය කරන්න',
+  'user.verification.buttons.cancel.text': 'අවලංගු කරන්න',
+  'user.verification.buttons.close.text': 'වසන්න',
+  'user.verification.buttons.done.text': 'නිම කළා',
+  'user.verification.heading': '{attribute} සත්‍යාපනය කරන්න',
+  'user.verification.subheading': '{destination} වෙත යැවූ කේතය ඇතුළත් කරන්න.',
+  'user.verification.subheading.generic': 'ඔබට යැවූ කේතය ඇතුළත් කරන්න.',
+  'user.verification.subheading.link':
+    '{destination} වෙත සත්‍යාපන සබැඳියක් යැව්වෙමු. එය විවෘත කර, ඉන්පසු නිම කළා තෝරන්න.',
+  'user.verification.destination': '{destination} වෙත යවන ලදී.',
+  'user.verification.success': '{attribute} සත්‍යාපනය කරන ලදී.',
+  'user.verification.error': 'සත්‍යාපනය අසාර්ථක විය. කරුණාකර නැවත උත්සාහ කරන්න.',
+
+  /* |---------------------------------------------------------------| */
   /* |                        Change Password                        | */
   /* |---------------------------------------------------------------| */
 

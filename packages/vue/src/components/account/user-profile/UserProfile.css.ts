@@ -229,6 +229,87 @@ img.thunderid-user-profile__avatar {
   gap: calc(var(--thunderid-spacing-unit) * 0.5);
 }
 
+.thunderid-user-profile__verification-status {
+  display: inline-flex;
+  flex-shrink: 0;
+  gap: calc(var(--thunderid-spacing-unit) * 0.5);
+  align-items: center;
+  padding: 0 var(--thunderid-spacing-unit);
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  line-height: 22px;
+  white-space: nowrap;
+}
+
+.thunderid-user-profile__verification-status svg {
+  width: 12px;
+  height: 12px;
+}
+
+.thunderid-user-profile__verification-status--verified {
+  color: var(--thunderid-color-success-dark, var(--thunderid-color-success-main));
+  background: color-mix(in srgb, var(--thunderid-color-success-main) 12%, transparent);
+}
+
+/* Amber marks an action the user can take. */
+.thunderid-user-profile__verification-status--unverified {
+  color: var(--thunderid-color-warning-contrastText);
+  background: color-mix(in srgb, var(--thunderid-color-warning-main) 14%, transparent);
+}
+
+.thunderid-user-profile__verification {
+  padding: var(--thunderid-spacing-unit) 0;
+}
+
+/* Starts where the value column starts: the label's width plus the row gap. */
+.thunderid-user-profile__verification--inline {
+  margin-inline-start: calc(120px + var(--thunderid-spacing-unit));
+}
+
+.thunderid-user-profile__verification-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: rgba(0, 0, 0, 0.45);
+}
+
+.thunderid-user-profile__verification-dialog {
+  box-sizing: border-box;
+  width: min(448px, calc(100vw - calc(var(--thunderid-spacing-unit) * 4)));
+  max-height: 90vh;
+  overflow-y: auto;
+  padding: calc(var(--thunderid-spacing-unit) * 2);
+  background: var(--thunderid-color-background-surface);
+  border-radius: var(--thunderid-border-radius-large);
+  box-shadow: var(--thunderid-shadow-large);
+  font-family: var(--thunderid-typography-fontFamily);
+  outline: none;
+}
+
+.thunderid-user-profile__verification-dialog > .thunderid-user-profile__verification {
+  padding: 0;
+}
+
+.thunderid-user-profile__verification-notice {
+  margin-bottom: calc(var(--thunderid-spacing-unit) * 2);
+}
+
+.thunderid-user-profile__visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 .thunderid-user-profile__field-error {
   color: var(--thunderid-color-error, #d32f2f);
   font-size: var(--thunderid-typography-fontSize-xs, 0.8rem);

@@ -1,8 +1,36 @@
 // Copyright 2025 The ThunderID Authors
 // SPDX-License-Identifier: Apache-2.0
 
-import {AttributeSchema, Preferences, type User, startCase, withVendorCSSClassPrefix} from '@thunderid/browser';
-import {type Component, type PropType, type Ref, type SetupContext, type VNode, defineComponent, h, ref} from 'vue';
+import {
+  AttributeSchema,
+  AttributeVerificationConstants,
+  Preferences,
+  type User,
+  type VerifiedAttribute,
+  getDefaultI18nBundles,
+  getVerifiedAttributes,
+  isVerifiableAttribute,
+  startCase,
+  substituteTranslationParams,
+  withVendorCSSClassPrefix,
+} from '@thunderid/browser';
+import {
+  type Component,
+  Fragment,
+  type PropType,
+  type Ref,
+  type SetupContext,
+  Teleport,
+  type VNode,
+  defineComponent,
+  h,
+  inject,
+  nextTick,
+  ref,
+  watch,
+} from 'vue';
+import {I18N_KEY} from '../../../keys';
+import type {I18nContextValue} from '../../../models/contexts';
 import getDisplayName from '../../../utils/getDisplayName';
 import getMappedUserProfileValue from '../../../utils/getMappedUserProfileValue';
 import Alert from '../../primitives/Alert';
@@ -11,7 +39,7 @@ import Card from '../../primitives/Card';
 import Checkbox from '../../primitives/Checkbox';
 import DatePicker from '../../primitives/DatePicker';
 import Divider from '../../primitives/Divider';
-import {PencilIcon} from '../../primitives/Icons';
+import {CircleAlertIcon, CircleCheckIcon, PencilIcon} from '../../primitives/Icons';
 import Spinner from '../../primitives/Spinner';
 import TextField from '../../primitives/TextField';
 import Typography from '../../primitives/Typography';
@@ -55,6 +83,48 @@ export interface BaseUserProfileProps {
   userSchema?: Record<string, AttributeSchema> | null;
 }
 
+/**
+ * Slot props of the `verification` slot, which renders the verification panel for an attribute.
+ * Without the slot, or when the profile is not editable, statuses are shown without a Verify action.
+ */
+export interface BaseUserProfileVerificationSlotProps {
+  /** Name of the attribute to verify. */
+  attribute: string;
+  /** Label of the attribute. */
+  attributeDisplayName: string;
+  /** Closes the panel. */
+  onCancel: () => void;
+  /** Closes the panel and confirms the recorded verification. */
+  onComplete: () => void;
+}
+
+/**
+ * Verification state and actions added to the default slot's props, so a custom profile can show
+ * each attribute's status and start a verification.
+ */
+export interface BaseUserProfileVerificationState {
+  /**
+   * Whether the user can verify the attribute now: the profile is editable, the server reports
+   * verification, and the attribute is an unverified `email` or `mobile` property with a stored value.
+   */
+  canVerify: (attribute: string) => boolean;
+  /** Closes the open verification. */
+  cancelVerification: () => void;
+  /** Renders the `verification` slot for the open attribute, or nothing when none is open. */
+  renderVerification: () => VNode | null;
+  /** Opens the verification of an attribute that `canVerify` allows. */
+  verify: (attribute: string) => void;
+  /**
+   * The attribute's status: `verified` or `unverified` for an `email` or `mobile` property with a stored
+   * value, else `null`, also when the server does not report verification.
+   */
+  verificationStatus: (attribute: string) => 'verified' | 'unverified' | null;
+  /** Verified attributes as the server reports them, with `verifiedAt`; `undefined` when it does not. */
+  verifiedAttributes: Record<string, VerifiedAttribute> | undefined;
+  /** The attribute whose verification is open. */
+  verifyingAttribute: string | null;
+}
+
 // ─── Constants ───────────────────────────────────────────────────────────────
 
 const FIELDS_TO_SKIP: string[] = [
@@ -78,6 +148,7 @@ const FIELDS_TO_SKIP: string[] = [
   'attributes',
   'isReadOnly',
   'isReadonly',
+  AttributeVerificationConstants.VERIFIED_ATTRIBUTES_KEY,
 ];
 
 const READONLY_FIELDS: string[] = [
@@ -112,6 +183,18 @@ const AVATAR_GRADIENTS: string[] = [
 ];
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
+
+const isVerificationType = (type?: string): boolean =>
+  !!type && AttributeVerificationConstants.VERIFIABLE_ATTRIBUTE_TYPES.includes(type.toLowerCase());
+
+const isVerifiedAfterSave = (type?: string): boolean =>
+  !!type && AttributeVerificationConstants.VERIFY_AFTER_SAVE_ATTRIBUTE_TYPES.includes(type.toLowerCase());
+
+// The stored value of an attribute: `/users/me` nests attributes and may also spread them to the top level.
+const storedValueOf = (user: User | null | undefined, name: string): unknown => {
+  const attributes: Record<string, unknown> | undefined = user?.['attributes'] as Record<string, unknown> | undefined;
+  return attributes?.[name] ?? user?.[name];
+};
 
 function getAvatarGradient(seed: string): string {
   if (!seed) return AVATAR_GRADIENTS[0];
@@ -200,6 +283,77 @@ const BaseUserProfile: Component = defineComponent({
       return fallback ?? key;
     };
 
+    // Translates with parameters. UserProfile passes the i18n `t`, which takes them; without it, or for
+    // a key it lacks, the default bundle answers.
+    const tp = (key: string, params: Record<string, string> = {}): string => {
+      const translate = props.t as ((key: string, params?: Record<string, string>) => string) | undefined;
+      const res: string | undefined = translate?.(key, params);
+      if (res && res !== key) return res;
+      const fallback: string | undefined = (
+        getDefaultI18nBundles()['en-US']?.translations as unknown as Record<string, string> | undefined
+      )?.[key];
+      return fallback ? substituteTranslationParams(fallback, params) : key;
+    };
+
+    // ── Verification ──────────────────────────────────────────────────────────
+
+    const i18n: I18nContextValue | null = inject(I18N_KEY, null);
+
+    // Attribute whose verification panel is open.
+    const verifyingField: Ref<string | null> = ref(null);
+    // Label of the attribute whose verification was just recorded.
+    const verifiedNotice: Ref<string | null> = ref(null);
+    const verificationDialogRef: Ref<HTMLElement | null> = ref(null);
+    // Element focused before the dialog opened, focused again once it closes.
+    let focusBeforeDialog: HTMLElement | null = null;
+
+    const openVerification = (name: string): void => {
+      verifiedNotice.value = null;
+      verifyingField.value = name;
+    };
+
+    // A compact profile already sits in a modal, so its panel opens under the row instead of in a dialog.
+    watch(verifyingField, (name: string | null, previous: string | null): void => {
+      if (props.compact) return;
+      if (name && !previous) {
+        focusBeforeDialog = document.activeElement as HTMLElement | null;
+        void nextTick((): void => verificationDialogRef.value?.focus());
+      } else if (!name && previous) {
+        focusBeforeDialog?.focus();
+        focusBeforeDialog = null;
+      }
+    });
+    // A saved attribute to verify once the profile reflects the change.
+    const pendingVerification: Ref<{name: string; previousValue: unknown} | null> = ref(null);
+
+    const storedUser = (): User | null => props.flattenedProfile ?? props.profile ?? null;
+    // A server without verification support omits the field, so no status is known.
+    const reportedVerifiedAttributes = (): Record<string, VerifiedAttribute> | undefined =>
+      getVerifiedAttributes(props.profile ?? props.flattenedProfile);
+
+    watch(
+      () => [props.profile, props.flattenedProfile, props.error] as const,
+      () => {
+        const pending: {name: string; previousValue: unknown} | null = pendingVerification.value;
+        if (!pending) return;
+
+        if (props.error) {
+          pendingVerification.value = null;
+          return;
+        }
+
+        const storedValue: unknown = storedValueOf(storedUser(), pending.name);
+        if (storedValue === pending.previousValue) return;
+
+        const verified: Record<string, VerifiedAttribute> | undefined = reportedVerifiedAttributes();
+        // An absent verification record leaves the status unknown, so nothing opens on that basis.
+        if (verified && typeof storedValue === 'string' && storedValue.trim() !== '' && !verified[pending.name]) {
+          openVerification(pending.name);
+        }
+        pendingVerification.value = null;
+      },
+    );
+
     // ── Visibility ────────────────────────────────────────────────────────────
 
     function shouldShowField(fieldName: string, isSchemaBased = false): boolean {
@@ -215,6 +369,13 @@ const BaseUserProfile: Component = defineComponent({
       editedValues.value = {...editedValues.value, [fieldName]: currentValue ?? ''};
       editingFields.value = {...editingFields.value, [fieldName]: true};
       fieldErrors.value = {...fieldErrors.value, [fieldName]: ''};
+    }
+
+    // Drops a field's edited value, so the row shows the stored one again.
+    function clearEditedValue(fieldName: string): void {
+      const next: Record<string, unknown> = {...editedValues.value};
+      delete next[fieldName];
+      editedValues.value = next;
     }
 
     function cancelEditing(fieldName: string): void {
@@ -273,12 +434,180 @@ const BaseUserProfile: Component = defineComponent({
         schema.schemaId,
         schema.multiValued,
       );
+      // Offer verification once a changed, verifiable email is saved.
+      const previousValue: unknown = storedValueOf(storedUser(), fieldName);
+      pendingVerification.value =
+        slots['verification'] &&
+        isVerifiedAfterSave(schema.type) &&
+        isVerifiableAttribute(props.userSchema, fieldName) &&
+        typeof submitVal === 'string' &&
+        submitVal !== '' &&
+        submitVal !== previousValue
+          ? {name: fieldName, previousValue}
+          : null;
+
       try {
         await props.onUpdate(payload);
         editingFields.value = {...editingFields.value, [fieldName]: false};
+        // The row shows the stored value from here on, never the typed one, even if the save failed.
+        clearEditedValue(fieldName);
       } catch {
         // Keep field in editing mode on error so user input is preserved
+        pendingVerification.value = null;
       }
+    }
+
+    function renderVerificationStatus(name: string): VNode {
+      const verification: VerifiedAttribute | undefined = reportedVerifiedAttributes()?.[name];
+      let verifiedAtText: string | undefined;
+
+      if (verification?.verifiedAt) {
+        const verifiedAt: Date = new Date(verification.verifiedAt);
+        const date: string = Number.isNaN(verifiedAt.getTime())
+          ? verification.verifiedAt
+          : verifiedAt.toLocaleString(i18n?.currentLanguage?.value ?? props.preferences?.i18n?.language);
+        verifiedAtText = tp('user.verification.status.verified_at', {date});
+      }
+
+      const modifier: string = verification ? 'verified' : 'unverified';
+
+      return h(
+        'span',
+        {
+          class: [px('user-profile__verification-status'), px(`user-profile__verification-status--${modifier}`)].join(
+            ' ',
+          ),
+          'data-testid': `thunderid-verification-status-${name}`,
+          title: verifiedAtText,
+        },
+        [
+          h(verification ? CircleCheckIcon : CircleAlertIcon),
+          tp(`user.verification.status.${modifier}`),
+          // A title is not reachable by keyboard or touch, so the time is also given as text.
+          verifiedAtText ? h('span', {class: px('user-profile__visually-hidden')}, ` (${verifiedAtText})`) : null,
+        ],
+      );
+    }
+
+    // Status of a stored `email` or `mobile` value, for a custom render.
+    const verificationStatusOf = (name: string): 'verified' | 'unverified' | null => {
+      const verified: Record<string, VerifiedAttribute> | undefined = reportedVerifiedAttributes();
+      const stored: unknown = storedValueOf(storedUser(), name);
+      if (!verified || !isVerifiableAttribute(props.userSchema, name)) return null;
+      if (typeof stored !== 'string' || stored.trim() === '') return null;
+      return verified[name] ? 'verified' : 'unverified';
+    };
+
+    const verificationRenderProps = (): BaseUserProfileVerificationState => {
+      const canVerify = (name: string): boolean =>
+        Boolean(props.editable) && !!slots['verification'] && verificationStatusOf(name) === 'unverified';
+
+      return {
+        canVerify,
+        cancelVerification: (): void => {
+          verifyingField.value = null;
+        },
+        renderVerification: (): VNode | null => {
+          const name: string | null = verifyingField.value;
+          if (!name) return null;
+          return buildVerificationPanel({displayName: props.userSchema?.[name]?.displayName, name});
+        },
+        verificationStatus: verificationStatusOf,
+        verifiedAttributes: reportedVerifiedAttributes(),
+        verify: (name: string): void => {
+          if (canVerify(name)) openVerification(name);
+        },
+        verifyingAttribute: verifyingField.value,
+      };
+    };
+
+    function buildVerificationPanel(schema: ExtendedSchema): VNode | null {
+      const name: string | undefined = schema.name;
+      if (!slots['verification'] || !name || verifyingField.value !== name) return null;
+
+      const attributeDisplayName: string = schema.displayName ?? startCase(name);
+
+      return h(
+        'div',
+        {
+          class: [px('user-profile__verification'), props.compact ? px('user-profile__verification--inline') : '']
+            .filter(Boolean)
+            .join(' '),
+        },
+        slots['verification']({
+          attribute: name,
+          attributeDisplayName,
+          onCancel: (): void => {
+            verifyingField.value = null;
+          },
+          onComplete: (): void => {
+            verifyingField.value = null;
+            verifiedNotice.value = attributeDisplayName;
+          },
+        } as BaseUserProfileVerificationSlotProps),
+      );
+    }
+
+    // Keeps Tab inside the dialog and closes it on Escape.
+    function handleDialogKeydown(event: KeyboardEvent): void {
+      if (event.key === 'Escape') {
+        event.stopPropagation();
+        verifyingField.value = null;
+        return;
+      }
+      if (event.key !== 'Tab' || !verificationDialogRef.value) return;
+      const focusables: HTMLElement[] = Array.from(
+        verificationDialogRef.value.querySelectorAll<HTMLElement>(
+          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
+        ),
+      );
+      if (focusables.length === 0) return;
+      const first: HTMLElement = focusables[0];
+      const last: HTMLElement = focusables[focusables.length - 1];
+      if (
+        event.shiftKey &&
+        (document.activeElement === first || document.activeElement === verificationDialogRef.value)
+      ) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    }
+
+    function renderVerificationPanel(schema: ExtendedSchema): VNode | null {
+      const panel: VNode | null = buildVerificationPanel(schema);
+      if (!panel || props.compact) return panel;
+
+      return h(Teleport, {to: 'body'}, [
+        h(
+          'div',
+          {
+            class: px('user-profile__verification-overlay'),
+            onClick: (event: MouseEvent): void => {
+              if (event.target === event.currentTarget) verifyingField.value = null;
+            },
+          },
+          [
+            h(
+              'div',
+              {
+                'aria-label': tp('user.verification.heading', {
+                  attribute: schema.displayName ?? startCase(schema.name!),
+                }),
+                'aria-modal': 'true',
+                class: px('user-profile__verification-dialog'),
+                onKeydown: handleDialogKeydown,
+                ref: verificationDialogRef,
+                role: 'dialog',
+                tabindex: -1,
+              },
+              [panel],
+            ),
+          ],
+        ),
+      ]);
     }
 
     // ── Input rendering per schema type ───────────────────────────────────────
@@ -333,6 +662,21 @@ const BaseUserProfile: Component = defineComponent({
 
       if (!hasValue && !isEditing && !(isEditable && mutability === 'READ_WRITE')) return null;
 
+      // Status describes the stored value, which the row shows whenever it is not being edited: a save
+      // keeps the field in edit mode until it settles, then drops the typed value.
+      const verified: Record<string, VerifiedAttribute> | undefined = reportedVerifiedAttributes();
+      const showsVerificationStatus: boolean =
+        verified !== undefined && hasValue && !isEditing && isVerificationType(schema.type);
+      // A read-only profile shows the status only.
+      const canVerify: boolean =
+        Boolean(props.editable) &&
+        !!slots['verification'] &&
+        showsVerificationStatus &&
+        !verified?.[name] &&
+        verifyingField.value !== name &&
+        isVerifiableAttribute(props.userSchema, name) &&
+        typeof value === 'string';
+
       const editablePlaceholder: VNode | null = isEditable
         ? h(
             'span',
@@ -355,7 +699,24 @@ const BaseUserProfile: Component = defineComponent({
                   : null,
               ])
             : displayValueNode,
+          showsVerificationStatus ? renderVerificationStatus(name) : null,
         ]),
+        canVerify
+          ? h('div', {class: px('user-profile__field-actions')}, [
+              h(
+                Button,
+                {
+                  class: px('user-profile__verify-button'),
+                  color: 'primary' as const,
+                  'data-testid': `thunderid-verify-${name}`,
+                  onClick: () => openVerification(name),
+                  size: 'small' as const,
+                  variant: 'outline' as const,
+                },
+                () => tp('user.verification.buttons.verify.text'),
+              ),
+            ])
+          : null,
         isEditable && !isReadonly
           ? h('div', {class: px('user-profile__field-actions')}, [
               isEditing
@@ -385,7 +746,11 @@ const BaseUserProfile: Component = defineComponent({
                   ? h(Button, {
                       class: px('user-profile__field-edit-btn'),
                       color: 'secondary' as const,
-                      onClick: () => startEditing(name, value),
+                      onClick: () => {
+                        if (verifyingField.value === name) verifyingField.value = null;
+                        verifiedNotice.value = null;
+                        startEditing(name, value);
+                      },
                       size: 'small' as const,
                       startIcon: h(PencilIcon),
                       title: t('userProfile.actions.edit', 'Edit'),
@@ -476,12 +841,22 @@ const BaseUserProfile: Component = defineComponent({
 
       if (!data && !props.isLoading) {
         return slots['default']
-          ? slots['default']({error: props.error, isLoading: props.isLoading, profile: null})
+          ? slots['default']({
+              error: props.error,
+              isLoading: props.isLoading,
+              profile: null,
+              ...verificationRenderProps(),
+            })
           : null;
       }
 
       if (slots['default']) {
-        return slots['default']({error: props.error, isLoading: props.isLoading, profile: data});
+        return slots['default']({
+          error: props.error,
+          isLoading: props.isLoading,
+          profile: data,
+          ...verificationRenderProps(),
+        });
       }
 
       const currentUser: Record<string, any> = data as Record<string, any>;
@@ -506,6 +881,21 @@ const BaseUserProfile: Component = defineComponent({
       // Error alert
       if (props.error) {
         children.push(h(Alert, {class: px('user-profile__error'), severity: 'error' as const}, () => props.error));
+      }
+
+      if (verifiedNotice.value) {
+        const attribute: string = verifiedNotice.value;
+        children.push(
+          h(
+            Alert,
+            {
+              class: px('user-profile__verification-notice'),
+              'data-testid': 'thunderid-verification-notice',
+              severity: 'success' as const,
+            },
+            () => tp('user.verification.success', {attribute}),
+          ),
+        );
       }
 
       // Fields
@@ -535,7 +925,11 @@ const BaseUserProfile: Component = defineComponent({
           });
 
         const fieldRows: VNode[] = metaSchemas
-          .map((schema: ExtendedSchema) => renderSchemaFieldRow(schema))
+          .map((schema: ExtendedSchema) => {
+            const row: VNode | null = renderSchemaFieldRow(schema);
+            const panel: VNode | null = row ? renderVerificationPanel(schema) : null;
+            return panel ? h(Fragment, {key: schema.name}, [row, panel]) : row;
+          })
           .filter((node: VNode | null): node is VNode => node !== null);
 
         children.push(h('div', {class: px('user-profile__fields')}, fieldRows));

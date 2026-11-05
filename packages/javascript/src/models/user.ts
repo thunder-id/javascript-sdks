@@ -17,3 +17,13 @@ export interface UserProfile {
   flattenedProfile: User;
   profile: User;
 }
+
+/**
+ * Verification record of one of the user's attributes, as returned in `/users/me`.
+ */
+export interface VerifiedAttribute {
+  /**
+   * When the attribute's current value was verified, as an RFC 3339 timestamp.
+   */
+  verifiedAt: string;
+}

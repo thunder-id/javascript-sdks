@@ -1,4 +1,9 @@
 // Copyright 2025 The ThunderID Authors
 // SPDX-License-Identifier: Apache-2.0
 
-export {renderInviteUserComponents, renderSignInComponents, renderSignUpComponents} from './AuthOptionFactoryCore';
+export {
+  renderInviteUserComponents,
+  renderSignInComponents,
+  renderSignUpComponents,
+  renderVerificationComponents,
+} from './AuthOptionFactoryCore';

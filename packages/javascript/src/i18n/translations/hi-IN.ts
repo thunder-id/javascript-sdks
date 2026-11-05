@@ -124,6 +124,25 @@ const translations: I18nTranslations = {
   'user.profile.update.generic.error': 'प्रोफ़ाइल अपडेट करते समय त्रुटि हुई। कृपया पुनः प्रयास करें।',
 
   /* |---------------------------------------------------------------| */
+  /* |                       User Verification                       | */
+  /* |---------------------------------------------------------------| */
+
+  'user.verification.status.verified': 'सत्यापित',
+  'user.verification.status.unverified': 'असत्यापित',
+  'user.verification.status.verified_at': '{date} को सत्यापित',
+  'user.verification.buttons.verify.text': 'सत्यापित करें',
+  'user.verification.buttons.cancel.text': 'रद्द करें',
+  'user.verification.buttons.close.text': 'बंद करें',
+  'user.verification.buttons.done.text': 'पूर्ण',
+  'user.verification.heading': '{attribute} सत्यापित करें',
+  'user.verification.subheading': '{destination} पर भेजा गया कोड दर्ज करें।',
+  'user.verification.subheading.generic': 'आपको भेजा गया कोड दर्ज करें।',
+  'user.verification.subheading.link': '{destination} पर एक सत्यापन लिंक भेजा गया है। उसे खोलें, फिर पूर्ण चुनें।',
+  'user.verification.destination': '{destination} पर भेजा गया।',
+  'user.verification.success': '{attribute} सत्यापित हो गया।',
+  'user.verification.error': 'सत्यापन विफल रहा। कृपया पुनः प्रयास करें।',
+
+  /* |---------------------------------------------------------------| */
   /* |                        Change Password                        | */
   /* |---------------------------------------------------------------| */
 

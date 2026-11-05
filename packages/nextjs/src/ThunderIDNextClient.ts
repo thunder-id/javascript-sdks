@@ -6,6 +6,8 @@ import {
   ThunderIDRuntimeError,
   AttributeSchema,
   AuthClientConfig,
+  EmbeddedSelfFlowRequest,
+  EmbeddedSelfFlowResponse,
   EmbeddedSignInFlowResponse,
   ExtendedAuthorizeRequestUrlParams,
   IdToken,
@@ -235,6 +237,21 @@ class ThunderIDNextClient<T extends ThunderIDNextConfig = ThunderIDNextConfig> e
       },
       payload,
     });
+  }
+
+  /**
+   * Executes one step of a `SELF` flow, such as self attribute verification, for the session
+   * identified by `userId`.
+   *
+   * Ensures the client is initialized first, like `getUsers`. Errors are not caught so the calling server action can map the real `ThunderIDAPIError`.
+   */
+  override async executeEmbeddedSelfFlow(
+    payload: EmbeddedSelfFlowRequest,
+    userId?: string,
+  ): Promise<EmbeddedSelfFlowResponse> {
+    await this.ensureInitialized();
+
+    return super.executeEmbeddedSelfFlow(payload, userId);
   }
 
   /**

@@ -124,6 +124,26 @@ const translations: I18nTranslations = {
   'user.profile.update.generic.error': 'プロフィール更新中にエラーが発生しました。もう一度お試しください。',
 
   /* |---------------------------------------------------------------| */
+  /* |                       User Verification                       | */
+  /* |---------------------------------------------------------------| */
+
+  'user.verification.status.verified': '確認済み',
+  'user.verification.status.unverified': '未確認',
+  'user.verification.status.verified_at': '{date}に確認済み',
+  'user.verification.buttons.verify.text': '確認する',
+  'user.verification.buttons.cancel.text': 'キャンセル',
+  'user.verification.buttons.close.text': '閉じる',
+  'user.verification.buttons.done.text': '完了',
+  'user.verification.heading': '{attribute}を確認',
+  'user.verification.subheading': '{destination}に送信されたコードを入力してください。',
+  'user.verification.subheading.generic': '送信されたコードを入力してください。',
+  'user.verification.subheading.link':
+    '{destination}に確認リンクを送信しました。リンクを開いてから「完了」を選択してください。',
+  'user.verification.destination': '{destination}に送信しました。',
+  'user.verification.success': '{attribute}を確認しました。',
+  'user.verification.error': '確認に失敗しました。もう一度お試しください。',
+
+  /* |---------------------------------------------------------------| */
   /* |                        Change Password                        | */
   /* |---------------------------------------------------------------| */
 
