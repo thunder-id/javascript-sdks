@@ -1,6 +1,6 @@
 {
   "name": "@thunderid/javascript",
-  "version": "1.13.1",
+  "version": "1.14.0",
   "description": "JavaScript Ecosystem SDK for ThunderID",
   "keywords": [
     "thunderid",
