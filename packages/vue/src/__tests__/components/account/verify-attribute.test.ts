@@ -243,6 +243,19 @@ describe('BaseVerifyAttribute', () => {
     });
   });
 
+  it('keeps Verify disabled until a code is entered, and Resend available throughout', async () => {
+    const wrapper: VueWrapper = mountBase();
+    await settle();
+
+    expect(button(wrapper, 'Verify')!.element.disabled).toBe(true);
+    expect(button(wrapper, 'Resend code')!.element.disabled).toBe(false);
+
+    await enterCode(wrapper, '123456');
+
+    expect(button(wrapper, 'Verify')!.element.disabled).toBe(false);
+    expect(button(wrapper, 'Resend code')!.element.disabled).toBe(false);
+  });
+
   it('does not submit without a code', async () => {
     const wrapper: VueWrapper = mountBase();
     await settle();

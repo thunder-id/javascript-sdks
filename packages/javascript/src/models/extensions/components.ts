@@ -11,10 +11,18 @@ import {FlowMetadataResponse} from '../flow-meta';
 export interface ComponentRenderContext {
   additionalData?: Record<string, any>;
   authType: 'signin' | 'signup' | 'recovery' | 'verification';
+  /**
+   * Marks the current step as expired from the client, e.g. when an OTP countdown a renderer owns
+   * runs out. Built-in action buttons stay disabled until the next step response arrives, exactly
+   * as when a server `stepTimeout` elapses. Absent where the host component has no step expiry.
+   */
+  expireStep?: () => void;
   formErrors: Record<string, string>;
   formValues: Record<string, string>;
   isFormValid: boolean;
   isLoading: boolean;
+  /** Whether the step has expired, from a server `stepTimeout` or a renderer's `expireStep()`. */
+  isTimeoutDisabled?: boolean;
   meta?: FlowMetadataResponse | null;
   resetForm?: () => void;
   onInputBlur?: (name: string) => void;

@@ -21,6 +21,7 @@ import useFlow from '../../../contexts/Flow/useFlow';
 import ComponentPreferencesContext from '../../../contexts/I18n/ComponentPreferencesContext';
 import useTheme from '../../../contexts/Theme/useTheme';
 import useThunderID from '../../../contexts/ThunderID/useThunderID';
+import useStepExpiry from '../../../hooks/auth/useStepExpiry';
 import {useForm, FormField} from '../../../hooks/useForm';
 import useTranslation from '../../../hooks/useTranslation';
 import {cx} from '../../../styles/emotion';
@@ -239,6 +240,7 @@ const BaseRecoveryContent: FC<BaseRecoveryProps> = ({
     values: formValues,
     touched: touchedFields,
     errors: formErrors,
+    isComplete: isFormComplete,
     isValid: isFormValid,
     setValue: setFormValue,
     setTouched: setFormTouched,
@@ -249,6 +251,9 @@ const BaseRecoveryContent: FC<BaseRecoveryProps> = ({
     touchAllFields,
     reset: resetForm,
   } = form;
+
+  // A custom renderer can expire the step from the client; it holds until the next step response.
+  const {expireStep, isStepExpired} = useStepExpiry(currentFlow);
 
   // Project server-side fieldErrors from the flow response into form state.
   // `setTouchedFields` avoids re-running client-side validation that would wipe
@@ -410,8 +415,11 @@ const BaseRecoveryContent: FC<BaseRecoveryProps> = ({
           _theme: theme,
           buttonClassName: buttonClasses,
           inputClassName: inputClasses,
+          isFormComplete,
+          isTimeoutDisabled: isStepExpired,
           meta,
           onInputBlur: handleInputBlur,
+          onStepExpire: expireStep,
           onSubmit: handleSubmit,
           size,
           variant,
@@ -427,6 +435,9 @@ const BaseRecoveryContent: FC<BaseRecoveryProps> = ({
       handleSubmit,
       inputClasses,
       isFormValid,
+      isFormComplete,
+      isStepExpired,
+      expireStep,
       meta,
       isLoading,
       size,

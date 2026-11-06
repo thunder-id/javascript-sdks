@@ -244,6 +244,11 @@ const createAuthComponentFromFlow = (
     currentConsentPurpose?: ConsentPurposeData;
     inStack?: boolean;
     inputClassName?: string;
+    /**
+     * Whether every field in the step passes its client-side validation with the current values.
+     * SUBMIT actions stay disabled while it is `false`; left undefined, it never disables.
+     */
+    isFormComplete?: boolean;
     /** Flag to determine if the step timeline has expired */
     isTimeoutDisabled?: boolean;
     key?: string | number;
@@ -256,6 +261,8 @@ const createAuthComponentFromFlow = (
     /** Flow metadata for resolving {{meta(...)}} expressions at render time */
     meta?: FlowMetadataResponse | null;
     onInputBlur?: (name: string) => void;
+    /** Lets a custom renderer expire the step; see `ComponentRenderContext.expireStep`. */
+    onStepExpire?: () => void;
     /** Called with the error of a failed picker load. The form itself shows no error for it. */
     onPickerError?: (error: Error) => void;
     onSubmit?: (component: EmbeddedFlowComponent, data?: Record<string, any>, skipValidation?: boolean) => void;
@@ -280,10 +287,12 @@ const createAuthComponentFromFlow = (
     const renderCtx: ComponentRenderContext = {
       additionalData: options.additionalData,
       authType,
+      expireStep: options.onStepExpire,
       formErrors,
       formValues,
       isFormValid,
       isLoading,
+      isTimeoutDisabled: options.isTimeoutDisabled ?? false,
       meta: options.meta,
       resetForm,
       onInputBlur: options.onInputBlur,
@@ -604,6 +613,7 @@ const createAuthComponentFromFlow = (
             isLoading ||
             (!isFormValid && !shouldSkipValidation) ||
             hasInvalidConsentApproval ||
+            (!shouldSkipValidation && options.isFormComplete === false) ||
             options.isTimeoutDisabled ||
             (component as any).config?.disabled
           }
@@ -1028,11 +1038,15 @@ export const renderSignInComponents = (
     additionalData?: Record<string, any>;
     buttonClassName?: string;
     inputClassName?: string;
+    /** Live validity of the step with the current values; SUBMIT actions stay disabled while it is `false`. */
+    isFormComplete?: boolean;
     /** Flag to determine if the step timeline has expired */
     isTimeoutDisabled?: boolean;
     /** Flow metadata for resolving {{meta(...)}} expressions at render time */
     meta?: FlowMetadataResponse | null;
     onInputBlur?: (name: string) => void;
+    /** Lets a custom renderer expire the step; see `ComponentRenderContext.expireStep`. */
+    onStepExpire?: () => void;
     onSubmit?: (component: EmbeddedFlowComponent, data?: Record<string, any>, skipValidation?: boolean) => void;
     size?: 'small' | 'medium' | 'large';
     /** Translation function for resolving {{t(...)}} expressions at render time */
@@ -1083,9 +1097,15 @@ export const renderSignUpComponents = (
     additionalData?: Record<string, any>;
     buttonClassName?: string;
     inputClassName?: string;
+    /** Live validity of the step with the current values; SUBMIT actions stay disabled while it is `false`. */
+    isFormComplete?: boolean;
+    /** Flag to determine if the step timeline has expired */
+    isTimeoutDisabled?: boolean;
     /** Flow metadata for resolving {{meta(...)}} expressions at render time */
     meta?: FlowMetadataResponse | null;
     onInputBlur?: (name: string) => void;
+    /** Lets a custom renderer expire the step; see `ComponentRenderContext.expireStep`. */
+    onStepExpire?: () => void;
     onSubmit?: (component: EmbeddedFlowComponent, data?: Record<string, any>, skipValidation?: boolean) => void;
     size?: 'small' | 'medium' | 'large';
     /** Translation function for resolving {{t(...)}} expressions at render time */
@@ -1136,11 +1156,15 @@ export const renderRecoveryComponents = (
     additionalData?: Record<string, any>;
     buttonClassName?: string;
     inputClassName?: string;
+    /** Live validity of the step with the current values; SUBMIT actions stay disabled while it is `false`. */
+    isFormComplete?: boolean;
     /** Flag to determine if the step timeline has expired */
     isTimeoutDisabled?: boolean;
     /** Flow metadata for resolving {{meta(...)}} expressions at render time */
     meta?: FlowMetadataResponse | null;
     onInputBlur?: (name: string) => void;
+    /** Lets a custom renderer expire the step; see `ComponentRenderContext.expireStep`. */
+    onStepExpire?: () => void;
     onSubmit?: (component: EmbeddedFlowComponent, data?: Record<string, any>, skipValidation?: boolean) => void;
     size?: 'small' | 'medium' | 'large';
     /** Translation function for resolving {{t(...)}} expressions at render time */
@@ -1233,6 +1257,10 @@ export const renderInviteUserComponents = (
       offset: number,
     ) => Promise<OrganizationUnitListResponse>;
     inputClassName?: string;
+    /** Live validity of the step with the current values; SUBMIT actions stay disabled while it is `false`. */
+    isFormComplete?: boolean;
+    /** Flag to determine if the step timeline has expired */
+    isTimeoutDisabled?: boolean;
     /** Data source for AUTH_FLOW_SELECT fields. */
     fetchAuthFlows?: FetchAuthFlows;
     /** Data source for USER_SELECT fields. */
@@ -1242,6 +1270,8 @@ export const renderInviteUserComponents = (
     /** Flow metadata for resolving {{meta(...)}} expressions at render time */
     meta?: FlowMetadataResponse | null;
     onInputBlur?: (name: string) => void;
+    /** Lets a custom renderer expire the step; see `ComponentRenderContext.expireStep`. */
+    onStepExpire?: () => void;
     /** Called with the error of a failed picker load. The form itself shows no error for it. */
     onPickerError?: (error: Error) => void;
     onSubmit?: (component: EmbeddedFlowComponent, data?: Record<string, any>, skipValidation?: boolean) => void;
