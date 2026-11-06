@@ -196,6 +196,7 @@ const Overview = (): ReactElement => {
     ['afterSignIn', sdk.afterSignInUrl ?? playgroundConfig.afterSignInUrl],
     ['afterSignOut', playgroundConfig.afterSignOutUrl],
     ['scopes', Array.isArray(sdk.scopes) ? sdk.scopes.join(' ') : String(sdk.scopes ?? '')],
+    ['resource', playgroundConfig.resource ?? "server's default resource server"],
     ['storage', playgroundConfig.storage ?? 'SDK default'],
   ];
 

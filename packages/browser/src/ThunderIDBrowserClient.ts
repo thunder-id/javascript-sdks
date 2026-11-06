@@ -372,14 +372,25 @@ class ThunderIDBrowserClient<T = BrowserAuthConfig> extends ThunderIDJavaScriptC
       return this._exchangeCodeForTokens(resolvedAuthorizationCode, resolvedState, resolvedTokenRequestConfig);
     }
 
+    // The configured signInOptions are the authorize request parameters to send when the caller
+    // passes none, such as the RFC 8707 resource indicator a server needs to pick the resource server.
+    const redirectSignInConfig: SignInConfig | undefined =
+      signInConfig && Object.keys(signInConfig).length > 0
+        ? signInConfig
+        : (config as BrowserAuthConfig | undefined)?.signInOptions;
+
     // Opt-in: look for an existing ThunderID SSO session before leaving the app. Skipped inside an
     // iframe, and when the caller asks for a specific prompt (login, consent, ...), which a silent
     // request cannot honour.
     const sessionConfig: SessionConfig | undefined = (config as BrowserAuthConfig | undefined)?.session;
 
-    if (sessionConfig?.silentSignIn?.beforeRedirect && window.self === window.top && !signInConfig?.['prompt']) {
+    if (
+      sessionConfig?.silentSignIn?.beforeRedirect &&
+      window.self === window.top &&
+      !redirectSignInConfig?.['prompt']
+    ) {
       try {
-        const silentUser: User | boolean = await this._signInSilentlyInternal(signInConfig, tokenRequestConfig);
+        const silentUser: User | boolean = await this._signInSilentlyInternal(redirectSignInConfig, tokenRequestConfig);
 
         if (silentUser && typeof silentUser === 'object') {
           return silentUser;
@@ -389,7 +400,7 @@ class ThunderIDBrowserClient<T = BrowserAuthConfig> extends ThunderIDJavaScriptC
       }
     }
 
-    return this.getSignInUrl(signInConfig as any).then(async (url: string) => {
+    return this.getSignInUrl(redirectSignInConfig as any).then(async (url: string) => {
       if (this._storage === BrowserStorage.BrowserMemory && config.enablePKCE) {
         const pkceKey: string = extractPkceStorageKeyFromState(resolvedState);
         SPAUtils.setPKCE(pkceKey, await this.getPKCECode(resolvedState));

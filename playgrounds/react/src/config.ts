@@ -15,6 +15,11 @@ export interface PlaygroundConfig {
   clientId: string;
   /** Management collection overrides passed to the provider's `endpoints`, or undefined for none. */
   endpoints?: ManagementEndpoints;
+  /**
+   * RFC 8707 resource indicator sent at sign-in, binding the access token to that resource server. Needed
+   * when the server has no default resource server, or to target a different one.
+   */
+  resource?: string;
   scopes: string[];
   storage?: StorageMode;
 }
@@ -57,6 +62,7 @@ const playgroundConfig: PlaygroundConfig = {
   baseUrl: (read('VITE_THUNDERID_BASE_URL') ?? 'https://localhost:8090').replace(/\/+$/, ''),
   clientId: read('VITE_THUNDERID_CLIENT_ID') ?? '',
   endpoints: readEndpoints(),
+  resource: read('VITE_THUNDERID_RESOURCE'),
   scopes: (read('VITE_THUNDERID_SCOPES') ?? 'openid profile email').split(/\s+/).filter(Boolean),
   storage: readStorage(read('VITE_THUNDERID_STORAGE')),
 };
