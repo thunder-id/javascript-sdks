@@ -8,9 +8,9 @@ import {
   getDefaultI18nBundles,
   substituteTranslationParams,
 } from '@thunderid/browser';
-import {flushPromises, mount} from '@vue/test-utils';
-import {Mock, beforeEach, describe, expect, it, vi} from 'vitest';
-import {h, ref} from 'vue';
+import {type DOMWrapper, enableAutoUnmount, flushPromises, mount} from '@vue/test-utils';
+import {Mock, afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
+import {h, nextTick, ref} from 'vue';
 import BaseOrganizationUnitSwitcher, {
   type OrganizationUnitSwitcherRenderProps,
 } from '../../../components/account/organization-unit-switcher/BaseOrganizationUnitSwitcher';
@@ -44,14 +44,22 @@ const createI18nContext = (): I18nContextValue =>
     },
   }) as unknown as I18nContextValue;
 
-const mountSwitcher = (props: Record<string, unknown> = {}, switchOrganizationUnit: Mock = vi.fn(), slots = {}) =>
+enableAutoUnmount(afterEach);
+
+const mountSwitcher = (
+  props: Record<string, unknown> = {},
+  switchOrganizationUnit: Mock = vi.fn(),
+  slots = {},
+  currentOrganizationUnit: {id: string; name?: string} | null = null,
+) =>
   mount(OrganizationUnitSwitcher, {
+    attachTo: document.body,
     global: {
       provide: {
         [I18N_KEY as symbol]: createI18nContext(),
         [THUNDERID_KEY as symbol]: {
           baseUrl: 'https://localhost:8090',
-          currentOrganizationUnit: ref(null),
+          currentOrganizationUnit: ref(currentOrganizationUnit),
           instanceId: 0,
           switchOrganizationUnit,
           vendor: 'thunderid',
@@ -61,6 +69,25 @@ const mountSwitcher = (props: Record<string, unknown> = {}, switchOrganizationUn
     props,
     slots,
   });
+
+const mountBase = (props: Record<string, unknown>, slots = {}) =>
+  mount(BaseOrganizationUnitSwitcher, {
+    attachTo: document.body,
+    global: {provide: {[I18N_KEY as symbol]: createI18nContext()}},
+    props,
+    slots,
+  });
+
+type Mounted = ReturnType<typeof mountBase>;
+
+const field = (wrapper: Mounted): DOMWrapper<HTMLButtonElement> =>
+  wrapper.get<HTMLButtonElement>('button[aria-haspopup="listbox"]');
+
+const options = (wrapper: Mounted): DOMWrapper<Element>[] => wrapper.findAll('[role="option"]');
+
+const openMenu = async (wrapper: Mounted): Promise<void> => {
+  await field(wrapper).trigger('click');
+};
 
 describe('OrganizationUnitSwitcher', () => {
   beforeEach(() => {
@@ -74,70 +101,80 @@ describe('OrganizationUnitSwitcher', () => {
     });
   });
 
-  it('lists the accessible units with the scope and marks the current one', async () => {
-    const wrapper = mountSwitcher({scope: 'siblings'});
+  it('shows the current unit under a small label and lists the units with the scope in a menu', async () => {
+    const wrapper: Mounted = mountSwitcher({scope: 'siblings'});
     await flushPromises();
 
     expect(mockGetUnits).toHaveBeenCalledWith(
       expect.objectContaining({baseUrl: 'https://localhost:8090', limit: 10, offset: 0, scope: 'siblings'}),
     );
-    const items = wrapper.findAll('li');
-    expect(items).toHaveLength(2);
-    expect(items[0].attributes('aria-current')).toBe('true');
-    expect(items[0].text()).toContain('Current');
-    expect(items[1].find('button').text()).toBe('Switch');
+    expect(field(wrapper).text()).toBe('OrganizationAcme OU 1');
+    expect(field(wrapper).attributes('aria-expanded')).toBe('false');
+    expect(wrapper.find('[role="listbox"]').exists()).toBe(false);
+
+    await openMenu(wrapper);
+
+    expect(field(wrapper).attributes('aria-expanded')).toBe('true');
+    expect(options(wrapper)).toHaveLength(2);
+    expect(options(wrapper)[0].attributes('aria-selected')).toBe('true');
+    expect(options(wrapper)[1].attributes('aria-selected')).toBe('false');
+    expect(options(wrapper)[1].text()).toContain('acme-ou-2');
   });
 
-  it('switches through switchOrganizationUnit and emits switch', async () => {
+  it('switches through switchOrganizationUnit, closes the menu and emits switch', async () => {
     const switchOrganizationUnit: Mock = vi.fn().mockResolvedValue({sub: 'u'});
-    const wrapper = mountSwitcher({}, switchOrganizationUnit);
+    const wrapper: Mounted = mountSwitcher({}, switchOrganizationUnit);
     await flushPromises();
 
-    await wrapper.findAll('li')[1].find('button').trigger('click');
+    await openMenu(wrapper);
+    await options(wrapper)[1].trigger('click');
     await flushPromises();
 
     expect(switchOrganizationUnit).toHaveBeenCalledWith('ou-2');
     expect(wrapper.emitted('switch')?.[0]?.[0]).toEqual(units[1]);
-    expect(wrapper.findAll('li')[1].attributes('aria-current')).toBe('true');
+    expect(wrapper.find('[role="listbox"]').exists()).toBe(false);
+    expect(field(wrapper).text()).toBe('OrganizationAcme OU 2');
   });
 
   it('lets onSelect take over the switch', async () => {
     const switchOrganizationUnit: Mock = vi.fn();
     const onSelect: Mock = vi.fn();
-    const wrapper = mountSwitcher({onSelect}, switchOrganizationUnit);
+    const wrapper: Mounted = mountSwitcher({onSelect}, switchOrganizationUnit);
     await flushPromises();
 
-    await wrapper.findAll('li')[1].find('button').trigger('click');
+    await openMenu(wrapper);
+    await options(wrapper)[1].trigger('click');
 
     expect(onSelect).toHaveBeenCalledWith(units[1]);
     expect(switchOrganizationUnit).not.toHaveBeenCalled();
   });
 
-  it('shows a translated message when the unit cannot be used, keeping the current unit', async () => {
+  it('shows a translated message under the field when the unit cannot be used, keeping the current unit', async () => {
     const switchOrganizationUnit: Mock = vi
       .fn()
       .mockRejectedValue(
         new ThunderIDAPIError('unauthorized_client', OrganizationUnitSwitchErrorCodes.UnauthorizedClient, 'browser'),
       );
-    const wrapper = mountSwitcher({}, switchOrganizationUnit);
+    const wrapper: Mounted = mountSwitcher({}, switchOrganizationUnit);
     await flushPromises();
 
-    await wrapper.findAll('li')[1].find('button').trigger('click');
+    await openMenu(wrapper);
+    await options(wrapper)[1].trigger('click');
     await flushPromises();
 
-    expect(wrapper.text()).toContain('This application cannot be used from Acme OU 2.');
-    expect(wrapper.findAll('li')[0].attributes('aria-current')).toBe('true');
+    expect(wrapper.get('[role="alert"]').text()).toBe('This application cannot be used from Acme OU 2.');
+    expect(field(wrapper).text()).toBe('OrganizationAcme OU 1');
   });
 
   it('shows a translated message when the units cannot be loaded', async () => {
     mockGetUnits.mockRejectedValueOnce(new Error('boom'));
-    const wrapper = mountSwitcher();
+    const wrapper: Mounted = mountSwitcher();
     await flushPromises();
 
-    expect(wrapper.text()).toContain('The organization units could not be loaded.');
+    expect(wrapper.get('[role="alert"]').text()).toBe('The organization units could not be loaded.');
   });
 
-  it('pages through the units', async () => {
+  it('pages through the units from inside the menu', async () => {
     mockGetUnits.mockResolvedValue({
       count: 2,
       current: 'ou-1',
@@ -145,20 +182,38 @@ describe('OrganizationUnitSwitcher', () => {
       startIndex: 1,
       totalResults: 5,
     });
-    const wrapper = mountSwitcher({limit: 2});
+    const wrapper: Mounted = mountSwitcher({limit: 2});
     await flushPromises();
 
-    const next = wrapper.findAll('button').find((button) => button.text() === 'Next');
+    await openMenu(wrapper);
+    const next: DOMWrapper<Element> | undefined = wrapper
+      .findAll('button')
+      .find((button: DOMWrapper<Element>) => button.text() === 'Next');
     await next!.trigger('click');
     await flushPromises();
 
     expect(mockGetUnits).toHaveBeenLastCalledWith(expect.objectContaining({limit: 2, offset: 2}));
+    expect(wrapper.find('[role="listbox"]').exists()).toBe(true);
+  });
+
+  it('shows the current unit from the session when the list does not include it', async () => {
+    mockGetUnits.mockResolvedValue({
+      count: 2,
+      current: 'ou-9',
+      organizationUnits: units,
+      startIndex: 1,
+      totalResults: 2,
+    });
+    const wrapper: Mounted = mountSwitcher({}, vi.fn(), {}, {id: 'ou-9', name: 'Initech'});
+    await flushPromises();
+
+    expect(field(wrapper).text()).toBe('OrganizationInitech');
   });
 
   it('hands everything to a custom render through the default slot', async () => {
     const switchOrganizationUnit: Mock = vi.fn().mockResolvedValue({sub: 'u'});
     let received: OrganizationUnitSwitcherRenderProps | undefined;
-    const wrapper = mountSwitcher({}, switchOrganizationUnit, {
+    const wrapper: Mounted = mountSwitcher({}, switchOrganizationUnit, {
       default: (props: OrganizationUnitSwitcherRenderProps) => {
         received = props;
         return props.organizationUnits.map((unit: AccessibleOrganizationUnit) =>
@@ -168,8 +223,15 @@ describe('OrganizationUnitSwitcher', () => {
     });
     await flushPromises();
 
-    expect(wrapper.findAll('li')).toHaveLength(0);
-    expect(received).toMatchObject({current: 'ou-1', isLoading: false, limit: 10, offset: 0, totalResults: 2});
+    expect(wrapper.find('button[aria-haspopup="listbox"]').exists()).toBe(false);
+    expect(received).toMatchObject({
+      current: 'ou-1',
+      currentName: 'Acme OU 1',
+      isLoading: false,
+      limit: 10,
+      offset: 0,
+      totalResults: 2,
+    });
     await wrapper.findAll('a.custom')[1].trigger('click');
     await flushPromises();
     expect(switchOrganizationUnit).toHaveBeenCalledWith('ou-2');
@@ -177,29 +239,96 @@ describe('OrganizationUnitSwitcher', () => {
 });
 
 describe('BaseOrganizationUnitSwitcher', () => {
-  const mountBase = (props: Record<string, unknown>, slots = {}) =>
-    mount(BaseOrganizationUnitSwitcher, {
-      global: {provide: {[I18N_KEY as symbol]: createI18nContext()}},
-      props,
-      slots,
-    });
-
-  it('renders the units and calls onSwitch for another unit only', async () => {
+  it('calls onSwitch for another unit and closes the menu', async () => {
     const onSwitch: Mock = vi.fn();
-    const wrapper = mountBase({current: 'ou-2', onSwitch, organizationUnits: units, totalResults: 2});
+    const wrapper: Mounted = mountBase({current: 'ou-2', onSwitch, organizationUnits: units, totalResults: 2});
 
-    expect(wrapper.findAll('li')[1].text()).toContain('Current');
-    await wrapper.findAll('li')[0].find('button').trigger('click');
+    expect(field(wrapper).text()).toBe('OrganizationAcme OU 2');
+    await openMenu(wrapper);
+    await options(wrapper)[0].trigger('click');
+
     expect(onSwitch).toHaveBeenCalledWith(units[0]);
+    expect(wrapper.find('[role="listbox"]').exists()).toBe(false);
   });
 
-  it('shows the empty and loading states', () => {
-    expect(mountBase({organizationUnits: []}).text()).toContain('No organization units are available.');
-    expect(mountBase({isLoading: true}).text()).toContain('Loading organization units…');
+  it('closes without a switch when the current unit is picked', async () => {
+    const onSwitch: Mock = vi.fn();
+    const wrapper: Mounted = mountBase({current: 'ou-1', onSwitch, organizationUnits: units, totalResults: 2});
+
+    await openMenu(wrapper);
+    await options(wrapper)[0].trigger('click');
+
+    expect(onSwitch).not.toHaveBeenCalled();
+    expect(wrapper.find('[role="listbox"]').exists()).toBe(false);
+  });
+
+  it('moves through the units with the keyboard and closes on Escape', async () => {
+    const onSwitch: Mock = vi.fn();
+    const wrapper: Mounted = mountBase({current: 'ou-1', onSwitch, organizationUnits: units, totalResults: 2});
+
+    // An arrow on the closed field opens the menu on the current unit.
+    await field(wrapper).trigger('keydown', {key: 'ArrowDown'});
+    await nextTick();
+    expect(document.activeElement).toBe(options(wrapper)[0].element);
+
+    await options(wrapper)[0].trigger('keydown', {key: 'ArrowDown'});
+    expect(document.activeElement).toBe(options(wrapper)[1].element);
+    await options(wrapper)[1].trigger('keydown', {key: 'ArrowDown'});
+    expect(document.activeElement).toBe(options(wrapper)[0].element);
+
+    await options(wrapper)[0].trigger('keydown', {key: 'Escape'});
+
+    expect(wrapper.find('[role="listbox"]').exists()).toBe(false);
+    expect(document.activeElement).toBe(field(wrapper).element);
+    expect(onSwitch).not.toHaveBeenCalled();
+  });
+
+  it('closes when the user clicks outside', async () => {
+    const wrapper: Mounted = mountBase({current: 'ou-1', organizationUnits: units, totalResults: 2});
+
+    await openMenu(wrapper);
+    document.body.dispatchEvent(new MouseEvent('mousedown', {bubbles: true}));
+    await nextTick();
+
+    expect(wrapper.find('[role="listbox"]').exists()).toBe(false);
+  });
+
+  it('shows the unit being switched to and disables the field', () => {
+    const wrapper: Mounted = mountBase({
+      current: 'ou-1',
+      organizationUnits: units,
+      switchingId: 'ou-2',
+      totalResults: 2,
+    });
+
+    expect(field(wrapper).text()).toBe('OrganizationSwitching to Acme OU 2…');
+    expect(field(wrapper).element.disabled).toBe(true);
+  });
+
+  it('uses the given label, or none', () => {
+    expect(field(mountBase({current: 'ou-1', organizationUnits: units, title: 'Workspace'})).text()).toBe(
+      'WorkspaceAcme OU 1',
+    );
+    expect(field(mountBase({current: 'ou-1', organizationUnits: units, title: ''})).text()).toBe('Acme OU 1');
+  });
+
+  it('shows a placeholder, then the loading and empty states in the menu', async () => {
+    const empty: Mounted = mountBase({organizationUnits: []});
+
+    expect(field(empty).text()).toBe('OrganizationSelect an organization');
+    await openMenu(empty);
+    expect(empty.text()).toContain('No organization units are available.');
+    expect(empty.find('[role="listbox"]').exists()).toBe(false);
+
+    const loading: Mounted = mountBase({isLoading: true});
+
+    expect(field(loading).text()).toBe('OrganizationLoading organization units…');
+    await openMenu(loading);
+    expect(loading.get('[role="status"]').text()).toBe('Loading organization units…');
   });
 
   it('supports a custom render through the default slot', () => {
-    const wrapper = mountBase(
+    const wrapper: Mounted = mountBase(
       {current: 'ou-1', organizationUnits: units, switchingId: 'ou-2', totalResults: 2},
       {
         default: (props: OrganizationUnitSwitcherRenderProps) =>

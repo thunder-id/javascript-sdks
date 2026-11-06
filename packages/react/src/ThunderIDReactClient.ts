@@ -20,6 +20,7 @@ import {
   executeEmbeddedSignUpFlow,
   executeEmbeddedRecoveryFlow,
   EmbeddedSignInFlowStatus,
+  EmbeddedSignUpFlowResponse,
   EmbeddedSignUpFlowStatus,
   resolveResourceEndpoint,
 } from '@thunderid/browser';
@@ -177,6 +178,11 @@ class ThunderIDReactClient<T extends ThunderIDReactConfig = ThunderIDReactConfig
           url: resolveResourceEndpoint('flowExecute', config, arg2?.url),
         });
 
+        // A flow for an authorization request posts its SSO sessions to the callback instead.
+        if (!authId && response) {
+          await this.storeFlowSessions(response);
+        }
+
         if (
           response &&
           typeof response === 'object' &&
@@ -241,6 +247,11 @@ class ThunderIDReactClient<T extends ThunderIDReactConfig = ThunderIDReactConfig
       payload: typeof firstArg === 'object' && 'flowType' in firstArg ? {...firstArg, verbose: true} : firstArg,
       url: resolveResourceEndpoint('flowExecute', config),
     });
+
+    // A flow for an authorization request posts its SSO sessions to the callback instead.
+    if (!authId && response) {
+      await this.storeFlowSessions(response as EmbeddedSignUpFlowResponse);
+    }
 
     if (
       response &&

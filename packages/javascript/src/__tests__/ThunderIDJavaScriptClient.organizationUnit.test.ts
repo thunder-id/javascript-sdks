@@ -1,6 +1,7 @@
 // Copyright 2026 The ThunderID Authors
 // SPDX-License-Identifier: Apache-2.0
 
+/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-assignment */
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
 import {DefaultCrypto} from '../DefaultCrypto';
 import type {Storage} from '../models/store';
@@ -379,6 +380,187 @@ describe('ThunderIDJavaScriptClient organization units and OAuth extensions', ()
       const client = await newClient();
 
       await expect(client.introspectToken('')).rejects.toMatchObject({code: 'introspectToken-ValidationError-002'});
+    });
+  });
+  describe('switching with the device secret', () => {
+    const DEVICE_SECRET = 'device-secret-jwt';
+    const TOKEN_EXCHANGE = 'urn:ietf:params:oauth:grant-type:token-exchange';
+
+    const signedIn = async (config: Record<string, unknown> = {}): Promise<any> => {
+      const client = await newClient({scopes: ['openid', 'device_sso'], ...config});
+      await client.storageManager.setSessionData({
+        access_token: 'old-at',
+        created_at: 1,
+        device_secret: DEVICE_SECRET,
+        expires_in: '3600',
+        flow_sessions: [{flowIdentifier: 'f1', sessionHandle: 'h1'}],
+        id_token: 'old-id',
+        refresh_token: 'old-rt',
+        scope: 'openid',
+        token_type: 'Bearer',
+      });
+      vi.spyOn(client.authHelper, 'validateIdToken').mockResolvedValue(true);
+
+      return client;
+    };
+
+    it('exchanges the device secret at the unit token endpoint', async () => {
+      const client = await signedIn();
+      const fetchMock = vi.fn().mockResolvedValue(jsonResponse({access_token: 'new-at', id_token: 'new-id'}));
+      vi.stubGlobal('fetch', fetchMock);
+
+      const result = await client.switchOrganizationUnitWithDeviceSecret('ou 1/x');
+
+      expect(result).toMatchObject({tokenResponse: {accessToken: 'new-at', idToken: 'new-id'}});
+      const [url, init] = fetchMock.mock.calls[0];
+      expect(url).toBe('https://example.com/ou/ou%201%2Fx/oauth2/token');
+      expect(Object.fromEntries(init.body as URLSearchParams)).toEqual({
+        client_id: 'test-client',
+        grant_type: TOKEN_EXCHANGE,
+        scope: 'openid device_sso',
+        subject_token: DEVICE_SECRET,
+        subject_token_type: 'urn:ietf:params:oauth:token-type:jwt',
+      });
+      expect(init.headers.Authorization).toBeUndefined();
+    });
+
+    it('authenticates a confidential client with its secret', async () => {
+      const client = await signedIn({clientSecret: 'secret'});
+      const fetchMock = vi.fn().mockResolvedValue(jsonResponse({access_token: 'new-at'}));
+      vi.stubGlobal('fetch', fetchMock);
+
+      await client.switchOrganizationUnitWithDeviceSecret('ou-1');
+
+      const [, init] = fetchMock.mock.calls[0];
+      expect(init.headers.Authorization).toBe(`Basic ${Buffer.from('test-client:secret').toString('base64')}`);
+      expect((init.body as URLSearchParams).has('client_secret')).toBe(false);
+    });
+
+    it('replaces every token of the session and keeps its SSO credentials', async () => {
+      const client = await signedIn();
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValue(jsonResponse({access_token: 'new-at', id_token: 'new-id'})));
+
+      await client.switchOrganizationUnitWithDeviceSecret('ou-1');
+
+      const session = await client.storageManager.getSessionData();
+      expect(session).toMatchObject({
+        access_token: 'new-at',
+        device_secret: DEVICE_SECRET,
+        flow_sessions: [{flowIdentifier: 'f1', sessionHandle: 'h1'}],
+        id_token: 'new-id',
+      });
+      expect(session.refresh_token).toBeUndefined();
+    });
+
+    it('keeps the session when the new ID token fails validation', async () => {
+      const client = await signedIn();
+      client.authHelper.validateIdToken.mockRejectedValue(new Error('bad signature'));
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValue(jsonResponse({access_token: 'new-at', id_token: 'new-id'})));
+
+      await expect(client.switchOrganizationUnitWithDeviceSecret('ou-1')).rejects.toThrow('bad signature');
+      expect(await client.storageManager.getSessionData()).toMatchObject({
+        access_token: 'old-at',
+        refresh_token: 'old-rt',
+      });
+    });
+
+    it('reports a request that does not reach the server', async () => {
+      const client = await signedIn();
+      vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('offline')));
+
+      await expect(client.switchOrganizationUnitWithDeviceSecret('ou-1')).rejects.toMatchObject({
+        code: 'JS-AUTH_CORE-SOUDS-NE02',
+      });
+    });
+
+    it('refuses when discovery names no token endpoint', async () => {
+      const client = await newClient({}, {authorization_endpoint: 'https://example.com/oauth2/authorize'});
+      await client.storageManager.setSessionData({access_token: 'old-at', device_secret: DEVICE_SECRET});
+
+      await expect(client.switchOrganizationUnitWithDeviceSecret('ou-1')).rejects.toMatchObject({
+        code: 'JS-AUTH_CORE-SOUDS-NF01',
+      });
+    });
+
+    it('sends nothing when the session holds no device secret', async () => {
+      const client = await newClient();
+      await client.storageManager.setSessionData({access_token: 'old-at'});
+      const fetchMock = vi.fn();
+      vi.stubGlobal('fetch', fetchMock);
+
+      expect(await client.switchOrganizationUnitWithDeviceSecret('ou-1')).toBeUndefined();
+      expect(fetchMock).not.toHaveBeenCalled();
+    });
+
+    it('returns the OAuth error and leaves the session as it was', async () => {
+      const client = await signedIn();
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValue(jsonResponse({error: 'interaction_required'}, false, 400)));
+
+      expect(await client.switchOrganizationUnitWithDeviceSecret('ou-1')).toEqual({error: 'interaction_required'});
+      expect(await client.storageManager.getSessionData()).toMatchObject({
+        access_token: 'old-at',
+        device_secret: DEVICE_SECRET,
+        refresh_token: 'old-rt',
+      });
+    });
+
+    it.each(['invalid_request', 'invalid_grant'])('drops a device secret the server refuses with %s', async (error) => {
+      const client = await signedIn();
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValue(jsonResponse({error}, false, 400)));
+
+      expect(await client.switchOrganizationUnitWithDeviceSecret('ou-1')).toEqual({error});
+      const session = await client.storageManager.getSessionData();
+      expect(session.device_secret).toBeUndefined();
+      expect(session.access_token).toBe('old-at');
+    });
+
+    it('reports a response without an OAuth error as a server error', async () => {
+      const client = await signedIn();
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValue(jsonResponse('busy', false, 503)));
+
+      expect(await client.switchOrganizationUnitWithDeviceSecret('ou-1')).toEqual({error: 'server_error'});
+    });
+  });
+
+  describe('SSO session handles from flow steps', () => {
+    it('keeps the handles a step returned and drops the ones it ended', async () => {
+      const client = await newClient();
+
+      await client.storeFlowSessions({
+        sessionData: [
+          {expiresIn: 600, flowIdentifier: 'f1', sessionHandle: 'h1'},
+          {flowIdentifier: 'f2', sessionHandle: 'h2'},
+        ],
+      });
+      await client.storeFlowSessions({
+        clearedSessions: ['f2'],
+        sessionData: [{expiresIn: 600, flowIdentifier: 'f1', sessionHandle: 'h1b'}],
+      });
+
+      expect(await client.getFlowSessions()).toEqual([{flowIdentifier: 'f1', sessionHandle: 'h1b'}]);
+    });
+
+    it('leaves out a handle past its expiry', async () => {
+      vi.useFakeTimers();
+      const client = await newClient();
+      await client.storeFlowSessions({sessionData: [{expiresIn: 1, flowIdentifier: 'f1', sessionHandle: 'h1'}]});
+
+      vi.advanceTimersByTime(2000);
+
+      expect(await client.getFlowSessions()).toEqual([]);
+    });
+
+    it('keeps the tokens of the session it stores the handles in', async () => {
+      const client = await newClient();
+      await client.storageManager.setSessionData({access_token: 'at'});
+
+      await client.storeFlowSessions({sessionData: [{flowIdentifier: 'f1', sessionHandle: 'h1'}]});
+      await client.storeFlowSessions({});
+
+      expect(await client.storageManager.getSessionData()).toMatchObject({
+        access_token: 'at',
+        flow_sessions: [{flowIdentifier: 'f1', sessionHandle: 'h1'}],
+      });
     });
   });
 });

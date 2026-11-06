@@ -191,9 +191,7 @@ export interface I18nTranslations {
   /* |---------------------------------------------------------------| */
 
   'organization_unit.switcher.label': string;
-  'organization_unit.switcher.heading': string;
-  'organization_unit.switcher.current': string;
-  'organization_unit.switcher.switch': string;
+  'organization_unit.switcher.placeholder': string;
   'organization_unit.switcher.switching': string;
   'organization_unit.switcher.loading': string;
   'organization_unit.switcher.empty': string;

@@ -188,11 +188,9 @@ const translations: I18nTranslations = {
   'organization.profile.error': '組織の読み込みに失敗しました',
 
   /* Organization unit switcher */
-  'organization_unit.switcher.label': '組織単位',
-  'organization_unit.switcher.heading': '組織単位を切り替え',
-  'organization_unit.switcher.current': '現在',
-  'organization_unit.switcher.switch': '切り替え',
-  'organization_unit.switcher.switching': '切り替え中…',
+  'organization_unit.switcher.label': '組織',
+  'organization_unit.switcher.placeholder': '組織を選択',
+  'organization_unit.switcher.switching': '{name} に切り替え中…',
   'organization_unit.switcher.loading': '組織単位を読み込んでいます…',
   'organization_unit.switcher.empty': '利用できる組織単位はありません。',
   'organization_unit.switcher.previous': '前へ',

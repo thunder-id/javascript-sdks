@@ -1,4 +1,4 @@
-// Copyright 2025 The ThunderID Authors
+// Copyright 2025-2026 The ThunderID Authors
 // SPDX-License-Identifier: Apache-2.0
 
 import {
@@ -19,6 +19,7 @@ import {
   isEmpty,
   EmbeddedSignInFlowResponse,
   EmbeddedSignInFlowStatus,
+  EmbeddedSignUpFlowResponse,
   EmbeddedSignUpFlowStatus,
   StorageManager,
   AuthClientConfig,
@@ -186,6 +187,11 @@ class ThunderIDVueClient<T extends ThunderIDVueConfig = ThunderIDVueConfig> exte
           url: resolveResourceEndpoint('flowExecute', configData, arg2?.url),
         });
 
+        // A flow for an authorization request posts its SSO sessions to the callback instead.
+        if (!authId && response) {
+          await this.storeFlowSessions(response);
+        }
+
         if (
           response &&
           typeof response === 'object' &&
@@ -244,6 +250,11 @@ class ThunderIDVueClient<T extends ThunderIDVueConfig = ThunderIDVueConfig> exte
       payload: typeof firstArg === 'object' && 'flowType' in firstArg ? {...firstArg, verbose: true} : firstArg,
       url: resolveResourceEndpoint('flowExecute', configData),
     });
+
+    // A flow for an authorization request posts its SSO sessions to the callback instead.
+    if (!authId && response) {
+      await this.storeFlowSessions(response as EmbeddedSignUpFlowResponse);
+    }
 
     if (
       response &&

@@ -214,5 +214,158 @@ describe('ThunderIDBrowserClient.switchOrganizationUnit()', () => {
       });
       expect(await sessionOf(client)).toMatchObject({access_token: 'old-at'});
     });
+
+    it('presents the kept session handles on the request that starts the flow, and keeps them', async () => {
+      const client = await createClient({mode: 'embedded'} as any);
+      await (client as any).getStorageManager().setSessionData({
+        flow_sessions: [{flowIdentifier: 'f1', sessionHandle: 'h1'}],
+      });
+      const assertion: string = encode({
+        exp: Math.floor(Date.now() / 1000) + 600,
+        iat: Math.floor(Date.now() / 1000),
+        sub: 'u1',
+      });
+      const fetchMock = vi.fn().mockResolvedValue(flowResponse({assertion, flowStatus: 'COMPLETE'}));
+      vi.stubGlobal('fetch', fetchMock);
+
+      await client.switchOrganizationUnit('ou-1');
+
+      expect(JSON.parse(fetchMock.mock.calls[0][1].body).sessionData).toEqual([
+        {flowIdentifier: 'f1', sessionHandle: 'h1'},
+      ]);
+      expect(await sessionOf(client)).toMatchObject({
+        access_token: assertion,
+        flow_sessions: [{flowIdentifier: 'f1', sessionHandle: 'h1'}],
+      });
+    });
+
+    it('sends no session handles when none are kept', async () => {
+      const client = await createClient({mode: 'embedded'} as any);
+      const fetchMock = vi.fn().mockResolvedValue(flowResponse({executionId: 'e1', flowStatus: 'INCOMPLETE'}));
+      vi.stubGlobal('fetch', fetchMock);
+
+      await expect(client.switchOrganizationUnit('ou-1')).rejects.toBeDefined();
+
+      expect(JSON.parse(fetchMock.mock.calls[0][1].body)).not.toHaveProperty('sessionData');
+    });
+
+    it('keeps a session handle the switch returned', async () => {
+      const client = await createClient({mode: 'embedded'} as any);
+      const assertion: string = encode({iat: Math.floor(Date.now() / 1000), sub: 'u1'});
+      vi.stubGlobal(
+        'fetch',
+        vi.fn().mockResolvedValue(
+          flowResponse({
+            assertion,
+            flowStatus: 'COMPLETE',
+            sessionData: [{flowIdentifier: 'f2', sessionHandle: 'h2'}],
+          }),
+        ),
+      );
+
+      await client.switchOrganizationUnit('ou-1');
+
+      expect((await sessionOf(client)).flow_sessions).toEqual([{flowIdentifier: 'f2', sessionHandle: 'h2'}]);
+    });
+  });
+
+  describe('with a device secret', () => {
+    const DEVICE_SECRET = 'device-secret-jwt';
+
+    const tokenResponse = (body: unknown, ok = true, status = 200): unknown => ({
+      json: () => Promise.resolve(body),
+      ok,
+      status,
+      statusText: ok ? 'OK' : 'Bad Request',
+      text: () => Promise.resolve(JSON.stringify(body)),
+    });
+
+    const withDeviceSecret = async (): Promise<RecordingClient> => {
+      const client = await createClient();
+      await (client as any).getStorageManager().setSessionData({device_secret: DEVICE_SECRET});
+      vi.spyOn((client as any).authHelper, 'validateIdToken').mockResolvedValue(true);
+
+      return client;
+    };
+
+    it('switches by exchanging the device secret, with no iframe and no redirect', async () => {
+      const client = await withDeviceSecret();
+      const silent = vi.spyOn((client as any)._authHelper, 'signInSilently');
+      const idToken: string = encode({
+        exp: Math.floor(Date.now() / 1000) + 600,
+        iat: Math.floor(Date.now() / 1000),
+        ouId: 'ou-1',
+        sub: 'u1',
+      });
+      const fetchMock = vi
+        .fn()
+        .mockResolvedValue(tokenResponse({access_token: 'new-at', expires_in: 3600, id_token: idToken}));
+      vi.stubGlobal('fetch', fetchMock);
+
+      const user = await client.switchOrganizationUnit('ou-1');
+
+      expect(fetchMock.mock.calls[0][0]).toBe('https://example.com/ou/ou-1/oauth2/token');
+      expect(user).toMatchObject({ouId: 'ou-1'});
+      expect(silent).not.toHaveBeenCalled();
+      expect(client.signInUrls).toEqual([]);
+      expect(await sessionOf(client)).toMatchObject({access_token: 'new-at', device_secret: DEVICE_SECRET});
+      expect(await client.getCurrentOrganizationUnit()).toEqual({id: 'ou-1'});
+    });
+
+    it('signs in at the unit by redirect, without the iframe, when the server needs the user', async () => {
+      const client = await withDeviceSecret();
+      const silent = vi.spyOn((client as any)._authHelper, 'signInSilently');
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValue(tokenResponse({error: 'interaction_required'}, false, 400)));
+
+      await expect(client.switchOrganizationUnit('ou-1')).resolves.toBeUndefined();
+
+      expect(silent).not.toHaveBeenCalled();
+      expect(client.signInUrls).toHaveLength(1);
+      expect(new URL(client.signInUrls[0]).pathname).toBe('/ou/ou-1/oauth2/authorize');
+      expect(new URL(client.signInUrls[0]).searchParams.has('prompt')).toBe(false);
+      expect(await sessionOf(client)).toMatchObject({access_token: 'old-at', device_secret: DEVICE_SECRET});
+    });
+
+    it('fails with interaction_required when it may not redirect', async () => {
+      const client = await withDeviceSecret();
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValue(tokenResponse({error: 'interaction_required'}, false, 400)));
+
+      await expect(client.switchOrganizationUnit('ou-1', {redirect: false})).rejects.toMatchObject({
+        code: OrganizationUnitSwitchErrorCodes.InteractionRequired,
+      });
+      expect(client.signInUrls).toEqual([]);
+    });
+
+    it('fails with unauthorized_client and keeps the session', async () => {
+      const client = await withDeviceSecret();
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValue(tokenResponse({error: 'unauthorized_client'}, false, 400)));
+
+      await expect(client.switchOrganizationUnit('ou-x')).rejects.toMatchObject({
+        code: OrganizationUnitSwitchErrorCodes.UnauthorizedClient,
+        serverError: {code: 'unauthorized_client'},
+      });
+      expect(client.signInUrls).toEqual([]);
+      expect(await sessionOf(client)).toMatchObject({access_token: 'old-at', device_secret: DEVICE_SECRET});
+    });
+
+    it('drops a device secret the server no longer accepts and signs in at the unit', async () => {
+      const client = await withDeviceSecret();
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValue(tokenResponse({error: 'invalid_request'}, false, 400)));
+
+      await expect(client.switchOrganizationUnit('ou-1')).resolves.toBeUndefined();
+
+      expect(client.signInUrls).toHaveLength(1);
+      expect((await sessionOf(client)).device_secret).toBeUndefined();
+    });
+
+    it('reports any other server error as a failed switch', async () => {
+      const client = await withDeviceSecret();
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValue(tokenResponse({error: 'server_error'}, false, 500)));
+
+      await expect(client.switchOrganizationUnit('ou-1')).rejects.toMatchObject({
+        code: OrganizationUnitSwitchErrorCodes.Failed,
+      });
+      expect(client.signInUrls).toEqual([]);
+    });
   });
 });

@@ -673,7 +673,7 @@ export type {
 } from './models/config';
 export type {TokenEndpointAuthMethod} from './models/token-endpoint-auth';
 export type {ComponentRenderContext, ComponentRenderer, ComponentsExtensions} from './models/extensions/components';
-export type {TokenResponse, IdToken, TokenExchangeRequestConfig} from './models/token';
+export type {TokenResponse, IdToken, TokenExchangeRequestConfig, DeviceSecretSwitchResult} from './models/token';
 export type {BackchannelLogoutResult, LogoutTokenClaims, LogoutTokenValidationOptions} from './models/logout-token';
 export type {AgentConfig} from './models/agent';
 export type {
@@ -1014,7 +1014,7 @@ export type {OIDCEndpoints} from './models/oidc-endpoints';
 export type {OIDCDiscoveryApiResponse} from './models/oidc-discovery';
 export type {Storage, TemporaryStore} from './models/store';
 export type {User, UserProfile, VerifiedAttribute} from './models/user';
-export type {SessionData} from './models/session';
+export type {SessionData, StoredFlowSession} from './models/session';
 export type {BackendBypass, BackendEndpoints, BackendSession, ResolvedBackendEndpoints} from './models/backend';
 export type {TranslationFn} from './models/translation';
 export type {ResolveFlowTemplateLiteralsOptions} from './models/vars';

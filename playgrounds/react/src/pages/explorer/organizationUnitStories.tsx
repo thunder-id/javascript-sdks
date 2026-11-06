@@ -56,7 +56,7 @@ export const ORGANIZATION_UNIT_SWITCHER_STORY: ComponentDef = {
     },
     {control: ['', 'siblings'], description: 'Narrows the list (live only).', name: 'scope', type: "'siblings'"},
     {control: 'number', description: 'Page size.', name: 'limit', type: 'number'},
-    {control: 'text', description: 'Heading.', name: 'title', type: 'string'},
+    {control: 'text', description: 'Label above the current unit.', name: 'title', type: 'string'},
   ],
   defaults: {limit: 2, scope: '', source: 'base', title: ''},
   group: 'User',

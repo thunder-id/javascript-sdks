@@ -20,6 +20,7 @@ export interface OrganizationUnitSwitcherProps
   extends Omit<
     BaseOrganizationUnitSwitcherProps,
     | 'current'
+    | 'currentName'
     | 'error'
     | 'isLoading'
     | 'offset'
@@ -55,8 +56,8 @@ export interface OrganizationUnitSwitcherProps
 }
 
 /**
- * Lists the organization units the signed-in user can access (`/users/me/ous`), marks the current one,
- * and switches the session to another: it signs in again bounded to that unit through
+ * Shows the current organization unit in a field that opens a menu of the units the signed-in user can
+ * access (`/users/me/ous`), and switches the session to the one picked: it signs in again bounded to that unit through
  * `switchOrganizationUnit`, which reuses the SSO session so normally no credentials are asked. A failed
  * switch keeps the session as it was and shows a translated message.
  *
@@ -178,10 +179,15 @@ const OrganizationUnitSwitcher: FC<OrganizationUnitSwitcherProps> = ({
     }
   };
 
+  const current: string | null =
+    (list?.current === '' ? undefined : list?.current) ?? currentOrganizationUnit?.id ?? null;
+
   return (
     <BaseOrganizationUnitSwitcher
       {...rest}
-      current={(list?.current === '' ? undefined : list?.current) ?? currentOrganizationUnit?.id ?? null}
+      current={current}
+      // The session's unit names the field when the page does not list the current unit.
+      currentName={currentOrganizationUnit?.id === current ? (currentOrganizationUnit?.name ?? null) : null}
       error={error}
       isLoading={isLoading}
       limit={limit}

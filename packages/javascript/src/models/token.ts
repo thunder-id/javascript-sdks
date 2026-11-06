@@ -1,4 +1,4 @@
-// Copyright 2020 The ThunderID Authors
+// Copyright 2020-2026 The ThunderID Authors
 // SPDX-License-Identifier: Apache-2.0
 
 import type {AuthorizationDetail} from './oauth-request';
@@ -98,6 +98,11 @@ export interface AccessTokenApiResponse {
   created_at: number;
 
   /**
+   * The device secret, returned by a code exchange whose sign-in asked for the `device_sso` scope.
+   */
+  device_secret?: string;
+
+  /**
    * Raw expiration time in seconds.
    * Indicates how long the access token will be valid
    * from the time it was issued.
@@ -132,6 +137,11 @@ export interface AccessTokenApiResponse {
    */
   token_type: string;
 }
+
+/**
+ * The outcome of a device secret exchange: the new tokens, or the OAuth error the server answered with.
+ */
+export type DeviceSecretSwitchResult = {error: string} | {tokenResponse: TokenResponse};
 
 /**
  * Interface for the standard (required) claims of an ID Token payload.

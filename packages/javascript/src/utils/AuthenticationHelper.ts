@@ -462,10 +462,16 @@ class AuthenticationHelper<T> {
    *
    * @param response - The raw HTTP response from the token endpoint.
    * @param userId - Optional user ID scoping the session.
+   * @param replaceSession - Replace the whole session instead of merging into it, keeping only its device
+   *   secret and SSO session handles, so no token of the previous session survives.
    * @returns A normalized `TokenResponse` object.
    * @throws {ThunderIDAuthException} When the response status is not 200.
    */
-  public async handleTokenResponse(response: Response, userId?: string): Promise<TokenResponse> {
+  public async handleTokenResponse(
+    response: Response,
+    userId?: string,
+    replaceSession = false,
+  ): Promise<TokenResponse> {
     if (response.status !== 200 || !response.ok) {
       throw new ThunderIDAuthException(
         'JS-AUTH_HELPER-HTR-NE01',
@@ -482,7 +488,7 @@ class AuthenticationHelper<T> {
 
     if (shouldValidateIdToken) {
       return this.validateIdToken(parsedResponse.id_token).then(async () => {
-        await this.storageManager.setSessionData(parsedResponse, userId);
+        await this.storeTokenResponse(parsedResponse, userId, replaceSession);
 
         return {
           accessToken: parsedResponse.access_token,
@@ -497,7 +503,7 @@ class AuthenticationHelper<T> {
       });
     }
 
-    await this.storageManager.setSessionData(parsedResponse, userId);
+    await this.storeTokenResponse(parsedResponse, userId, replaceSession);
 
     return {
       accessToken: parsedResponse.access_token,
@@ -509,6 +515,35 @@ class AuthenticationHelper<T> {
       scope: parsedResponse.scope,
       tokenType: parsedResponse.token_type,
     };
+  }
+
+  private async storeTokenResponse(
+    parsedResponse: AccessTokenApiResponse,
+    userId: string | undefined,
+    replaceSession: boolean,
+  ): Promise<void> {
+    if (!replaceSession) {
+      await this.storageManager.setSessionData(parsedResponse, userId);
+
+      return;
+    }
+
+    const previous: Partial<SessionData> = (await this.storageManager.getSessionData(userId)) ?? {};
+    // Session writes merge, and a key left undefined is dropped when stored, so every previous key is
+    // cleared in the same write.
+    const cleared: Partial<SessionData> = Object.fromEntries(
+      Object.keys(previous).map((key: string) => [key, undefined]),
+    );
+
+    await this.storageManager.setSessionData(
+      {
+        ...cleared,
+        device_secret: previous.device_secret,
+        flow_sessions: previous.flow_sessions,
+        ...(parsedResponse as Partial<SessionData>),
+      },
+      userId,
+    );
   }
 }
 
