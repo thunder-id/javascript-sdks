@@ -1,7 +1,7 @@
 // Copyright 2026 The ThunderID Authors
 // SPDX-License-Identifier: Apache-2.0
 
-import {resolveResourceEndpoint} from '@thunderid/javascript';
+import {EmbeddedFlowType, resolveResourceEndpoint} from '@thunderid/javascript';
 import type {ResourceEndpointConfig, ResourceEndpointKey} from '@thunderid/javascript';
 
 // The server side of a management relay: a framework SDK that keeps the access token on the server
@@ -150,4 +150,63 @@ export const matchManagementUrl = (target: unknown, collections: URL[]): URL | u
   });
 
   return allowed ? url : undefined;
+};
+
+/**
+ * Whether a relayed request starts an administrator-initiated flow at `{baseUrl}/flow/execute`, such as
+ * `sendUserAttributeVerification`. Only a start is relayed: a `POST` whose JSON body names the
+ * `ADMIN_INITIATED` flow type and no execution. The server gates such a start on the caller's own
+ * permission, and the user continues it from the link without a token, so the relay never adds the
+ * token to any other flow request.
+ *
+ * @param target - The absolute URL the browser asked for.
+ * @param method - The request method, upper case.
+ * @param body - The serialized request body.
+ * @param baseUrl - The server URL from the configuration.
+ * @returns The parsed URL when the request is such a start, otherwise `undefined`.
+ */
+export const matchAdminInitiatedFlowStart = (
+  target: unknown,
+  method: string,
+  body: unknown,
+  baseUrl: string | undefined,
+): URL | undefined => {
+  if (method !== 'POST' || typeof body !== 'string' || !baseUrl) {
+    return undefined;
+  }
+
+  let executeUrl: URL;
+
+  try {
+    executeUrl = new URL(`${baseUrl.replace(/\/+$/, '')}/flow/execute`);
+  } catch {
+    return undefined;
+  }
+
+  const url: URL | undefined = matchManagementUrl(target, [executeUrl]);
+
+  if (url?.pathname !== executeUrl.pathname || url.search) {
+    return undefined;
+  }
+
+  let payload: unknown;
+
+  try {
+    payload = JSON.parse(body);
+  } catch {
+    return undefined;
+  }
+
+  if (!payload || typeof payload !== 'object') {
+    return undefined;
+  }
+
+  const start: Record<string, unknown> = payload as Record<string, unknown>;
+  // The server accepts case-insensitive keys. Allow only the canonical start fields.
+  const fields: string[] = ['flowType', 'handle', 'inputs', 'verbose'];
+
+  return start['flowType'] === EmbeddedFlowType.AdminInitiated &&
+    Object.keys(start).every((key) => fields.includes(key))
+    ? url
+    : undefined;
 };

@@ -84,6 +84,26 @@ describe('managementRequestAction', () => {
     expect(mockFetch).not.toHaveBeenCalled();
   });
 
+  it('relays the start of an administrator-initiated flow, and no other flow request', async () => {
+    const start = '{"flowType":"ADMIN_INITIATED","handle":"h","inputs":{"attribute":"email","subject":"u-1"}}';
+    mockFetch.mockResolvedValue(replyWith(200, '{"flowStatus":"INCOMPLETE"}'));
+
+    await managementRequestAction({body: start, method: 'POST', url: 'https://id.example.com/flow/execute'});
+    const refused = await managementRequestAction({
+      body: '{"executionId":"e-1","inputs":{"otp":"1"}}',
+      method: 'POST',
+      url: 'https://id.example.com/flow/execute',
+    });
+
+    const [[url, init], ...others] = mockFetch.mock.calls as [string, RequestInit][];
+
+    expect(others).toEqual([]);
+    expect(url).toBe('https://id.example.com/flow/execute');
+    expect(init).toMatchObject({body: start, method: 'POST'});
+    expect(init.headers).toMatchObject({Authorization: 'Bearer server-held-token'});
+    expect(refused.status).toBe(400);
+  });
+
   it.each([
     ['a method the management API does not use', {method: 'PATCH', url: 'https://id.example.com/users'}],
     ['a body that is not a string', {body: {name: 'x'}, method: 'POST', url: 'https://id.example.com/groups'}],

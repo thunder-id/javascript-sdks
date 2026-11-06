@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import {describe, expect, it} from 'vitest';
-import {getManagementCollectionUrls, matchManagementUrl} from '../managementCollections';
+import {getManagementCollectionUrls, matchAdminInitiatedFlowStart, matchManagementUrl} from '../managementCollections';
 
 const baseConfig = {baseUrl: 'https://id.example.com'};
 
@@ -126,5 +126,63 @@ describe('matchManagementUrl', () => {
     ['a non-string', 42],
   ])('refuses %s', (_label: string, target: unknown) => {
     expect(matchManagementUrl(target, collections)).toBeUndefined();
+  });
+});
+
+describe('matchAdminInitiatedFlowStart', () => {
+  const server = 'https://localhost:8090';
+  const start: string = JSON.stringify({
+    flowType: 'ADMIN_INITIATED',
+    handle: 'default-admin-attribute-verification-flow',
+    inputs: {attribute: 'email', subject: 'u-1'},
+  });
+
+  it('relays the start of an administrator-initiated flow', () => {
+    expect(matchAdminInitiatedFlowStart(`${server}/flow/execute`, 'POST', start, `${server}/`)?.toString()).toBe(
+      `${server}/flow/execute`,
+    );
+  });
+
+  it.each<[string, unknown, string, unknown]>([
+    ['another flow type', `${server}/flow/execute`, 'POST', JSON.stringify({flowType: 'ADMINISTRATION', flowId: 'f'})],
+    ['a flow named by ID only', `${server}/flow/execute`, 'POST', JSON.stringify({flowId: 'f'})],
+    [
+      'a continuation',
+      `${server}/flow/execute`,
+      'POST',
+      JSON.stringify({executionId: 'e', flowType: 'ADMIN_INITIATED'}),
+    ],
+    [
+      'a continuation with a differently cased execution ID',
+      `${server}/flow/execute`,
+      'POST',
+      JSON.stringify({ExecutionID: 'e', flowType: 'ADMIN_INITIATED'}),
+    ],
+    [
+      'a second flow type with different casing',
+      `${server}/flow/execute`,
+      'POST',
+      JSON.stringify({flowType: 'ADMIN_INITIATED', FlowType: 'SELF'}),
+    ],
+    [
+      'an administrator-initiated flow with a flow ID',
+      `${server}/flow/execute`,
+      'POST',
+      JSON.stringify({flowId: 'f', flowType: 'ADMIN_INITIATED'}),
+    ],
+    ['a GET', `${server}/flow/execute`, 'GET', start],
+    ['no body', `${server}/flow/execute`, 'POST', undefined],
+    ['a body that is not JSON', `${server}/flow/execute`, 'POST', '{'],
+    ['a JSON array', `${server}/flow/execute`, 'POST', '[]'],
+    ['another path', `${server}/flow/execute/x`, 'POST', start],
+    ['a query', `${server}/flow/execute?x=1`, 'POST', start],
+    ['another origin', 'https://evil.example/flow/execute', 'POST', start],
+    ['an encoded path', `${server}/flow%2Fexecute`, 'POST', start],
+  ])('refuses %s', (_label, target, method, body) => {
+    expect(matchAdminInitiatedFlowStart(target, method, body, server)).toBeUndefined();
+  });
+
+  it('refuses everything without a baseUrl', () => {
+    expect(matchAdminInitiatedFlowStart(`${server}/flow/execute`, 'POST', start, undefined)).toBeUndefined();
   });
 });

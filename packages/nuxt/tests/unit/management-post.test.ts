@@ -90,6 +90,18 @@ describe('POST /api/auth/management', () => {
     expect(mockFetch).not.toHaveBeenCalled();
   });
 
+  it('relays the start of an administrator-initiated flow', async () => {
+    const start = '{"flowType":"ADMIN_INITIATED","handle":"h","inputs":{"attribute":"email","subject":"u-1"}}';
+    mockFetch.mockResolvedValue(replyWith(200, '{"flowStatus":"INCOMPLETE"}'));
+
+    await call({body: start, method: 'POST', url: 'https://id.example.com/flow/execute'});
+
+    expect(mockFetch).toHaveBeenCalledWith(
+      'https://id.example.com/flow/execute',
+      expect.objectContaining({body: start, method: 'POST'}),
+    );
+  });
+
   it.each([
     ['another host', {url: 'https://attacker.example.net/users'}],
     ['a path outside the collections', {url: 'https://id.example.com/oauth2/token'}],
@@ -98,6 +110,10 @@ describe('POST /api/auth/management', () => {
     ['a body that is not a string', {body: {name: 'x'}, method: 'POST', url: 'https://id.example.com/groups'}],
     ['no URL', {}],
     ['no body at all', undefined],
+    [
+      'a flow continuation',
+      {body: '{"executionId":"e-1","inputs":{}}', method: 'POST', url: 'https://id.example.com/flow/execute'},
+    ],
   ])('refuses %s without sending the token anywhere', async (_label, body) => {
     const result = await call(body);
 

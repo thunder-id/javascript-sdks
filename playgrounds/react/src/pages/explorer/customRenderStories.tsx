@@ -354,13 +354,22 @@ const CODE: Record<string, () => Snippet> = {
   }),
   userdetails: () => ({
     imports: ['UserDetails'],
-    jsx: `<UserDetails userId={userId} deletable>
-  {({user, displayName, attributes, groups, onDelete}) => (
+    jsx: `<UserDetails userId={userId} deletable attributeVerification>
+  {({user, displayName, attributes, groups, onDelete, verifiableAttributes, verificationStatusAttributes, verifiedAttributes, onSendVerification, isSendingVerification, sentVerification}) => (
     <Card>
       <CardHeader title={displayName} subheader={user?.type} />
       <CardContent>
+        {sentVerification && <Alert severity="success">Link sent to {sentVerification.maskedDestination}</Alert>}
         {Object.entries(attributes).map(([name, value]) => (
           <Chip key={name} label={\`\${name}: \${value}\`} />
+        ))}
+        {verificationStatusAttributes.map((name) => (
+          <Stack key={name} direction="row">
+            <Chip label={\`\${name}: \${verifiedAttributes?.[name] ? 'verified' : 'not verified'}\`} />
+            {onSendVerification && verifiableAttributes.includes(name) && !verifiedAttributes?.[name] && (
+              <Button loading={isSendingVerification} onClick={() => onSendVerification(name)}>Send link</Button>
+            )}
+          </Stack>
         ))}
         {groups.map((group) => <Chip key={group.id} color="primary" label={group.name} />)}
       </CardContent>
@@ -368,7 +377,7 @@ const CODE: Record<string, () => Snippet> = {
     </Card>
   )}
 </UserDetails>`,
-    otherImports: [MUI_CARD],
+    otherImports: ["import {Alert, Button, Card, CardContent, CardHeader, Chip, Stack} from '@mui/material';"],
   }),
   userlist: () => listSnippet('UserList', 'users'),
   verifyattribute: () => ({
@@ -664,9 +673,10 @@ const RENDER: Record<string, (args: Args, action: Action) => ReactNode> = {
   userdetails: (_args: Args, action: Action) => (
     <Narrow width={480}>
       <BaseUserDetails
-        user={SAMPLE_USERS[0]}
+        user={{...SAMPLE_USERS[0], verifiedAttributes: {}}}
         groups={SAMPLE_MEMBERSHIPS}
         onDelete={() => action('onDelete', SAMPLE_USERS[0].id)}
+        onSendVerification={(attribute: string) => action('onSendVerification', attribute)}
       >
         {UserCard}
       </BaseUserDetails>

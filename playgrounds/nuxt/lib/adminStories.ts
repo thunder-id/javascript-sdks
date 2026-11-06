@@ -801,6 +801,96 @@ const applicationDetailsDef = (spec: DetailsSpec): ComponentDef => {
   };
 };
 
+/** The user details story plus administrator-initiated email verification on both variants. */
+const userDetailsDef = (spec: DetailsSpec): ComponentDef => {
+  const def: ComponentDef = detailsDef(spec);
+  const stateCount: number = STATE_CONTROLS.length;
+
+  return {
+    ...def,
+    code: (args: Args): Snippet => {
+      if (isLive(args)) return def.code(args);
+
+      const verify: boolean = bool(args, 'attributeVerification');
+
+      return {
+        imports: [],
+        script: [
+          ...spec.baseScript,
+          ...(verify
+            ? ['const sentVerification = ref(null);', 'const handleSendVerification = (attribute: string): void => {};']
+            : []),
+        ],
+        template: tag(
+          `Base${spec.name}`,
+          omit(args, 'source', 'resourceId', 'emailVerified', 'linkSent', ...spec.liveFlags),
+          {
+            extra: [
+              ...spec.baseExtra,
+              '@delete="handleDelete"',
+              ...(verify
+                ? ['@send-verification="handleSendVerification"', ':sent-verification="sentVerification"']
+                : []),
+            ],
+          },
+        ),
+      };
+    },
+    controls: [
+      ...def.controls.slice(0, -stateCount).map((control: PropControl) =>
+        control.name === 'attributeVerification'
+          ? {
+              ...control,
+              description: "Offers a verification link for the user's unverified email (`@send-verification`).",
+            }
+          : control,
+      ),
+      {
+        control: 'bool',
+        description: "Whether the sample user's email is verified (base only).",
+        name: 'emailVerified',
+        type: 'boolean',
+      },
+      {
+        control: 'bool',
+        description: 'Shows the message for a sent verification link (`sentVerification`, base only).',
+        name: 'linkSent',
+        type: 'boolean',
+      },
+      ...def.controls.slice(-stateCount),
+    ],
+    defaults: {...def.defaults, attributeVerification: true, emailVerified: false, linkSent: false},
+    render: (args: Args, action: Action) =>
+      isLive(args)
+        ? def.render(args, action)
+        : narrow(
+            560,
+            h(spec.base, {
+              ...spec.baseProps,
+              ...stateProps(args),
+              onDelete: () => action('delete'),
+              onSendVerification: bool(args, 'attributeVerification')
+                ? (attribute: string) => action('send-verification', attribute)
+                : undefined,
+              onUpdate: (attributes: unknown) => action('update', JSON.stringify(attributes)),
+              sentVerification: bool(args, 'linkSent')
+                ? {channel: 'email', emailSent: true, maskedDestination: 'l•••@acme.io'}
+                : null,
+              user: {
+                ...SAMPLE_USERS[0],
+                verifiedAttributes: bool(args, 'emailVerified') ? {email: {verifiedAt: '2026-11-03T10:00:00Z'}} : {},
+              },
+            }),
+          ),
+    stories: [
+      def.stories[0],
+      {args: {linkSent: true}, id: 'verification-sent', name: 'Verification link sent'},
+      {args: {emailVerified: true}, id: 'email-verified', name: 'Email verified'},
+      ...def.stories.slice(1),
+    ],
+  };
+};
+
 /**
  * Adds the "client secret shown once" control and story to an application create or details story,
  * whose base variant `renderBase` draws with the secret.
@@ -946,7 +1036,7 @@ export const ADMIN_COMPONENTS: ComponentDef[] = [
     live: UserCreate,
     name: 'UserCreate',
   }),
-  detailsDef({
+  userDetailsDef({
     base: BaseUserDetails,
     baseExtra: [':user="user"', ':groups="groups"', ':on-update="handleUpdate"'],
     baseProps: {groups: SAMPLE_MEMBERSHIPS, user: SAMPLE_USERS[0]},
@@ -959,7 +1049,7 @@ export const ADMIN_COMPONENTS: ComponentDef[] = [
     id: 'userdetails',
     idProp: 'userId',
     live: UserDetails,
-    liveFlags: ['editable', 'deletable'],
+    liveFlags: ['editable', 'deletable', 'attributeVerification'],
     name: 'UserDetails',
   }),
   listDef({

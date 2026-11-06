@@ -1,12 +1,15 @@
 // Copyright 2026 The ThunderID Authors
 // SPDX-License-Identifier: Apache-2.0
 
-import {resolveManagedIdentityName} from '@thunderid/browser';
+import {hasAdminVerificationStatus, isAdminVerifiableAttribute, resolveManagedIdentityName} from '@thunderid/browser';
 import {
   type AccountLifecycleAction,
+  type EntityTypeSchema,
   type ManagedUser,
   type MembershipGroup,
   type Preferences,
+  type SendUserAttributeVerificationResult,
+  type VerifiedAttribute,
   withVendorCSSClassPrefix,
 } from '@thunderid/browser';
 import {
@@ -42,13 +45,17 @@ type BaseUserDetailsProps = Readonly<{
   isDeleting: boolean;
   isLoading: boolean;
   isRunningLifecycleAction: boolean;
+  isSendingVerification: boolean;
   isUpdating: boolean;
   lifecycleActions: AccountLifecycleAction[];
   onDelete: (() => void) | undefined;
   onLifecycleAction: ((action: AccountLifecycleAction, operatorNote?: string) => void) | undefined;
+  onSendVerification: ((attribute: string) => void) | undefined;
   onUpdate: ((attributes: Record<string, unknown>) => void) | undefined;
   preferences: Preferences | undefined;
+  sentVerification: SendUserAttributeVerificationResult | null;
   user: ManagedUser | undefined;
+  userSchema: EntityTypeSchema | undefined;
 }>;
 
 /**
@@ -64,6 +71,7 @@ export interface BaseUserDetailsRenderProps {
   isDeleting: boolean;
   isLoading: boolean;
   isRunningLifecycleAction: boolean;
+  isSendingVerification: boolean;
   isUpdating: boolean;
   /** The account lifecycle actions offered for the user. Empty when none is allowed. */
   lifecycleActions: AccountLifecycleAction[];
@@ -74,9 +82,22 @@ export interface BaseUserDetailsRenderProps {
    * allowed.
    */
   onLifecycleAction?: (action: AccountLifecycleAction, operatorNote?: string) => void;
+  /**
+   * Sends the user a link to verify the given attribute. Undefined when sending is not allowed, including
+   * for read-only users.
+   */
+  onSendVerification?: (attribute: string) => void;
   /** Saves the given attributes. Undefined when editing is not allowed, including for read-only users. */
   onUpdate?: (attributes: Record<string, unknown>) => void;
+  /** What the last sent verification link reported, such as its masked destination. */
+  sentVerification: SendUserAttributeVerificationResult | null;
   user?: ManagedUser;
+  /** The attributes whose verification status is known and for which a link can be sent, verified or not. */
+  verifiableAttributes: string[];
+  /** Visible contact attributes with a known verification status, including mobile numbers. */
+  verificationStatusAttributes: string[];
+  /** The user's verified attributes, keyed by attribute. Undefined when the server does not report them. */
+  verifiedAttributes?: Record<string, VerifiedAttribute>;
 }
 
 const stringify = (value: unknown): string => {
@@ -110,6 +131,7 @@ const BaseUserDetails: Component = defineComponent({
     isDeleting: {default: false, type: Boolean},
     isLoading: {default: false, type: Boolean},
     isRunningLifecycleAction: {default: false, type: Boolean},
+    isSendingVerification: {default: false, type: Boolean},
     isUpdating: {default: false, type: Boolean},
     /**
      * The account lifecycle actions to offer (suspend, unsuspend, unlock), shown only with
@@ -127,14 +149,23 @@ const BaseUserDetails: Component = defineComponent({
       type: Function as PropType<(action: AccountLifecycleAction, operatorNote?: string) => void>,
     },
     /**
+     * Sends the user a link to verify an attribute. The send action is shown, for an unverified email of
+     * a user that is not read-only, only when this is given. Also available as `@send-verification`.
+     */
+    onSendVerification: {default: undefined, type: Function as PropType<(attribute: string) => void>},
+    /**
      * Saves edited attributes. Text attributes become editable only when set. Receives every attribute,
      * edited or not. Also available as `@update`.
      */
     onUpdate: {default: undefined, type: Function as PropType<(attributes: Record<string, unknown>) => void>},
     /** Component-level preferences, for example `i18n.bundles` overrides. */
     preferences: {default: undefined, type: Object as PropType<Preferences>},
+    /** What the last sent verification link reported. Its masked destination is shown in a success message. */
+    sentVerification: {default: null, type: Object as PropType<SendUserAttributeVerificationResult | null>},
     /** The user to show. */
     user: {default: undefined, type: Object as PropType<ManagedUser>},
+    /** The user type schema for identifying contact fields. */
+    userSchema: {default: undefined, type: Object as PropType<EntityTypeSchema>},
   },
   setup(props: BaseUserDetailsProps, {slots}: SetupContext): () => VNode {
     const t: AdminTranslate = useAdminTranslation(() => props.preferences);
@@ -143,6 +174,15 @@ const BaseUserDetails: Component = defineComponent({
 
     return (): VNode => {
       const {user} = props;
+      const visibleAttributeNames: string[] = Object.keys(user?.attributes ?? {}).filter(
+        (name: string) => !props.hiddenAttributes.includes(name),
+      );
+      const verifiableAttributes: string[] = visibleAttributeNames.filter((name: string) =>
+        isAdminVerifiableAttribute(user, name, props.userSchema),
+      );
+      const verificationStatusAttributes: string[] = visibleAttributeNames.filter((name: string) =>
+        hasAdminVerificationStatus(user, name, props.userSchema),
+      );
 
       if (slots['default']) {
         const isWritable: boolean = Boolean(user) && !user?.isReadOnly;
@@ -158,12 +198,25 @@ const BaseUserDetails: Component = defineComponent({
           isDeleting: props.isDeleting,
           isLoading: props.isLoading,
           isRunningLifecycleAction: props.isRunningLifecycleAction,
+          isSendingVerification: props.isSendingVerification,
           isUpdating: props.isUpdating,
           lifecycleActions: props.onLifecycleAction && user ? props.lifecycleActions : [],
           onDelete: isWritable ? props.onDelete : undefined,
           onLifecycleAction: user ? props.onLifecycleAction : undefined,
+          onSendVerification:
+            isWritable && !props.isUpdating && props.onSendVerification
+              ? (name: string): void => {
+                  if (verifiableAttributes.includes(name) && !user?.verifiedAttributes?.[name]) {
+                    props.onSendVerification?.(name);
+                  }
+                }
+              : undefined,
           onUpdate: isWritable ? props.onUpdate : undefined,
+          sentVerification: props.sentVerification,
           user,
+          verifiableAttributes,
+          verificationStatusAttributes,
+          verifiedAttributes: user?.verifiedAttributes,
         };
 
         return h('div', {class: props.className}, slots['default'](renderProps));
@@ -206,6 +259,46 @@ const BaseUserDetails: Component = defineComponent({
         (entry: [string, unknown]): entry is [string, string] => typeof entry[1] === 'string',
       );
       const canEdit: boolean = Boolean(props.onUpdate) && !user.isReadOnly && editableAttributes.length > 0;
+
+      const renderVerificationStatus = (name: string): VNode => {
+        const isVerified: boolean = user.verifiedAttributes?.[name] !== undefined;
+
+        return h(
+          'span',
+          {class: [cls('status-chip'), isVerified ? cls('status-chip--success') : '']},
+          isVerified
+            ? t('admin.users.details.verification.status.verified')
+            : t('admin.users.details.verification.status.unverified'),
+        );
+      };
+
+      const renderAttributeValue = (name: string, value: unknown): VNode | string => {
+        if (!verificationStatusAttributes.includes(name)) {
+          return stringify(value);
+        }
+
+        const canSend =
+          props.onSendVerification &&
+          !user.isReadOnly &&
+          verifiableAttributes.includes(name) &&
+          user.verifiedAttributes?.[name] === undefined;
+        return h('span', {class: [cls('row'), cls('verification-row')]}, [
+          h('span', [h('span', stringify(value)), renderVerificationStatus(name)]),
+          canSend
+            ? h(
+                Button,
+                {
+                  disabled: props.isSendingVerification || props.isUpdating,
+                  loading: props.isSendingVerification,
+                  onClick: (): void => props.onSendVerification?.(name),
+                  size: 'small',
+                  variant: 'outline',
+                },
+                {default: (): string => t('admin.users.details.verification.send')},
+              )
+            : null,
+        ]);
+      };
 
       const renderAttributes = (): VNode => {
         if (draft.value) {
@@ -258,7 +351,10 @@ const BaseUserDetails: Component = defineComponent({
 
         if (attributes.length > 0) {
           return h(DetailList, {
-            items: attributes.map(([name, value]: [string, unknown]) => ({label: name, value: stringify(value)})),
+            items: attributes.map(([name, value]: [string, unknown]) => ({
+              label: name,
+              value: renderAttributeValue(name, value),
+            })),
           });
         }
 
@@ -301,6 +397,23 @@ const BaseUserDetails: Component = defineComponent({
           ],
           default: (): (VNode | null)[] => [
             props.error ? h(Alert, {severity: 'error'}, {default: (): string[] => [props.error!]}) : null,
+            props.sentVerification && !props.error
+              ? h(
+                  Alert,
+                  {severity: props.sentVerification.emailSent === false ? 'error' : 'success'},
+                  {
+                    default: (): string[] => [
+                      props.sentVerification?.emailSent === false
+                        ? t('admin.users.details.verification.error')
+                        : props.sentVerification?.maskedDestination
+                          ? t('admin.users.details.verification.sent', {
+                              destination: props.sentVerification.maskedDestination,
+                            })
+                          : t('admin.users.details.verification.sent_generic'),
+                    ],
+                  },
+                )
+              : null,
             h('div', {class: cls('row')}, [
               h(AdminAvatar, {name: displayName, size: 48}),
               h('span', {class: cls('muted')}, user.ouHandle ?? user.ouId),

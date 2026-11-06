@@ -344,7 +344,7 @@ describe('BaseUserProfile verification', () => {
   });
 
   describe('after saving', () => {
-    it('opens the verification panel once the profile shows a changed email as unverified', async () => {
+    it('shows the changed email as unverified and waits for Verify', async () => {
       let finishUpdate: (profile: User) => void = () => undefined;
       const update: Mock = vi.fn(
         () =>
@@ -361,8 +361,11 @@ describe('BaseUserProfile verification', () => {
 
       finishUpdate(serverUpdate(storedProfile, {email: 'new@example.com'}));
 
-      expect(await screen.findByText('Verifying Email (email)')).toBeTruthy();
+      expect(await within(row('Email')).findByText('new@example.com')).toBeTruthy();
       expect(within(row('Email')).getByText('Unverified')).toBeTruthy();
+      expect(screen.queryByTestId('verification-panel')).toBeNull();
+      fireEvent.click(within(row('Email')).getByText('Verify'));
+      expect(await screen.findByText('Verifying Email (email)')).toBeTruthy();
     });
 
     it('does not reopen the panel after it is dismissed', async () => {
@@ -372,6 +375,7 @@ describe('BaseUserProfile verification', () => {
       renderHarness({initialProfile: storedProfile, renderVerification: verificationPanel, update});
 
       editAndSave('Email', 'new@example.com');
+      fireEvent.click(await within(row('Email')).findByText('Verify'));
       await screen.findByText('Verifying Email (email)');
       fireEvent.click(screen.getByText('Not now'));
       editAndSave('First name', 'Alexa');
@@ -453,6 +457,7 @@ describe('BaseUserProfile verification', () => {
 
       await waitFor(() => expect(within(row('Mobile')).getByText('+94770000000')).toBeTruthy());
       expect(screen.queryByTestId('verification-panel')).toBeNull();
+      expect(within(row('Mobile')).getByText('Verify')).toBeTruthy();
     });
 
     it('starts no verification for a changed email when the profile does not report verification', async () => {
@@ -491,26 +496,6 @@ describe('BaseUserProfile verification', () => {
 
       await waitFor(() => expect(within(row('Email')).getByText('Unverified')).toBeTruthy());
       expect(screen.queryByText('Verify')).toBeNull();
-    });
-
-    it('drops a pending verification when a later save does not qualify', async () => {
-      const finishers: ((profile: User) => void)[] = [];
-      const update: Mock = vi.fn(
-        () =>
-          new Promise<User>((resolve: (profile: User) => void) => {
-            finishers.push(resolve);
-          }),
-      );
-      renderHarness({initialProfile: storedProfile, renderVerification: verificationPanel, update});
-
-      editAndSave('Email', 'new@example.com');
-      editAndSave('First name', 'Alexa');
-      const changedEmail: User = serverUpdate(storedProfile, {email: 'new@example.com'});
-      finishers[0](changedEmail);
-      finishers[1](serverUpdate(changedEmail, {given_name: 'Alexa'}));
-
-      await waitFor(() => expect(within(row('Email')).getByText('Unverified')).toBeTruthy());
-      expect(screen.queryByTestId('verification-panel')).toBeNull();
     });
   });
 

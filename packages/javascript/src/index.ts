@@ -120,7 +120,7 @@ export {default as getUserUsages} from './api/management/users/getUserUsages';
 export type {GetUserUsagesConfig} from './api/management/users/getUserUsages';
 export {default as updateUserCredentials} from './api/management/users/updateUserCredentials';
 export type {UpdateUserCredentialsConfig} from './api/management/users/updateUserCredentials';
-export {default as getUserType} from './api/management/user-types/getUserType';
+export {default as getUserType, getUserTypeByHandle} from './api/management/user-types/getUserType';
 export type {GetUserTypeConfig} from './api/management/user-types/getUserType';
 export {default as createUserType} from './api/management/user-types/createUserType';
 export type {CreateUserTypeConfig} from './api/management/user-types/createUserType';
@@ -482,6 +482,11 @@ export {default as unsuspendUser} from './api/management/users/unsuspendUser';
 export type {UnsuspendUserConfig} from './api/management/users/unsuspendUser';
 export {default as unlockUser} from './api/management/users/unlockUser';
 export type {UnlockUserConfig} from './api/management/users/unlockUser';
+export {default as sendUserAttributeVerification} from './api/management/users/sendUserAttributeVerification';
+export type {
+  SendUserAttributeVerificationConfig,
+  SendUserAttributeVerificationResult,
+} from './api/management/users/sendUserAttributeVerification';
 export {default as suspendAgent} from './api/management/agents/suspendAgent';
 export type {SuspendAgentConfig} from './api/management/agents/suspendAgent';
 export {default as unsuspendAgent} from './api/management/agents/unsuspendAgent';
@@ -1069,6 +1074,7 @@ export {default as generateFlattenedUserProfile} from './utils/generateFlattened
 export {default as getFlowStepComponents} from './utils/getFlowStepComponents';
 export type {FlowStepComponents} from './utils/getFlowStepComponents';
 export {default as getVerifiedAttributes} from './utils/getVerifiedAttributes';
+export {default as isAdminVerifiableAttribute, hasAdminVerificationStatus} from './utils/isAdminVerifiableAttribute';
 export {default as isVerifiableAttribute} from './utils/isVerifiableAttribute';
 export {default as getRedirectBasedSignUpUrl} from './utils/getRedirectBasedSignUpUrl';
 export {default as getConsentModifiedKey, CONSENT_MODIFIED_KEY_PREFIX} from './utils/getConsentModifiedKey';

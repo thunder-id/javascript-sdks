@@ -37,7 +37,7 @@ import BaseRolePermissions from '../RolePermissions/BaseRolePermissions';
 import RolePermissions from '../RolePermissions/RolePermissions';
 import BaseUserCreate from '../UserCreate/BaseUserCreate';
 import UserCreate from '../UserCreate/UserCreate';
-import BaseUserDetails from '../UserDetails/BaseUserDetails';
+import BaseUserDetails, {BaseUserDetailsRenderProps} from '../UserDetails/BaseUserDetails';
 import UserDetails from '../UserDetails/UserDetails';
 import BaseUserList from '../UserList/BaseUserList';
 import UserList from '../UserList/UserList';
@@ -1959,5 +1959,262 @@ describe('group and role details', () => {
     );
 
     expect(await screen.findAllByRole('alert')).toHaveLength(2);
+  });
+});
+
+describe('administrator-initiated email verification', () => {
+  const person: ManagedUser = {
+    attributes: {email: 'jane@example.com', given_name: 'Jane', mobile: '+94770000001'},
+    display: 'Jane Doe',
+    id: 'u-7',
+    ouId: 'ou-1',
+    type: 'Person',
+    verifiedAttributes: {},
+  };
+  const verifiedPerson: ManagedUser = {...person, verifiedAttributes: {email: {verifiedAt: '2026-11-03T10:00:00Z'}}};
+  const linkSent: unknown = {
+    data: {additionalData: {channel: 'email', emailSent: 'true', maskedDestination: 'j***@example.com'}},
+    flowStatus: 'INCOMPLETE',
+    type: 'VIEW',
+  };
+
+  /**
+   * Serves the user, an empty group list, and the given answer to a flow start.
+   */
+  const createServer = (user: ManagedUser, start: Response = respond(linkSent)): FetcherMock =>
+    vi.fn<ApiFetcher>().mockImplementation((url: string) => {
+      const {pathname} = new URL(url);
+      if (pathname === '/user-types') {
+        return Promise.resolve(respond({count: 1, totalResults: 1, types: [{handle: user.type, id: 'type-1'}]}));
+      }
+      if (pathname === '/user-types/type-1') {
+        return Promise.resolve(
+          respond({
+            handle: user.type,
+            schema: {
+              email: {type: 'email'},
+              mobile: {type: 'mobile'},
+              mobile_number: {type: 'mobile'},
+              workEmail: {type: 'email'},
+            },
+          }),
+        );
+      }
+      if (url === `${baseUrl}/flow/execute`) {
+        return Promise.resolve(start);
+      }
+
+      return Promise.resolve(
+        respond(url.includes('/groups') ? {count: 0, groups: [], startIndex: 1, totalResults: 0} : user),
+      );
+    });
+
+  const flowStarts = (fetcher: FetcherMock): unknown[] =>
+    fetcher.mock.calls
+      .filter(([url]: [string, RequestInit]) => url === `${baseUrl}/flow/execute`)
+      .map(([, init]: [string, RequestInit]) => JSON.parse(init.body as string) as unknown);
+
+  describe('BaseUserDetails', () => {
+    it('shows the email as not verified and sends a link for it', () => {
+      const onSendVerification: Mock = vi.fn();
+
+      renderWithProviders(<BaseUserDetails user={person} onSendVerification={onSendVerification} />);
+
+      expect(screen.getByText('Unverified').previousElementSibling?.textContent).toBe('jane@example.com');
+      fireEvent.click(screen.getByRole('button', {name: 'Send verification link'}));
+
+      expect(onSendVerification).toHaveBeenCalledWith('email');
+      // Only the email gets a status: the administrator flow sends email only.
+      expect(screen.getAllByRole('button', {name: 'Send verification link'})).toHaveLength(1);
+      expect(screen.queryByText('Verified')).toBeNull();
+    });
+
+    it('shows a verified email as verified, with nothing to send', () => {
+      renderWithProviders(<BaseUserDetails user={verifiedPerson} onSendVerification={vi.fn()} />);
+
+      expect(screen.getByText('Verified').previousElementSibling?.textContent).toBe('jane@example.com');
+      expect(screen.queryByRole('button', {name: 'Send verification link'})).toBeNull();
+    });
+
+    it.each<[string, ManagedUser, (() => void) | undefined]>([
+      ['the app has not turned it on', person, undefined],
+      ['the user is read-only', {...person, isReadOnly: true}, vi.fn()],
+    ])('offers no send when %s, but still shows the status', (_label, user, onSendVerification) => {
+      renderWithProviders(<BaseUserDetails user={user} onSendVerification={onSendVerification} />);
+
+      expect(screen.getByText('Unverified')).toBeTruthy();
+      expect(screen.queryByRole('button', {name: 'Send verification link'})).toBeNull();
+    });
+
+    it('shows no status when the server does not report verification', () => {
+      renderWithProviders(
+        <BaseUserDetails user={{...person, verifiedAttributes: undefined}} onSendVerification={vi.fn()} />,
+      );
+
+      expect(screen.queryByText('Unverified')).toBeNull();
+      expect(screen.queryByRole('button', {name: 'Send verification link'})).toBeNull();
+    });
+
+    it.each<[string, Record<string, unknown>, string]>([
+      [
+        'the masked destination',
+        {channel: 'email', maskedDestination: 'j***@example.com'},
+        'Verification link sent to j***@example.com.',
+      ],
+      ['no destination', {channel: 'email'}, 'Verification link sent.'],
+    ])('confirms a sent link with %s', (_label, sentVerification, message) => {
+      renderWithProviders(
+        <BaseUserDetails
+          user={person}
+          onSendVerification={vi.fn()}
+          sentVerification={sentVerification as BaseUserDetailsRenderProps['sentVerification']}
+        />,
+      );
+
+      expect(screen.getByRole('status').textContent).toBe(message);
+    });
+
+    it.each([{isSendingVerification: true}, {isUpdating: true}])('disables send while busy (%j)', (busy) => {
+      renderWithProviders(<BaseUserDetails user={person} onSendVerification={vi.fn()} {...busy} />);
+
+      expect(screen.getByRole('button', {name: /Send verification link/})).toHaveProperty('disabled', true);
+    });
+
+    it('hands a custom render the verification state and the send action', () => {
+      const onSendVerification: Mock = vi.fn();
+      const sentVerification: BaseUserDetailsRenderProps['sentVerification'] = {
+        channel: 'email',
+        maskedDestination: 'j***@example.com',
+      };
+      let seen: BaseUserDetailsRenderProps | undefined;
+
+      renderWithProviders(
+        <BaseUserDetails
+          user={person}
+          onSendVerification={onSendVerification}
+          isSendingVerification
+          sentVerification={sentVerification}
+        >
+          {(props: BaseUserDetailsRenderProps): ReactNode => {
+            seen = props;
+
+            return <button onClick={(): void => props.onSendVerification?.('email')}>Verify custom</button>;
+          }}
+        </BaseUserDetails>,
+      );
+      fireEvent.click(screen.getByRole('button', {name: 'Verify custom'}));
+
+      expect(seen).toMatchObject({
+        isSendingVerification: true,
+        sentVerification,
+        verifiableAttributes: ['email'],
+        verifiedAttributes: {},
+      });
+      expect(onSendVerification).toHaveBeenCalledWith('email');
+    });
+
+    it('withholds the send from a custom render for a read-only user', () => {
+      let seen: BaseUserDetailsRenderProps | undefined;
+
+      renderWithProviders(
+        <BaseUserDetails user={{...verifiedPerson, isReadOnly: true}} onSendVerification={vi.fn()}>
+          {(props: BaseUserDetailsRenderProps): ReactNode => {
+            seen = props;
+
+            return null;
+          }}
+        </BaseUserDetails>,
+      );
+
+      expect(seen?.onSendVerification).toBeUndefined();
+      expect(seen?.verifiedAttributes).toEqual({email: {verifiedAt: '2026-11-03T10:00:00Z'}});
+    });
+  });
+
+  describe('UserDetails', () => {
+    it('offers no send unless attribute verification is on', async () => {
+      const fetcher: FetcherMock = createServer(person);
+
+      renderWithProviders(<UserDetails userId="u-7" />, {fetcher});
+
+      await screen.findByText('Unverified');
+      expect(screen.queryByRole('button', {name: 'Send verification link'})).toBeNull();
+    });
+
+    it('starts the administrator-initiated flow and shows where the link went', async () => {
+      const fetcher: FetcherMock = createServer(person);
+
+      renderWithProviders(<UserDetails userId="u-7" attributeVerification />, {fetcher});
+      fireEvent.click(await screen.findByRole('button', {name: 'Send verification link'}));
+
+      expect(await screen.findByText('Verification link sent to j***@example.com.')).toBeTruthy();
+      expect(flowStarts(fetcher)).toEqual([
+        {
+          flowType: 'ADMIN_INITIATED',
+          handle: 'default-admin-attribute-verification-flow',
+          inputs: {attribute: 'email', subject: 'u-7'},
+          verbose: true,
+        },
+      ]);
+    });
+
+    it('sends to a schema-defined work email and shows a verified mobile number', async () => {
+      const user = {
+        ...person,
+        attributes: {mobile_number: '+94770000001', workEmail: 'work@example.com'},
+        verifiedAttributes: {mobile_number: {verifiedAt: '2026-11-06T10:00:00Z'}},
+      };
+      const fetcher: FetcherMock = createServer(user);
+      renderWithProviders(<UserDetails userId={user.id} attributeVerification />, {fetcher});
+
+      const send = await screen.findByRole('button', {name: 'Send verification link'});
+      expect(screen.getByText('Verified', {exact: true}).previousElementSibling?.textContent).toBe('+94770000001');
+      fireEvent.click(send);
+
+      await screen.findByText(/Verification link sent/);
+      expect(flowStarts(fetcher)).toEqual([
+        expect.objectContaining({inputs: {attribute: 'workEmail', subject: user.id}}),
+      ]);
+    });
+
+    it('clears the delivery result when the displayed user changes', async () => {
+      const fetcher: FetcherMock = createServer(person);
+      const server = fetcher.getMockImplementation()!;
+      fetcher.mockImplementation((url: string, init?: RequestInit) =>
+        new URL(url).pathname.endsWith('/u-8')
+          ? Promise.resolve(respond({...person, display: 'Another user', id: 'u-8'}))
+          : server(url, init),
+      );
+      const {rerender} = renderWithProviders(<UserDetails userId="u-7" attributeVerification />, {fetcher});
+
+      fireEvent.click(await screen.findByRole('button', {name: 'Send verification link'}));
+      expect(await screen.findByText(/Verification link sent/)).toBeTruthy();
+
+      rerender(<UserDetails userId="u-8" attributeVerification />);
+      await screen.findByRole('heading', {name: 'Another user'});
+      expect(screen.queryByText(/Verification link sent/)).toBeNull();
+    });
+
+    it.each<[string, Response, string]>([
+      [
+        'a refused step',
+        respond({error: {code: 'FET-1114', message: {defaultValue: 'Suspended'}}, flowStatus: 'ERROR'}),
+        'Could not send the verification link. Please try again.',
+      ],
+      [
+        'an email that was not sent',
+        respond({data: {additionalData: {channel: 'email', emailSent: 'false'}}, flowStatus: 'INCOMPLETE'}),
+        'Could not send the verification link. Please try again.',
+      ],
+      ['a token without the permission', respond({code: 'FES-1019'}, 403), 'You do not have permission to do this.'],
+    ])('shows a translated message for %s', async (_label, start, message) => {
+      const fetcher: FetcherMock = createServer(person, start);
+
+      renderWithProviders(<UserDetails userId="u-7" attributeVerification />, {fetcher});
+      fireEvent.click(await screen.findByRole('button', {name: 'Send verification link'}));
+
+      expect((await screen.findByRole('alert')).textContent).toBe(message);
+      expect(screen.queryByText(/Verification link sent/)).toBeNull();
+    });
   });
 });

@@ -10,7 +10,7 @@
  *   Section:  __header | __heading | __title | __description | __actions
  *   Forms:    __form | __form-actions
  *   Parts:    __panel | __panel-header | __panel-title | __detail | __detail-label | __detail-value
- *             __chip-list | __chip | __confirm | __muted | __row | __avatar | __picker
+ *             __chip-list | __chip | __status-chip | __confirm | __muted | __row | __avatar | __picker
  *
  * Each component root also carries its own block class (for example `.thunderid-user-list`), so an
  * application can target a single component.
@@ -131,6 +131,24 @@ const ADMIN_CSS = `
   color: var(--thunderid-color-text-primary);
 }
 
+.thunderid-admin__status-chip {
+  display: inline-flex;
+  align-items: center;
+  margin-inline-start: calc(var(--thunderid-spacing-unit) * 1.5);
+  padding: 0 var(--thunderid-spacing-unit);
+  border-radius: var(--thunderid-border-radius-full);
+  border: 1px solid var(--thunderid-color-border);
+  font-size: var(--thunderid-typography-fontSize-xs);
+  line-height: 1.6;
+  color: var(--thunderid-color-text-primary);
+  vertical-align: middle;
+}
+
+.thunderid-admin__status-chip--success {
+  border-color: var(--thunderid-color-success-main);
+  color: var(--thunderid-color-success-main);
+}
+
 .thunderid-admin__confirm {
   display: inline-flex;
   flex-wrap: wrap;
@@ -152,6 +170,10 @@ const ADMIN_CSS = `
   flex-wrap: wrap;
   align-items: center;
   gap: calc(var(--thunderid-spacing-unit) * 1.5);
+}
+
+.thunderid-admin__verification-row {
+  column-gap: calc(var(--thunderid-spacing-unit) * 2);
 }
 
 .thunderid-admin__name {

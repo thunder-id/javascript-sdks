@@ -150,8 +150,14 @@ export const UserCard = ({
   groups,
   isDeleting,
   isLoading,
+  isSendingVerification,
   onDelete,
+  onSendVerification,
+  sentVerification,
   user,
+  verifiableAttributes,
+  verificationStatusAttributes,
+  verifiedAttributes,
 }: BaseUserDetailsRenderProps): ReactElement => (
   <Card variant="outlined">
     {isLoading && !user ? (
@@ -166,11 +172,28 @@ export const UserCard = ({
         <CardContent>
           <Stack spacing={1.5}>
             {error && <MuiAlert severity="error">{error}</MuiAlert>}
+            {sentVerification && (
+              <MuiAlert severity="success">Link sent to {sentVerification.maskedDestination ?? 'the user'}</MuiAlert>
+            )}
             <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
               {Object.entries(attributes).map(([name, value]: [string, unknown]) => (
                 <Chip key={name} size="small" variant="outlined" label={`${name}: ${String(value)}`} />
               ))}
             </Stack>
+            {verificationStatusAttributes.map((name: string) => (
+              <Stack key={name} direction="row" spacing={1} alignItems="center">
+                <Chip
+                  size="small"
+                  color={verifiedAttributes?.[name] ? 'success' : 'default'}
+                  label={`${name}: ${verifiedAttributes?.[name] ? 'verified' : 'not verified'}`}
+                />
+                {onSendVerification && verifiableAttributes.includes(name) && !verifiedAttributes?.[name] && (
+                  <Button size="small" loading={isSendingVerification} onClick={(): void => onSendVerification(name)}>
+                    Send link
+                  </Button>
+                )}
+              </Stack>
+            ))}
             <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
               {groups.map((group: {id: string; name: string}) => (
                 <Chip key={group.id} size="small" color="primary" label={group.name} />
