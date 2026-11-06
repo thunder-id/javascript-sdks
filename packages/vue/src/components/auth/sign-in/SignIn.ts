@@ -164,14 +164,30 @@ const SignIn: Component = defineComponent({
       }
     };
 
+    /**
+     * Persist the authId from the URL against its execution, so another tab's sign-in cannot
+     * replace it. ThunderIDVueClient.signIn() reads it back with getFlowAuthId(executionId).
+     */
+    const storeAuthId = async (authId: string | null, executionId: string | null | undefined): Promise<void> => {
+      const sm = getStorageManager();
+      if (sm && authId && executionId) {
+        await sm.setFlowAuthId(executionId, authId);
+      }
+    };
+
+    const clearAuthId = async (executionId: string | null | undefined): Promise<void> => {
+      const sm = getStorageManager();
+      if (sm && executionId) {
+        await sm.removeFlowAuthId(executionId);
+      }
+    };
+
     const clearFlowState = async (): Promise<void> => {
+      const executionIdToClear: string | null = currentExecutionId.value;
       persistExecutionId(null);
       isFlowInitialized.value = false;
       await setChallengeToken(null);
-      const sm = getStorageManager();
-      if (sm) {
-        await sm.removeHybridDataParameter('authId');
-      }
+      await clearAuthId(executionIdToClear);
       isTimeoutDisabled.value = false;
       oauthCodeProcessedFlag.value = false;
     };
@@ -248,12 +264,7 @@ const SignIn: Component = defineComponent({
 
       oauthCodeProcessedFlag.value = false;
 
-      if (urlParams.authId) {
-        const sm = getStorageManager();
-        if (sm) {
-          await sm.setHybridDataParameter('authId', urlParams.authId);
-        }
-      }
+      await storeAuthId(urlParams.authId, urlParams.executionId);
 
       const effectiveApplicationId: string | null | undefined = applicationId || urlParams.applicationId;
 
@@ -288,12 +299,7 @@ const SignIn: Component = defineComponent({
           const redirectURL: string | undefined = (response.data as any)?.redirectURL || (response as any)?.redirectURL;
           if (redirectURL && window?.location) {
             if (response.executionId) persistExecutionId(response.executionId);
-            if (urlParams.authId) {
-              const sm = getStorageManager();
-              if (sm) {
-                await sm.setHybridDataParameter('authId', urlParams.authId);
-              }
-            }
+            await storeAuthId(urlParams.authId, response.executionId);
             initiateOAuthRedirect(redirectURL, vendor);
             return;
           }
@@ -312,6 +318,8 @@ const SignIn: Component = defineComponent({
           additionalData.value = normalizedAdditionalData ?? {};
           isFlowInitialized.value = true;
           isTimeoutDisabled.value = false;
+          // The URL's authId belongs to this execution even when the URL had no executionId.
+          await storeAuthId(urlParams.authId, normalizedExecutionId);
           cleanupFlowUrlParams();
         }
       } catch (error: unknown) {
@@ -380,12 +388,7 @@ const SignIn: Component = defineComponent({
           if (redirectURL && window?.location) {
             if (response.executionId) persistExecutionId(response.executionId);
             const urlParams: UrlParams = getUrlParams();
-            if (urlParams.authId) {
-              const sm = getStorageManager();
-              if (sm) {
-                await sm.setHybridDataParameter('authId', urlParams.authId);
-              }
-            }
+            await storeAuthId(urlParams.authId, response.executionId);
             initiateOAuthRedirect(redirectURL, vendor);
             return;
           }
@@ -435,10 +438,7 @@ const SignIn: Component = defineComponent({
           isSubmitting.value = false;
           persistExecutionId(null);
           isFlowInitialized.value = false;
-          const sm = getStorageManager();
-          if (sm) {
-            await sm.removeHybridDataParameter('authId');
-          }
+          await clearAuthId(response.executionId || effectiveExecutionId);
           cleanupOAuthUrlParams();
           await setChallengeToken(null);
 
@@ -603,12 +603,7 @@ const SignIn: Component = defineComponent({
         // Ignore — the flow will re-fetch a fresh challengeToken from the next response.
       }
 
-      if (urlParams.authId) {
-        const sm = getStorageManager();
-        if (sm) {
-          await sm.setHybridDataParameter('authId', urlParams.authId);
-        }
-      }
+      await storeAuthId(urlParams.authId, urlParams.executionId);
     });
 
     // Initialize flow when SDK is ready (OAuth callback is handled by useOAuthCallback)

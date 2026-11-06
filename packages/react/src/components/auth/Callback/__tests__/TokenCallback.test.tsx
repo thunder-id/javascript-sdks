@@ -11,15 +11,13 @@ const mockSignUp = vi.fn() as Mock;
 const mockSetTemporaryDataParameter = vi.fn() as Mock;
 const mockRemoveTemporaryDataParameter = vi.fn() as Mock;
 
-const mockGetHybridDataParameter = vi.fn() as Mock;
-const mockRemoveHybridDataParameter = vi.fn() as Mock;
+const mockRemoveFlowAuthId = vi.fn() as Mock;
 
 const thunderIDContext: ThunderIDContextProps = {
   afterSignInUrl: undefined,
   getStorageManager: vi.fn(() =>
     Promise.resolve({
-      getHybridDataParameter: mockGetHybridDataParameter,
-      removeHybridDataParameter: mockRemoveHybridDataParameter,
+      removeFlowAuthId: mockRemoveFlowAuthId,
       removeTemporaryDataParameter: mockRemoveTemporaryDataParameter,
       setTemporaryDataParameter: mockSetTemporaryDataParameter,
     }),
@@ -148,5 +146,7 @@ describe('TokenCallback', () => {
     });
 
     expect(onNavigate).toHaveBeenCalledWith('/signin?error=token_verification_failed&error_description=Invalid+token');
+    // Only this link's execution is cleared, so a sign-in running in another tab keeps its authId.
+    expect(mockRemoveFlowAuthId).toHaveBeenCalledWith('exec-1');
   });
 });

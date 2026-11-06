@@ -159,7 +159,7 @@ export const TokenCallback: FC<TokenCallbackProps> = ({
           const redirectUrl: string | undefined = response?.redirectUrl || response?.redirect_uri;
 
           sessionStorage.removeItem(`${vendor}_execution_id`);
-          await storageManager.removeHybridDataParameter('authId');
+          await storageManager.removeFlowAuthId(executionId);
 
           onSuccess?.({
             redirectUrl,
@@ -178,7 +178,7 @@ export const TokenCallback: FC<TokenCallbackProps> = ({
         if (response.flowStatus === EmbeddedSignInFlowStatus.Error) {
           const failureReason: string | undefined = response?.failureReason;
           const error: Error = new Error(failureReason || 'Token validation failed. Please try again.');
-          await storageManager.removeHybridDataParameter('authId');
+          await storageManager.removeFlowAuthId(executionId);
           redirectWithError(error, isRegistrationFlow);
           return;
         }
@@ -196,8 +196,8 @@ export const TokenCallback: FC<TokenCallbackProps> = ({
         // eslint-disable-next-line no-console
         console.error('Token callback error:', err);
         const storageManager: any = await getStorageManager();
-        if (storageManager) {
-          await storageManager.removeHybridDataParameter('authId');
+        if (storageManager && executionId) {
+          await storageManager.removeFlowAuthId(executionId);
         }
         redirectWithError(error, isRegistrationFlow);
       }
