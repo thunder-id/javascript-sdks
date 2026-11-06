@@ -188,11 +188,9 @@ const translations: I18nTranslations = {
   'organization.profile.error': 'Falha ao carregar organização',
 
   /* Organization unit switcher */
-  'organization_unit.switcher.label': 'Unidade organizacional',
-  'organization_unit.switcher.heading': 'Trocar unidade organizacional',
-  'organization_unit.switcher.current': 'Atual',
-  'organization_unit.switcher.switch': 'Trocar',
-  'organization_unit.switcher.switching': 'Trocando…',
+  'organization_unit.switcher.label': 'Organização',
+  'organization_unit.switcher.placeholder': 'Selecione uma organização',
+  'organization_unit.switcher.switching': 'Trocando para {name}…',
   'organization_unit.switcher.loading': 'Carregando unidades organizacionais…',
   'organization_unit.switcher.empty': 'Nenhuma unidade organizacional disponível.',
   'organization_unit.switcher.previous': 'Anterior',

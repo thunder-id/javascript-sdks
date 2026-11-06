@@ -314,6 +314,12 @@ export interface EmbeddedSignInFlowInitiateRequest {
    * When provided, these scopes are forwarded to the platform at flow start.
    */
   scopes?: string | string[];
+
+  /**
+   * SSO session handles kept from earlier flow steps. The server reuses the session for this flow from
+   * them, so the session cookie is not needed.
+   */
+  sessionData?: EmbeddedFlowSessionData[];
 }
 
 /**

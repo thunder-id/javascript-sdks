@@ -188,11 +188,9 @@ const translations: I18nTranslations = {
   'organization.profile.error': 'Failed to load organization',
 
   /* Organization unit switcher */
-  'organization_unit.switcher.label': 'Organization unit',
-  'organization_unit.switcher.heading': 'Switch organization unit',
-  'organization_unit.switcher.current': 'Current',
-  'organization_unit.switcher.switch': 'Switch',
-  'organization_unit.switcher.switching': 'Switching…',
+  'organization_unit.switcher.label': 'Organization',
+  'organization_unit.switcher.placeholder': 'Select an organization',
+  'organization_unit.switcher.switching': 'Switching to {name}…',
   'organization_unit.switcher.loading': 'Loading organization units…',
   'organization_unit.switcher.empty': 'No organization units are available.',
   'organization_unit.switcher.previous': 'Previous',

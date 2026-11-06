@@ -190,11 +190,9 @@ const translations: I18nTranslations = {
   'organization.profile.error': 'ఆర్గనైజేషన్‌ను లోడ్ చేయడం విఫలమైంది',
 
   /* Organization unit switcher */
-  'organization_unit.switcher.label': 'సంస్థ యూనిట్',
-  'organization_unit.switcher.heading': 'సంస్థ యూనిట్‌ను మార్చండి',
-  'organization_unit.switcher.current': 'ప్రస్తుతం',
-  'organization_unit.switcher.switch': 'మార్చు',
-  'organization_unit.switcher.switching': 'మారుస్తోంది…',
+  'organization_unit.switcher.label': 'సంస్థ',
+  'organization_unit.switcher.placeholder': 'సంస్థను ఎంచుకోండి',
+  'organization_unit.switcher.switching': '{name}కి మారుస్తోంది…',
   'organization_unit.switcher.loading': 'సంస్థ యూనిట్‌లు లోడ్ అవుతున్నాయి…',
   'organization_unit.switcher.empty': 'సంస్థ యూనిట్‌లు ఏవీ అందుబాటులో లేవు.',
   'organization_unit.switcher.previous': 'మునుపటి',

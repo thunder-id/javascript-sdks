@@ -31,6 +31,8 @@ import {
   resolveResourceEndpoint,
   AuthClientConfig,
   StorageManager,
+  DeviceSecretSwitchResult,
+  EmbeddedFlowSessionData,
   EmbeddedFlowType,
   EmbeddedSignInFlowResponse,
   EmbeddedSignInFlowStatus,
@@ -68,6 +70,11 @@ const INTERACTION_ERRORS: string[] = [
   'consent_required',
   'account_selection_required',
 ];
+
+/**
+ * OAuth errors for a device secret the server cannot use, which the SDK drops before signing in again.
+ */
+const UNUSABLE_DEVICE_SECRET_ERRORS: string[] = ['invalid_request', 'invalid_grant'];
 
 /**
  * Temporary-data key that marks a switch to another organization unit left the page, so its callback is
@@ -415,9 +422,16 @@ class ThunderIDBrowserClient<T = BrowserAuthConfig> extends ThunderIDJavaScriptC
 
     await this.requestAccessToken(authorizationCode, state ?? '', undefined, tokenRequestConfig);
 
+    return this._startSession(config.clientId);
+  }
+
+  /**
+   * Prepares the sign-out URL and the token refresh for tokens just stored, and reads the user.
+   */
+  private async _startSession(clientId: string): Promise<User> {
     try {
       const signOutUrl = await this.getSignOutUrl();
-      SPAUtils.setSignOutURL(signOutUrl, config.clientId, this._browserInstanceId);
+      SPAUtils.setSignOutURL(signOutUrl, clientId, this._browserInstanceId);
     } catch {
       // end_session_endpoint absent — signOut() falls back to signInUrl navigation.
     }
@@ -433,11 +447,14 @@ class ThunderIDBrowserClient<T = BrowserAuthConfig> extends ThunderIDJavaScriptC
    * the one it gets. The server reuses the SSO session when the user can sign in there, so normally no
    * credentials are asked.
    *
-   * - Redirect mode tries a `prompt=none` request to `{baseUrl}/ou/{ouId}/oauth2/authorize` in a hidden
-   *   iframe first. When the server needs the user, it redirects the page there (unless `redirect` is
-   *   `false`), and the callback replaces the session.
-   * - Embedded mode starts an `AUTHENTICATION` flow with `ouId`. A flow that needs input fails with
-   *   `interaction_required`; render the sign-in for the unit instead.
+   * - Redirect mode exchanges the session's device secret at `{baseUrl}/ou/{ouId}/oauth2/token` when it
+   *   holds one, which a sign-in with the `device_sso` scope returns. Otherwise it tries a `prompt=none`
+   *   request to `{baseUrl}/ou/{ouId}/oauth2/authorize` in a hidden iframe. When the server needs the
+   *   user, it redirects the page there (unless `redirect` is `false`), and the callback replaces the
+   *   session.
+   * - Embedded mode starts an `AUTHENTICATION` flow with `ouId`, presenting the SSO session handles kept
+   *   from earlier flow steps. A flow that needs input fails with `interaction_required`; render the
+   *   sign-in for the unit instead.
    * - Backend mode sends the page to the backend's sign-in endpoint with `ouId`.
    *
    * A failed switch leaves the previous session as it was.
@@ -477,23 +494,36 @@ class ThunderIDBrowserClient<T = BrowserAuthConfig> extends ThunderIDJavaScriptC
       return this._switchOrganizationUnitEmbedded(organizationUnitId, config);
     }
 
-    let silentError: string | undefined;
-    let silentUser: User | boolean;
+    const exchangedUser: User | false | undefined = await this._switchOrganizationUnitWithDeviceSecret(
+      organizationUnitId,
+      config,
+    );
 
-    try {
-      silentUser = await this._authHelper!.signInSilently(
-        (additional: Record<string, AuthorizeRequestParamValue> | undefined) =>
-          this._constructSilentSignInUrl(additional),
-        (code: string, s: string, trc?: {params: Record<string, unknown>}) => this._exchangeCodeForTokens(code, s, trc),
-        {...(params as Record<string, AuthorizeRequestParamValue>), organizationUnitId},
-        undefined,
-        (config as BrowserAuthConfig | undefined)?.session?.silentSignIn?.timeout,
-        (error?: string) => {
-          silentError = error;
-        },
-      );
-    } catch (error) {
-      throw ThunderIDBrowserClient._toSwitchError(error instanceof Error ? error.message : undefined, error);
+    if (exchangedUser) {
+      return exchangedUser;
+    }
+
+    let silentError: string | undefined;
+    let silentUser: User | boolean = false;
+
+    // Without a device secret, the silent sign-in runs in an iframe on the session cookie.
+    if (exchangedUser === undefined) {
+      try {
+        silentUser = await this._authHelper!.signInSilently(
+          (additional: Record<string, AuthorizeRequestParamValue> | undefined) =>
+            this._constructSilentSignInUrl(additional),
+          (code: string, s: string, trc?: {params: Record<string, unknown>}) =>
+            this._exchangeCodeForTokens(code, s, trc),
+          {...(params as Record<string, AuthorizeRequestParamValue>), organizationUnitId},
+          undefined,
+          (config as BrowserAuthConfig | undefined)?.session?.silentSignIn?.timeout,
+          (error?: string) => {
+            silentError = error;
+          },
+        );
+      } catch (error) {
+        throw ThunderIDBrowserClient._toSwitchError(error instanceof Error ? error.message : undefined, error);
+      }
     }
 
     if (silentUser && typeof silentUser === 'object') {
@@ -521,6 +551,44 @@ class ThunderIDBrowserClient<T = BrowserAuthConfig> extends ThunderIDJavaScriptC
     await SPAUtils.waitTillPageRedirect();
 
     return undefined;
+  }
+
+  /**
+   * Switches back-channel by exchanging the session's device secret at the unit's token endpoint.
+   *
+   * @returns The user, `false` when the server needs the user, or `undefined` when the session holds no
+   *   device secret.
+   */
+  private async _switchOrganizationUnitWithDeviceSecret(
+    organizationUnitId: string,
+    config: AuthClientConfig<T>,
+  ): Promise<User | false | undefined> {
+    let result: DeviceSecretSwitchResult | undefined;
+
+    try {
+      result = await this.switchOrganizationUnitWithDeviceSecret(organizationUnitId);
+    } catch (error) {
+      throw ThunderIDBrowserClient._toSwitchError(undefined, error);
+    }
+
+    if (!result) {
+      return undefined;
+    }
+
+    if ('error' in result) {
+      // A device secret the server refused as unusable has been dropped, so the user signs in again.
+      if (INTERACTION_ERRORS.includes(result.error) || UNUSABLE_DEVICE_SECRET_ERRORS.includes(result.error)) {
+        return false;
+      }
+
+      throw ThunderIDBrowserClient._toSwitchError(result.error);
+    }
+
+    const user: User = await this._startSession(config.clientId ?? '');
+
+    void this._emitHook(Hooks.SignIn, user);
+
+    return user;
   }
 
   /**
@@ -563,6 +631,8 @@ class ThunderIDBrowserClient<T = BrowserAuthConfig> extends ThunderIDJavaScriptC
     config: AuthClientConfig<T>,
   ): Promise<User> {
     let response: EmbeddedSignInFlowResponse;
+    // The kept session handles let the server reuse the SSO session where its cookie is not sent.
+    const sessionData: EmbeddedFlowSessionData[] = await this.getFlowSessions();
 
     try {
       response = await executeEmbeddedSignInFlow({
@@ -571,6 +641,7 @@ class ThunderIDBrowserClient<T = BrowserAuthConfig> extends ThunderIDJavaScriptC
           applicationId: config?.applicationId ?? '',
           flowType: EmbeddedFlowType.Authentication,
           ouId: organizationUnitId,
+          ...(sessionData.length > 0 ? {sessionData} : {}),
         },
         url: resolveResourceEndpoint('flowExecute', config),
       });
@@ -583,6 +654,8 @@ class ThunderIDBrowserClient<T = BrowserAuthConfig> extends ThunderIDJavaScriptC
         error,
       );
     }
+
+    await this.storeFlowSessions(response);
 
     if (response?.flowStatus === EmbeddedSignInFlowStatus.Complete && response.assertion) {
       const claims: Record<string, unknown> = await this.decodeJwtToken<Record<string, unknown>>(response.assertion);

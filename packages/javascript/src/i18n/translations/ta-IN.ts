@@ -190,11 +190,9 @@ const translations: I18nTranslations = {
   'organization.profile.error': 'அமைப்பை ஏற்ற முடியவில்லை',
 
   /* Organization unit switcher */
-  'organization_unit.switcher.label': 'நிறுவன அலகு',
-  'organization_unit.switcher.heading': 'நிறுவன அலகை மாற்று',
-  'organization_unit.switcher.current': 'தற்போதையது',
-  'organization_unit.switcher.switch': 'மாற்று',
-  'organization_unit.switcher.switching': 'மாற்றுகிறது…',
+  'organization_unit.switcher.label': 'நிறுவனம்',
+  'organization_unit.switcher.placeholder': 'ஒரு நிறுவனத்தைத் தேர்ந்தெடுக்கவும்',
+  'organization_unit.switcher.switching': '{name} க்கு மாற்றுகிறது…',
   'organization_unit.switcher.loading': 'நிறுவன அலகுகள் ஏற்றப்படுகின்றன…',
   'organization_unit.switcher.empty': 'நிறுவன அலகுகள் எதுவும் இல்லை.',
   'organization_unit.switcher.previous': 'முந்தையது',

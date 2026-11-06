@@ -189,11 +189,9 @@ const translations: I18nTranslations = {
   'organization.profile.error': 'සංවිධානය ලෝඩ් කිරීමට අසමත් විය',
 
   /* Organization unit switcher */
-  'organization_unit.switcher.label': 'සංවිධාන ඒකකය',
-  'organization_unit.switcher.heading': 'සංවිධාන ඒකකය මාරු කරන්න',
-  'organization_unit.switcher.current': 'වත්මන්',
-  'organization_unit.switcher.switch': 'මාරු කරන්න',
-  'organization_unit.switcher.switching': 'මාරු කරමින්…',
+  'organization_unit.switcher.label': 'සංවිධානය',
+  'organization_unit.switcher.placeholder': 'සංවිධානයක් තෝරන්න',
+  'organization_unit.switcher.switching': '{name} වෙත මාරු කරමින්…',
   'organization_unit.switcher.loading': 'සංවිධාන ඒකක පූරණය වෙමින්…',
   'organization_unit.switcher.empty': 'සංවිධාන ඒකක කිසිවක් නොමැත.',
   'organization_unit.switcher.previous': 'පෙර',

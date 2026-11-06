@@ -13,6 +13,7 @@ import ThunderIDAPIError from './errors/ThunderIDAPIError';
 import ThunderIDRuntimeError from './errors/ThunderIDRuntimeError';
 import {IsomorphicCrypto} from './IsomorphicCrypto';
 import {AgentConfig} from './models/agent';
+import {OAuth2GrantTypes} from './models/application';
 import {AuthCodeResponse} from './models/auth-code-response';
 import type {CIBAInitiateOptions, CIBAInitiateResponse, CIBAPollOptions} from './models/ciba';
 import {ThunderIDClient} from './models/client';
@@ -24,13 +25,20 @@ import type {
   DeviceAuthorizationPollOptions,
   DeviceAuthorizationResponse,
 } from './models/device-authorization';
+import type {EmbeddedFlowSessionData} from './models/embedded-flow';
 import {ExtendedAuthorizeRequestUrlParams} from './models/oauth-request';
 import {OIDCDiscoveryApiResponse} from './models/oidc-discovery';
 import {OIDCEndpoints} from './models/oidc-endpoints';
 import {LogoutTokenClaims} from './models/logout-token';
-import {SessionData, UserSession} from './models/session';
+import {SessionData, StoredFlowSession, UserSession} from './models/session';
 import {Storage, TemporaryStore} from './models/store';
-import {AccessTokenApiResponse, IdToken, TokenExchangeRequestConfig, TokenResponse} from './models/token';
+import {
+  AccessTokenApiResponse,
+  DeviceSecretSwitchResult,
+  IdToken,
+  TokenExchangeRequestConfig,
+  TokenResponse,
+} from './models/token';
 import {User, UserProfile} from './models/user';
 import StorageManager from './StorageManager';
 import AuthenticationHelper from './utils/AuthenticationHelper';
@@ -98,6 +106,11 @@ const getStateStorageKey = (pkceKey: string): string =>
 const getOrganizationUnitStorageKey = (pkceKey: string): string => `${getStateStorageKey(pkceKey)}_ou`;
 
 const REVOKE_ACCESS_TOKEN_REQUEST_TIMEOUT_MS = 10_000;
+
+/**
+ * The subject token type of a device secret, which the server issues as a JWT.
+ */
+const JWT_TOKEN_TYPE = 'urn:ietf:params:oauth:token-type:jwt';
 
 const DEFAULT_CONFIG: Partial<AuthClientConfig<unknown>> = {
   enablePKCE: true,
@@ -269,6 +282,147 @@ class ThunderIDJavaScriptClient<T = Config> implements ThunderIDClient<T> {
         'javascript',
       ),
     );
+  }
+
+  /**
+   * Switches the session into the organization unit `organizationUnitId` by exchanging its device secret
+   * at the unit's token endpoint, with no redirect. On success the unit's tokens replace the session's.
+   * A device secret the server refuses as unusable is dropped from the session.
+   *
+   * @returns The new tokens or the server's OAuth error, or `undefined` when the session holds no device
+   *   secret.
+   */
+  protected async switchOrganizationUnitWithDeviceSecret(
+    organizationUnitId: string,
+    sessionId?: string,
+  ): Promise<DeviceSecretSwitchResult | undefined> {
+    const deviceSecret: string | undefined = (await this.storageManager.getSessionData(sessionId))?.device_secret;
+
+    if (!deviceSecret) {
+      return undefined;
+    }
+
+    if (
+      !(await this.storageManager.getTemporaryDataParameter(
+        OIDCDiscoveryConstants.Storage.StorageKeys.OPENID_PROVIDER_CONFIG_INITIATED,
+      ))
+    ) {
+      await this.loadOpenIDProviderConfiguration(false);
+    }
+
+    const discoveredTokenEndpoint: string | undefined = (await this.oidcProviderMetaDataProvider()).token_endpoint;
+    const configData = await this.configProvider();
+
+    if (!discoveredTokenEndpoint) {
+      throw new ThunderIDAuthException(
+        'JS-AUTH_CORE-SOUDS-NF01',
+        'Token endpoint not found.',
+        'No token endpoint was found in the OIDC provider meta data returned by the well-known endpoint.',
+      );
+    }
+
+    const body: URLSearchParams = new URLSearchParams();
+
+    body.set('client_id', configData.clientId ?? '');
+
+    const hasSecret = Boolean(configData.clientSecret && configData.clientSecret.trim().length > 0);
+    const tokenEndpointAuthMethod = configData.tokenRequest?.authMethod ?? 'client_secret_basic';
+
+    if (hasSecret && tokenEndpointAuthMethod === 'client_secret_post') {
+      body.set('client_secret', configData.clientSecret!);
+    }
+
+    body.set('grant_type', OAuth2GrantTypes.TOKEN_EXCHANGE);
+    body.set('scope', processOpenIDScopes(configData.scopes));
+    body.set('subject_token', deviceSecret);
+    body.set('subject_token_type', JWT_TOKEN_TYPE);
+
+    const headers: Record<string, string> = {
+      Accept: 'application/json',
+      'Content-Type': 'application/x-www-form-urlencoded',
+    };
+
+    if (hasSecret && tokenEndpointAuthMethod === 'client_secret_basic') {
+      const credential = `${encodeURIComponent(configData.clientId!)}:${encodeURIComponent(configData.clientSecret!)}`;
+      headers['Authorization'] = `Basic ${base64Encode(credential)}`;
+    }
+
+    let response: Response;
+
+    try {
+      response = await fetch(
+        resolveOrganizationUnitEndpoint(discoveredTokenEndpoint, organizationUnitId, configData.baseUrl),
+        {
+          body,
+          credentials: configData.sendCookiesInRequests ? 'include' : 'same-origin',
+          headers,
+          method: 'POST',
+        },
+      );
+    } catch (error) {
+      throw new ThunderIDAuthException(
+        'JS-AUTH_CORE-SOUDS-NE02',
+        'The device secret exchange failed.',
+        error instanceof Error ? error.message : 'The request to exchange the device secret failed.',
+      );
+    }
+
+    if (!response.ok) {
+      const errorBody: unknown = await response.json().catch((): undefined => undefined);
+      const errorCode: unknown = (errorBody as {error?: unknown} | undefined)?.error;
+      const error: string = typeof errorCode === 'string' && errorCode ? errorCode : 'server_error';
+
+      // The server answers a device secret it cannot use, expired or for another user, with these.
+      if (error === 'invalid_request' || error === 'invalid_grant') {
+        await this.storageManager.removeSessionDataParameter('device_secret', sessionId);
+      }
+
+      return {error};
+    }
+
+    return {tokenResponse: await this.authHelper.handleTokenResponse(response, sessionId, true)};
+  }
+
+  /**
+   * Keeps the SSO session handles an embedded flow step returned and drops the ones it ended, so later
+   * flow requests can present them instead of relying on the session cookie.
+   */
+  protected async storeFlowSessions(
+    step: {clearedSessions?: string[]; sessionData?: EmbeddedFlowSessionData[]},
+    sessionId?: string,
+  ): Promise<void> {
+    if (!step.sessionData?.length && !step.clearedSessions?.length) {
+      return;
+    }
+
+    const now: number = Date.now();
+    const held = new Map<string, StoredFlowSession>(
+      ((await this.storageManager.getSessionData(sessionId))?.flow_sessions ?? []).map(
+        (stored: StoredFlowSession): [string, StoredFlowSession] => [stored.flowIdentifier, stored],
+      ),
+    );
+
+    step.sessionData?.forEach(({expiresIn, flowIdentifier, sessionHandle}: EmbeddedFlowSessionData) => {
+      held.set(flowIdentifier, {
+        expiresAt: expiresIn ? now + expiresIn * 1000 : undefined,
+        flowIdentifier,
+        sessionHandle,
+      });
+    });
+    step.clearedSessions?.forEach((flowIdentifier: string) => held.delete(flowIdentifier));
+
+    await this.storageManager.setSessionData({flow_sessions: [...held.values()]}, sessionId);
+  }
+
+  /**
+   * The SSO session handles kept from embedded flow steps that have not expired.
+   */
+  protected async getFlowSessions(sessionId?: string): Promise<EmbeddedFlowSessionData[]> {
+    const now: number = Date.now();
+
+    return ((await this.storageManager.getSessionData(sessionId))?.flow_sessions ?? [])
+      .filter(({expiresAt}: StoredFlowSession) => expiresAt === undefined || expiresAt > now)
+      .map(({flowIdentifier, sessionHandle}: StoredFlowSession) => ({flowIdentifier, sessionHandle}));
   }
 
   public async isSignedIn(userId?: string): Promise<boolean> {

@@ -54,8 +54,8 @@ const switchErrorKey = (error: unknown): string => {
 };
 
 /**
- * Lists the organization units the signed-in user can access (`/users/me/ous`), marks the current one,
- * and switches to another through `switchOrganizationUnit`: the server reuses the SSO session, so
+ * Shows the current organization unit in a field that opens a menu of the units the signed-in user can
+ * access (`/users/me/ous`), and switches to the one picked through `switchOrganizationUnit`: the server reuses the SSO session, so
  * normally no credentials are asked. A failed switch leaves the session as it was and shows a translated
  * message. Pass `onSelect` (or `@select`) to take over the switch yourself.
  *
@@ -75,7 +75,7 @@ const OrganizationUnitSwitcher: Component = defineComponent({
     preferences: {default: undefined, type: Object as PropType<Preferences>},
     /** Narrows the list relative to the current unit: `siblings`. Omit to list every accessible unit. */
     scope: {default: undefined, type: String as PropType<AccessibleOrganizationUnitScope>},
-    /** Overrides the default heading. An empty string omits it. */
+    /** Overrides the small label above the current unit. An empty string omits it. */
     title: {default: undefined, type: String},
   },
   emits: ['switch'],
@@ -172,6 +172,11 @@ const OrganizationUnitSwitcher: Component = defineComponent({
           class: withVendorCSSClassPrefix('organization-unit-switcher--styled'),
           className: props.className,
           current: current.value,
+          // The session's unit names the field when the page does not list the current unit.
+          currentName:
+            currentOrganizationUnit?.value?.id === current.value
+              ? (currentOrganizationUnit?.value?.name ?? null)
+              : null,
           error: error.value,
           isLoading: isLoading.value,
           limit: props.limit,

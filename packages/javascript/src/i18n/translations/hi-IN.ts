@@ -187,11 +187,9 @@ const translations: I18nTranslations = {
   'organization.profile.error': 'संगठन लोड करने में विफल',
 
   /* Organization unit switcher */
-  'organization_unit.switcher.label': 'संगठन इकाई',
-  'organization_unit.switcher.heading': 'संगठन इकाई बदलें',
-  'organization_unit.switcher.current': 'वर्तमान',
-  'organization_unit.switcher.switch': 'बदलें',
-  'organization_unit.switcher.switching': 'बदला जा रहा है…',
+  'organization_unit.switcher.label': 'संगठन',
+  'organization_unit.switcher.placeholder': 'संगठन चुनें',
+  'organization_unit.switcher.switching': '{name} में बदला जा रहा है…',
   'organization_unit.switcher.loading': 'संगठन इकाइयाँ लोड हो रही हैं…',
   'organization_unit.switcher.empty': 'कोई संगठन इकाई उपलब्ध नहीं है।',
   'organization_unit.switcher.previous': 'पिछला',
