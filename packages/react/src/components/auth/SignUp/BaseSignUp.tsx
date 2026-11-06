@@ -27,7 +27,7 @@ import {useForm, FormField} from '../../../hooks/useForm';
 import useTranslation from '../../../hooks/useTranslation';
 import {cx} from '../../../styles/emotion';
 import composeAffixedInputs from '../../../utils/composeAffixedInputs';
-import {normalizeFlowResponse, extractErrorMessage} from '../../../utils/flowTransformer';
+import {normalizeFlowResponse, extractErrorMessage, resolveFlowError} from '../../../utils/flowTransformer';
 import getAuthComponentHeadings from '../../../utils/getAuthComponentHeadings';
 import {handlePasskeyRegistration} from '../../../utils/passkey';
 import AlertPrimitive from '../../primitives/Alert/Alert';
@@ -292,7 +292,12 @@ const BaseSignUpContent: FC<BaseSignUpProps> = ({
   const [isLoading, setIsLoading] = useState(false);
   const [isFlowInitialized, setIsFlowInitialized] = useState(false);
   const [currentFlow, setCurrentFlow] = useState<EmbeddedSignUpFlowResponse | null>(null);
-  const [apiError, setApiError] = useState<Error | null>(null);
+  // Raw error source, resolved on render so the message follows a language change.
+  const [apiErrorSource, setApiErrorSource] = useState<unknown>(null);
+  const apiError: Error | null = useMemo(
+    () => (apiErrorSource === null ? null : resolveFlowError(apiErrorSource, t)),
+    [apiErrorSource, t],
+  );
   const [isStorageReady, setIsStorageReady] = useState(false);
   const [passkeyState, setPasskeyState] = useState<PasskeyState>({
     actionId: null,
@@ -356,25 +361,21 @@ const BaseSignUpContent: FC<BaseSignUpProps> = ({
   };
 
   /**
-   * Handle error responses and extract meaningful error messages
-   * Uses the transformer's extractErrorMessage function.
+   * Handle error responses. The message is resolved from the stored source on render.
    */
-  const handleError: any = useCallback(
-    (error: any) => {
-      const errorMessage: string = extractErrorMessage(error, t);
+  const handleError: any = useCallback((error: unknown) => {
+    setApiErrorSource(error);
+  }, []);
 
-      // Set the API error state
-      setApiError(error instanceof Error ? error : new Error(errorMessage));
+  // Flow messages hold plain strings, so re-add the message on a new error or a changed text.
+  // Keyed on the text, not `t`, so an unstable translator cannot re-run this on every render.
+  const apiErrorMessage: string | undefined = apiError?.message;
+  useEffect(() => {
+    if (!apiErrorMessage) return;
 
-      // Clear existing messages and add the error message
-      clearMessages();
-      addMessage({
-        message: errorMessage,
-        type: 'error',
-      });
-    },
-    [t, addMessage, clearMessages],
-  );
+    clearMessages();
+    addMessage({message: apiErrorMessage, type: 'error'});
+  }, [apiErrorSource, apiErrorMessage, addMessage, clearMessages]);
 
   /**
    * Normalize flow response to ensure component-driven format
@@ -809,7 +810,7 @@ const BaseSignUpContent: FC<BaseSignUpProps> = ({
     }
 
     setIsLoading(true);
-    setApiError(null);
+    setApiErrorSource(null);
     clearMessages();
 
     try {
@@ -1052,7 +1053,7 @@ const BaseSignUpContent: FC<BaseSignUpProps> = ({
 
       (async (): Promise<void> => {
         setIsLoading(true);
-        setApiError(null);
+        setApiErrorSource(null);
         clearMessages();
 
         try {

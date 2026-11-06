@@ -31,17 +31,32 @@ import {
 } from '@thunderid/vue';
 import {
   type Component,
+  type ComputedRef,
   type PropType,
   type Ref,
   type SetupContext,
   type VNode,
+  computed,
   defineComponent,
   h,
   onUnmounted,
   ref,
+  shallowRef,
   watch,
 } from 'vue';
 import {useThunderID} from '#imports';
+
+/** Builds an SDK-raised error with the current translator, so it follows a language change. */
+type FlowErrorBuilder = (t: ReturnType<typeof useI18n>['t']) => Error;
+
+/** Resolves a banner error source. A builder is called; an Error with a message is kept as-is so `code` survives. */
+const resolveFlowError = (source: unknown, t: ReturnType<typeof useI18n>['t']): Error => {
+  if (typeof source === 'function') {
+    return (source as FlowErrorBuilder)(t);
+  }
+
+  return source instanceof Error && source.message ? source : new Error(extractErrorMessage(source, t));
+};
 
 interface PasskeyState {
   actionId: string | null;
@@ -138,7 +153,11 @@ const SignIn: Component = defineComponent({
     const currentExecutionId: Ref<string | null> = ref(null);
     const challengeTokenRef: {current: string | null} = {current: null};
     const isFlowInitialized: Ref<boolean> = ref(false);
-    const flowError: Ref<Error | null> = ref(null);
+    // Raw source behind the banner, resolved on read so the message follows a language change.
+    const flowErrorSource: Ref<unknown> = shallowRef(null);
+    const flowError: ComputedRef<Error | null> = computed(() =>
+      flowErrorSource.value === null ? null : resolveFlowError(flowErrorSource.value, t),
+    );
     const isSubmitting: Ref<boolean> = ref(false);
     const isTimeoutDisabled: Ref<boolean> = ref(false);
     const passkeyState: Ref<PasskeyState> = ref({
@@ -231,10 +250,10 @@ const SignIn: Component = defineComponent({
       window.history.replaceState({}, '', url.toString());
     };
 
-    const setError = (error: Error): void => {
-      flowError.value = error;
+    const setError = (source: unknown): void => {
+      flowErrorSource.value = source;
       isFlowInitialized.value = true;
-      emit('error', error);
+      emit('error', flowError.value);
     };
 
     /**
@@ -327,7 +346,7 @@ const SignIn: Component = defineComponent({
       }
 
       try {
-        flowError.value = null;
+        flowErrorSource.value = null;
 
         const response: EmbeddedSignInFlowResponse = (
           urlParams.executionId
@@ -380,7 +399,7 @@ const SignIn: Component = defineComponent({
       } catch (error: unknown) {
         const err: any = error as any;
         clearFlowState();
-        setError(new Error(extractErrorMessage(err, t)));
+        setError(err);
         initializationAttempted = false;
       }
     };
@@ -455,7 +474,7 @@ const SignIn: Component = defineComponent({
 
       try {
         isSubmitting.value = true;
-        flowError.value = null;
+        flowErrorSource.value = null;
 
         const response: EmbeddedSignInFlowResponse = (await signIn({
           executionId: effectiveExecutionId,
@@ -503,10 +522,10 @@ const SignIn: Component = defineComponent({
         // Handle error flow status
         if (response.flowStatus === EmbeddedSignInFlowStatus.Error) {
           clearFlowState();
-          const err: Error = new Error(extractErrorMessage(response, t));
-          setError(err);
+          setError(response);
           cleanupFlowUrlParams();
-          throw err;
+          // flowError is cached, so the catch below recognizes this instance and rethrows it.
+          throw flowError.value!;
         }
 
         // Handle flow completion
@@ -535,7 +554,7 @@ const SignIn: Component = defineComponent({
           cleanupFlowUrlParams();
 
           if ((response as any)?.error) {
-            flowError.value = new Error(extractErrorMessage(response, t));
+            flowErrorSource.value = response;
           }
         }
       } catch (error: unknown) {
@@ -545,7 +564,7 @@ const SignIn: Component = defineComponent({
           throw err;
         }
         clearFlowState();
-        setError(new Error(extractErrorMessage(err, t)));
+        setError(err);
       } finally {
         isSubmitting.value = false;
       }
@@ -562,14 +581,16 @@ const SignIn: Component = defineComponent({
         return;
       }
       const remaining: number = Math.max(0, Math.floor((timeoutMs - Date.now()) / 1000));
+      const expiredError: FlowErrorBuilder = (translate) =>
+        new Error(translate('errors.signin.timeout') || 'Time allowed to complete the step has expired.');
       if (remaining <= 0) {
         isTimeoutDisabled.value = true;
-        setError(new Error(t('errors.signin.timeout') || 'Time allowed to complete the step has expired.'));
+        setError(expiredError);
         return;
       }
       timeoutHandle = setTimeout(() => {
         isTimeoutDisabled.value = true;
-        setError(new Error(t('errors.signin.timeout') || 'Time allowed to complete the step has expired.'));
+        setError(expiredError);
       }, remaining * 1000);
     };
 
@@ -631,7 +652,7 @@ const SignIn: Component = defineComponent({
         } catch (error: unknown) {
           const err: Error = error as Error;
           passkeyState.value = {...passkeyState.value, error: err, isActive: false};
-          flowError.value = err;
+          flowErrorSource.value = err;
           emit('error', err);
         }
       },

@@ -278,6 +278,21 @@ export const extractErrorMessage = (
   return t(defaultErrorKey);
 };
 
+/** Builds an SDK-raised error with the current translator, so it follows a language change. */
+export type FlowErrorBuilder = (t: UseTranslation['t']) => Error;
+
+/**
+ * Resolves a stored flow error source with the current translator. A builder is called, an Error with a
+ * message is kept as-is so fields like `code` survive, and anything else goes through `extractErrorMessage`.
+ */
+export const resolveFlowError = (source: unknown, t: UseTranslation['t']): Error => {
+  if (typeof source === 'function') {
+    return (source as FlowErrorBuilder)(t);
+  }
+
+  return source instanceof Error && source.message ? source : new Error(extractErrorMessage(source, t));
+};
+
 /**
  * Check if a response is an error response and extract the error message.
  * This function identifies error responses by checking for ERROR status and failure reasons.
