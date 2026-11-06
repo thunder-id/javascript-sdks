@@ -149,7 +149,7 @@ const SAMPLE_AGENTS: BasicAgent[] = [
 const SAMPLE_AGENT: Agent = {
   ...SAMPLE_AGENTS[0],
   description: 'Books flights and hotels for employees',
-  owner: 'usr_8f2c41',
+  owner: {id: 'usr_8f2c41'},
 };
 
 const SAMPLE_APPLICATIONS: BasicApplication[] = [

@@ -1201,7 +1201,12 @@ const STORIES: ComponentDef[] = [
       isLive(args)
         ? {
             imports: ['AgentCreate'],
-            jsx: jsx('AgentCreate', pick(args, 'title', 'ouId', 'owner'), {extra: ['onCreated={handleCreated}']}),
+            jsx: jsx('AgentCreate', pick(args, 'title', 'ouId'), {
+              extra: [
+                ...(str(args, 'owner') ? [`owner={{id: '${str(args, 'owner')}'}}`] : []),
+                'onCreated={handleCreated}',
+              ],
+            }),
           }
         : {
             imports: ['BaseAgentCreate'],
@@ -1238,7 +1243,7 @@ const STORIES: ComponentDef[] = [
           <AgentCreate
             title={str(args, 'title') || undefined}
             ouId={str(args, 'ouId') || undefined}
-            owner={str(args, 'owner') || undefined}
+            owner={str(args, 'owner') ? {id: str(args, 'owner')} : undefined}
             onCreated={(agent: Agent) => action('onCreated', agent.id)}
             onCancel={() => action('onCancel')}
           />

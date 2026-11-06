@@ -673,8 +673,9 @@ describe('admin components (vue)', () => {
             : {...page, types: [{displayName: 'Assistant', handle: 'assistant'}]},
         ),
       );
+      const owner = {id: 'jane@example.com', idType: 'email', isLocal: false};
       let renderProps: BaseAgentCreateRenderProps | undefined;
-      const {wrapper} = mountWith(AgentCreate, {}, context, {
+      const {wrapper} = mountWith(AgentCreate, {owner}, context, {
         default: (props: BaseAgentCreateRenderProps) => {
           renderProps = props;
 
@@ -697,6 +698,7 @@ describe('admin components (vue)', () => {
       expect(JSON.parse(create[1].body as string)).toEqual({
         attributes: {name: 'Concierge'},
         ouId: 'ou-1',
+        owner,
         type: 'assistant',
       });
       expect(invalidatedKeys(invalidate)).toEqual([[AgentQueryKeys.AGENTS]]);
@@ -1203,6 +1205,21 @@ describe('admin components (vue)', () => {
       expect(wrapper.find('[role="group"]').attributes('aria-label')).toBe(
         translate('admin.agents.details.delete.confirm', {name: 'Billing bot'}),
       );
+    });
+
+    it("shows the owner's ID, or that the agent has none", () => {
+      const {wrapper} = mountWith(BaseAgentDetails, {
+        agent: {
+          id: 'ag-2',
+          ouId: 'ou-1',
+          owner: {id: 'jane@example.com', idType: 'email', isLocal: false},
+          type: 'bot',
+        },
+      });
+      expect(wrapper.text()).toContain('jane@example.com');
+
+      const {wrapper: unowned} = mountWith(BaseAgentDetails, {agent: {id: 'ag-3', ouId: 'ou-1', type: 'bot'}});
+      expect(unowned.text()).toContain(translate('admin.agents.details.no_owner'));
     });
   });
 

@@ -1161,7 +1161,7 @@ export const ADMIN_COMPONENTS: ComponentDef[] = [
     base: BaseAgentDetails,
     baseExtra: [':agent="agent"', ':groups="groups"', ':roles="roles"'],
     baseProps: {
-      agent: {...SAMPLE_AGENTS[0], description: 'Books travel for employees', owner: 'usr_8f2c41'},
+      agent: {...SAMPLE_AGENTS[0], description: 'Books travel for employees', owner: {id: 'usr_8f2c41'}},
       groups: SAMPLE_MEMBERSHIPS.slice(0, 1),
       roles: ['Agent operator'],
     },

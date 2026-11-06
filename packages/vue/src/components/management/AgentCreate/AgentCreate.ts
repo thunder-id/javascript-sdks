@@ -2,8 +2,24 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import {AgentQueryKeys, createAgent, getAgentTypes, toManagementErrorMessage} from '@thunderid/browser';
-import type {AgentType, AgentTypeListResponse, SelectOption, Agent, CreateAgentRequest} from '@thunderid/browser';
-import {type Component, type ComputedRef, type SetupContext, type VNode, computed, defineComponent, h} from 'vue';
+import type {
+  AgentOwner,
+  AgentType,
+  AgentTypeListResponse,
+  SelectOption,
+  Agent,
+  CreateAgentRequest,
+} from '@thunderid/browser';
+import {
+  type Component,
+  type ComputedRef,
+  type PropType,
+  type SetupContext,
+  type VNode,
+  computed,
+  defineComponent,
+  h,
+} from 'vue';
 import BaseAgentCreate, {type AgentCreateSubmission} from './BaseAgentCreate';
 import useManagementEndpoint, {type ManagementEndpoint} from '../../../composables/management/useManagementEndpoint';
 import useResourceMutation, {type ResourceMutationResult} from '../../../composables/management/useResourceMutation';
@@ -15,7 +31,7 @@ import useProjectPlacement, {type ProjectPlacement} from '../shared/useProjectPl
 type AgentCreateProps = Omit<AdminFormProps, 'error' | 'isSubmitting'> &
   Readonly<{
     ouId: string | undefined;
-    owner: string | undefined;
+    owner: AgentOwner | undefined;
   }>;
 
 /**
@@ -38,8 +54,8 @@ const AgentCreate: Component = defineComponent({
      * `projectId`) when one is chosen, otherwise in the signed-in user's organization unit.
      */
     ouId: {default: undefined, type: String},
-    /** Identifier of the user who owns the agent. */
-    owner: {default: undefined, type: String},
+    /** The person responsible for the agent. Defaults to the server's choice, usually the creator. */
+    owner: {default: undefined, type: Object as PropType<AgentOwner>},
     preferences: adminFormProps.preferences,
     title: adminFormProps.title,
   },

@@ -142,7 +142,7 @@ const BaseAgentDetails: FC<BaseAgentDetailsProps> = ({
 
   const details: {label: string; value: ReactNode}[] = [
     {label: t('admin.agents.details.type'), value: agent.type},
-    {label: t('admin.agents.details.owner'), value: agent.owner ?? t('admin.agents.details.no_owner')},
+    {label: t('admin.agents.details.owner'), value: agent.owner?.id ?? t('admin.agents.details.no_owner')},
     {label: t('admin.common.columns.organization_unit'), value: agent.ouHandle ?? agent.ouId},
   ];
 
