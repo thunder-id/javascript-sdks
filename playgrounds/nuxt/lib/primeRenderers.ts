@@ -146,12 +146,33 @@ export const userCard = (state: BaseUserDetailsRenderProps): VNode =>
       content: () =>
         h('div', {class: 'pg-prime-stack'}, [
           state.error ? h(Message, {severity: 'error'}, {default: () => state.error}) : null,
+          state.sentVerification
+            ? h(
+                Message,
+                {severity: 'success'},
+                {default: () => `Link sent to ${state.sentVerification?.maskedDestination ?? 'the user'}`},
+              )
+            : null,
           h(
             'div',
             {class: 'pg-prime-chips'},
             Object.entries(state.attributes).map(([name, value]: [string, unknown]) =>
               h(Chip, {key: name, label: `${name}: ${String(value)}`}),
             ),
+          ),
+          ...state.verificationStatusAttributes.map((name: string) =>
+            h('div', {class: 'pg-prime-chips', key: name, style: {alignItems: 'center'}}, [
+              h(Chip, {label: `${name}: ${state.verifiedAttributes?.[name] ? 'verified' : 'not verified'}`}),
+              state.onSendVerification && state.verifiableAttributes.includes(name) && !state.verifiedAttributes?.[name]
+                ? h(Button, {
+                    label: 'Send link',
+                    loading: state.isSendingVerification,
+                    onClick: (): void => state.onSendVerification?.(name),
+                    size: 'small',
+                    text: true,
+                  })
+                : null,
+            ]),
           ),
           h(
             'div',

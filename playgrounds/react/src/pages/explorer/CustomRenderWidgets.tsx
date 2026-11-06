@@ -387,12 +387,35 @@ export const UserCard = (details: BaseUserDetailsRenderProps): ReactElement => (
     onDelete={details.onDelete}
   >
     {details.error && <MuiAlert severity="error">{details.error}</MuiAlert>}
+    {details.sentVerification && (
+      <MuiAlert severity="success">Link sent to {details.sentVerification.maskedDestination ?? 'the user'}</MuiAlert>
+    )}
     <ChipRow
       items={Object.entries(details.attributes).map(([name, value]: [string, unknown]) => ({
         id: name,
         label: `${name}: ${String(value)}`,
       }))}
     />
+    {details.verificationStatusAttributes.map((name: string) => (
+      <Stack key={name} direction="row" spacing={1} alignItems="center">
+        <Chip
+          size="small"
+          color={details.verifiedAttributes?.[name] ? 'success' : 'default'}
+          label={`${name}: ${details.verifiedAttributes?.[name] ? 'verified' : 'not verified'}`}
+        />
+        {details.onSendVerification &&
+          details.verifiableAttributes.includes(name) &&
+          !details.verifiedAttributes?.[name] && (
+            <Button
+              size="small"
+              loading={details.isSendingVerification}
+              onClick={(): void => details.onSendVerification?.(name)}
+            >
+              Send link
+            </Button>
+          )}
+      </Stack>
+    ))}
     <ChipRow color="primary" items={details.groups.map((group) => ({id: group.id, label: group.name}))} />
   </DetailsCard>
 );

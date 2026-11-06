@@ -342,6 +342,12 @@ export interface I18nTranslations {
   'admin.users.details.edit.action': string;
   'admin.users.details.edit.save': string;
   'admin.users.details.edit.error': string;
+  'admin.users.details.verification.status.verified': string;
+  'admin.users.details.verification.status.unverified': string;
+  'admin.users.details.verification.send': string;
+  'admin.users.details.verification.sent': string;
+  'admin.users.details.verification.sent_generic': string;
+  'admin.users.details.verification.error': string;
   'admin.groups.list.title': string;
   'admin.groups.list.columns.name': string;
   'admin.groups.list.columns.description': string;

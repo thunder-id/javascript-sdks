@@ -5,16 +5,20 @@ import {
   AdministrationMode,
   GroupQueryKeys,
   ManagedUser,
+  ManagedUserTypeDetails,
   MembershipGroupListResponse,
+  SendUserAttributeVerificationResult,
   UpdateManagedUserRequest,
   UserQueryKeys,
   deleteUser,
   getUser,
   getUserGroups,
+  getUserTypeByHandle,
+  sendUserAttributeVerification,
   toManagementErrorMessage,
   updateUser,
 } from '@thunderid/browser';
-import {FC, ReactElement} from 'react';
+import {FC, ReactElement, useRef} from 'react';
 import BaseUserDetails, {BaseUserDetailsProps} from './BaseUserDetails';
 import useAccountLifecycle, {AccountLifecycleState} from '../../../hooks/management/useAccountLifecycle';
 import useManagementEndpoint, {ManagementEndpoint} from '../../../hooks/management/useManagementEndpoint';
@@ -27,6 +31,12 @@ interface UpdateUserVariables {
   userId: string;
 }
 
+interface VerificationTarget {
+  attribute: string;
+  userId: string;
+  value: unknown;
+}
+
 export type UserDetailsProps = Omit<
   BaseUserDetailsProps,
   | 'error'
@@ -34,12 +44,16 @@ export type UserDetailsProps = Omit<
   | 'isDeleting'
   | 'isLoading'
   | 'isRunningLifecycleAction'
+  | 'isSendingVerification'
   | 'isUpdating'
   | 'lifecycleActions'
   | 'onDelete'
   | 'onLifecycleAction'
+  | 'onSendVerification'
   | 'onUpdate'
+  | 'sentVerification'
   | 'user'
+  | 'userSchema'
 > & {
   /**
    * How the delete runs. `flow` runs the user deletion flow the server configures, which revokes the
@@ -47,6 +61,13 @@ export type UserDetailsProps = Omit<
    * @default 'native'
    */
   administrationMode?: AdministrationMode;
+  /**
+   * Whether a verification link can be sent to the user's unverified email from this view. It runs the
+   * server's administrator-initiated verification flow, and the user finishes from the link. It needs
+   * `baseUrl`.
+   * @default false
+   */
+  attributeVerification?: boolean;
   /**
    * Whether the user can be deleted from this view.
    * @default false
@@ -72,15 +93,17 @@ export type UserDetailsProps = Omit<
 };
 
 /**
- * Shows a user and the groups they belong to, and optionally lets the signed-in user delete them.
+ * Shows a user and the groups they belong to, and optionally lets the signed-in user delete them, edit
+ * them, run account lifecycle actions or send them a link to verify their email.
  *
  * @example
  * ```tsx
- * <UserDetails userId={userId} deletable onDeleted={() => navigate('/users')} />
+ * <UserDetails userId={userId} deletable attributeVerification onDeleted={() => navigate('/users')} />
  * ```
  */
 const UserDetails: FC<UserDetailsProps> = ({
   administrationMode,
+  attributeVerification = false,
   deletable = false,
   editable = false,
   lifecycleActions = false,
@@ -96,6 +119,14 @@ const UserDetails: FC<UserDetailsProps> = ({
     (fetcher) => getUser({...endpoint, fetcher, userId}),
     {enabled: Boolean(userId)},
   );
+  const userTypesEndpoint: ManagementEndpoint = useManagementEndpoint('userTypes');
+  const typeHandle: string | undefined = user.data?.id === userId ? user.data.type : undefined;
+  const userType: ResourceQueryResult<ManagedUserTypeDetails | undefined> = useResourceQuery(
+    [UserQueryKeys.USER_TYPES, {handle: typeHandle}],
+    (fetcher) => getUserTypeByHandle({...userTypesEndpoint, fetcher, handle: typeHandle!}),
+    {enabled: Boolean(typeHandle && user.data?.verifiedAttributes)},
+  );
+  const userSchema = userType.data?.handle === typeHandle ? userType.data?.schema : undefined;
   const groups: ResourceQueryResult<MembershipGroupListResponse> = useResourceQuery(
     [GroupQueryKeys.MEMBERSHIPS, 'user', userId, {limit: 100}],
     (fetcher) => getUserGroups({...endpoint, fetcher, limit: 100, userId}),
@@ -111,6 +142,17 @@ const UserDetails: FC<UserDetailsProps> = ({
     ({userId: id}: UpdateUserVariables) => [[UserQueryKeys.USER, id], [UserQueryKeys.USERS]],
   );
 
+  const verificationTarget = useRef<VerificationTarget | null>(null);
+  const verification: ResourceMutationResult<SendUserAttributeVerificationResult, VerificationTarget> =
+    useResourceMutation(
+      ({attribute, userId: id}, fetcher) =>
+        sendUserAttributeVerification({...endpoint, attribute, fetcher, userId: id}),
+      ({userId: id}) => [[UserQueryKeys.USER, id]],
+    );
+  const target: VerificationTarget | null = verificationTarget.current;
+  const showVerificationResult: boolean =
+    attributeVerification && target?.userId === userId && user.data?.attributes?.[target.attribute] === target.value;
+
   const lifecycle: AccountLifecycleState = useAccountLifecycle({
     enabled: lifecycleActions,
     invalidatedKeys: [[UserQueryKeys.USER, userId], [UserQueryKeys.USERS]],
@@ -122,12 +164,18 @@ const UserDetails: FC<UserDetailsProps> = ({
   return (
     <BaseUserDetails
       user={user.data}
+      userSchema={userSchema}
       groups={groups.data?.groups}
       isLoading={user.isLoading}
       error={
         toManagementErrorMessage(t, user.error, 'admin.users.details.error') ??
         toManagementErrorMessage(t, deletion.error, 'admin.users.details.delete.error') ??
         toManagementErrorMessage(t, update.error, 'admin.users.details.edit.error') ??
+        toManagementErrorMessage(
+          t,
+          showVerificationResult ? verification.error : null,
+          'admin.users.details.verification.error',
+        ) ??
         toManagementErrorMessage(t, lifecycle.error, 'admin.common.lifecycle.error') ??
         toManagementErrorMessage(t, lifecycle.loadError, 'admin.common.lifecycle.load_error')
       }
@@ -136,6 +184,18 @@ const UserDetails: FC<UserDetailsProps> = ({
       lifecycleActions={lifecycle.actions}
       isRunningLifecycleAction={lifecycle.isRunning}
       onLifecycleAction={lifecycleActions ? lifecycle.run : undefined}
+      isSendingVerification={verification.isLoading}
+      onSendVerification={
+        attributeVerification && userSchema && user.data?.id === userId
+          ? (attribute: string): void => {
+              const target: VerificationTarget = {attribute, userId, value: user.data?.attributes?.[attribute]};
+              verificationTarget.current = target;
+              verification.reset();
+              void verification.mutate(target);
+            }
+          : undefined
+      }
+      sentVerification={showVerificationResult ? (verification.data ?? null) : null}
       isUpdating={update.isLoading}
       onUpdate={
         editable && user.data

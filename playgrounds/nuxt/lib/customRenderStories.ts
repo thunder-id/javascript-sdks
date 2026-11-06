@@ -302,13 +302,26 @@ const FORM_TEMPLATE = `<GroupCreate @created="(group) => router.push(group.id)">
   </template>
 </GroupCreate>`;
 
-const CARD_TEMPLATE = `<UserDetails :user-id="userId" deletable>
-  <template #default="{user, displayName, attributes, groups, onDelete}">
+const CARD_TEMPLATE = `<UserDetails :user-id="userId" deletable attribute-verification>
+  <template
+    #default="{user, displayName, attributes, groups, onDelete, verifiableAttributes, verificationStatusAttributes, verifiedAttributes, onSendVerification, isSendingVerification, sentVerification}"
+  >
     <Card>
       <template #title>{{ displayName }}</template>
       <template #subtitle>{{ user?.type }}</template>
       <template #content>
+        <Message v-if="sentVerification" severity="success">Link sent to {{ sentVerification.maskedDestination }}</Message>
         <Chip v-for="(value, name) in attributes" :key="name" :label="\`\${name}: \${value}\`" />
+        <div v-for="name in verificationStatusAttributes" :key="name">
+          <Chip :label="\`\${name}: \${verifiedAttributes?.[name] ? 'verified' : 'not verified'}\`" />
+          <Button
+            v-if="onSendVerification && verifiableAttributes.includes(name) && !verifiedAttributes?.[name]"
+            label="Send link"
+            text
+            :loading="isSendingVerification"
+            @click="onSendVerification(name)"
+          />
+        </div>
         <Chip v-for="group in groups" :key="group.id" :label="group.name" />
       </template>
       <template #footer>
@@ -547,6 +560,7 @@ export const CUSTOM_RENDER_COMPONENTS: ComponentDef[] = [
         "import Button from 'primevue/button';",
         "import Card from 'primevue/card';",
         "import Chip from 'primevue/chip';",
+        "import Message from 'primevue/message';",
       ],
       template: CARD_TEMPLATE,
     }),
@@ -574,6 +588,7 @@ export const CUSTOM_RENDER_COMPONENTS: ComponentDef[] = [
           ? h(
               UserDetails,
               {
+                attributeVerification: true,
                 deletable: bool(args, 'deletable'),
                 onDeleted: (): void => action('deleted'),
                 userId: str(args, 'userId'),
@@ -587,7 +602,8 @@ export const CUSTOM_RENDER_COMPONENTS: ComponentDef[] = [
                 onDelete: bool(args, 'deletable')
                   ? (): void => action('delete', quoted(SAMPLE_USERS[0].id))
                   : undefined,
-                user: SAMPLE_USERS[0],
+                onSendVerification: (attribute: string): void => action('send-verification', quoted(attribute)),
+                user: {...SAMPLE_USERS[0], verifiedAttributes: {}},
               },
               {default: (state: BaseUserDetailsRenderProps) => userCard(state)},
             ),

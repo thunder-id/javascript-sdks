@@ -3,6 +3,7 @@
 
 import {AccessStatus} from './access-status';
 import {ApiPaginationLink} from './api';
+import {VerifiedAttribute} from './user';
 
 /**
  * A user record managed through the ThunderID management API.
@@ -21,6 +22,11 @@ export interface ManagedUser {
    */
   status?: AccessStatus;
   type: string;
+  /**
+   * The user's verified attributes, keyed by attribute. Empty when none is verified; absent when the
+   * server does not report verification.
+   */
+  verifiedAttributes?: Record<string, VerifiedAttribute>;
 }
 
 /**

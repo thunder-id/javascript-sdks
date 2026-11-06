@@ -1931,4 +1931,254 @@ describe('admin components (vue)', () => {
       );
     });
   });
+  describe('administrator-initiated email verification', () => {
+    const person: ManagedUser = {
+      attributes: {email: 'jane@example.com', given_name: 'Jane', mobile: '+94770000001'},
+      display: 'Jane Doe',
+      id: 'u7',
+      ouId: 'ou-1',
+      type: 'Person',
+      verifiedAttributes: {},
+    };
+    const verifiedPerson: ManagedUser = {...person, verifiedAttributes: {email: {verifiedAt: '2026-11-03T10:00:00Z'}}};
+    const linkSent: unknown = {
+      data: {additionalData: {channel: 'email', emailSent: 'true', maskedDestination: 'j***@example.com'}},
+      flowStatus: 'INCOMPLETE',
+      type: 'VIEW',
+    };
+    const send: string = translate('admin.users.details.verification.send');
+
+    const button = (wrapper: VueWrapper, name: string): DOMWrapper<HTMLButtonElement> | undefined =>
+      wrapper.findAll('button').find((candidate: DOMWrapper<HTMLButtonElement>) => candidate.text() === name);
+
+    /** A context serving the user, no groups, and the given answer to a flow start. */
+    const createServer = (user: ManagedUser, start: () => Response = () => jsonResponse(linkSent)) => {
+      const context = createManagementContext();
+      context.fetcher.mockImplementation((url: string) => {
+        const {pathname} = new URL(url);
+        if (pathname === '/user-types') {
+          return Promise.resolve(jsonResponse({count: 1, totalResults: 1, types: [{handle: user.type, id: 'type-1'}]}));
+        }
+        if (pathname === '/user-types/type-1') {
+          return Promise.resolve(
+            jsonResponse({
+              handle: user.type,
+              schema: {
+                email: {type: 'email'},
+                mobile: {type: 'mobile'},
+                mobile_number: {type: 'mobile'},
+                workEmail: {type: 'email'},
+              },
+            }),
+          );
+        }
+        if (url === 'https://thunder.example/flow/execute') return Promise.resolve(start());
+        if (url.includes('/groups')) {
+          return Promise.resolve(jsonResponse({count: 0, groups: [], startIndex: 1, totalResults: 0}));
+        }
+
+        return Promise.resolve(jsonResponse(user));
+      });
+
+      return context;
+    };
+
+    const flowStarts = (context: ManagementTestContext): unknown[] =>
+      context.fetcher.mock.calls
+        .filter(([url]) => url === 'https://thunder.example/flow/execute')
+        .map(([, init]) => JSON.parse(init.body as string) as unknown);
+
+    describe('BaseUserDetails', () => {
+      it('shows the email as not verified and sends a link for it', async () => {
+        const onSendVerification = vi.fn();
+        const {wrapper} = mountWith(BaseUserDetails, {onSendVerification, user: person});
+
+        expect(wrapper.find('dd .thunderid-admin__status-chip').text()).toBe(
+          translate('admin.users.details.verification.status.unverified'),
+        );
+        expect(wrapper.findAll('button').filter((candidate) => candidate.text() === send)).toHaveLength(1);
+        await button(wrapper, send)!.trigger('click');
+
+        expect(onSendVerification).toHaveBeenCalledWith('email');
+      });
+
+      it('shows a verified email as verified, with nothing to send', () => {
+        const {wrapper} = mountWith(BaseUserDetails, {onSendVerification: vi.fn(), user: verifiedPerson});
+
+        expect(wrapper.find('dd .thunderid-admin__status-chip--success').text()).toBe(
+          translate('admin.users.details.verification.status.verified'),
+        );
+        expect(button(wrapper, send)).toBeUndefined();
+      });
+
+      it.each<[string, Record<string, unknown>]>([
+        ['the app has not turned it on', {user: person}],
+        ['the user is read-only', {onSendVerification: vi.fn(), user: {...person, isReadOnly: true}}],
+      ])('offers no send when %s, but still shows the status', (_label, props) => {
+        const {wrapper} = mountWith(BaseUserDetails, props);
+
+        expect(wrapper.text()).toContain(translate('admin.users.details.verification.status.unverified'));
+        expect(button(wrapper, send)).toBeUndefined();
+      });
+
+      it('shows no status when the server does not report verification', () => {
+        const {wrapper} = mountWith(BaseUserDetails, {
+          onSendVerification: vi.fn(),
+          user: {...person, verifiedAttributes: undefined},
+        });
+
+        expect(wrapper.text()).not.toContain(translate('admin.users.details.verification.status.unverified'));
+        expect(button(wrapper, send)).toBeUndefined();
+      });
+
+      it.each<[string, Record<string, unknown>, string]>([
+        [
+          'the masked destination',
+          {channel: 'email', maskedDestination: 'j***@example.com'},
+          translate('admin.users.details.verification.sent', {destination: 'j***@example.com'}),
+        ],
+        ['no destination', {channel: 'email'}, translate('admin.users.details.verification.sent_generic')],
+      ])('confirms a sent link with %s', (_label, sentVerification, message) => {
+        const {wrapper} = mountWith(BaseUserDetails, {onSendVerification: vi.fn(), sentVerification, user: person});
+
+        expect(wrapper.find('[role="alert"]').text()).toBe(message);
+      });
+
+      it.each([{isSendingVerification: true}, {isUpdating: true}])('disables send while busy (%j)', (busy) => {
+        const {wrapper} = mountWith(BaseUserDetails, {
+          ...busy,
+          onSendVerification: vi.fn(),
+          user: person,
+        });
+
+        expect(button(wrapper, send)!.element.disabled).toBe(true);
+      });
+
+      it('hands the scoped slot the verification state and the send action', () => {
+        const onSendVerification = vi.fn();
+        const sentVerification = {channel: 'email', maskedDestination: 'j***@example.com'};
+        let renderProps: BaseUserDetailsRenderProps | undefined;
+        mountWith(
+          BaseUserDetails,
+          {isSendingVerification: true, onSendVerification, sentVerification, user: person},
+          undefined,
+          {
+            default: (props: BaseUserDetailsRenderProps) => {
+              renderProps = props;
+              return h('span', 'custom');
+            },
+          },
+        );
+
+        expect(renderProps).toMatchObject({
+          isSendingVerification: true,
+          sentVerification,
+          verifiableAttributes: ['email'],
+          verifiedAttributes: {},
+        });
+        renderProps!.onSendVerification!('email');
+        expect(onSendVerification).toHaveBeenCalledWith('email');
+      });
+
+      it('withholds the send from the scoped slot for a read-only user', () => {
+        let renderProps: BaseUserDetailsRenderProps | undefined;
+        mountWith(
+          BaseUserDetails,
+          {onSendVerification: vi.fn(), user: {...verifiedPerson, isReadOnly: true}},
+          undefined,
+          {
+            default: (props: BaseUserDetailsRenderProps) => {
+              renderProps = props;
+              return h('span', 'custom');
+            },
+          },
+        );
+
+        expect(renderProps!.onSendVerification).toBeUndefined();
+        expect(renderProps!.verifiedAttributes).toEqual({email: {verifiedAt: '2026-11-03T10:00:00Z'}});
+      });
+    });
+
+    describe('UserDetails', () => {
+      it('offers no send unless attribute verification is on', async () => {
+        const {wrapper} = mountWith(UserDetails, {userId: 'u7'}, createServer(person));
+
+        await vi.waitFor(() =>
+          expect(wrapper.text()).toContain(translate('admin.users.details.verification.status.unverified')),
+        );
+        expect(button(wrapper, send)).toBeUndefined();
+      });
+
+      it('starts the administrator-initiated flow and shows where the link went', async () => {
+        const context = createServer(person);
+        const {wrapper} = mountWith(UserDetails, {attributeVerification: true, userId: 'u7'}, context);
+
+        await vi.waitFor(() => expect(button(wrapper, send)).toBeDefined());
+        await button(wrapper, send)!.trigger('click');
+
+        await vi.waitFor(() =>
+          expect(wrapper.text()).toContain(
+            translate('admin.users.details.verification.sent', {destination: 'j***@example.com'}),
+          ),
+        );
+        expect(flowStarts(context)).toEqual([
+          {
+            flowType: 'ADMIN_INITIATED',
+            handle: 'default-admin-attribute-verification-flow',
+            inputs: {attribute: 'email', subject: 'u7'},
+            verbose: true,
+          },
+        ]);
+      });
+
+      it('sends to a schema-defined work email and shows a verified mobile number', async () => {
+        const user = {
+          ...person,
+          attributes: {mobile_number: '+94770000001', workEmail: 'work@example.com'},
+          verifiedAttributes: {mobile_number: {verifiedAt: '2026-11-06T10:00:00Z'}},
+        };
+        const context = createServer(user);
+        const {wrapper} = mountWith(UserDetails, {attributeVerification: true, userId: user.id}, context);
+
+        await vi.waitFor(() => expect(button(wrapper, send)).toBeDefined());
+        expect(
+          wrapper.find('dd .thunderid-admin__status-chip--success').element.previousElementSibling?.textContent,
+        ).toBe('+94770000001');
+        await button(wrapper, send)!.trigger('click');
+        expect(flowStarts(context)).toEqual([
+          expect.objectContaining({inputs: {attribute: 'workEmail', subject: user.id}}),
+        ]);
+      });
+
+      it.each<[string, () => Response, string]>([
+        [
+          'a refused step',
+          () => jsonResponse({error: {code: 'FET-1114', message: {defaultValue: 'Suspended'}}, flowStatus: 'ERROR'}),
+          translate('admin.users.details.verification.error'),
+        ],
+        [
+          'an email that was not sent',
+          () =>
+            jsonResponse({data: {additionalData: {channel: 'email', emailSent: 'false'}}, flowStatus: 'INCOMPLETE'}),
+          translate('admin.users.details.verification.error'),
+        ],
+        [
+          'a token without the permission',
+          () => jsonResponse({code: 'FES-1019'}, 403),
+          translate('admin.common.errors.forbidden'),
+        ],
+      ])('shows a translated message for %s', async (_label, start, message) => {
+        const {wrapper} = mountWith(
+          UserDetails,
+          {attributeVerification: true, userId: 'u7'},
+          createServer(person, start),
+        );
+
+        await vi.waitFor(() => expect(button(wrapper, send)).toBeDefined());
+        await button(wrapper, send)!.trigger('click');
+
+        await vi.waitFor(() => expect(wrapper.find('[role="alert"]').text()).toBe(message));
+      });
+    });
+  });
 });

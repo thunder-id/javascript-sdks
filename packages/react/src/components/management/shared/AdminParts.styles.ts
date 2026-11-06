@@ -59,6 +59,22 @@ const useStyles = (theme: Theme, colorScheme: string): Record<string, string> =>
         color: ${theme.vars.colors.text.primary};
         overflow-wrap: anywhere;
       `,
+      statusChip: css`
+        display: inline-flex;
+        align-items: center;
+        margin-inline-start: calc(${unit} * 1.5);
+        padding: 0 ${unit};
+        border-radius: 999px;
+        border: 1px solid ${theme.vars.colors.border};
+        font-size: ${theme.vars.typography.fontSizes.xs};
+        line-height: 1.6;
+        color: ${theme.vars.colors.text.primary};
+        vertical-align: middle;
+      `,
+      statusChipSuccess: css`
+        border-color: ${theme.vars.colors.success.main};
+        color: ${theme.vars.colors.success.main};
+      `,
       muted: css`
         color: ${theme.vars.colors.text.secondary};
         font-size: ${theme.vars.typography.fontSizes.sm};
@@ -82,6 +98,9 @@ const useStyles = (theme: Theme, colorScheme: string): Record<string, string> =>
         flex-wrap: wrap;
         align-items: center;
         gap: calc(${unit} * 1.5);
+      `,
+      verificationRow: css`
+        column-gap: calc(${unit} * 2);
       `,
     };
   }, [theme, colorScheme]);

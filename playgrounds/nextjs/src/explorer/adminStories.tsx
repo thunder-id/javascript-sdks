@@ -193,6 +193,13 @@ const DELETABLE: PropControl = {
   type: 'boolean',
 };
 
+const ATTRIBUTE_VERIFICATION: PropControl = {
+  control: 'bool',
+  description: "Offers a verification link for the user's unverified email (live only).",
+  name: 'attributeVerification',
+  type: 'boolean',
+};
+
 const SECRET_REGENERABLE: PropControl = {
   control: 'bool',
   description: 'Shows the regenerate client secret action (live only).',
@@ -215,6 +222,8 @@ const STORIES: StoryDef[] = [
 interface AdminSpec {
   /** Props passed only to the Base component in the snippet. */
   baseExtra: string[];
+  /** Controls only the Base sample reads, left out of the live snippet. */
+  baseOnly?: string[];
   controls: PropControl[];
   defaults: Args;
   id: string;
@@ -225,11 +234,13 @@ interface AdminSpec {
   name: string;
   renderBase: (args: Args, action: Action) => ReactNode;
   renderLive: (args: Args, action: Action) => ReactNode;
+  stories?: StoryDef[];
   width?: number;
 }
 
 const admin = ({
   baseExtra,
+  baseOnly = [],
   controls,
   defaults,
   id,
@@ -238,11 +249,15 @@ const admin = ({
   name,
   renderBase,
   renderLive,
+  stories = STORIES,
   width = 640,
 }: AdminSpec): ComponentDef => ({
   code: (args: Args) =>
     isLive(args)
-      ? {imports: [name], jsx: jsx(name, omit(args, 'source'), {defaults: omit(defaults, 'source'), extra: liveExtra})}
+      ? {
+          imports: [name],
+          jsx: jsx(name, omit(args, 'source', ...baseOnly), {defaults: omit(defaults, 'source'), extra: liveExtra}),
+        }
       : {
           imports: [`Base${name}`],
           jsx: jsx(`Base${name}`, omit(args, 'source', ...liveOnly), {
@@ -259,7 +274,7 @@ const admin = ({
   render: (args: Args, action: Action) => (
     <Narrow width={width}>{isLive(args) ? renderLive(args, action) : renderBase(args, action)}</Narrow>
   ),
-  stories: STORIES,
+  stories,
 });
 
 const text = (args: Args, key: string): string | undefined => str(args, key) || undefined;
@@ -345,19 +360,58 @@ export const ADMIN_COMPONENTS: ComponentDef[] = [
     ),
   }),
   admin({
-    baseExtra: ['user={user}', 'groups={groups}', 'onUpdate={handleUpdate}', 'onDelete={handleDelete}'],
-    controls: [idControl('userId', 'UserList'), EDITABLE, DELETABLE],
-    defaults: {deletable: false, editable: false, userId: ''},
+    baseExtra: [
+      'user={user}',
+      'groups={groups}',
+      'onUpdate={handleUpdate}',
+      'onDelete={handleDelete}',
+      'onSendVerification={handleSendVerification}',
+      'sentVerification={sentVerification}',
+    ],
+    baseOnly: ['emailVerified', 'linkSent'],
+    controls: [
+      idControl('userId', 'UserList'),
+      EDITABLE,
+      DELETABLE,
+      ATTRIBUTE_VERIFICATION,
+      {
+        control: 'bool',
+        description: "Whether the sample user's email is verified (base only).",
+        name: 'emailVerified',
+        type: 'boolean',
+      },
+      {
+        control: 'bool',
+        description: 'Shows the message for a sent verification link (sentVerification, base only).',
+        name: 'linkSent',
+        type: 'boolean',
+      },
+    ],
+    defaults: {
+      attributeVerification: false,
+      deletable: false,
+      editable: false,
+      emailVerified: false,
+      linkSent: false,
+      userId: '',
+    },
     id: 'UserDetails',
     liveExtra: ['onDeleted={handleDeleted}'],
-    liveOnly: ['userId', 'editable', 'deletable'],
+    liveOnly: ['userId', 'editable', 'deletable', 'attributeVerification'],
     name: 'UserDetails',
-    renderBase: (_args: Args, action: Action) => (
+    renderBase: (args: Args, action: Action) => (
       <BaseUserDetails
-        user={SAMPLE_USERS[0]}
+        user={{
+          ...SAMPLE_USERS[0],
+          verifiedAttributes: bool(args, 'emailVerified') ? {email: {verifiedAt: '2026-11-03T10:00:00Z'}} : {},
+        }}
         groups={SAMPLE_MEMBERSHIPS}
         onUpdate={(attributes: Record<string, unknown>) => action('onUpdate', JSON.stringify(attributes))}
         onDelete={() => action('onDelete')}
+        onSendVerification={(attribute: string) => action('onSendVerification', attribute)}
+        sentVerification={
+          bool(args, 'linkSent') ? {channel: 'email', emailSent: true, maskedDestination: 'l•••@acme.io'} : null
+        }
       />
     ),
     renderLive: (args: Args, action: Action) =>
@@ -367,11 +421,18 @@ export const ADMIN_COMPONENTS: ComponentDef[] = [
           userId={str(args, 'userId')}
           editable={bool(args, 'editable')}
           deletable={bool(args, 'deletable')}
+          attributeVerification={bool(args, 'attributeVerification')}
           onDeleted={() => action('onDeleted')}
         />
       ) : (
         <NeedsId name="userId" from="UserList" />
       ),
+    stories: [
+      STORIES[0],
+      {args: {linkSent: true}, id: 'verification-sent', name: 'Verification link sent'},
+      {args: {emailVerified: true}, id: 'email-verified', name: 'Email verified'},
+      STORIES[1],
+    ],
   }),
   admin({
     baseExtra: listBaseExtra('groups'),
