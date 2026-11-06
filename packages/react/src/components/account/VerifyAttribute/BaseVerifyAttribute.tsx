@@ -38,6 +38,7 @@ import ComponentRendererContext, {
 import ComponentPreferencesContext from '../../../contexts/I18n/ComponentPreferencesContext';
 import useTheme from '../../../contexts/Theme/useTheme';
 import useThunderID from '../../../contexts/ThunderID/useThunderID';
+import useStepExpiry from '../../../hooks/auth/useStepExpiry';
 import {FormField, useForm} from '../../../hooks/useForm';
 import useTranslation from '../../../hooks/useTranslation';
 import {cx} from '../../../styles/emotion';
@@ -302,6 +303,7 @@ const BaseVerifyAttributeContent: FC<Omit<BaseVerifyAttributeProps, 'preferences
     values: formValues,
     touched: touchedFields,
     errors: formErrors,
+    isComplete: isFormComplete,
     isValid: isFormValid,
     setValue: setFormValue,
     setTouched: setFormTouched,
@@ -318,6 +320,9 @@ const BaseVerifyAttributeContent: FC<Omit<BaseVerifyAttributeProps, 'preferences
     validateOnBlur: true,
     validateOnChange: false,
   });
+
+  // A custom renderer can expire the step from the client; it holds until the next step response.
+  const {expireStep, isStepExpired} = useStepExpiry(currentFlow);
 
   // Project server-side field errors into form state.
   useEffect(() => {
@@ -590,8 +595,11 @@ const BaseVerifyAttributeContent: FC<Omit<BaseVerifyAttributeProps, 'preferences
                 additionalData,
                 buttonClassName: cx(withVendorCSSClassPrefix(bem('verify-attribute', 'button')), buttonClassName),
                 inputClassName: cx(withVendorCSSClassPrefix(bem('verify-attribute', 'input')), inputClassName),
+                isFormComplete,
+                isTimeoutDisabled: isStepExpired,
                 meta,
                 onInputBlur: handleInputBlur,
+                onStepExpire: expireStep,
                 onSubmit: (component: EmbeddedFlowComponent, data?: Record<string, string>, skip?: boolean): void => {
                   void handleSubmit(component, data, skip);
                 },

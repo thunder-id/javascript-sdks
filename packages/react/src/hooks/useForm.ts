@@ -1,7 +1,7 @@
 // Copyright 2025 The ThunderID Authors
 // SPDX-License-Identifier: Apache-2.0
 
-import {useState, useCallback, useRef, FormEvent} from 'react';
+import {useState, useCallback, useMemo, useRef, FormEvent} from 'react';
 
 /**
  * Generic form field configuration
@@ -111,6 +111,12 @@ export interface UseFormReturn<T extends Record<string, string>> {
    * Handle form submission
    */
   handleSubmit: (onSubmit: (values: T) => void | Promise<void>) => (e?: FormEvent) => Promise<void>;
+  /**
+   * Whether every field passes validation with the current values, computed without
+   * committing errors (so nothing is shown while typing). Unlike `isValid`, it does not
+   * wait for a blur or a submit, so it can gate a submit button from the first render.
+   */
+  isComplete: boolean;
   /**
    * Whether the form has been submitted
    */
@@ -319,6 +325,9 @@ export const useForm = <T extends Record<string, string>>(config: UseFormConfig<
   // Check if form is currently valid
   const isValid: boolean = Object.keys(errors).length === 0;
 
+  // Live validity with the current values, without committing errors
+  const isComplete: boolean = useMemo(() => validateForm().isValid, [validateForm]);
+
   // Set a single field value.
   //
   // Validation policy:
@@ -501,6 +510,7 @@ export const useForm = <T extends Record<string, string>>(config: UseFormConfig<
     errors,
     getFieldProps,
     handleSubmit,
+    isComplete,
     isSubmitted,
     isValid,
     reset,

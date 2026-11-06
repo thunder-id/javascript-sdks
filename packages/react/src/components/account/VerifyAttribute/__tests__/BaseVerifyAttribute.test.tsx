@@ -5,6 +5,9 @@ import {act, cleanup, fireEvent, render, screen, waitFor} from '@testing-library
 import {EmbeddedFlowComponent, EmbeddedSelfFlowResponse, EmbeddedSelfFlowStatus, I18nBundle} from '@thunderid/browser';
 import {ReactElement, StrictMode} from 'react';
 import {afterEach, beforeEach, describe, expect, it, Mock, vi} from 'vitest';
+import ComponentRendererContext, {
+  ComponentRendererMap,
+} from '../../../../contexts/ComponentRenderer/ComponentRendererContext';
 import I18nProvider from '../../../../contexts/I18n/I18nProvider';
 import ThemeProvider from '../../../../contexts/Theme/ThemeProvider';
 import ThunderIDContext, {ThunderIDContextProps} from '../../../../contexts/ThunderID/ThunderIDContext';
@@ -217,6 +220,74 @@ describe('BaseVerifyAttribute', () => {
     fireEvent.click(screen.getByRole('button', {name: 'Verify'}));
 
     expect(onSubmit).not.toHaveBeenCalled();
+  });
+
+  it('keeps Verify disabled until a code is entered, and Resend available throughout', async () => {
+    renderVerify({onInitialize, onSubmit});
+    const verify = (): HTMLButtonElement => screen.getByRole('button', {name: 'Verify'});
+    await screen.findByRole('button', {name: 'Verify'});
+
+    expect(verify().disabled).toBe(true);
+    expect(screen.getByRole<HTMLButtonElement>('button', {name: 'Resend code'}).disabled).toBe(false);
+
+    enterCode('123456');
+
+    await waitFor(() => expect(verify().disabled).toBe(false));
+    expect(screen.getByRole<HTMLButtonElement>('button', {name: 'Resend code'}).disabled).toBe(false);
+  });
+
+  it('keeps Verify disabled once a custom renderer expires the step, until a new step arrives', async () => {
+    const withCountdown = (challengeToken: string): EmbeddedSelfFlowResponse => {
+      const sent: EmbeddedSelfFlowResponse = codeSent('a•••@example.com', challengeToken);
+      return {
+        ...sent,
+        data: {...sent.data, meta: {components: [...codePrompt, {id: 'COUNTDOWN', type: 'CUSTOM'}]}},
+      } as unknown as EmbeddedSelfFlowResponse;
+    };
+    onInitialize.mockResolvedValue(withCountdown('ct-1'));
+    onSubmit.mockResolvedValue(withCountdown('ct-2'));
+    // A renderer that owns the code's countdown and its own way to ask for a new code.
+    const renderers: ComponentRendererMap = {
+      COUNTDOWN: (_component, context) => (
+        <div>
+          <button type="button" onClick={(): void => context.expireStep?.()}>
+            {context.isTimeoutDisabled ? 'expired' : 'running'}
+          </button>
+          <button
+            type="button"
+            onClick={(): void =>
+              context.onSubmit?.({id: 'action_resend', type: 'RESEND'} as EmbeddedFlowComponent, {}, true)
+            }
+          >
+            New code
+          </button>
+        </div>
+      ),
+    };
+    render(
+      withProviders(
+        <ComponentRendererContext.Provider value={renderers}>
+          <BaseVerifyAttribute attributeDisplayName="Email" onInitialize={onInitialize} onSubmit={onSubmit} />
+        </ComponentRendererContext.Provider>,
+      ),
+    );
+    const verify = (): HTMLButtonElement => screen.getByRole('button', {name: 'Verify'});
+    await screen.findByRole('button', {name: 'Verify'});
+
+    enterCode('123456');
+    await waitFor(() => expect(verify().disabled).toBe(false));
+
+    // Expiring the step disables Verify even though the code is complete.
+    fireEvent.click(screen.getByRole('button', {name: 'running'}));
+    await waitFor(() => expect(verify().disabled).toBe(true));
+    expect(screen.getByRole('button', {name: 'expired'})).toBeTruthy();
+
+    // The next step response lifts the expiry; the new code is entered as usual.
+    fireEvent.click(screen.getByRole('button', {name: 'New code'}));
+    await screen.findByRole('button', {name: 'running'});
+    expect(verify().disabled).toBe(true);
+    enterCode('654321');
+    await waitFor(() => expect(verify().disabled).toBe(false));
   });
 
   it('confirms a recorded verification and reports it', async () => {

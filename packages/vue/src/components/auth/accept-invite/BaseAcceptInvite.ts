@@ -508,6 +508,7 @@ const BaseAcceptInvite: Component = defineComponent({
               handleInputChange,
               {
                 additionalData: (currentFlow.value?.data?.additionalData as Record<string, any>) ?? {},
+                isFormComplete: validateForm(componentsWithoutHeadings).isValid,
                 meta,
                 onInputBlur: handleInputBlur,
                 onSubmit: handleSubmit,

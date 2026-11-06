@@ -708,6 +708,7 @@ const BaseSignUp: Component = defineComponent({
                 additionalData: currentFlow.value.data?.additionalData,
                 buttonClassName: props.buttonClassName,
                 inputClassName: props.inputClassName,
+                isFormComplete: Object.keys(computeFormErrors()).length === 0,
                 meta,
                 onInputBlur: handleInputBlur,
                 onSubmit: handleSubmit,

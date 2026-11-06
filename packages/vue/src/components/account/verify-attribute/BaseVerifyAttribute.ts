@@ -221,15 +221,14 @@ const BaseVerifyAttribute: Component = defineComponent({
     const inputs = (): EmbeddedFlowComponent[] =>
       getFlowStepComponents(currentFlow.value?.data?.components ?? []).inputs;
 
-    const validate = (): boolean => {
+    // Field errors for the current values, without committing them to the form state.
+    const collectErrors = (): Record<string, string> => {
       const errors: Record<string, string> = {};
-      const touched: Record<string, boolean> = {};
 
       inputs().forEach((component: EmbeddedFlowComponent) => {
         const name: string = component.ref ?? component.id;
         const value: string = formValues.value[name] ?? '';
         const ruleValidator: ((value: string) => string | null) | null = buildValidatorFromRules(component.validation);
-        touched[name] = true;
 
         if (component.required && value.trim() === '') {
           errors[name] = t('validations.required.field.error');
@@ -237,6 +236,17 @@ const BaseVerifyAttribute: Component = defineComponent({
           const ruleMessage: string | null = ruleValidator(value);
           if (ruleMessage) errors[name] = t(ruleMessage);
         }
+      });
+
+      return errors;
+    };
+
+    const validate = (): boolean => {
+      const errors: Record<string, string> = collectErrors();
+      const touched: Record<string, boolean> = {};
+
+      inputs().forEach((component: EmbeddedFlowComponent) => {
+        touched[component.ref ?? component.id] = true;
       });
 
       touchedFields.value = touched;
@@ -479,6 +489,8 @@ const BaseVerifyAttribute: Component = defineComponent({
                   additionalData,
                   buttonClassName: [px('verify-attribute__button'), props.buttonClassName].filter(Boolean).join(' '),
                   inputClassName: [px('verify-attribute__input'), props.inputClassName].filter(Boolean).join(' '),
+                  // Live validity, so SUBMIT actions stay disabled until the step is filled in
+                  isFormComplete: Object.keys(collectErrors()).length === 0,
                   meta: meta(),
                   onInputBlur: handleInputBlur,
                   onSubmit: (component: EmbeddedFlowComponent, data?: Record<string, string>, skip?: boolean): void => {

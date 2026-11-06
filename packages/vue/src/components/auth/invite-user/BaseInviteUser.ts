@@ -525,6 +525,7 @@ const BaseInviteUser: Component = defineComponent({
                 fetchAuthFlows: props.fetchAuthFlows,
                 fetchUsers: props.fetchUsers,
                 fetchUserTypes: props.fetchUserTypes,
+                isFormComplete: validateForm(componentsWithoutHeadings).isValid,
                 meta,
                 onInputBlur: handleInputBlur,
                 onPickerError: props.onError,

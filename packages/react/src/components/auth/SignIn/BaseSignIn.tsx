@@ -20,6 +20,7 @@ import useFlow from '../../../contexts/Flow/useFlow';
 import ComponentPreferencesContext from '../../../contexts/I18n/ComponentPreferencesContext';
 import useTheme from '../../../contexts/Theme/useTheme';
 import useThunderID from '../../../contexts/ThunderID/useThunderID';
+import useStepExpiry from '../../../hooks/auth/useStepExpiry';
 import {FormField, useForm} from '../../../hooks/useForm';
 import useTranslation from '../../../hooks/useTranslation';
 import {cx} from '../../../styles/emotion';
@@ -380,6 +381,7 @@ const BaseSignInContent: FC<BaseSignInProps> = ({
     values: formValues,
     touched: touchedFields,
     errors: formErrors,
+    isComplete: isFormComplete,
     isValid: isFormValid,
     setValue: setFormValue,
     setValues: setFormValues,
@@ -411,6 +413,10 @@ const BaseSignInContent: FC<BaseSignInProps> = ({
     appliedInitialValuesKeyRef.current = initialValuesKey;
     setFormValues(initialValues);
   }, [initialValues, initialValuesKey, setFormValues]);
+  // A custom renderer can expire the step from the client; it holds until the next step response
+  // replaces `components`, which is also when a server `stepTimeout` would be re-evaluated.
+  const {expireStep, isStepExpired} = useStepExpiry(components);
+  const isStepDisabled: boolean = isTimeoutDisabled || isStepExpired;
 
   // Project server-side fieldErrors into form state. `setTouchedFields` is used instead
   // of `setTouched` so client-side `validateField` doesn't wipe server errors when the
@@ -562,9 +568,11 @@ const BaseSignInContent: FC<BaseSignInProps> = ({
           additionalData,
           buttonClassName: buttonClasses,
           inputClassName: inputClasses,
-          isTimeoutDisabled,
+          isFormComplete,
+          isTimeoutDisabled: isStepDisabled,
           meta,
           onInputBlur: handleInputBlur,
+          onStepExpire: expireStep,
           onSubmit: handleSubmit,
           size,
           t,
@@ -579,6 +587,7 @@ const BaseSignInContent: FC<BaseSignInProps> = ({
       touchedFields,
       formErrors,
       isFormValid,
+      isFormComplete,
       meta,
       t,
       theme,
@@ -590,7 +599,8 @@ const BaseSignInContent: FC<BaseSignInProps> = ({
       buttonClasses,
       handleInputBlur,
       handleSubmit,
-      isTimeoutDisabled,
+      isStepDisabled,
+      expireStep,
     ],
   );
 
@@ -604,7 +614,7 @@ const BaseSignInContent: FC<BaseSignInProps> = ({
       handleInputChange,
       handleSubmit,
       isLoading,
-      isTimeoutDisabled,
+      isTimeoutDisabled: isStepDisabled,
       isValid: isFormValid,
       messages: flowMessages || [],
       meta,
