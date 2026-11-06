@@ -140,3 +140,72 @@ describe('ThunderIDVueClient embedded SSO session handles', () => {
     expect(await keptSessions()).toEqual([]);
   });
 });
+
+describe('ThunderIDVueClient authId of an authorization request', () => {
+  let client: ThunderIDVueClient;
+
+  const jsonResponse = (body: unknown): Response =>
+    new Response(JSON.stringify(body), {headers: {'Content-Type': 'application/json'}, status: 200});
+
+  const completeThenCallback = (): ReturnType<typeof vi.fn> =>
+    vi
+      .fn()
+      .mockResolvedValueOnce(
+        jsonResponse({assertion: 'assertion-a', executionId: 'execution-a', flowStatus: 'COMPLETE'}),
+      )
+      .mockResolvedValueOnce(jsonResponse({redirect_uri: 'https://app.example/callback?code=c1'}));
+
+  const postedCallbackBody = (fetchMock: ReturnType<typeof vi.fn>): Record<string, unknown> => {
+    const call: any[] | undefined = fetchMock.mock.calls.find((args: any[]) =>
+      String(args[0]).endsWith('/oauth2/auth/callback'),
+    );
+
+    return JSON.parse(call?.[1].body as string) as Record<string, unknown>;
+  };
+
+  beforeEach(async () => {
+    localStorage.clear();
+    sessionStorage.clear();
+    client = new ThunderIDVueClient(44);
+    await client.initialize({
+      afterSignInUrl: window.location.origin,
+      applicationId: 'app-1',
+      baseUrl: 'https://idp.example.com',
+      clientId: 'auth-id-client',
+      storage: 'sessionStorage',
+    } as ThunderIDVueConfig);
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    localStorage.clear();
+    sessionStorage.clear();
+    window.history.replaceState(null, '', '/');
+  });
+
+  it('posts the authId of its own execution after another tab started a sign-in', async () => {
+    const storageManager: any = client.getStorageManager();
+    await storageManager.setFlowAuthId('execution-a', 'auth-a');
+    // Another tab on the same origin starts its own sign-in.
+    await storageManager.setFlowAuthId('execution-b', 'auth-b');
+    const fetchMock = completeThenCallback();
+    vi.stubGlobal('fetch', fetchMock);
+
+    await client.signIn({executionId: 'execution-a', inputs: {password: 'p', username: 'u'}} as any);
+
+    expect(postedCallbackBody(fetchMock)['authId']).toBe('auth-a');
+  });
+
+  it('posts the authId stored for the execution of a magic link opened in a new tab', async () => {
+    const storageManager: any = client.getStorageManager();
+    await storageManager.setFlowAuthId('execution-a', 'auth-a');
+    sessionStorage.clear();
+    window.history.replaceState(null, '', '/callback?id=execution-a&token=magic-token');
+    const fetchMock = completeThenCallback();
+    vi.stubGlobal('fetch', fetchMock);
+
+    await client.signIn({executionId: 'execution-a', inputs: {token: 'magic-token'}} as any);
+
+    expect(postedCallbackBody(fetchMock)['authId']).toBe('auth-a');
+  });
+});

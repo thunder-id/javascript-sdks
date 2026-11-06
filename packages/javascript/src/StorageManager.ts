@@ -352,6 +352,28 @@ class StorageManager<T> {
     }
   }
 
+  /**
+   * The `authId` of an authorization request is kept per execution, because the hybrid store is
+   * shared by every tab: a single `authId` entry is overwritten by the next tab that starts a
+   * sign-in, and the first tab then posts the other tab's `authId` with its own assertion. A
+   * magic link opened in a new tab carries only the execution, and finds its `authId` here.
+   */
+  public async getFlowAuthId(executionId: string): Promise<string | undefined> {
+    return (await this.getHybridDataParameter(StorageManager.flowAuthIdKey(executionId))) as string | undefined;
+  }
+
+  public async setFlowAuthId(executionId: string, authId: string): Promise<void> {
+    await this.setHybridDataParameter(StorageManager.flowAuthIdKey(executionId), authId);
+  }
+
+  public async removeFlowAuthId(executionId: string): Promise<void> {
+    await this.removeHybridDataParameter(StorageManager.flowAuthIdKey(executionId));
+  }
+
+  private static flowAuthIdKey(executionId: string): string {
+    return `authId-${executionId}`;
+  }
+
   public async removeSessionDataParameter(key: keyof SessionData, userId?: string): Promise<void> {
     await this.removeValue(this.resolveKey(Stores.SessionData, userId), key);
   }

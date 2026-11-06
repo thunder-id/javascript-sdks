@@ -174,9 +174,9 @@ class ThunderIDVueClient<T extends ThunderIDVueConfig = ThunderIDVueConfig> exte
       ) {
         const configData: any = await this.getStorageManager().getConfigData();
         const authIdFromUrl: string | null = new URL(window.location.href).searchParams.get('authId');
-        const authIdFromStorage: string | null = (await this.getStorageManager().getHybridDataParameter('authId')) as
-          | string
-          | null;
+        const authIdFromStorage: string | undefined = arg1.executionId
+          ? await this.getStorageManager().getFlowAuthId(arg1.executionId)
+          : undefined;
         const authId: string = authIdFromUrl || authIdFromStorage || '';
         const baseUrl: string = configData?.baseUrl || '';
 

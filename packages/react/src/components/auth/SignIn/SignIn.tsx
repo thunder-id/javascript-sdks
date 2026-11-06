@@ -365,17 +365,13 @@ const SignIn: FC<SignInProps> = ({
     // Clear the expired flow state to prevent rendering a stale form with a null executionId.
     // Kept before the first await so callers that do not await this function still apply the
     // reset in one batch, ahead of the setError that follows.
+    const executionIdToClear: string | null = currentExecutionId ?? sessionStorage.getItem(`${vendor}_execution_id`);
     setExecutionId(null);
     setComponents([]);
     setAdditionalData({});
     setIsFlowInitialized(false);
     await setChallengeToken(null);
-    try {
-      const storageManager: any = await getStorageManager();
-      await storageManager?.removeHybridDataParameter?.('authId');
-    } catch {
-      logger.warn('Failed to clear authId from hybrid storage.');
-    }
+    await clearAuthId(executionIdToClear);
     setIsTimeoutDisabled(false);
     // Reset refs to allow new flows to start properly
     oauthCodeProcessedRef.current = false;
@@ -400,18 +396,33 @@ const SignIn: FC<SignInProps> = ({
   };
 
   /**
-   * Handle authId from URL and persist it via the storage manager so it survives URL cleanup.
-   * ThunderIDReactClient.signIn() reads authId from storageManager.getHybridDataParameter('authId'),
-   * not from raw sessionStorage, so we must use the same storage path here.
+   * Persist the authId from the URL against its execution so it survives URL cleanup.
+   * ThunderIDReactClient.signIn() reads it back with storageManager.getFlowAuthId(executionId),
+   * so another tab's sign-in cannot replace it.
    */
-  const handleAuthId = async (authId: string | null): Promise<void> => {
-    if (authId) {
+  const handleAuthId = async (authId: string | null, executionId: string | null | undefined): Promise<void> => {
+    if (authId && executionId) {
       try {
         const storageManager: any = await getStorageManager();
-        await storageManager?.setHybridDataParameter?.('authId', authId);
+        await storageManager?.setFlowAuthId?.(executionId, authId);
       } catch {
         logger.warn('Failed to store authId in hybrid storage.');
       }
+    }
+  };
+
+  /**
+   * Remove the authId stored for an execution, leaving other tabs' entries in place.
+   */
+  const clearAuthId = async (executionId: string | null | undefined): Promise<void> => {
+    if (!executionId) {
+      return;
+    }
+    try {
+      const storageManager: any = await getStorageManager();
+      await storageManager?.removeFlowAuthId?.(executionId);
+    } catch {
+      logger.warn('Failed to clear authId from hybrid storage.');
     }
   };
 
@@ -481,7 +492,7 @@ const SignIn: FC<SignInProps> = ({
         await setChallengeToken(response.challengeToken ?? null);
 
         const urlParams: any = getUrlParams();
-        await handleAuthId(urlParams.authId);
+        await handleAuthId(urlParams.authId, response.executionId);
 
         initiateOAuthRedirect(redirectURL, vendor);
         return true;
@@ -532,16 +543,13 @@ const SignIn: FC<SignInProps> = ({
       setIsSubmitting(false);
 
       // Clear all OAuth-related storage on successful completion
+      const completedExecutionId: string | null =
+        response.executionId || currentExecutionId || sessionStorage.getItem(`${vendor}_execution_id`);
       setExecutionId(null);
       await setChallengeToken(null);
       setIsFlowInitialized(false);
       sessionStorage.removeItem(`${vendor}_execution_id`);
-      try {
-        const storageManager: any = await getStorageManager();
-        await storageManager?.removeHybridDataParameter?.('authId');
-      } catch {
-        logger.warn('Failed to clear authId from hybrid storage after completion.');
-      }
+      await clearAuthId(completedExecutionId);
 
       // Clean up OAuth URL params before redirect
       cleanupOAuthUrlParams(true);
@@ -575,7 +583,7 @@ const SignIn: FC<SignInProps> = ({
     // Clear stale serverFieldErrors so the new flow doesn't inherit them via render-prop.
     setServerFieldErrors(null);
 
-    await handleAuthId(urlParams.authId);
+    await handleAuthId(urlParams.authId, urlParams.executionId);
 
     const effectiveApplicationId: any = applicationId || urlParams.applicationId;
 
@@ -621,12 +629,7 @@ const SignIn: FC<SignInProps> = ({
 
           if (isStaleSession) {
             setExecutionId(null);
-            try {
-              const storageManager: any = await getStorageManager();
-              await storageManager?.removeHybridDataParameter?.('authId');
-            } catch {
-              logger.warn('Failed to clear authId from hybrid storage.');
-            }
+            await clearAuthId(resumeExecutionId);
             if (!effectiveApplicationId) {
               const expiredError: FlowErrorBuilder = (translate) =>
                 new ThunderIDRuntimeError(
@@ -694,6 +697,8 @@ const SignIn: FC<SignInProps> = ({
         setAdditionalData(normalizedAdditionalData ?? {});
         setIsFlowInitialized(true);
         setIsTimeoutDisabled(false);
+        // The URL's authId belongs to this execution even when the URL had no executionId.
+        await handleAuthId(urlParams.authId, normalizedExecutionId);
         // Clean up executionId from URL after setting it in state
         cleanupFlowUrlParams();
       }
@@ -718,7 +723,7 @@ const SignIn: FC<SignInProps> = ({
       return;
     }
 
-    handleAuthId(urlParams.authId);
+    handleAuthId(urlParams.authId, urlParams.executionId);
 
     // Skip OAuth code processing - let the dedicated OAuth useEffect handle it
     // No action needed here as the dedicated useEffect will handle it
