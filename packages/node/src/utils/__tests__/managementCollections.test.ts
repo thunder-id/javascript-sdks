@@ -36,6 +36,11 @@ describe('getManagementCollectionUrls', () => {
         'https://id.example.com/configuration-versions',
         'https://id.example.com/import',
         'https://id.example.com/export',
+        'https://id.example.com/openid4vci/credential-configurations',
+        'https://id.example.com/openid4vp/presentation-definitions',
+        'https://id.example.com/oauth2/dcr/register',
+        'https://id.example.com/projects',
+        'https://id.example.com/authorization-detail-types',
       ]),
     );
   });
@@ -93,6 +98,9 @@ describe('matchManagementUrl', () => {
     'https://id.example.com/configuration-versions/abc1234',
     'https://id.example.com/import/delete',
     'https://id.example.com/export',
+    'https://id.example.com/openid4vci/credential-configurations/vc-1',
+    'https://id.example.com/openid4vp/presentation-definitions/vp-1',
+    'https://id.example.com/oauth2/dcr/register/client-1',
   ])('allows %s', (target: string) => {
     expect(matchManagementUrl(target, collections)).toBeInstanceOf(URL);
   });
@@ -102,6 +110,7 @@ describe('matchManagementUrl', () => {
     ['a sibling host', 'https://id.example.com.attacker.net/users'],
     ['another scheme', 'ftp://id.example.com/users'],
     ['a path outside the collections', 'https://id.example.com/oauth2/token'],
+    ['the parent of the client registration endpoint', 'https://id.example.com/oauth2/dcr'],
     ['a collection name prefix', 'https://id.example.com/usersx'],
     ['a prefix of a new collection', 'https://id.example.com/exports'],
     ['an application collection name prefix', 'https://id.example.com/applicationsx'],

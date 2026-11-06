@@ -8,7 +8,14 @@ import requestManagementResource from '../../../utils/requestManagementResource'
 /**
  * Configuration for the getApplications request.
  */
-export type GetApplicationsConfig = ManagementRequestConfig & Pick<ApiFilteringParams, 'limit' | 'offset'>;
+export type GetApplicationsConfig = ManagementRequestConfig &
+  Pick<ApiFilteringParams, 'limit' | 'offset'> & {
+    /**
+     * Lists the applications the project's root organization unit owns, followed by the ones shared
+     * into it. Served by the control plane.
+     */
+    projectId?: string;
+  };
 
 /**
  * Retrieves a page of applications.
@@ -25,13 +32,18 @@ export type GetApplicationsConfig = ManagementRequestConfig & Pick<ApiFilteringP
  * });
  * ```
  */
-const getApplications = async ({limit, offset, ...config}: GetApplicationsConfig): Promise<ApplicationListResponse> =>
+const getApplications = async ({
+  limit,
+  offset,
+  projectId,
+  ...config
+}: GetApplicationsConfig): Promise<ApplicationListResponse> =>
   requestManagementResource<ApplicationListResponse>(config, {
     collection: 'applications',
     failureMessage: 'Failed to fetch applications',
     method: 'GET',
     operation: 'getApplications',
-    query: {limit, offset},
+    query: {limit, offset, projectId},
   });
 
 export default getApplications;

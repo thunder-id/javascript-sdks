@@ -84,6 +84,11 @@ const SignIn: Component = defineComponent({
   name: 'SignIn',
   props: {
     className: {default: '', type: String},
+    /**
+     * Bounds the sign-in to this organization unit: sent as `ouId` on the request that starts the
+     * `AUTHENTICATION` flow, and never on a continuation.
+     */
+    organizationUnitId: {default: undefined, type: String},
     size: {
       default: 'medium',
       type: String as PropType<'small' | 'medium' | 'large'>,
@@ -95,7 +100,12 @@ const SignIn: Component = defineComponent({
   },
   emits: ['error', 'success'],
   setup(
-    props: Readonly<{className: string; size: 'small' | 'medium' | 'large'; variant: 'elevated' | 'outlined' | 'flat'}>,
+    props: Readonly<{
+      className: string;
+      organizationUnitId?: string;
+      size: 'small' | 'medium' | 'large';
+      variant: 'elevated' | 'outlined' | 'flat';
+    }>,
     {slots, emit, attrs}: SetupContext,
   ): () => VNode | null {
     const {
@@ -262,6 +272,7 @@ const SignIn: Component = defineComponent({
             applicationId: effectiveApplicationId,
             flowType: EmbeddedFlowType.Authentication,
             ...(scopes && {scopes}),
+            ...(props.organizationUnitId ? {ouId: props.organizationUnitId} : {}),
           })) as EmbeddedSignInFlowResponse;
         }
 

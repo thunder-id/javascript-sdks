@@ -2,6 +2,18 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import {
+  AuthorizationDetailType,
+  AuthorizationDetailTypeListResponse,
+  AuthorizationDetailTypeRequest,
+  CreateGroupByPathRequest,
+  CreateProjectRequest,
+  FlowResolvedOverlay,
+  FlowVariableValue,
+  FlowVariables,
+  Project,
+  ProjectListResponse,
+  RoleResolvedOverlay,
+  UpdateProjectRequest,
   AccountLifecycleOptions,
   AccountLifecycleResult,
   AdministrationOptions,
@@ -17,6 +29,9 @@ import {
   ApplyGatewayConfigurationRequest,
   CaptureConfigurationVersionRequest,
   CimdPreviewResponse,
+  ClientRegistration,
+  ClientRegistrationRequest,
+  ClientRegistrationUpdateRequest,
   ConfigurationExportRequest,
   ConfigurationExportResponse,
   ConfigurationImportRequest,
@@ -43,6 +58,9 @@ import {
   CreateResourceServerRequest,
   CreateRoleRequest,
   CreateUserByPathRequest,
+  CredentialConfiguration,
+  CredentialConfigurationRequest,
+  CredentialConfigurationSummary,
   DeleteImportedConfigurationRequest,
   DeleteImportedConfigurationResponse,
   DesignLayout,
@@ -58,7 +76,9 @@ import {
   GatewayAppliedVersion,
   GatewayApplyResult,
   GatewayConfigurationDiff,
+  GatewayMaster,
   GatewayRegistration,
+  GatewayResourceHistory,
   Group,
   GroupListResponse,
   GroupMember,
@@ -90,6 +110,9 @@ import {
   OrganizationUnitReference,
   OrganizationUnitRoleListResponse,
   OrganizationUnitUserListResponse,
+  PresentationDefinition,
+  PresentationDefinitionRequest,
+  PresentationDefinitionSummary,
   RegenerateClientSecretResult,
   RegenerateFlowSecretResult,
   RegisterGatewayRequest,
@@ -142,8 +165,11 @@ export type ManagementResourceKey = Extract<
   | 'agents'
   | 'agentTypes'
   | 'applications'
+  | 'authorizationDetailTypes'
+  | 'clientRegistrations'
   | 'configurationVersions'
   | 'connections'
+  | 'credentialConfigurations'
   | 'design'
   | 'export'
   | 'flows'
@@ -153,6 +179,8 @@ export type ManagementResourceKey = Extract<
   | 'import'
   | 'notificationTemplates'
   | 'organizationUnits'
+  | 'presentationDefinitions'
+  | 'projects'
   | 'resourceServers'
   | 'roles'
   | 'secrets'
@@ -302,6 +330,44 @@ export interface ThunderIDNodeManagementClient {
     ): Promise<SharingPolicy>;
   };
   /**
+   * Dynamic client registration (RFC 7591 and RFC 7592). Errors the endpoint returns in the OAuth 2.0
+   * form carry its `error` as `serverError.code`.
+   */
+  /**
+   * RFC 9396 authorization details types. A type declared in configuration is read-only.
+   */
+  authorizationDetailTypes: {
+    create(payload: AuthorizationDetailTypeRequest, options?: ManagementCallOptions): Promise<AuthorizationDetailType>;
+    delete(authorizationDetailTypeId: string, options?: ManagementCallOptions): Promise<void>;
+    get(authorizationDetailTypeId: string, options?: ManagementCallOptions): Promise<AuthorizationDetailType>;
+    list(options?: ManagementListOptions): Promise<AuthorizationDetailTypeListResponse>;
+    update(
+      authorizationDetailTypeId: string,
+      payload: AuthorizationDetailTypeRequest,
+      options?: ManagementCallOptions,
+    ): Promise<AuthorizationDetailType>;
+  };
+  clientRegistrations: {
+    delete(clientId: string, options?: ManagementCallOptions): Promise<void>;
+    /**
+     * Reads a registration. The client secret is not returned.
+     */
+    get(clientId: string, options?: ManagementCallOptions): Promise<ClientRegistration>;
+    /**
+     * Registers a client. The result carries the client secret, which is returned only here and cannot
+     * be read again.
+     */
+    register(payload: ClientRegistrationRequest, options?: ManagementCallOptions): Promise<ClientRegistration>;
+    /**
+     * Replaces a client's registered metadata in full. The request's `client_id` is set from `clientId`.
+     */
+    update(
+      clientId: string,
+      payload: ClientRegistrationUpdateRequest,
+      options?: ManagementCallOptions,
+    ): Promise<ClientRegistration>;
+  };
+  /**
    * Captured configuration versions, and the import and export of declarative resources.
    */
   configuration: {
@@ -343,6 +409,20 @@ export interface ThunderIDNodeManagementClient {
       options?: ManagementCallOptions,
     ): Promise<Connection>;
   };
+  /**
+   * OpenID4VCI credential configurations.
+   */
+  credentialConfigurations: {
+    create(payload: CredentialConfigurationRequest, options?: ManagementCallOptions): Promise<CredentialConfiguration>;
+    delete(configurationId: string, options?: ManagementCallOptions): Promise<void>;
+    get(configurationId: string, options?: ManagementCallOptions): Promise<CredentialConfiguration>;
+    list(options?: ManagementCallOptions): Promise<CredentialConfigurationSummary[]>;
+    update(
+      configurationId: string,
+      payload: CredentialConfigurationRequest,
+      options?: ManagementCallOptions,
+    ): Promise<CredentialConfiguration>;
+  };
   design: {
     createLayout(payload: DesignLayoutRequest, options?: ManagementCallOptions): Promise<DesignLayout>;
     createTheme(payload: DesignThemeRequest, options?: ManagementCallOptions): Promise<DesignTheme>;
@@ -376,6 +456,35 @@ export interface ThunderIDNodeManagementClient {
       payload: ManagedFlowRequest,
       options?: ManagementCallOptions,
     ): Promise<ManagedFlowDefinition>;
+    createSharingPolicy(
+      flowId: string,
+      payload: SharingPolicyRequest,
+      options?: ManagementCallOptions,
+    ): Promise<SharingPolicy>;
+    deleteSharingPolicy(flowId: string, policyId: string, options?: ManagementCallOptions): Promise<void>;
+    getOverlayRules(flowId: string, ouId: string, options?: ManagementCallOptions): Promise<FlowResolvedOverlay>;
+    getSharingPolicy(flowId: string, policyId: string, options?: ManagementCallOptions): Promise<SharingPolicy>;
+    listSharingPolicies(flowId: string, options?: ManagementListOptions): Promise<SharingPolicyListResponse>;
+    updateSharingPolicy(
+      flowId: string,
+      policyId: string,
+      payload: SharingPolicyUpdateRequest,
+      options?: ManagementCallOptions,
+    ): Promise<SharingPolicy>;
+    /**
+     * The values an organization unit has set for the flow's variables.
+     */
+    getVariables(flowId: string, ouId: string, options?: ManagementCallOptions): Promise<FlowVariables>;
+    /**
+     * Replaces the values an organization unit holds for the flow's variables. A variable left out
+     * returns to its default.
+     */
+    updateVariables(
+      flowId: string,
+      ouId: string,
+      variables: Record<string, FlowVariableValue>,
+      options?: ManagementCallOptions,
+    ): Promise<FlowVariables>;
   };
   gateways: {
     applyConfiguration(
@@ -396,6 +505,23 @@ export interface ThunderIDNodeManagementClient {
       gatewayId: string,
       options?: ManagementCallOptions & {version?: string},
     ): Promise<GatewayConfigurationDiff>;
+    /**
+     * What the gateway holds, resource by resource.
+     */
+    getMaster(gatewayId: string, options?: ManagementCallOptions): Promise<GatewayMaster>;
+    /**
+     * The gateway's kept masters, newest first, without their entries or resources.
+     */
+    getMasterHistory(gatewayId: string, options?: ManagementCallOptions): Promise<GatewayMaster[]>;
+    /**
+     * One resource's entry in each kept master that records it, newest first.
+     */
+    getMasterResource(
+      gatewayId: string,
+      resourceType: string,
+      resourceId: string,
+      options?: ManagementCallOptions,
+    ): Promise<GatewayResourceHistory>;
     getSecret(gatewayId: string, name: string, options?: ManagementCallOptions): Promise<Secret>;
     getVariable(gatewayId: string, name: string, options?: ManagementCallOptions): Promise<Variable>;
     list(options?: ManagementCallOptions): Promise<Gateway[]>;
@@ -423,9 +549,11 @@ export interface ThunderIDNodeManagementClient {
   groups: {
     addMembers(groupId: string, members: ManagementGroupMemberInput[], options?: ManagementCallOptions): Promise<Group>;
     create(payload: CreateGroupRequest, options?: ManagementCallOptions): Promise<Group>;
+    createByPath(path: string, payload: CreateGroupByPathRequest, options?: ManagementCallOptions): Promise<Group>;
     delete(groupId: string, options?: ManagementCallOptions): Promise<void>;
     get(groupId: string, options?: ManagementCallOptions): Promise<Group>;
     list(options?: ManagementListOptions): Promise<GroupListResponse>;
+    listByPath(path: string, options?: ManagementListOptions): Promise<GroupListResponse>;
     listMembers(groupId: string, options?: ManagementListOptions): Promise<GroupMemberListResponse>;
     removeMembers(
       groupId: string,
@@ -520,6 +648,27 @@ export interface ThunderIDNodeManagementClient {
     ): Promise<OrganizationUnit>;
   };
   /**
+   * OpenID4VP presentation definitions.
+   */
+  presentationDefinitions: {
+    create(payload: PresentationDefinitionRequest, options?: ManagementCallOptions): Promise<PresentationDefinition>;
+    delete(definitionId: string, options?: ManagementCallOptions): Promise<void>;
+    get(definitionId: string, options?: ManagementCallOptions): Promise<PresentationDefinition>;
+    list(options?: ManagementCallOptions): Promise<PresentationDefinitionSummary[]>;
+    update(
+      definitionId: string,
+      payload: PresentationDefinitionRequest,
+      options?: ManagementCallOptions,
+    ): Promise<PresentationDefinition>;
+  };
+  projects: {
+    create(payload: CreateProjectRequest, options?: ManagementCallOptions): Promise<Project>;
+    delete(projectId: string, options?: ManagementCallOptions): Promise<void>;
+    get(projectId: string, options?: ManagementCallOptions): Promise<Project>;
+    list(options?: ManagementListOptions): Promise<ProjectListResponse>;
+    update(projectId: string, payload: UpdateProjectRequest, options?: ManagementCallOptions): Promise<Project>;
+  };
+  /**
    * Resource servers, their resources, and the actions on either.
    */
   resourceServers: {
@@ -591,6 +740,21 @@ export interface ThunderIDNodeManagementClient {
       options?: ManagementCallOptions,
     ): Promise<void>;
     update(roleId: string, payload: UpdateRoleRequest, options?: ManagementCallOptions): Promise<Role>;
+    createSharingPolicy(
+      roleId: string,
+      payload: SharingPolicyRequest,
+      options?: ManagementCallOptions,
+    ): Promise<SharingPolicy>;
+    deleteSharingPolicy(roleId: string, policyId: string, options?: ManagementCallOptions): Promise<void>;
+    getOverlayRules(roleId: string, ouId: string, options?: ManagementCallOptions): Promise<RoleResolvedOverlay>;
+    getSharingPolicy(roleId: string, policyId: string, options?: ManagementCallOptions): Promise<SharingPolicy>;
+    listSharingPolicies(roleId: string, options?: ManagementListOptions): Promise<SharingPolicyListResponse>;
+    updateSharingPolicy(
+      roleId: string,
+      policyId: string,
+      payload: SharingPolicyUpdateRequest,
+      options?: ManagementCallOptions,
+    ): Promise<SharingPolicy>;
   };
   /**
    * Server-level secrets. A secret's value is write-only: it is never returned, and never logged.

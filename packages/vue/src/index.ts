@@ -17,6 +17,8 @@ export {default as UserProvider} from './providers/UserProvider';
 
 // ── Composables ──
 export {default as useThunderID} from './composables/useThunderID';
+export {default as useCurrentProjectState} from './composables/useCurrentProjectState';
+export type {CurrentProjectState} from './composables/useCurrentProjectState';
 export {default as useFlow} from './composables/useFlow';
 export {default as useFlowMeta} from './composables/useFlowMeta';
 export {default as useI18n} from './composables/useI18n';
@@ -155,6 +157,12 @@ export {default as Attribution} from './components/common/attribution/Attributio
 export {default as ChangeCredential} from './components/account/change-credential/ChangeCredential';
 export {default as BaseChangeCredential} from './components/account/change-credential/BaseChangeCredential';
 export type {ChangePasswordValues} from './components/account/change-credential/BaseChangeCredential';
+export {default as OrganizationUnitSwitcher} from './components/account/organization-unit-switcher/OrganizationUnitSwitcher';
+export {default as BaseOrganizationUnitSwitcher} from './components/account/organization-unit-switcher/BaseOrganizationUnitSwitcher';
+export type {
+  BaseOrganizationUnitSwitcherProps,
+  OrganizationUnitSwitcherRenderProps,
+} from './components/account/organization-unit-switcher/BaseOrganizationUnitSwitcher';
 export {default as UserDropdown} from './components/account/user-dropdown/UserDropdown';
 export {default as BaseUserDropdown} from './components/account/user-dropdown/BaseUserDropdown';
 export {default as AcceptInvite} from './components/auth/accept-invite/AcceptInvite';
@@ -174,62 +182,115 @@ export {default as BaseLanguageSwitcher} from './components/common/language-swit
 // ── UI Components — Admin (management) ──
 export {default as DataTable} from './components/primitives/DataTable/DataTable';
 export type {DataTableColumn, DataTablePagination} from './components/primitives/DataTable/DataTable';
-export type {AdminListRenderProps} from './components/admin/shared/createAdminList';
-export type {AdminSearchValue} from './components/admin/shared/AdminSearch';
-export type {AdminFormRenderProps} from './components/admin/shared/adminFormProps';
-export {default as BaseUserList} from './components/admin/UserList/BaseUserList';
-export {default as UserList} from './components/admin/UserList/UserList';
-export {default as BaseUserCreate} from './components/admin/UserCreate/BaseUserCreate';
-export type {BaseUserCreateRenderProps, UserCreateSubmission} from './components/admin/UserCreate/BaseUserCreate';
-export {DEFAULT_USER_CREATE_FIELDS} from './components/admin/UserCreate/userCreateFields';
-export type {UserCreateField} from './components/admin/UserCreate/userCreateFields';
-export {default as UserCreate} from './components/admin/UserCreate/UserCreate';
-export {default as BaseUserDetails} from './components/admin/UserDetails/BaseUserDetails';
-export type {BaseUserDetailsRenderProps} from './components/admin/UserDetails/BaseUserDetails';
-export {default as UserDetails} from './components/admin/UserDetails/UserDetails';
-export {default as BaseGroupList} from './components/admin/GroupList/BaseGroupList';
-export {default as GroupList} from './components/admin/GroupList/GroupList';
-export {default as BaseGroupCreate} from './components/admin/GroupCreate/BaseGroupCreate';
-export type {BaseGroupCreateRenderProps, GroupCreateSubmission} from './components/admin/GroupCreate/BaseGroupCreate';
-export {default as GroupCreate} from './components/admin/GroupCreate/GroupCreate';
-export {default as BaseGroupMembers} from './components/admin/GroupMembers/BaseGroupMembers';
-export type {BaseGroupMembersRenderProps} from './components/admin/GroupMembers/BaseGroupMembers';
-export {default as GroupMembers} from './components/admin/GroupMembers/GroupMembers';
-export {default as BaseRoleList} from './components/admin/RoleList/BaseRoleList';
-export {default as RoleList} from './components/admin/RoleList/RoleList';
-export {default as BaseRoleCreate} from './components/admin/RoleCreate/BaseRoleCreate';
-export type {BaseRoleCreateRenderProps, RoleCreateSubmission} from './components/admin/RoleCreate/BaseRoleCreate';
-export {default as RoleCreate} from './components/admin/RoleCreate/RoleCreate';
-export {default as BaseRoleAssignments} from './components/admin/RoleAssignments/BaseRoleAssignments';
-export type {BaseRoleAssignmentsRenderProps} from './components/admin/RoleAssignments/BaseRoleAssignments';
-export {default as RoleAssignments} from './components/admin/RoleAssignments/RoleAssignments';
-export {default as BaseRolePermissions} from './components/admin/RolePermissions/BaseRolePermissions';
-export type {BaseRolePermissionsRenderProps} from './components/admin/RolePermissions/BaseRolePermissions';
-export {default as RolePermissions} from './components/admin/RolePermissions/RolePermissions';
-export {default as BaseAgentList} from './components/admin/AgentList/BaseAgentList';
-export {default as AgentList} from './components/admin/AgentList/AgentList';
-export {default as BaseAgentCreate} from './components/admin/AgentCreate/BaseAgentCreate';
-export type {AgentCreateSubmission, BaseAgentCreateRenderProps} from './components/admin/AgentCreate/BaseAgentCreate';
-export {default as AgentCreate} from './components/admin/AgentCreate/AgentCreate';
-export {default as BaseAgentDetails} from './components/admin/AgentDetails/BaseAgentDetails';
-export type {BaseAgentDetailsRenderProps} from './components/admin/AgentDetails/BaseAgentDetails';
-export {default as AgentDetails} from './components/admin/AgentDetails/AgentDetails';
-export {default as BaseApplicationList} from './components/admin/ApplicationList/BaseApplicationList';
-export {default as ApplicationList} from './components/admin/ApplicationList/ApplicationList';
-export {default as BaseApplicationCreate} from './components/admin/ApplicationCreate/BaseApplicationCreate';
+export type {AdminListRenderProps} from './components/management/shared/createAdminList';
+export type {AdminSearchValue} from './components/management/shared/AdminSearch';
+export type {AdminFormRenderProps} from './components/management/shared/adminFormProps';
+export {default as BaseUserList} from './components/management/UserList/BaseUserList';
+export {default as UserList} from './components/management/UserList/UserList';
+export {default as BaseUserCreate} from './components/management/UserCreate/BaseUserCreate';
+export type {BaseUserCreateRenderProps, UserCreateSubmission} from './components/management/UserCreate/BaseUserCreate';
+export {DEFAULT_USER_CREATE_FIELDS} from './components/management/UserCreate/userCreateFields';
+export type {UserCreateField} from './components/management/UserCreate/userCreateFields';
+export {default as UserCreate} from './components/management/UserCreate/UserCreate';
+export {default as BaseUserDetails} from './components/management/UserDetails/BaseUserDetails';
+export type {BaseUserDetailsRenderProps} from './components/management/UserDetails/BaseUserDetails';
+export {default as UserDetails} from './components/management/UserDetails/UserDetails';
+export {default as BaseGroupList} from './components/management/GroupList/BaseGroupList';
+export {default as GroupList} from './components/management/GroupList/GroupList';
+export {default as BaseGroupCreate} from './components/management/GroupCreate/BaseGroupCreate';
+export type {
+  BaseGroupCreateRenderProps,
+  GroupCreateSubmission,
+} from './components/management/GroupCreate/BaseGroupCreate';
+export {default as GroupCreate} from './components/management/GroupCreate/GroupCreate';
+export {default as BaseGroupMembers} from './components/management/GroupMembers/BaseGroupMembers';
+export type {BaseGroupMembersRenderProps} from './components/management/GroupMembers/BaseGroupMembers';
+export {default as GroupMembers} from './components/management/GroupMembers/GroupMembers';
+export {default as BaseRoleList} from './components/management/RoleList/BaseRoleList';
+export {default as RoleList} from './components/management/RoleList/RoleList';
+export {default as BaseRoleCreate} from './components/management/RoleCreate/BaseRoleCreate';
+export type {BaseRoleCreateRenderProps, RoleCreateSubmission} from './components/management/RoleCreate/BaseRoleCreate';
+export {default as RoleCreate} from './components/management/RoleCreate/RoleCreate';
+export {default as BaseRoleAssignments} from './components/management/RoleAssignments/BaseRoleAssignments';
+export type {BaseRoleAssignmentsRenderProps} from './components/management/RoleAssignments/BaseRoleAssignments';
+export {default as RoleAssignments} from './components/management/RoleAssignments/RoleAssignments';
+export {default as BaseRolePermissions} from './components/management/RolePermissions/BaseRolePermissions';
+export type {
+  BaseRolePermissionsRenderProps,
+  RolePermissionChange,
+  RolePermissionResourceServer,
+} from './components/management/RolePermissions/BaseRolePermissions';
+export {default as RolePermissions} from './components/management/RolePermissions/RolePermissions';
+export {default as BaseGroupDetails} from './components/management/GroupDetails/BaseGroupDetails';
+export type {BaseGroupDetailsRenderProps} from './components/management/GroupDetails/BaseGroupDetails';
+export {default as GroupDetails} from './components/management/GroupDetails/GroupDetails';
+export {default as BaseRoleDetails} from './components/management/RoleDetails/BaseRoleDetails';
+export type {BaseRoleDetailsRenderProps} from './components/management/RoleDetails/BaseRoleDetails';
+export {default as RoleDetails} from './components/management/RoleDetails/RoleDetails';
+export {default as BaseAgentList} from './components/management/AgentList/BaseAgentList';
+export {default as AgentList} from './components/management/AgentList/AgentList';
+export {default as BaseAgentCreate} from './components/management/AgentCreate/BaseAgentCreate';
+export type {
+  AgentCreateSubmission,
+  BaseAgentCreateRenderProps,
+} from './components/management/AgentCreate/BaseAgentCreate';
+export {default as AgentCreate} from './components/management/AgentCreate/AgentCreate';
+export {default as BaseAgentDetails} from './components/management/AgentDetails/BaseAgentDetails';
+export type {BaseAgentDetailsRenderProps} from './components/management/AgentDetails/BaseAgentDetails';
+export {default as AgentDetails} from './components/management/AgentDetails/AgentDetails';
+export {default as BaseApplicationList} from './components/management/ApplicationList/BaseApplicationList';
+export {default as ApplicationList} from './components/management/ApplicationList/ApplicationList';
+export {default as BaseApplicationCreate} from './components/management/ApplicationCreate/BaseApplicationCreate';
 export type {
   ApplicationCreateSubmission,
   BaseApplicationCreateRenderProps,
-} from './components/admin/ApplicationCreate/BaseApplicationCreate';
-export {default as ApplicationCreate} from './components/admin/ApplicationCreate/ApplicationCreate';
-export {default as BaseApplicationDetails} from './components/admin/ApplicationDetails/BaseApplicationDetails';
+} from './components/management/ApplicationCreate/BaseApplicationCreate';
+export {default as ApplicationCreate} from './components/management/ApplicationCreate/ApplicationCreate';
+export {default as BaseApplicationDetails} from './components/management/ApplicationDetails/BaseApplicationDetails';
 export type {
   ApplicationUpdateSubmission,
   BaseApplicationDetailsRenderProps,
-} from './components/admin/ApplicationDetails/BaseApplicationDetails';
-export {default as ApplicationDetails} from './components/admin/ApplicationDetails/ApplicationDetails';
-export type {ApplicationFormValues, ApplicationTextField} from './components/admin/shared/renderApplicationFields';
-export type {IdentityCandidate} from './components/admin/shared/IdentityPicker';
+} from './components/management/ApplicationDetails/BaseApplicationDetails';
+export {default as ApplicationDetails} from './components/management/ApplicationDetails/ApplicationDetails';
+export type {ApplicationFormValues, ApplicationTextField} from './components/management/shared/renderApplicationFields';
+export type {IdentityCandidate} from './components/management/shared/IdentityPicker';
+export {default as BaseProjectList} from './components/management/ProjectList/BaseProjectList';
+export {default as ProjectList} from './components/management/ProjectList/ProjectList';
+export {default as BaseProjectCreate} from './components/management/ProjectCreate/BaseProjectCreate';
+export type {
+  BaseProjectCreateRenderProps,
+  ProjectCreateField,
+  ProjectCreateSubmission,
+} from './components/management/ProjectCreate/BaseProjectCreate';
+export {default as ProjectCreate} from './components/management/ProjectCreate/ProjectCreate';
+export {default as BaseProjectDetails} from './components/management/ProjectDetails/BaseProjectDetails';
+export type {
+  BaseProjectDetailsRenderProps,
+  ProjectUpdateSubmission,
+} from './components/management/ProjectDetails/BaseProjectDetails';
+export {default as ProjectDetails} from './components/management/ProjectDetails/ProjectDetails';
+export {default as BaseProjectSwitcher} from './components/management/ProjectSwitcher/BaseProjectSwitcher';
+export type {BaseProjectSwitcherRenderProps} from './components/management/ProjectSwitcher/BaseProjectSwitcher';
+export {default as ProjectSwitcher} from './components/management/ProjectSwitcher/ProjectSwitcher';
+export {default as BaseOrganizationUnitList} from './components/management/OrganizationUnitList/BaseOrganizationUnitList';
+export {default as OrganizationUnitList} from './components/management/OrganizationUnitList/OrganizationUnitList';
+export {default as BaseOrganizationUnitCreate} from './components/management/OrganizationUnitCreate/BaseOrganizationUnitCreate';
+export type {
+  BaseOrganizationUnitCreateRenderProps,
+  OrganizationUnitCreateField,
+  OrganizationUnitCreateSubmission,
+} from './components/management/OrganizationUnitCreate/BaseOrganizationUnitCreate';
+export {default as OrganizationUnitCreate} from './components/management/OrganizationUnitCreate/OrganizationUnitCreate';
+export {default as BaseOrganizationUnitDetails} from './components/management/OrganizationUnitDetails/BaseOrganizationUnitDetails';
+export type {
+  BaseOrganizationUnitDetailsRenderProps,
+  OrganizationUnitContents,
+  OrganizationUnitUpdateSubmission,
+} from './components/management/OrganizationUnitDetails/BaseOrganizationUnitDetails';
+export {default as OrganizationUnitDetails} from './components/management/OrganizationUnitDetails/OrganizationUnitDetails';
+export {default as BaseSharingPolicies} from './components/management/SharingPolicies/BaseSharingPolicies';
+export type {BaseSharingPoliciesRenderProps} from './components/management/SharingPolicies/BaseSharingPolicies';
+export {default as SharingPolicies} from './components/management/SharingPolicies/SharingPolicies';
 
 // ── UI Components — Adapters ──
 export {default as GoogleButton} from './components/auth/buttons/GoogleButton';
@@ -274,6 +335,16 @@ export {default as getUsersMeMeta} from './api/account/getUsersMeMeta';
 export * from './api/account/getUsersMeMeta';
 export {default as executeEmbeddedSelfFlow} from './api/auth/executeEmbeddedSelfFlow';
 export type {ExecuteEmbeddedSelfFlowConfig} from './api/auth/executeEmbeddedSelfFlow';
+export {default as getAccessibleOrganizationUnits} from './api/account/getAccessibleOrganizationUnits';
+export type {GetAccessibleOrganizationUnitsConfig} from './api/account/getAccessibleOrganizationUnits';
+export {
+  OrganizationUnitSwitchErrorCodes,
+  type AccessibleOrganizationUnit,
+  type AccessibleOrganizationUnitList,
+  type AccessibleOrganizationUnitScope,
+  type CurrentOrganizationUnit,
+  type SwitchOrganizationUnitOptions,
+} from '@thunderid/browser';
 
 // ── Phase 4 — Router Helpers ──
 export {createThunderIDGuard} from './router/guard';
@@ -489,18 +560,25 @@ export {
   createAction,
   createAgentType,
   createApplicationSharingPolicy,
+  createAuthorizationDetailType,
   createConfigurationVersion,
   createConnection,
+  createCredentialConfiguration,
   createDesignTheme,
   createFlow,
+  createFlowSharingPolicy,
   createGateway,
   createGatewaySecret,
   createGatewayVariable,
+  createGroupByPath,
   createLayout,
   createNotificationTemplate,
   createOrganizationUnit,
+  createPresentationDefinition,
+  createProject,
   createResource,
   createResourceServer,
+  createRoleSharingPolicy,
   createSecret,
   createUserByPath,
   createUserSharingPolicy,
@@ -508,9 +586,13 @@ export {
   deleteAction,
   deleteAgentType,
   deleteApplicationSharingPolicy,
+  deleteAuthorizationDetailType,
+  deleteClientRegistration,
   deleteConnection,
+  deleteCredentialConfiguration,
   deleteDesignTheme,
   deleteFlow,
+  deleteFlowSharingPolicy,
   deleteGateway,
   deleteGatewaySecret,
   deleteGatewayVariable,
@@ -519,8 +601,11 @@ export {
   deleteNotificationTemplate,
   deleteOrganizationUnit,
   deleteOrganizationUnitByPath,
+  deletePresentationDefinition,
+  deleteProject,
   deleteResource,
   deleteResourceServer,
+  deleteRoleSharingPolicy,
   deleteSecret,
   deleteTranslation,
   deleteTranslations,
@@ -532,17 +617,26 @@ export {
   getApplicationOverlayRules,
   getApplicationSharingPolicies,
   getApplicationSharingPolicy,
+  getAuthorizationDetailType,
+  getAuthorizationDetailTypes,
+  getClientRegistration,
   getConfigurationVersion,
   getConfigurationVersions,
   getConnection,
   getConnectionUsages,
   getConnections,
   getConnectionsMeta,
+  getCredentialConfiguration,
+  getCredentialConfigurations,
   getDesignTheme,
   getDesignThemeUsages,
   getDesignThemes,
   getFlow,
+  getFlowOverlayRules,
+  getFlowSharingPolicies,
+  getFlowSharingPolicy,
   getFlowUsages,
+  getFlowVariables,
   getFlowVersion,
   getFlowVersions,
   getFlows,
@@ -550,11 +644,15 @@ export {
   getGatewayAppliedConfiguration,
   getGatewayAppliedVersion,
   getGatewayConfigurationDiff,
+  getGatewayMaster,
+  getGatewayMasterHistory,
+  getGatewayMasterResource,
   getGatewaySecret,
   getGatewaySecrets,
   getGatewayVariable,
   getGatewayVariables,
   getGateways,
+  getGroupsByPath,
   getLanguages,
   getLayout,
   getLayoutUsages,
@@ -568,14 +666,24 @@ export {
   getOrganizationUnitRoles,
   getOrganizationUnitUsers,
   getOrganizationUnits,
+  getPresentationDefinition,
+  getPresentationDefinitions,
+  getProject,
+  getProjects,
   getResource,
   getResourceServer,
+  getResourceServerPermissions,
   getResourceServers,
   getResources,
+  getRoleOverlayRules,
+  getRoleSharingPolicies,
+  getRoleSharingPolicy,
   getSecret,
   getSecrets,
   getServerConfig,
   getServerConfigs,
+  getSupportedAuthorizationDetailsType,
+  getSupportedAuthorizationDetailsTypes,
   getUserOverlayRules,
   getUserSharingPolicies,
   getUserSharingPolicy,
@@ -583,6 +691,7 @@ export {
   getVariable,
   getVariables,
   importConfiguration,
+  registerClient,
   resolveDesign,
   resolveTranslation,
   resolveTranslations,
@@ -601,9 +710,14 @@ export {
   unsuspendUser,
   updateAction,
   updateApplicationSharingPolicy,
+  updateAuthorizationDetailType,
+  updateClientRegistration,
   updateConnection,
+  updateCredentialConfiguration,
   updateDesignTheme,
   updateFlow,
+  updateFlowSharingPolicy,
+  updateFlowVariables,
   updateGateway,
   updateGatewaySecret,
   updateGatewayVariable,
@@ -611,8 +725,11 @@ export {
   updateNotificationTemplate,
   updateOrganizationUnit,
   updateOrganizationUnitByPath,
+  updatePresentationDefinition,
+  updateProject,
   updateResource,
   updateResourceServer,
+  updateRoleSharingPolicy,
   updateSecret,
   updateServerConfig,
   updateUserSharingPolicy,
@@ -632,6 +749,10 @@ export type {
   ApplyGatewayConfigurationConfig,
   ApplyGatewayConfigurationRequest,
   CaptureConfigurationVersionRequest,
+  ClientRegistration,
+  ClientRegistrationMetadata,
+  ClientRegistrationRequest,
+  ClientRegistrationUpdateRequest,
   ConfigurationActor,
   ConfigurationExportOptions,
   ConfigurationExportRequest,
@@ -662,6 +783,7 @@ export type {
   CreateApplicationSharingPolicyConfig,
   CreateConfigurationVersionConfig,
   CreateConnectionConfig,
+  CreateCredentialConfigurationConfig,
   CreateDesignThemeConfig,
   CreateEmailTemplateRequest,
   CreateFlowConfig,
@@ -673,6 +795,7 @@ export type {
   CreateNotificationTemplateRequest,
   CreateOrganizationUnitConfig,
   CreateOrganizationUnitRequest,
+  CreatePresentationDefinitionConfig,
   CreateResourceConfig,
   CreateResourceRequest,
   CreateResourceServerConfig,
@@ -683,10 +806,17 @@ export type {
   CreateUserByPathRequest,
   CreateUserSharingPolicyConfig,
   CreateVariableConfig,
+  CredentialConfiguration,
+  CredentialConfigurationClaim,
+  CredentialConfigurationDisplay,
+  CredentialConfigurationRequest,
+  CredentialConfigurationSummary,
   DeleteActionConfig,
   DeleteAgentTypeConfig,
   DeleteApplicationSharingPolicyConfig,
+  DeleteClientRegistrationConfig,
   DeleteConnectionConfig,
+  DeleteCredentialConfigurationConfig,
   DeleteDesignThemeConfig,
   DeleteFlowConfig,
   DeleteGatewayConfig,
@@ -699,6 +829,7 @@ export type {
   DeleteNotificationTemplateConfig,
   DeleteOrganizationUnitByPathConfig,
   DeleteOrganizationUnitConfig,
+  DeletePresentationDefinitionConfig,
   DeleteResourceConfig,
   DeleteResourceServerConfig,
   DeleteSecretConfig,
@@ -725,13 +856,19 @@ export type {
   GatewayApplyResult,
   GatewayConfigurationChange,
   GatewayConfigurationDiff,
+  GatewayMaster,
+  GatewayMasterEntry,
+  GatewayMasterEntryFailure,
+  GatewayMasterSummary,
   GatewayRegistration,
+  GatewayResourceHistory,
   GatewayValueChanges,
   GetActionConfig,
   GetActionsConfig,
   GetApplicationOverlayRulesConfig,
   GetApplicationSharingPoliciesConfig,
   GetApplicationSharingPolicyConfig,
+  GetClientRegistrationConfig,
   GetConfigurationVersionConfig,
   GetConfigurationVersionsConfig,
   GetConnectionConfig,
@@ -739,6 +876,8 @@ export type {
   GetConnectionsConfig,
   GetConnectionsMetaConfig,
   GetConnectionsResult,
+  GetCredentialConfigurationConfig,
+  GetCredentialConfigurationsConfig,
   GetDesignThemeConfig,
   GetDesignThemeUsagesConfig,
   GetDesignThemesConfig,
@@ -751,6 +890,9 @@ export type {
   GetGatewayAppliedVersionConfig,
   GetGatewayConfig,
   GetGatewayConfigurationDiffConfig,
+  GetGatewayMasterConfig,
+  GetGatewayMasterHistoryConfig,
+  GetGatewayMasterResourceConfig,
   GetGatewaySecretConfig,
   GetGatewaySecretsConfig,
   GetGatewayVariableConfig,
@@ -769,6 +911,8 @@ export type {
   GetOrganizationUnitRolesConfig,
   GetOrganizationUnitUsersConfig,
   GetOrganizationUnitsConfig,
+  GetPresentationDefinitionConfig,
+  GetPresentationDefinitionsConfig,
   GetResourceConfig,
   GetResourceServerConfig,
   GetResourceServersConfig,
@@ -816,6 +960,10 @@ export type {
   OrganizationUnitUser,
   OrganizationUnitUserListResponse,
   OverlayRule,
+  PresentationDefinition,
+  PresentationDefinitionRequest,
+  PresentationDefinitionSummary,
+  RegisterClientConfig,
   RegisterGatewayRequest,
   ResolveDesignConfig,
   ResolveTranslationConfig,
@@ -865,7 +1013,9 @@ export type {
   UpdateActionConfig,
   UpdateActionRequest,
   UpdateApplicationSharingPolicyConfig,
+  UpdateClientRegistrationConfig,
   UpdateConnectionConfig,
+  UpdateCredentialConfigurationConfig,
   UpdateDesignThemeConfig,
   UpdateEmailTemplateRequest,
   UpdateFlowConfig,
@@ -880,6 +1030,7 @@ export type {
   UpdateOrganizationUnitByPathRequest,
   UpdateOrganizationUnitConfig,
   UpdateOrganizationUnitRequest,
+  UpdatePresentationDefinitionConfig,
   UpdateResourceConfig,
   UpdateResourceRequest,
   UpdateResourceServerConfig,
@@ -893,4 +1044,51 @@ export type {
   VariableListResponse,
   VariableRequest,
   VariableUpdateRequest,
+  GetRoleSharingPoliciesConfig,
+  CreateRoleSharingPolicyConfig,
+  GetRoleSharingPolicyConfig,
+  UpdateRoleSharingPolicyConfig,
+  DeleteRoleSharingPolicyConfig,
+  GetRoleOverlayRulesConfig,
+  GetFlowSharingPoliciesConfig,
+  CreateFlowSharingPolicyConfig,
+  GetFlowSharingPolicyConfig,
+  UpdateFlowSharingPolicyConfig,
+  DeleteFlowSharingPolicyConfig,
+  GetFlowOverlayRulesConfig,
+  GetFlowVariablesConfig,
+  UpdateFlowVariablesConfig,
+  GetGroupsByPathConfig,
+  CreateGroupByPathConfig,
+  GetProjectsConfig,
+  GetProjectConfig,
+  CreateProjectConfig,
+  UpdateProjectConfig,
+  DeleteProjectConfig,
+  GetAuthorizationDetailTypesConfig,
+  GetAuthorizationDetailTypeConfig,
+  CreateAuthorizationDetailTypeConfig,
+  UpdateAuthorizationDetailTypeConfig,
+  DeleteAuthorizationDetailTypeConfig,
+  GetSupportedAuthorizationDetailsTypesConfig,
+  GetSupportedAuthorizationDetailsTypeConfig,
+  GetResourceServerPermissionsConfig,
+  ResourceServerPermission,
+  AuthorizationDetailProcessor,
+  AuthorizationDetailProcessorAuthentication,
+  AuthorizationDetailType,
+  AuthorizationDetailTypeListResponse,
+  AuthorizationDetailTypeRequest,
+  CreateGroupByPathRequest,
+  CreateProjectRequest,
+  FlowResolvedOverlay,
+  FlowVariableValue,
+  FlowVariables,
+  Project,
+  ProjectListResponse,
+  RoleResolvedOverlay,
+  SupportedAuthorizationDetailsType,
+  SupportedAuthorizationDetailsTypeModification,
+  SupportedAuthorizationDetailsTypesResponse,
+  UpdateProjectRequest,
 } from '@thunderid/browser';

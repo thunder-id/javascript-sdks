@@ -142,3 +142,74 @@ export interface GatewayAppliedConfiguration {
   skipped?: {code: string; id?: string; reason: string; resourceType: string}[];
   version?: string;
 }
+
+/**
+ * Why a gateway refused a resource.
+ */
+export interface GatewayMasterEntryFailure {
+  code?: string;
+  description?: string;
+  message?: string;
+}
+
+/**
+ * One resource in a gateway's master, as the gateway last accepted it.
+ */
+export interface GatewayMasterEntry {
+  at?: string;
+  by?: ConfigurationActor;
+  contentHash?: string;
+  failure?: GatewayMasterEntryFailure;
+  id?: string;
+  /**
+   * The resource's key, `<resourceType>/<id>`.
+   */
+  key?: string;
+  name?: string;
+  origin?: string;
+  resourceType?: string;
+  sourceVersion?: string;
+  state?: 'deployed' | 'failed' | 'removed';
+}
+
+/**
+ * The counts of a gateway master's entries by state.
+ */
+export interface GatewayMasterSummary {
+  deployed?: number;
+  failed?: number;
+  removed?: number;
+}
+
+/**
+ * What a gateway holds, resource by resource. A gateway nothing was applied to holds the empty master,
+ * `number` 0.
+ */
+export interface GatewayMaster {
+  createdAt?: string;
+  createdBy?: ConfigurationActor;
+  /**
+   * The manifest, one entry per resource key. Left out by a listing.
+   */
+  entries?: GatewayMasterEntry[];
+  gatewayId?: string;
+  /**
+   * The hash naming the master by what it holds. Omitted for the empty master.
+   */
+  master?: string;
+  number?: number;
+  /**
+   * Every resource the gateway holds, one YAML document each. Left out by a listing.
+   */
+  resources?: string;
+  summary?: GatewayMasterSummary;
+}
+
+/**
+ * A resource's entry in each kept master that records it, newest first.
+ */
+export interface GatewayResourceHistory {
+  gatewayId?: string;
+  history?: {entry?: GatewayMasterEntry; master?: string; number?: number}[];
+  key?: string;
+}

@@ -99,3 +99,16 @@ export interface ManagedFlowVersion {
   nodes: ManagedFlowNode[];
   version: number;
 }
+
+/**
+ * The value of a flow variable, in the variable's own type. A value is never null.
+ */
+export type FlowVariableValue = string | number | boolean;
+
+/**
+ * The values an organization unit has set for a flow's variables: its own overrides, keyed by variable
+ * identifier. A variable the unit has not set is absent, and the flow's default applies to it.
+ */
+export interface FlowVariables {
+  values: Record<string, FlowVariableValue>;
+}

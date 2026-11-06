@@ -4,6 +4,12 @@
 import {
   AuthClientConfig,
   BackchannelLogoutConstants,
+  DeviceAuthorizationOptions,
+  DeviceAuthorizationPollOptions,
+  DeviceAuthorizationResponse,
+  OrganizationUnitSwitchErrorCodes,
+  SwitchOrganizationUnitOptions,
+  ThunderIDAPIError,
   BackchannelLogoutResult,
   EmbeddedSelfFlowRequest,
   EmbeddedSelfFlowResponse,
@@ -31,6 +37,17 @@ import {
   updateMeCredentials,
   User,
 } from '@thunderid/javascript';
+import evaluateAccessRequest from './api/access/evaluateAccess';
+import evaluateAccessesRequest from './api/access/evaluateAccesses';
+import searchActionsRequest from './api/access/searchActions';
+import {
+  AccessAction,
+  AccessActionSearchRequest,
+  AccessEvaluationRequest,
+  AccessEvaluationRequestConfig,
+  AccessEvaluationResponse,
+  AccessEvaluationsRequest,
+} from './models/access-evaluation';
 import AuthURLCallback from './models/AuthURLCallback';
 import {ThunderIDNodeConfig} from './models/config';
 import {ManagementResourceKey, ThunderIDNodeManagementClient} from './models/management';
@@ -84,7 +101,13 @@ class ThunderIDNodeClient<T extends ThunderIDNodeConfig = ThunderIDNodeConfig> e
       );
     }
 
-    if (await this.isSignedIn(userId)) {
+    // The callback of a sign-in bounded to another organization unit replaces a session that is still
+    // signed in; any other request is answered with the existing session.
+    const isOrganizationUnitSwitch = Boolean(
+      authorizationCode && state && (await this.isOrganizationUnitBoundRequest(state, userId)),
+    );
+
+    if (!isOrganizationUnitSwitch && (await this.isSignedIn(userId))) {
       const sm = this.getStorageManager();
       const sessionData: SessionData = await sm.getSessionData(userId);
       return Promise.resolve({
@@ -153,6 +176,142 @@ class ThunderIDNodeClient<T extends ThunderIDNodeConfig = ThunderIDNodeConfig> e
       );
     }
     return url;
+  }
+
+  /**
+   * Starts a switch of the session `userId` to the organization unit `organizationUnitId`: builds the
+   * unit's authorization URL (`{baseUrl}/ou/{ouId}/oauth2/authorize`) and hands it to `authURLCallback`
+   * to redirect the user to. The server reuses the SSO session when the user can sign in there, so
+   * normally no credentials are asked. Complete it with `signIn(callback, userId, code, state)` on the
+   * callback: the code is redeemed at the unit's token endpoint and replaces the session's tokens.
+   * Until then, and when the callback carries an error, the previous session stays as it was.
+   *
+   * @throws {ThunderIDAPIError} `switchOrganizationUnit-ValidationError-001` without a unit, a session or
+   *   a callback.
+   */
+  public override async switchOrganizationUnit(
+    organizationUnitId: string,
+    options: SwitchOrganizationUnitOptions & {authURLCallback?: AuthURLCallback; userId?: string} = {},
+  ): Promise<undefined> {
+    // `redirect` applies to a browser only: a server always hands the URL to the callback.
+    const {authURLCallback, userId, ...rest} = options;
+    const params: Record<string, unknown> = Object.fromEntries(
+      Object.entries(rest).filter(([key]: [string, unknown]) => key !== 'redirect'),
+    );
+
+    if (typeof organizationUnitId !== 'string' || organizationUnitId.trim() === '' || !userId) {
+      throw new ThunderIDAPIError(
+        'An organization unit identifier and a session are required.',
+        OrganizationUnitSwitchErrorCodes.InvalidOrganizationUnit,
+        'node',
+        400,
+      );
+    }
+
+    if (typeof authURLCallback !== 'function') {
+      throw new ThunderIDAPIError(
+        'An authURLCallback is required to send the user to the organization unit.',
+        OrganizationUnitSwitchErrorCodes.InvalidOrganizationUnit,
+        'node',
+        400,
+      );
+    }
+
+    authURLCallback(await this.getSignInUrl({...(params as Record<string, string>), organizationUnitId}, userId));
+
+    return undefined;
+  }
+
+  /**
+   * Starts a device authorization request (RFC 8628) for an input-constrained device or a CLI tool. Show
+   * the user `userCode` and `verificationUri`; keep `deviceCode`, a credential, to yourself and pass it
+   * to {@link pollDeviceAuthorization}. It is never logged.
+   */
+  public override async startDeviceAuthorization(
+    options: DeviceAuthorizationOptions = {},
+  ): Promise<DeviceAuthorizationResponse> {
+    return super.startDeviceAuthorization(options);
+  }
+
+  /**
+   * Polls the token endpoint with the device code until the user approves, denies, or the code expires,
+   * and stores the tokens for the session `userId` on approval.
+   *
+   * @throws {ThunderIDAPIError} `JS-AUTH_CORE-DEVICE2-HE03` when the server ends the request
+   *   (`access_denied`, `expired_token`), with the OAuth error in `serverError`.
+   */
+  public override async pollDeviceAuthorization(
+    deviceCode: string,
+    interval: number,
+    options?: DeviceAuthorizationPollOptions,
+    userId?: string,
+  ): Promise<TokenResponse> {
+    const tokens: TokenResponse = await super.pollDeviceAuthorization(deviceCode, interval, options, userId);
+
+    if (userId) {
+      await this.indexSession(userId, await this.getStorageManager().getSessionData(userId));
+    }
+
+    return tokens;
+  }
+
+  /**
+   * Introspects a token (RFC 7662) at the server's introspection endpoint, authenticating as this client.
+   * An inactive token is a result (`{active: false}`), not an error.
+   */
+  public override async introspectToken(
+    token: string,
+    tokenTypeHint?: string,
+  ): Promise<Record<string, unknown> & {active: boolean}> {
+    return super.introspectToken(token, tokenTypeHint);
+  }
+
+  /**
+   * The request configuration for access evaluation: the configured server, secret and overrides, with
+   * a per-call secret taking precedence.
+   */
+  private async accessEvaluationConfig(secret?: string, signal?: AbortSignal): Promise<AccessEvaluationRequestConfig> {
+    const configData: AuthClientConfig<T> = await this.getStorageManager().getConfigData();
+    const accessEvaluation: ThunderIDNodeConfig['accessEvaluation'] = (configData as unknown as ThunderIDNodeConfig)
+      .accessEvaluation;
+
+    return {
+      baseUrl: configData?.baseUrl ?? '',
+      endpoints: accessEvaluation?.endpoints,
+      secret: secret ?? accessEvaluation?.secret ?? '',
+      signal,
+    };
+  }
+
+  /**
+   * Asks the server whether a subject may perform an action on a resource (AuthZEN). A denial is a result
+   * (`decision: false`), not an error. Uses `accessEvaluation.secret`, or `options.secret`.
+   */
+  public async evaluateAccess(
+    request: AccessEvaluationRequest,
+    options: {secret?: string; signal?: AbortSignal} = {},
+  ): Promise<AccessEvaluationResponse> {
+    return evaluateAccessRequest(request, await this.accessEvaluationConfig(options.secret, options.signal));
+  }
+
+  /**
+   * Evaluates a batch of access requests and returns one decision per evaluation, in order.
+   */
+  public async evaluateAccesses(
+    request: AccessEvaluationsRequest,
+    options: {secret?: string; signal?: AbortSignal} = {},
+  ): Promise<AccessEvaluationResponse[]> {
+    return evaluateAccessesRequest(request, await this.accessEvaluationConfig(options.secret, options.signal));
+  }
+
+  /**
+   * Asks which actions a subject may perform on a resource.
+   */
+  public async searchActions(
+    request: AccessActionSearchRequest,
+    options: {secret?: string; signal?: AbortSignal} = {},
+  ): Promise<AccessAction[]> {
+    return searchActionsRequest(request, await this.accessEvaluationConfig(options.secret, options.signal));
   }
 
   public override async signOut(...args: any[]): Promise<string> {

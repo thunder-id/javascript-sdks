@@ -5,6 +5,9 @@ import type {
   ResourceInvalidator,
   ApiFetcher,
   AttributeSchema,
+  CurrentOrganizationUnit,
+  Project,
+  SwitchOrganizationUnitOptions,
   FlowMetadataResponse,
   HttpRequestConfig,
   HttpResponse,
@@ -58,6 +61,35 @@ export interface ThunderIDContext {
   getDecodedIdToken: () => Promise<IdToken>;
   getIdToken: () => Promise<string>;
   getStorageManager: () => StorageManager<any>;
+  /**
+   * The organization unit the session was issued for, from its `ouId`, `ouHandle` and `ouName` claims,
+   * or `null` when they are absent. For display only, never for an authorization decision.
+   */
+  currentOrganizationUnit: Readonly<Ref<CurrentOrganizationUnit | null>>;
+  /**
+   * The project the user chose for the management UI, for example with `ProjectSwitcher`, or `null`.
+   * It is client-side context, not a sign-in: tokens and permissions do not change with it.
+   * `ApplicationList`/`AgentList` list it and `ApplicationCreate`/`AgentCreate` place new resources in it. Absent from a context that does not
+   * provide it.
+   */
+  currentProject?: Readonly<Ref<Project | null>>;
+  /**
+   * Chooses the current project, or clears it with `null`. Kept per vendor in `localStorage`.
+   */
+  setCurrentProject?: (project: Project | null) => void;
+  /**
+   * Reads the current organization unit from the session's claims. For display only.
+   */
+  getCurrentOrganizationUnit: () => Promise<CurrentOrganizationUnit | null>;
+  /**
+   * Signs in again bounded to another organization unit. On success the session and user are refreshed;
+   * on failure the previous session stays as it was and the error carries a code from
+   * `OrganizationUnitSwitchErrorCodes`. In redirect mode the page may leave for the server.
+   */
+  switchOrganizationUnit: (
+    organizationUnitId: string,
+    options?: SwitchOrganizationUnitOptions,
+  ) => Promise<User | undefined>;
   // ── HTTP ──
   http: {
     /**

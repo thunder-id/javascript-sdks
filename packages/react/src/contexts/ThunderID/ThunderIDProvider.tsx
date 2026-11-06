@@ -21,9 +21,14 @@ import {
   resolveResourceEndpoint,
   AttributeSchema,
   SPAUtils,
+  CurrentOrganizationUnit,
+  SwitchOrganizationUnitOptions,
+  TokenResponse,
+  getCurrentOrganizationUnitFromClaims,
 } from '@thunderid/browser';
 import {FC, RefObject, PropsWithChildren, ReactElement, useEffect, useMemo, useRef, useState, useCallback} from 'react';
 import ThunderIDContext, {ThunderIDContextProps} from './ThunderIDContext';
+import useCurrentProjectState, {CurrentProjectState} from './useCurrentProjectState';
 import getUsersMe from '../../api/account/getUsersMe';
 import getUsersMeMeta from '../../api/account/getUsersMeMeta';
 import useBrowserUrl from '../../hooks/useBrowserUrl';
@@ -87,6 +92,8 @@ const ThunderIDProvider: FC<PropsWithChildren<ThunderIDProviderProps>> = ({
 
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [userSchema, setUserSchema] = useState<Record<string, AttributeSchema> | null>(null);
+  const [currentOrganizationUnit, setCurrentOrganizationUnit] = useState<CurrentOrganizationUnit | null>(null);
+  const {currentProject, setCurrentProject}: CurrentProjectState = useCurrentProjectState(getVendorPrefix(vendor));
   // The base the SDK's API requests are built on. In backend mode it's the backend's proxy.
   const requestBaseUrl: string = resolveRequestBaseUrl({baseUrl: initialBaseUrl, endpoints: rest.endpoints}) ?? '';
   const [baseUrl, setBaseUrl] = useState<string>(requestBaseUrl);
@@ -145,6 +152,7 @@ const ThunderIDProvider: FC<PropsWithChildren<ThunderIDProviderProps>> = ({
 
       const shouldFetchProfile: boolean = preferences?.user?.fetchUserProfile !== false;
       const claims: User = extractUserClaimsFromIdToken(decodedToken) as User;
+      setCurrentOrganizationUnit(getCurrentOrganizationUnitFromClaims(decodedToken as Record<string, unknown>));
       let profileData = claims;
       const currentSignInStatus: boolean = await client.isSignedIn();
 
@@ -270,6 +278,7 @@ const ThunderIDProvider: FC<PropsWithChildren<ThunderIDProviderProps>> = ({
 
       // A session that ends elsewhere, such as a sign-out in another app, signs this app out too.
       await client.on('sign-out', () => {
+        setCurrentOrganizationUnit(null);
         setUser(null);
         setUserProfile(null);
         setIsSignedInSync(false);
@@ -421,6 +430,30 @@ const ThunderIDProvider: FC<PropsWithChildren<ThunderIDProviderProps>> = ({
     }
   };
 
+  /**
+   * Signs in again bounded to another organization unit, then refreshes the user. A failed switch
+   * leaves the session, the user and the current unit as they were, and rethrows the client's error
+   * (its code is one of `OrganizationUnitSwitchErrorCodes`).
+   */
+  const switchOrganizationUnit: ThunderIDContextProps['switchOrganizationUnit'] = async (
+    organizationUnitId: string,
+    options?: SwitchOrganizationUnitOptions,
+  ): Promise<User | undefined> => {
+    const result: User | TokenResponse | undefined = await client.switchOrganizationUnit(organizationUnitId, options);
+
+    // A redirect leaves the page; the callback refreshes the session then.
+    if (result) {
+      await updateSession();
+    }
+
+    return (result as User | undefined) ?? undefined;
+  };
+
+  const getCurrentOrganizationUnit: ThunderIDContextProps['getCurrentOrganizationUnit'] = useCallback(
+    async (): Promise<CurrentOrganizationUnit | null> => client.getCurrentOrganizationUnit(),
+    [client],
+  );
+
   const handleProfileUpdate = (payload: User): void => {
     setUser(payload);
     setUserProfile((prev: UserProfile | null) => ({
@@ -533,6 +566,11 @@ const ThunderIDProvider: FC<PropsWithChildren<ThunderIDProviderProps>> = ({
       scopes: config.scopes,
       clearSession,
       clientId,
+      currentOrganizationUnit,
+      currentProject,
+      getCurrentOrganizationUnit,
+      setCurrentProject,
+      switchOrganizationUnit,
       discovery: {
         wellKnown,
       },
@@ -608,6 +646,11 @@ const ThunderIDProvider: FC<PropsWithChildren<ThunderIDProviderProps>> = ({
       requestAll,
       signOut,
       signUp,
+      currentOrganizationUnit,
+      currentProject,
+      getCurrentOrganizationUnit,
+      setCurrentProject,
+      switchOrganizationUnit,
     ],
   );
 

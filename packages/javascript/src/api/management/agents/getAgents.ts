@@ -8,7 +8,14 @@ import requestManagementResource from '../../../utils/requestManagementResource'
 /**
  * Configuration for the getAgents request.
  */
-export type GetAgentsConfig = ManagementRequestConfig & Pick<ApiFilteringParams, 'filter' | 'limit' | 'offset'>;
+export type GetAgentsConfig = ManagementRequestConfig &
+  Pick<ApiFilteringParams, 'filter' | 'limit' | 'offset'> & {
+    /**
+     * Lists the agents the project's root organization unit owns, followed by the ones shared into
+     * it. Served by the control plane.
+     */
+    projectId?: string;
+  };
 
 /**
  * Retrieves a page of agents.
@@ -25,13 +32,13 @@ export type GetAgentsConfig = ManagementRequestConfig & Pick<ApiFilteringParams,
  * });
  * ```
  */
-const getAgents = async ({filter, limit, offset, ...config}: GetAgentsConfig): Promise<AgentListResponse> =>
+const getAgents = async ({filter, limit, offset, projectId, ...config}: GetAgentsConfig): Promise<AgentListResponse> =>
   requestManagementResource<AgentListResponse>(config, {
     collection: 'agents',
     failureMessage: 'Failed to fetch agents',
     method: 'GET',
     operation: 'getAgents',
-    query: {filter, include: 'display', limit, offset},
+    query: {filter, include: 'display', limit, offset, projectId},
   });
 
 export default getAgents;

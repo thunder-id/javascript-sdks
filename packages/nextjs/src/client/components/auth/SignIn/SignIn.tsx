@@ -15,7 +15,13 @@ import useThunderID from '../../../contexts/ThunderID/useThunderID';
 export type SignInProps = Pick<
   BaseSignInProps,
   'children' | 'className' | 'id' | 'onSuccess' | 'onError' | 'variant' | 'size'
->;
+> & {
+  /**
+   * Bounds the sign-in to this organization unit. Sent as `ouId` on the request that starts the
+   * `AUTHENTICATION` flow only, never on a continuation.
+   */
+  organizationUnitId?: string;
+};
 
 /**
  * A SignIn component for Next.js that provides native authentication flow.
@@ -23,7 +29,13 @@ export type SignInProps = Pick<
  * BaseSignIn does not manage its own flow state, so this component initiates the flow
  * (using the server-action-backed `signIn`) and tracks `components`/`executionId` itself.
  */
-const SignIn: FC<SignInProps> = ({size = 'medium', variant = 'outlined', onError, ...rest}: SignInProps) => {
+const SignIn: FC<SignInProps> = ({
+  size = 'medium',
+  variant = 'outlined',
+  onError,
+  organizationUnitId,
+  ...rest
+}: SignInProps) => {
   const {signIn, applicationId, scopes} = useThunderID();
   const {t} = useTranslation();
 
@@ -68,6 +80,7 @@ const SignIn: FC<SignInProps> = ({size = 'medium', variant = 'outlined', onError
             applicationId,
             flowType: EmbeddedFlowType.Authentication,
             ...(scopes && {scopes}),
+            ...(organizationUnitId && {ouId: organizationUnitId}),
           },
           {},
         );

@@ -47,7 +47,7 @@ describe('management auto-imports', () => {
   it('registers every admin component with its unstyled variant', () => {
     const styled = MANAGEMENT_COMPONENTS.filter((name) => !name.startsWith('Base'));
 
-    expect(styled).toHaveLength(16);
+    expect(styled).toHaveLength(26);
     styled.forEach((name) => expect(MANAGEMENT_COMPONENTS).toContain(`Base${name}`));
   });
 

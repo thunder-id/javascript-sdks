@@ -85,6 +85,12 @@ describe('BackendClient', () => {
     );
   });
 
+  it('passes the organization unit to the backend sign-in as ouId', () => {
+    expect(new BackendClient(ENDPOINTS).getSignInUrl('/app', 'ou 1')).toBe(
+      '/api/auth/signin?returnTo=%2Fapp&ouId=ou+1',
+    );
+  });
+
   it('signs out and returns the end-session URL', async () => {
     fetchMock.mockResolvedValueOnce(json(200, {redirectUrl: 'https://auth.example.com/oauth2/logout?x'}));
     const backend = new BackendClient(ENDPOINTS);

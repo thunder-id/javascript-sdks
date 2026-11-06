@@ -70,7 +70,22 @@ describe('AuthenticationHelper silent sign-in', () => {
 
       await expect(createHelper().handleSilentSignInResponse()).resolves.toBe(true);
 
-      expect(postMessage).toHaveBeenCalledWith({type: SILENT_SIGN_IN_SIGNED_OUT}, window.location.origin);
+      expect(postMessage).toHaveBeenCalledWith(
+        {data: {code: '', error: 'login_required', state: SILENT_STATE}, type: SILENT_SIGN_IN_SIGNED_OUT},
+        window.location.origin,
+      );
+    });
+
+    it('relays a response with neither code nor error as signed out', async () => {
+      const postMessage = vi.spyOn(window, 'postMessage').mockImplementation(() => undefined);
+      setUrl(`?state=${SILENT_STATE}`);
+
+      await expect(createHelper().handleSilentSignInResponse()).resolves.toBe(true);
+
+      expect(postMessage).toHaveBeenCalledWith(
+        {data: undefined, type: SILENT_SIGN_IN_SIGNED_OUT},
+        window.location.origin,
+      );
     });
 
     it('ignores a callback that is not a silent sign-in response', async () => {
@@ -115,6 +130,25 @@ describe('AuthenticationHelper silent sign-in', () => {
       await expect(result).resolves.toBe(false);
       expect(requestAccessToken).not.toHaveBeenCalled();
       expect(document.querySelector('iframe')).toBeNull();
+    });
+
+    it('reports the error the iframe relays when it signs out', async () => {
+      const onSignedOut = vi.fn();
+
+      const result = createHelper().signInSilently(
+        async () => 'about:blank',
+        vi.fn(),
+        undefined,
+        undefined,
+        undefined,
+        onSignedOut,
+      );
+
+      await waitForIframe();
+      postFromIframe({data: {error: 'unauthorized_client'}, type: SILENT_SIGN_IN_SIGNED_OUT});
+
+      await expect(result).resolves.toBe(false);
+      expect(onSignedOut).toHaveBeenCalledWith('unauthorized_client');
     });
 
     it('resolves false after the configured timeout when the iframe never answers', async () => {

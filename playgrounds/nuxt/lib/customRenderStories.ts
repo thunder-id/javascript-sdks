@@ -8,6 +8,7 @@ import {
   type EmbeddedSelfFlowResponse,
   type ManagedUser,
   type MembershipGroup,
+  type RoleResourcePermissions,
 } from '@thunderid/browser';
 import {
   BaseVerifyAttribute,
@@ -16,14 +17,20 @@ import {
   type BaseApplicationCreateRenderProps,
   type BaseApplicationDetailsRenderProps,
   type BaseGroupCreateRenderProps,
+  type BaseRolePermissionsRenderProps,
   type BaseUserDetailsRenderProps,
   type BaseVerifyAttributeRenderProps,
+  type OrganizationUnitSwitcherRenderProps,
+  type RolePermissionChange,
 } from '@thunderid/vue';
 import {defineComponent, h, ref, type Component, type PropType, type Ref, type VNode} from 'vue';
+import {SampleOrganizationUnitSwitcher} from './organizationUnitSamples';
 import {
   applicationCard,
   applicationForm,
   groupForm,
+  organizationUnitPicker,
+  PrimeRolePermissions,
   PrimeTheme,
   userCard,
   userTable,
@@ -37,9 +44,12 @@ import {
   BaseApplicationCreate,
   BaseApplicationDetails,
   BaseGroupCreate,
+  BaseRolePermissions,
   BaseUserDetails,
   BaseUserList,
   GroupCreate,
+  OrganizationUnitSwitcher,
+  RolePermissions,
   UserDetails,
   UserList,
   VerifyAttribute,
@@ -152,6 +162,78 @@ export const submitSampleVerification = (payload: EmbeddedSelfFlowRequest): Prom
 const isLive = (args: Args): boolean => str(args, 'source') === 'live';
 
 const themed = (width: number, child: VNode): VNode => narrow(width, h(PrimeTheme, null, {default: () => child}));
+
+const SAMPLE_RESOURCE_SERVERS = [
+  {id: 'rs_booking', name: 'Booking API'},
+  {id: 'rs_system', name: 'ThunderID system API'},
+];
+
+const SAMPLE_AVAILABLE_PERMISSIONS = {
+  rs_booking: [
+    {name: 'Read', permission: 'booking:read'},
+    {name: 'Write', permission: 'booking:write'},
+    {name: 'Cancel', permission: 'booking:cancel'},
+  ],
+  rs_system: [
+    {name: 'View users', permission: 'system:user:view'},
+    {name: 'Manage users', permission: 'system:user'},
+  ],
+};
+
+/** Holds sample role permissions in state, so adding and removing them works without a server. */
+const SampleRolePermissions: Component = defineComponent({
+  name: 'SampleRolePermissions',
+  props: {
+    action: {required: true, type: Function as PropType<Action>},
+  },
+  setup(props: {action: Action}): () => VNode {
+    const permissions: Ref<RoleResourcePermissions[]> = ref([
+      {permissions: ['booking:read'], resourceServerId: 'rs_booking'},
+    ]);
+    const apply = ({permission, resourceServerId}: RolePermissionChange, add: boolean): void => {
+      const granted: string[] =
+        permissions.value.find((entry) => entry.resourceServerId === resourceServerId)?.permissions ?? [];
+      const next: string[] = add ? [...granted, permission] : granted.filter((item) => item !== permission);
+      permissions.value = [
+        ...permissions.value.filter((entry) => entry.resourceServerId !== resourceServerId),
+        ...(next.length ? [{permissions: next, resourceServerId}] : []),
+      ];
+      props.action(add ? 'add' : 'remove', quoted(`${resourceServerId}:${permission}`));
+    };
+
+    return (): VNode =>
+      h(
+        BaseRolePermissions,
+        {
+          availablePermissions: SAMPLE_AVAILABLE_PERMISSIONS,
+          onAdd: (change: RolePermissionChange): void => apply(change, true),
+          onRemove: (change: RolePermissionChange): void => apply(change, false),
+          onResourceServerSelect: (id: string): void => props.action('resource-server-select', quoted(id)),
+          permissions: permissions.value,
+          resourceServers: SAMPLE_RESOURCE_SERVERS,
+        },
+        {default: (state: BaseRolePermissionsRenderProps) => h(PrimeRolePermissions, {state})},
+      );
+  },
+});
+
+const PERMISSIONS_TEMPLATE = `<RolePermissions :role-id="roleId" editable>
+  <template #default="{permissions, resolveResourceServerName, onRemove}">
+    <Card v-for="entry in permissions" :key="entry.resourceServerId">
+      <template #title>{{ resolveResourceServerName(entry.resourceServerId) }}</template>
+      <template #content>
+        <!-- Ask before removing: the custom render owns the confirmation. -->
+        <Chip
+          v-for="permission in entry.permissions"
+          :key="permission"
+          :label="permission"
+          :removable="Boolean(onRemove)"
+          @remove="confirm('Remove ' + permission + '?') && onRemove({permission, resourceServerId: entry.resourceServerId})"
+        />
+      </template>
+    </Card>
+  </template>
+</RolePermissions>`;
 
 /** Pages and selects the sample users, the way an application holding the data would. */
 const SampleUserTable: Component = defineComponent({
@@ -574,6 +656,57 @@ export const CUSTOM_RENDER_COMPONENTS: ComponentDef[] = [
   },
   {
     code: () => ({
+      imports: [],
+      otherImports: ["import Button from 'primevue/button';", "import Card from 'primevue/card';"],
+      template: `<OrganizationUnitSwitcher scope="siblings">
+  <template #default="{organizationUnits, current, switchingId, onSwitch}">
+    <Card>
+      <template #content>
+        <div v-for="unit in organizationUnits" :key="unit.id">
+          {{ unit.name }}
+          <span v-if="unit.id === current">Current</span>
+          <Button v-else label="Switch" :loading="switchingId === unit.id" @click="onSwitch(unit)" />
+        </div>
+      </template>
+    </Card>
+  </template>
+</OrganizationUnitSwitcher>`,
+    }),
+    controls: [
+      {
+        control: ['base', 'live'],
+        description:
+          'base renders BaseOrganizationUnitSwitcher with sample units; live lists through GET /api/auth/user/organization-units.',
+        name: 'source',
+        type: "'base' | 'live' (playground only)",
+      },
+    ],
+    defaults: {source: 'base'},
+    group: 'Custom rendering',
+    id: 'custom-organizationunitswitcher-card',
+    live: true,
+    name: 'OrganizationUnitSwitcher → PrimeVue card',
+    render: (args: Args, action: Action): VNode =>
+      themed(
+        460,
+        isLive(args)
+          ? h(
+              OrganizationUnitSwitcher,
+              {onSwitch: (unit: {id: string}): void => action('switch', quoted(unit.id))},
+              {default: (state: OrganizationUnitSwitcherRenderProps) => organizationUnitPicker(state)},
+            )
+          : h(SampleOrganizationUnitSwitcher, {
+              action,
+              render: (state: OrganizationUnitSwitcherRenderProps) => organizationUnitPicker(state),
+            }),
+      ),
+    stories: [
+      {id: 'base', name: 'Sample'},
+      {args: {source: 'live'}, id: 'live', name: 'Live (needs sign-in)'},
+    ],
+  },
+  {
+    code: () => ({
       imports: ['ApplicationDetails'],
       otherImports: [
         "import Button from 'primevue/button';",
@@ -637,6 +770,45 @@ export const CUSTOM_RENDER_COMPONENTS: ComponentDef[] = [
       {id: 'base', name: 'Sample application'},
       {args: {showSecret: true}, id: 'secret', name: 'Regenerated secret'},
       {args: {source: 'live'}, id: 'live', name: 'Live (needs applicationId)'},
+    ],
+  },
+  {
+    code: () => ({
+      imports: [],
+      otherImports: ["import Card from 'primevue/card';", "import Chip from 'primevue/chip';"],
+      template: PERMISSIONS_TEMPLATE,
+    }),
+    controls: [
+      SOURCE_CONTROL,
+      {control: 'text', description: 'Live only: the role to load and edit.', name: 'roleId', type: 'string'},
+    ],
+    defaults: {roleId: '', source: 'base'},
+    group: 'Custom rendering',
+    id: 'custom-rolepermissions-cards',
+    live: true,
+    name: 'RolePermissions → PrimeVue cards',
+    render: (args: Args, action: Action): VNode => {
+      if (isLive(args) && !str(args, 'roleId')) {
+        return narrow(
+          420,
+          h('p', 'Set roleId in Controls to an ID from your server (copy one from the RoleList story).'),
+        );
+      }
+
+      return themed(
+        560,
+        isLive(args)
+          ? h(
+              RolePermissions,
+              {editable: true, key: str(args, 'roleId'), roleId: str(args, 'roleId')},
+              {default: (state: BaseRolePermissionsRenderProps) => h(PrimeRolePermissions, {state})},
+            )
+          : h(SampleRolePermissions, {action}),
+      );
+    },
+    stories: [
+      {id: 'base', name: 'Sample, editable'},
+      {args: {source: 'live'}, id: 'live', name: 'Live (needs roleId, writes)'},
     ],
   },
 ];

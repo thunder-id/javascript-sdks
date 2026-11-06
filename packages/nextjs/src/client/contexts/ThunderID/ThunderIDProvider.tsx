@@ -13,6 +13,9 @@ import {
   UserProfile,
   ThunderIDRuntimeError,
   getVendorPrefix,
+  CurrentOrganizationUnit,
+  SwitchOrganizationUnitOptions,
+  ThunderIDAPIError,
 } from '@thunderid/node';
 import {
   I18nProvider,
@@ -23,13 +26,19 @@ import {
   ThunderIDContext as ReactThunderIDContext,
   ThunderIDContextProps as ReactThunderIDContextProps,
   ThunderIDProviderProps,
+  useCurrentProjectState,
 } from '@thunderid/react';
 import {ReadonlyURLSearchParams} from 'next/dist/client/components/navigation.react-server';
 import {AppRouterInstance} from 'next/dist/shared/lib/app-router-context.shared-runtime';
 import {useRouter, useSearchParams} from 'next/navigation';
 import {FC, PropsWithChildren, RefObject, useEffect, useMemo, useRef, useState} from 'react';
 import ThunderIDContext, {ThunderIDContextProps} from './ThunderIDContext';
+import getCurrentOrganizationUnitAction from '../../../server/actions/account/getCurrentOrganizationUnitAction';
+import getUserAction from '../../../server/actions/account/getUserAction';
 import getUserProfileAction from '../../../server/actions/account/getUserProfileAction';
+import switchOrganizationUnitAction, {
+  SwitchOrganizationUnitActionResult,
+} from '../../../server/actions/auth/switchOrganizationUnitAction';
 import getSessionId from '../../../server/actions/getSessionId';
 import {RefreshResult} from '../../../server/actions/refreshToken';
 import logger from '../../../utils/logger';
@@ -175,6 +184,69 @@ const ThunderIDClientProvider: FC<PropsWithChildren<ThunderIDClientProviderProps
     setIsLoading(false);
   }, [isSignedIn, user]);
 
+  const [currentOrganizationUnit, setCurrentOrganizationUnit] = useState<CurrentOrganizationUnit | null>(null);
+  // The current project is client-side context for the management UI, kept in the browser like the
+  // React SDK's: it changes no session, cookie or token.
+  const {currentProject, setCurrentProject} = useCurrentProjectState(getVendorPrefix(vendor));
+
+  useEffect(() => {
+    if (!isSignedIn) {
+      setCurrentOrganizationUnit(null);
+
+      return;
+    }
+
+    getCurrentOrganizationUnitAction()
+      .then(setCurrentOrganizationUnit)
+      .catch(() => setCurrentOrganizationUnit(null));
+  }, [isSignedIn, user]);
+
+  /**
+   * Signs in again bounded to another organization unit through a server action. Redirect mode sends the
+   * browser to the unit's authorization endpoint and resolves with `undefined`; embedded mode replaces
+   * the session in place and resolves with the refreshed user. A failure keeps the previous session and
+   * rejects with an error whose code is one of `OrganizationUnitSwitchErrorCodes`.
+   */
+  const handleSwitchOrganizationUnit = async (
+    organizationUnitId: string,
+    options?: SwitchOrganizationUnitOptions,
+  ): Promise<User | undefined> => {
+    const result: SwitchOrganizationUnitActionResult = await switchOrganizationUnitAction(organizationUnitId, {
+      redirect: options?.redirect,
+    });
+
+    if (!result.success) {
+      throw new ThunderIDAPIError(
+        JSON.stringify({code: result.code, message: {defaultValue: 'Switching the organization unit failed'}}),
+        result.code,
+        'nextjs',
+        result.statusCode,
+      );
+    }
+
+    if (result.data.signInUrl) {
+      // The authorization endpoint is on the identity server, so leave the app rather than route.
+      window.location.href = result.data.signInUrl;
+
+      return undefined;
+    }
+
+    const sessionId: string | undefined = await getSessionId();
+    const refreshed: Awaited<ReturnType<typeof getUserAction>> | undefined = sessionId
+      ? await getUserAction(sessionId)
+      : undefined;
+    const refreshedUser: User | null = refreshed?.data?.user ?? null;
+
+    if (refreshedUser) {
+      setUser(refreshedUser);
+    }
+
+    setCurrentOrganizationUnit(await getCurrentOrganizationUnitAction());
+    router.refresh();
+
+    return refreshedUser ?? undefined;
+  };
+
   const handleSignIn = async (payload: any, request: EmbeddedFlowExecuteRequestConfig): Promise<any> => {
     if (!signIn) {
       throw new ThunderIDRuntimeError(
@@ -279,11 +351,16 @@ const ThunderIDClientProvider: FC<PropsWithChildren<ThunderIDClientProviderProps
       applicationId,
       baseUrl,
       clearSession,
+      currentOrganizationUnit,
+      currentProject,
+      getCurrentOrganizationUnit: getCurrentOrganizationUnitAction,
       isLoading,
       isSignedIn,
       organizationHandle,
       preferences,
       refreshToken,
+      setCurrentProject,
+      switchOrganizationUnit: handleSwitchOrganizationUnit,
       scopes,
       signIn: handleSignIn,
       signInUrl,
@@ -303,6 +380,9 @@ const ThunderIDClientProvider: FC<PropsWithChildren<ThunderIDClientProviderProps
       organizationHandle,
       scopes,
       preferences,
+      currentOrganizationUnit,
+      currentProject,
+      setCurrentProject,
     ],
   );
 
@@ -356,12 +436,15 @@ const ThunderIDClientProvider: FC<PropsWithChildren<ThunderIDClientProviderProps
       baseUrl,
       clearSession,
       clientId: undefined,
+      currentOrganizationUnit,
+      currentProject,
       discovery: {wellKnown: null},
       // Only the management collection overrides arrive here, so the admin hooks build the URLs the
       // management server action accepts.
       endpoints,
       exchangeToken: unsupported('exchangeToken'),
       getAccessToken: unsupported('getAccessToken'),
+      getCurrentOrganizationUnit: getCurrentOrganizationUnitAction,
       getDecodedIdToken: unsupported('getDecodedIdToken'),
       // The Next.js useGrantedPermissions reads them through a server action instead.
       getGrantedPermissions: unsupported('getGrantedPermissions'),
@@ -385,12 +468,14 @@ const ThunderIDClientProvider: FC<PropsWithChildren<ThunderIDClientProviderProps
       recover: unsupported('recover'),
       resolveFlowTemplateLiterals: (text: string | undefined): string => text ?? '',
       scopes,
+      setCurrentProject,
       signIn: handleSignIn,
       signInSilently: unsupported('signInSilently'),
       signInUrl,
       signOut: handleSignOut,
       signUp: handleSignUp,
       signUpUrl,
+      switchOrganizationUnit: handleSwitchOrganizationUnit,
       user,
       userSchema,
       vendor: getVendorPrefix(vendor),
@@ -410,6 +495,9 @@ const ThunderIDClientProvider: FC<PropsWithChildren<ThunderIDClientProviderProps
       userSchema,
       initialMeta,
       vendor,
+      currentOrganizationUnit,
+      currentProject,
+      setCurrentProject,
     ],
   );
 

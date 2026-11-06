@@ -7,12 +7,15 @@ import {
   executeEmbeddedSignInFlow,
   extractUserClaimsFromIdToken,
   generateFlattenedUserProfile,
+  getAccessibleOrganizationUnits,
   getUsersMe,
   getUsersMeMeta,
   isEmpty,
   resolveResourceEndpoint,
   updateMeCredentials,
   updateMeProfile,
+  type AccessibleOrganizationUnitList,
+  type AccessibleOrganizationUnitsOptions,
   type AttributeSchema,
   type AuthClientConfig,
   type IdToken,
@@ -178,6 +181,26 @@ class ThunderIDNuxtClient extends ThunderIDNodeClient<ThunderIDNuxtClientConfig>
 
   override getAccessToken(sessionId?: string): Promise<string> {
     return super.getAccessToken(sessionId);
+  }
+
+  /**
+   * Lists the organization units the session's user can access (`/users/me/ous`), with the session's
+   * access token. The token stays on the server.
+   */
+  public async getAccessibleOrganizationUnits(
+    options: AccessibleOrganizationUnitsOptions,
+    sessionId: string,
+  ): Promise<AccessibleOrganizationUnitList> {
+    const configData: ThunderIDNuxtClientConfig = await this.getConfiguration();
+
+    return getAccessibleOrganizationUnits({
+      ...options,
+      baseUrl: configData?.baseUrl,
+      headers: {
+        Authorization: `Bearer ${await this.getAccessToken(sessionId)}`,
+      },
+      url: resolveResourceEndpoint('usersMeOrganizationUnits', configData),
+    });
   }
 
   override getDecodedIdToken(sessionId?: string, idToken?: string): Promise<IdToken> {

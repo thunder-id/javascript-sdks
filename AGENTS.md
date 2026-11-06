@@ -96,7 +96,7 @@ field, so storage keys, cookie names, CSS class prefixes, state keys, etc. shoul
 
 The [SDK development specification](https://github.com/thunder-id/thunderid/blob/main/docs-internals/sdk-development/spec.md) (UI) is the contract. In practice, every component:
 
-1. **Lives in its functional group:** `auth/` (sign-in, sign-up, recovery, invites, callback, with `buttons/`, `flow/` and `guards/` inside), `account/` (the signed-in user's own data), `admin/` (management), or `common/` (shared across groups, such as the language switcher and branding). Primitives and the data layer keep their own folders.
+1. **Lives in its functional group:** `auth/` (sign-in, sign-up, recovery, invites, callback, with `buttons/`, `flow/` and `guards/` inside), `account/` (the signed-in user's own data), `management/` (users, groups, roles, agents, applications), or `common/` (shared across groups, such as the language switcher and branding). Primitives and the data layer keep their own folders.
 2. **Ships a styled variant and a `Base` variant.** `Base` takes its data and callbacks as parameters, with no SDK state, so an app can drive it itself (e.g. `BaseUserList`).
 3. **Accepts a custom render on both variants.** Passing it replaces the built-in UI, while the component keeps its data loading, state and actions. The mechanism is the platform's own:
    - React and Next.js: a `children` function, the same pattern as `SignIn`.
@@ -114,7 +114,7 @@ A component that changes here usually needs the same change in the sibling SDKs.
 The quickstarts and integration samples live in [thunder-id/samples](https://github.com/thunder-id/samples), and each one pins a released version of this SDK. A change here therefore can't break a sample until the sample bumps its version, which is exactly when a break would surface for a real app. Before raising a pull request, check every sample that uses this SDK:
 
 - **A sample stops compiling or behaving the same** (a renamed type or package, a changed signature, a moved default): raise a samples pull request that bumps the SDK version and fixes the sample. Keep it as a draft until the SDK release it needs is out.
-- **The change adds something a sample exists to show** (a self-care capability for `self-care/account`, a management component or operation for `b2b/manage`, a new sign-in option for the quickstarts): update that sample in the same samples pull request, so it demonstrates the new capability rather than working around its absence.
+- **The change adds something a sample exists to show** (a self-care capability for `self-care/account`, a management component or operation for `management/admin`, a new sign-in option for the quickstarts): update that sample in the same samples pull request, so it demonstrates the new capability rather than working around its absence.
 - Link the samples pull request from this pull request's **Related PRs**, or say why no sample is affected.
 
 ## Code style
@@ -146,7 +146,7 @@ Inside a package, code is grouped by function, not by kind:
 
 - Components (`react`, `vue`, `nextjs`, `nuxt`): `auth/` (sign-in, sign-up, recovery, invites, callback, plus
   `buttons/`, `flow/` for the flow renderers and `guards/` for `SignedIn`/`SignedOut`/`Loading`), `account/` (the
-  signed-in user's own components), `admin/` (management UI), `common/` (`Attribution`, `LanguageSwitcher`) and
+  signed-in user's own components), `management/` (management UI), `common/` (`Attribution`, `LanguageSwitcher`) and
   `primitives/`.
 - Data layer (`javascript/src/api`, `react/src/{api,hooks}`, `vue/src/{api,composables}`, `nextjs/src/server/actions`):
   `auth/` for auth flows, `account/` for the `/users/me` endpoints, `management/` for the management APIs. Generic

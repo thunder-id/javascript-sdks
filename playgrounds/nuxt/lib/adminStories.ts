@@ -42,20 +42,24 @@ import {
   BaseApplicationDetails,
   BaseApplicationList,
   BaseGroupCreate,
+  BaseGroupDetails,
   BaseGroupList,
   BaseGroupMembers,
   BaseRoleAssignments,
   BaseRoleCreate,
+  BaseRoleDetails,
   BaseRoleList,
   BaseRolePermissions,
   BaseUserCreate,
   BaseUserDetails,
   BaseUserList,
   GroupCreate,
+  GroupDetails,
   GroupList,
   GroupMembers,
   RoleAssignments,
   RoleCreate,
+  RoleDetails,
   RoleList,
   RolePermissions,
   UserCreate,
@@ -457,6 +461,10 @@ interface DetailsSpec {
   baseProps: Record<string, unknown>;
   baseScript: string[];
   baseExtra: string[];
+  /** Slot content for the Base component's sample render, such as a details view's members. */
+  baseSlots?: Record<string, () => VNode>;
+  /** Slot markup for the Base component's Code panel snippet. */
+  baseSlotsCode?: string;
   id: string;
   idProp: string;
   live: Component;
@@ -488,6 +496,7 @@ const detailsDef = (spec: DetailsSpec): ComponentDef => {
             imports: [],
             script: spec.baseScript,
             template: tag(`Base${spec.name}`, omit(args, 'source', 'resourceId', ...spec.liveFlags), {
+              children: spec.baseSlotsCode,
               extra: [...spec.baseExtra, '@delete="handleDelete"'],
             }),
           },
@@ -524,12 +533,16 @@ const detailsDef = (spec: DetailsSpec): ComponentDef => {
       if (!isLive(args)) {
         return narrow(
           560,
-          h(spec.base, {
-            ...spec.baseProps,
-            ...stateProps(args),
-            onDelete: () => action('delete'),
-            onUpdate: (attributes: unknown) => action('update', JSON.stringify(attributes)),
-          }),
+          h(
+            spec.base,
+            {
+              ...spec.baseProps,
+              ...stateProps(args),
+              onDelete: () => action('delete'),
+              onUpdate: (attributes: unknown) => action('update', JSON.stringify(attributes)),
+            },
+            spec.baseSlots,
+          ),
         );
       }
 
@@ -972,6 +985,20 @@ export const ADMIN_COMPONENTS: ComponentDef[] = [
     name: 'GroupMembers',
     story: GroupMembersStory,
   }),
+  detailsDef({
+    base: BaseGroupDetails,
+    baseExtra: [':group="group"'],
+    baseProps: {group: SAMPLE_GROUPS[1]},
+    baseScript: [`const group = ref(${literal(SAMPLE_GROUPS[1])});`],
+    baseSlots: {members: (): VNode => h(BaseGroupMembers, {members: SAMPLE_MEMBERS})},
+    baseSlotsCode:
+      '\n  <template #members>\n    <GroupMembers :group-id="group.id" :ou-id="group.ouId" />\n  </template>\n',
+    id: 'groupdetails',
+    idProp: 'groupId',
+    live: GroupDetails,
+    liveFlags: ['editable', 'deletable'],
+    name: 'GroupDetails',
+  }),
   listDef({
     base: BaseRoleList,
     id: 'rolelist',
@@ -1000,7 +1027,16 @@ export const ADMIN_COMPONENTS: ComponentDef[] = [
       isLive(args)
         ? {
             imports: [],
-            template: tag('RolePermissions', {}, {extra: [`role-id="${str(args, 'resourceId') || '<id>'}"`]}),
+            template: tag(
+              'RolePermissions',
+              {},
+              {
+                extra: [
+                  `role-id="${str(args, 'resourceId') || '<id>'}"`,
+                  ...(bool(args, 'editable') ? ['editable'] : []),
+                ],
+              },
+            ),
           }
         : {
             imports: [],
@@ -1008,7 +1044,7 @@ export const ADMIN_COMPONENTS: ComponentDef[] = [
               `const permissions = ref(${literal(SAMPLE_PERMISSIONS.slice(0, 1))});`,
               `const names = ${literal({rs_system: RESOURCE_SERVER_NAMES.rs_system})};`,
             ],
-            template: tag('BaseRolePermissions', omit(args, 'source', 'resourceId'), {
+            template: tag('BaseRolePermissions', omit(args, 'source', 'resourceId', 'editable'), {
               extra: [':permissions="permissions"', ':resource-server-names="names"'],
             }),
           },
@@ -1020,35 +1056,89 @@ export const ADMIN_COMPONENTS: ComponentDef[] = [
         name: 'resourceId',
         type: 'string',
       },
+      {
+        control: 'bool',
+        description: 'Adds the resource server and permission picker, and remove buttons that ask first.',
+        name: 'editable',
+        type: 'boolean',
+      },
       ...STATE_CONTROLS,
     ],
-    defaults: {error: '', isLoading: false, resourceId: '', source: 'base'},
+    defaults: {editable: false, error: '', isLoading: false, resourceId: '', source: 'base'},
     group: 'Admin',
     id: 'rolepermissions',
     live: true,
     name: 'RolePermissions',
-    render: (args: Args) => {
+    render: (args: Args, action: Action) => {
+      const editable: boolean = bool(args, 'editable');
+
       if (!isLive(args)) {
         return narrow(
           560,
           h(BaseRolePermissions, {
             ...stateProps(args),
+            availablePermissions: Object.fromEntries(
+              Object.keys(RESOURCE_SERVER_NAMES).map((id: string) => [
+                id,
+                [{name: 'Manage', permission: `${id}:manage`}],
+              ]),
+            ),
+            onAdd: editable ? (change: unknown): void => action('add', JSON.stringify(change)) : undefined,
+            onRemove: editable ? (change: unknown): void => action('remove', JSON.stringify(change)) : undefined,
+            onResourceServerSelect: (id: string): void => action('resource-server-select', id),
             permissions: SAMPLE_PERMISSIONS,
             resourceServerNames: RESOURCE_SERVER_NAMES,
+            resourceServers: editable
+              ? Object.entries(RESOURCE_SERVER_NAMES).map(([id, name]: [string, string]) => ({id, name}))
+              : undefined,
           }),
         );
       }
 
       return str(args, 'resourceId')
-        ? narrow(560, h(RolePermissions, {roleId: str(args, 'resourceId')}))
+        ? narrow(
+            560,
+            h(RolePermissions, {
+              editable,
+              key: `${str(args, 'resourceId')}:${String(editable)}`,
+              roleId: str(args, 'resourceId'),
+            }),
+          )
         : h('p', {class: 'pg-empty'}, 'Set roleId in Controls: copy one from a live RoleList.');
     },
     stories: [
       {id: 'base', name: 'Sample permissions'},
+      {args: {editable: true}, id: 'editable', name: 'Editable'},
       {args: {isLoading: true}, id: 'loading', name: 'Loading'},
       {args: {source: 'live'}, id: 'live', name: 'Live (roleId)'},
+      {args: {editable: true, source: 'live'}, id: 'live-editable', name: 'Live, editable (roleId, writes)'},
     ],
   },
+  detailsDef({
+    base: BaseRoleDetails,
+    baseExtra: [':role="role"'],
+    baseProps: {role: SAMPLE_ROLES[0]},
+    baseScript: [`const role = ref(${literal({...SAMPLE_ROLES[0], permissions: SAMPLE_PERMISSIONS})});`],
+    baseSlots: {
+      assignments: (): VNode => h(BaseRoleAssignments, {assignments: SAMPLE_ASSIGNMENTS}),
+      permissions: (): VNode => h(BaseRolePermissions, {permissions: SAMPLE_PERMISSIONS}),
+    },
+    baseSlotsCode: [
+      '',
+      '  <template #permissions>',
+      '    <BaseRolePermissions :permissions="role.permissions" />',
+      '  </template>',
+      '  <template #assignments>',
+      '    <RoleAssignments :role-id="role.id" :ou-id="role.ouId" />',
+      '  </template>',
+      '',
+    ].join('\n'),
+    id: 'roledetails',
+    idProp: 'roleId',
+    live: RoleDetails,
+    liveFlags: ['editable', 'deletable'],
+    name: 'RoleDetails',
+  }),
   listDef({
     base: BaseAgentList,
     id: 'agentlist',

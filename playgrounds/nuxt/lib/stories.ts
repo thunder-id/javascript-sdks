@@ -24,6 +24,8 @@ import {
 import {defineComponent, h, ref, type Component, type PropType, type Ref, type VNode} from 'vue';
 import {ADMIN_COMPONENTS} from './adminStories';
 import {CUSTOM_RENDER_COMPONENTS, SAMPLE_VERIFICATION_STEP, submitSampleVerification} from './customRenderStories';
+import {ORGANIZATION_UNIT_ADMIN_STORIES, PROJECT_STORIES, SHARING_STORIES} from './managementAreaStories';
+import {SampleOrganizationUnitSwitcher} from './organizationUnitSamples';
 import {tag} from './storyCode';
 import type {Action, Args, ArgValue, ComponentDef, PropControl} from './storyTypes';
 import {CheckboxStory, narrow, OtpFieldStory, PasswordFieldStory, SelectStory, TextFieldStory} from './storyWidgets';
@@ -33,6 +35,7 @@ import {
   ChangeCredential,
   DeviceGrant,
   Loading,
+  OrganizationUnitSwitcher,
   SignedIn,
   SignedOut,
   SignIn,
@@ -854,6 +857,52 @@ export const COMPONENTS: ComponentDef[] = [
     stories: [{id: 'default', name: 'Change password'}],
   },
   {
+    code: (args: Args) => ({
+      imports: [],
+      template: tag('OrganizationUnitSwitcher', omit(args, 'source', 'error'), {
+        defaults: {limit: 10, scope: ''},
+        extra: ['@switch="handleSwitch"'],
+      }),
+    }),
+    controls: [
+      {
+        control: ['base', 'live'],
+        description:
+          'base renders BaseOrganizationUnitSwitcher with sample units; live lists through GET /api/auth/user/organization-units and switches through /api/auth/signin?ouId=.',
+        name: 'source',
+        type: "'base' | 'live' (playground only)",
+      },
+      {control: ['', 'siblings'], description: 'Live only: narrows the list.', name: 'scope', type: "'siblings'"},
+      {control: 'number', description: 'Page size.', name: 'limit', type: 'number'},
+      {control: 'text', description: 'Base only: error message.', name: 'error', type: 'string'},
+    ],
+    defaults: {error: '', limit: 2, scope: '', source: 'base'},
+    group: 'User',
+    id: 'organizationunitswitcher',
+    live: true,
+    name: 'OrganizationUnitSwitcher',
+    render: (args: Args, action: Action) =>
+      narrow(
+        420,
+        str(args, 'source') === 'live'
+          ? h(OrganizationUnitSwitcher, {
+              limit: Number(args.limit) || 10,
+              onSwitch: (unit: {id: string}) => action('switch', `"${unit.id}"`),
+              scope: str(args, 'scope') === 'siblings' ? 'siblings' : undefined,
+            })
+          : h(SampleOrganizationUnitSwitcher, {
+              action,
+              error: str(args, 'error') || null,
+              limit: Number(args.limit) || 2,
+            }),
+      ),
+    stories: [
+      {id: 'base', name: 'Base'},
+      {args: {error: 'This application cannot be used from Acme OU 2.'}, id: 'error', name: 'With error'},
+      {args: {limit: 10, source: 'live'}, id: 'live', name: 'Signed-in user'},
+    ],
+  },
+  {
     code: () => ({
       imports: [],
       template:
@@ -947,6 +996,9 @@ export const COMPONENTS: ComponentDef[] = [
     'userTypes',
   ),
   ...ADMIN_COMPONENTS,
+  ...PROJECT_STORIES,
+  ...ORGANIZATION_UNIT_ADMIN_STORIES,
+  ...SHARING_STORIES,
   ...CUSTOM_RENDER_COMPONENTS,
 ];
 

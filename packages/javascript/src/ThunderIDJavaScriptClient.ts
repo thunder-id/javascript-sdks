@@ -18,6 +18,12 @@ import type {CIBAInitiateOptions, CIBAInitiateResponse, CIBAPollOptions} from '.
 import {ThunderIDClient} from './models/client';
 import {AuthClientConfig, Config, SignInOptions, SignOutOptions, SignUpOptions} from './models/config';
 import {Crypto} from './models/crypto';
+import type {CurrentOrganizationUnit, SwitchOrganizationUnitOptions} from './models/accessible-organization-unit';
+import type {
+  DeviceAuthorizationOptions,
+  DeviceAuthorizationPollOptions,
+  DeviceAuthorizationResponse,
+} from './models/device-authorization';
 import {ExtendedAuthorizeRequestUrlParams} from './models/oauth-request';
 import {OIDCDiscoveryApiResponse} from './models/oidc-discovery';
 import {OIDCEndpoints} from './models/oidc-endpoints';
@@ -33,9 +39,11 @@ import deepMerge from './utils/deepMerge';
 import extractPkceStorageKeyFromState from './utils/extractPkceStorageKeyFromState';
 import generatePkceStorageKey from './utils/generatePkceStorageKey';
 import getAuthorizeRequestUrlParams from './utils/getAuthorizeRequestUrlParams';
+import getCurrentOrganizationUnitFromClaims from './utils/getCurrentOrganizationUnitFromClaims';
 import getOAuthErrorMessage from './utils/getOAuthErrorMessage';
 import logger from './utils/logger';
 import processOpenIDScopes from './utils/processOpenIDScopes';
+import resolveOrganizationUnitEndpoint from './utils/resolveOrganizationUnitEndpoint';
 
 const WELL_KNOWN_PATH = '/.well-known/openid-configuration';
 
@@ -83,6 +91,12 @@ const getStateStorageKey = (pkceKey: string): string =>
     OIDCRequestConstants.SignIn.Storage.StorageKeys.STATE,
   );
 
+/**
+ * The storage key of the organization unit an authorization request was bounded to, so its code is
+ * redeemed at that unit's token endpoint. It shares the request index with the PKCE key.
+ */
+const getOrganizationUnitStorageKey = (pkceKey: string): string => `${getStateStorageKey(pkceKey)}_ou`;
+
 const REVOKE_ACCESS_TOKEN_REQUEST_TIMEOUT_MS = 10_000;
 
 const DEFAULT_CONFIG: Partial<AuthClientConfig<unknown>> = {
@@ -116,6 +130,12 @@ class ThunderIDJavaScriptClient<T = Config> implements ThunderIDClient<T> {
   private cacheStore: Storage;
 
   private baseURL = '';
+
+  /**
+   * The `state` of the most recent authorization request this client built. A pushed request carries
+   * its parameters server-side, so the URL it returns has no `state` to read back.
+   */
+  protected lastAuthorizeRequestState: string | undefined;
 
   constructor(storage?: Storage, cryptoUtils?: Crypto) {
     this.cacheStore = storage ?? new DefaultCacheStore();
@@ -206,6 +226,49 @@ class ThunderIDJavaScriptClient<T = Config> implements ThunderIDClient<T> {
     });
 
     return authenticatedUser;
+  }
+
+  /**
+   * Returns the organization unit the signed-in session was issued for, read from the `ouId`,
+   * `ouHandle` and `ouName` claims of its ID token.
+   *
+   * The claims are not verified here, so the result is for display only and MUST NOT be used for an
+   * authorization decision.
+   *
+   * @param userId - The session to read, on a server.
+   * @returns The current organization unit, or `null` when signed out or when the claims are absent.
+   */
+  public async getCurrentOrganizationUnit(userId?: string): Promise<CurrentOrganizationUnit | null> {
+    try {
+      if (!(await this.isSignedIn(userId))) {
+        return null;
+      }
+
+      return getCurrentOrganizationUnitFromClaims(
+        (await this.getDecodedIdToken(userId)) as unknown as Record<string, unknown>,
+      );
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Signs in again bounded to another organization unit. Each platform client implements it; the
+   * base client has no way to reach the user, so it refuses.
+   */
+  public switchOrganizationUnit(
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    _organizationUnitId: string,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    _options?: SwitchOrganizationUnitOptions,
+  ): Promise<User | TokenResponse | undefined> {
+    return Promise.reject(
+      new ThunderIDRuntimeError(
+        'switchOrganizationUnit is not supported by this client.',
+        'JS-AUTH_CORE-SWOU-NS01',
+        'javascript',
+      ),
+    );
   }
 
   public async isSignedIn(userId?: string): Promise<boolean> {
@@ -559,9 +622,12 @@ class ThunderIDJavaScriptClient<T = Config> implements ThunderIDClient<T> {
 
   protected async getSignInUrl(requestConfig?: ExtendedAuthorizeRequestUrlParams, userId?: string): Promise<string> {
     const authRequestConfig: ExtendedAuthorizeRequestUrlParams = {...requestConfig};
+    const organizationUnitId: string | undefined =
+      typeof requestConfig?.organizationUnitId === 'string' ? requestConfig.organizationUnitId : undefined;
 
     delete authRequestConfig?.forceInit;
     delete authRequestConfig?.authorizationDetails;
+    delete authRequestConfig?.organizationUnitId;
 
     const buildSignInUrl = async (): Promise<string> => {
       const authorizeEndpoint: string = (await this.storageManager.getOIDCProviderMetaDataParameter(
@@ -577,8 +643,13 @@ class ThunderIDJavaScriptClient<T = Config> implements ThunderIDClient<T> {
         );
       }
 
-      const authorizeRequest: URL = new URL(authorizeEndpoint);
       const configData = await this.configProvider();
+      // A sign-in bounded to an organization unit starts at the unit's authorization endpoint.
+      const authorizeRequest: URL = new URL(
+        organizationUnitId !== undefined
+          ? resolveOrganizationUnitEndpoint(authorizeEndpoint, organizationUnitId, configData.baseUrl)
+          : authorizeEndpoint,
+      );
       const tempStore: TemporaryStore = await this.storageManager.getTemporaryData(userId);
       const pkceKey: string = await generatePkceStorageKey(tempStore);
 
@@ -621,6 +692,28 @@ class ThunderIDJavaScriptClient<T = Config> implements ThunderIDClient<T> {
         userId,
       );
 
+      this.lastAuthorizeRequestState = authorizeRequestParams.get(OIDCRequestConstants.Params.STATE) ?? undefined;
+
+      // The code is redeemed at the unit's token endpoint, so the unit is kept with the request.
+      if (organizationUnitId !== undefined) {
+        await this.storageManager.setHybridDataParameter(
+          getOrganizationUnitStorageKey(pkceKey),
+          organizationUnitId,
+          userId,
+        );
+      }
+
+      const metadata: OIDCDiscoveryApiResponse = await this.oidcProviderMetaDataProvider();
+
+      if (metadata?.require_pushed_authorization_requests === true || configData.pushedAuthorizationRequests === true) {
+        const requestUri: string = await this.pushAuthorizationRequest(authorizeRequestParams, metadata);
+
+        authorizeRequest.searchParams.append('client_id', configData.clientId ?? '');
+        authorizeRequest.searchParams.append('request_uri', requestUri);
+
+        return authorizeRequest.toString();
+      }
+
       Array.from(authorizeRequestParams.entries()).forEach(([paramKey, paramValue]: [string, string]) => {
         authorizeRequest.searchParams.append(paramKey, paramValue);
       });
@@ -637,6 +730,73 @@ class ThunderIDJavaScriptClient<T = Config> implements ThunderIDClient<T> {
     }
 
     return this.loadOpenIDProviderConfiguration(requestConfig?.forceInit).then(() => buildSignInUrl());
+  }
+
+  /**
+   * Pushes an authorization request to the server's pushed authorization request endpoint (RFC 9126),
+   * authenticating the client the way the token request does, and returns the `request_uri` to
+   * redirect with.
+   */
+  protected async pushAuthorizationRequest(
+    params: Map<string, string>,
+    metadata?: OIDCDiscoveryApiResponse,
+  ): Promise<string> {
+    const configData = await this.configProvider();
+    const parEndpoint: string | undefined =
+      metadata?.pushed_authorization_request_endpoint ??
+      (configData.baseUrl ? `${configData.baseUrl.replace(/\/+$/, '')}/oauth2/par` : undefined);
+
+    if (!parEndpoint) {
+      throw new ThunderIDAuthException(
+        'JS-AUTH_CORE-PAR-NF01',
+        'Pushed authorization request endpoint not found.',
+        'The server metadata names no pushed_authorization_request_endpoint and no baseUrl is configured.',
+      );
+    }
+
+    const pushedParams: URLSearchParams = new URLSearchParams();
+
+    params.forEach((value: string, key: string) => {
+      pushedParams.append(key, value);
+    });
+
+    const {body, headers} = await this.clientAuthenticatedRequest(pushedParams);
+    let response: Response;
+
+    try {
+      response = await fetch(parEndpoint, {
+        body,
+        credentials: configData.sendCookiesInRequests ? 'include' : 'same-origin',
+        headers,
+        method: 'POST',
+      });
+    } catch (error: unknown) {
+      throw new ThunderIDAuthException(
+        'JS-AUTH_CORE-PAR-NE02',
+        'Pushing the authorization request failed.',
+        error instanceof Error ? error.message : 'The request to the pushed authorization request endpoint failed.',
+      );
+    }
+
+    if (!response.ok) {
+      throw new ThunderIDAuthException(
+        'JS-AUTH_CORE-PAR-HE03',
+        `Pushing the authorization request failed with ${response.status}.`,
+        await readErrorMessage(response, 'The pushed authorization request was rejected.'),
+      );
+    }
+
+    const payload: {request_uri?: unknown} = (await response.json().catch(() => ({}))) as {request_uri?: unknown};
+
+    if (typeof payload.request_uri !== 'string' || payload.request_uri === '') {
+      throw new ThunderIDAuthException(
+        'JS-AUTH_CORE-PAR-PR04',
+        'Invalid pushed authorization response.',
+        'The pushed authorization response did not include a request_uri.',
+      );
+    }
+
+    return payload.request_uri;
   }
 
   protected async requestAccessToken(
@@ -668,8 +828,23 @@ class ThunderIDJavaScriptClient<T = Config> implements ThunderIDClient<T> {
 
     await this.storageManager.removeHybridDataParameter(stateStorageKey, userId);
 
-    const tokenEndpoint: string | undefined = (await this.oidcProviderMetaDataProvider()).token_endpoint;
+    const discoveredTokenEndpoint: string | undefined = (await this.oidcProviderMetaDataProvider()).token_endpoint;
     const configData = await this.configProvider();
+    const organizationUnitStorageKey: string = getOrganizationUnitStorageKey(extractPkceStorageKeyFromState(state));
+    const organizationUnitId: unknown = await this.storageManager.getHybridDataParameter(
+      organizationUnitStorageKey,
+      userId,
+    );
+
+    if (organizationUnitId !== undefined && organizationUnitId !== null) {
+      await this.storageManager.removeHybridDataParameter(organizationUnitStorageKey, userId);
+    }
+
+    // A code from a sign-in bounded to an organization unit is redeemed at that unit's token endpoint.
+    const tokenEndpoint: string | undefined =
+      discoveredTokenEndpoint && typeof organizationUnitId === 'string' && organizationUnitId !== ''
+        ? resolveOrganizationUnitEndpoint(discoveredTokenEndpoint, organizationUnitId, configData.baseUrl)
+        : discoveredTokenEndpoint;
 
     if (!tokenEndpoint || tokenEndpoint.trim().length === 0) {
       throw new ThunderIDAuthException(
@@ -1328,6 +1503,364 @@ class ThunderIDJavaScriptClient<T = Config> implements ThunderIDClient<T> {
         `CIBA polling terminated: ${errorCode}`,
       );
     }
+  }
+
+  /**
+   * Builds the client authentication for a request to an OAuth endpoint, the way the token request
+   * authenticates: HTTP Basic or form parameters with a secret, `client_id` alone without one.
+   */
+  private async clientAuthenticatedRequest(
+    body: URLSearchParams,
+  ): Promise<{body: URLSearchParams; headers: Record<string, string>}> {
+    const configData = await this.configProvider();
+    const hasSecret = Boolean(configData.clientSecret && configData.clientSecret.trim().length > 0);
+    const tokenEndpointAuthMethod = configData.tokenRequest?.authMethod ?? 'client_secret_basic';
+    const headers: Record<string, string> = {
+      Accept: 'application/json',
+      'Content-Type': 'application/x-www-form-urlencoded',
+    };
+
+    body.set('client_id', configData.clientId ?? '');
+
+    if (hasSecret && tokenEndpointAuthMethod === 'client_secret_post') {
+      body.set('client_secret', configData.clientSecret!);
+    }
+
+    if (hasSecret && tokenEndpointAuthMethod === 'client_secret_basic') {
+      const credential = `${encodeURIComponent(configData.clientId!)}:${encodeURIComponent(configData.clientSecret!)}`;
+      headers['Authorization'] = `Basic ${base64Encode(credential)}`;
+    }
+
+    return {body, headers};
+  }
+
+  /**
+   * Starts a device authorization request (RFC 8628 §3.1) at the server's device authorization
+   * endpoint (`device_authorization_endpoint` from discovery, else `{baseUrl}/oauth2/device-authorize`).
+   *
+   * Protected here: a server-side or device client exposes it. The returned `deviceCode` is a credential
+   * and is never logged.
+   */
+  protected async startDeviceAuthorization(
+    options: DeviceAuthorizationOptions = {},
+  ): Promise<DeviceAuthorizationResponse> {
+    if (
+      !(await this.storageManager.getTemporaryDataParameter(
+        OIDCDiscoveryConstants.Storage.StorageKeys.OPENID_PROVIDER_CONFIG_INITIATED,
+      ))
+    ) {
+      await this.loadOpenIDProviderConfiguration(false);
+    }
+
+    const configData = await this.configProvider();
+    const endpoint: string | undefined =
+      (await this.oidcProviderMetaDataProvider()).device_authorization_endpoint ??
+      (configData.baseUrl ? `${configData.baseUrl.replace(/\/+$/, '')}/oauth2/device-authorize` : undefined);
+
+    if (!endpoint) {
+      throw new ThunderIDAPIError(
+        'No device_authorization_endpoint was found in the OIDC provider metadata, and no baseUrl is configured.',
+        'JS-AUTH_CORE-DEVICE1-NF01',
+        'javascript',
+      );
+    }
+
+    const params: URLSearchParams = new URLSearchParams();
+    const scope: string = processOpenIDScopes(options.scopes ?? configData.scopes);
+
+    if (scope) params.set('scope', scope);
+    if (options.resource) params.set('resource', options.resource);
+
+    const {body, headers} = await this.clientAuthenticatedRequest(params);
+    let response: Response;
+
+    try {
+      response = await fetch(endpoint, {body, headers, method: 'POST'});
+    } catch (error: unknown) {
+      throw new ThunderIDAPIError(
+        error instanceof Error ? error.message : 'The request to the device authorization endpoint failed.',
+        'JS-AUTH_CORE-DEVICE1-NE02',
+        'javascript',
+        undefined,
+        undefined,
+        'Device authorization request failed',
+      );
+    }
+
+    const rawBody: string = await response.text().catch(() => '');
+    let parsedBody: unknown;
+
+    try {
+      parsedBody = JSON.parse(rawBody);
+    } catch {
+      parsedBody = rawBody;
+    }
+
+    if (!response.ok) {
+      throw new ThunderIDAPIError(
+        getOAuthErrorMessage(parsedBody, 'The device authorization request was rejected.'),
+        'JS-AUTH_CORE-DEVICE1-HE03',
+        'javascript',
+        response.status,
+        response.statusText,
+        'Device authorization request failed',
+      );
+    }
+
+    const payload = parsedBody as {
+      device_code?: string;
+      expires_in?: number;
+      interval?: number;
+      user_code?: string;
+      verification_uri?: string;
+      verification_uri_complete?: string;
+    };
+
+    if (!payload?.device_code || !payload.user_code || !payload.verification_uri) {
+      throw new ThunderIDAPIError(
+        'The device authorization response did not include a device_code, user_code and verification_uri.',
+        'JS-AUTH_CORE-DEVICE1-PR04',
+        'javascript',
+      );
+    }
+
+    return {
+      deviceCode: payload.device_code,
+      expiresIn: payload.expires_in ?? 600,
+      interval: payload.interval ?? 5,
+      userCode: payload.user_code,
+      verificationUri: payload.verification_uri,
+      ...(payload.verification_uri_complete ? {verificationUriComplete: payload.verification_uri_complete} : {}),
+    };
+  }
+
+  /**
+   * Polls the token endpoint with the device code grant (RFC 8628 §3.4) until the user approves,
+   * denies, or the code expires, waiting at least `interval` seconds between polls and five more after
+   * each `slow_down`. On approval the tokens are stored as a sign-in stores them.
+   *
+   * Protected here: a server-side or device client exposes it.
+   */
+  protected async pollDeviceAuthorization(
+    deviceCode: string,
+    interval: number,
+    options?: DeviceAuthorizationPollOptions,
+    userId?: string,
+  ): Promise<TokenResponse> {
+    const tokenEndpoint: string | undefined = (await this.oidcProviderMetaDataProvider()).token_endpoint;
+
+    if (!tokenEndpoint || tokenEndpoint.trim().length === 0) {
+      throw new ThunderIDAPIError(
+        'No token endpoint was found in the OIDC provider metadata.',
+        'JS-AUTH_CORE-DEVICE2-NF01',
+        'javascript',
+      );
+    }
+
+    const cancelled = (): ThunderIDAPIError =>
+      new ThunderIDAPIError('Device authorization polling was cancelled.', 'JS-AUTH_CORE-DEVICE2-AB05', 'javascript');
+
+    let currentInterval: number = interval >= 0 ? interval : 5;
+
+    while (true) {
+      if (options?.signal?.aborted) {
+        throw cancelled();
+      }
+
+      await new Promise<void>((resolve, reject) => {
+        const timer = setTimeout(resolve, currentInterval * 1000);
+        options?.signal?.addEventListener(
+          'abort',
+          () => {
+            clearTimeout(timer);
+            reject(cancelled());
+          },
+          {once: true},
+        );
+      });
+
+      const params: URLSearchParams = new URLSearchParams();
+
+      params.set('grant_type', 'urn:ietf:params:oauth:grant-type:device_code');
+      params.set('device_code', deviceCode);
+
+      const {body, headers} = await this.clientAuthenticatedRequest(params);
+      let pollResponse: Response;
+
+      try {
+        pollResponse = await fetch(tokenEndpoint, {body, headers, method: 'POST', signal: options?.signal});
+      } catch (error: unknown) {
+        if (error instanceof Error && error.name === 'AbortError') {
+          throw cancelled();
+        }
+
+        throw new ThunderIDAPIError(
+          error instanceof Error ? error.message : 'The polling request to the token endpoint failed.',
+          'JS-AUTH_CORE-DEVICE2-NE02',
+          'javascript',
+          undefined,
+          undefined,
+          'Device authorization polling request failed',
+        );
+      }
+
+      if (pollResponse.ok) {
+        return this.authHelper.handleTokenResponse(pollResponse, userId);
+      }
+
+      const rawPollBody: string = await pollResponse.text().catch(() => '');
+      let errorPayload: {error?: string; error_description?: string};
+
+      try {
+        errorPayload = JSON.parse(rawPollBody) as {error?: string; error_description?: string};
+      } catch {
+        errorPayload = {};
+      }
+
+      if (errorPayload.error === 'authorization_pending') {
+        continue;
+      }
+
+      if (errorPayload.error === 'slow_down') {
+        currentInterval += 5;
+        continue;
+      }
+
+      throw new ThunderIDAPIError(
+        JSON.stringify({
+          code: errorPayload.error,
+          message: {defaultValue: errorPayload.error_description ?? errorPayload.error},
+        }),
+        'JS-AUTH_CORE-DEVICE2-HE03',
+        'javascript',
+        pollResponse.status,
+        pollResponse.statusText,
+        `Device authorization polling terminated: ${errorPayload.error}`,
+      );
+    }
+  }
+
+  /**
+   * Introspects a token (RFC 7662) at the server's introspection endpoint with client authentication.
+   *
+   * Protected here: it needs the client's credentials, so only a server-side client exposes it.
+   */
+  protected async introspectToken(
+    token: string,
+    tokenTypeHint?: string,
+  ): Promise<Record<string, unknown> & {active: boolean}> {
+    if (
+      !(await this.storageManager.getTemporaryDataParameter(
+        OIDCDiscoveryConstants.Storage.StorageKeys.OPENID_PROVIDER_CONFIG_INITIATED,
+      ))
+    ) {
+      await this.loadOpenIDProviderConfiguration(false);
+    }
+
+    const configData = await this.configProvider();
+    const endpoint: string | undefined =
+      (await this.oidcProviderMetaDataProvider()).introspection_endpoint ??
+      (configData.baseUrl ? `${configData.baseUrl.replace(/\/+$/, '')}/oauth2/introspect` : undefined);
+
+    if (!endpoint) {
+      throw new ThunderIDAPIError(
+        'No introspection_endpoint was found in the OIDC provider metadata, and no baseUrl is configured.',
+        'introspectToken-ValidationError-001',
+        'javascript',
+      );
+    }
+
+    if (typeof token !== 'string' || token.trim() === '') {
+      throw new ThunderIDAPIError(
+        'A token to introspect is required.',
+        'introspectToken-ValidationError-002',
+        'javascript',
+      );
+    }
+
+    const params: URLSearchParams = new URLSearchParams();
+
+    params.set('token', token);
+    if (tokenTypeHint) params.set('token_type_hint', tokenTypeHint);
+
+    const {body, headers} = await this.clientAuthenticatedRequest(params);
+    let response: Response;
+
+    try {
+      response = await fetch(endpoint, {body, headers, method: 'POST'});
+    } catch (error: unknown) {
+      throw new ThunderIDAPIError(
+        `Network or parsing error: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        'introspectToken-NetworkError-001',
+        'javascript',
+        0,
+        'Network Error',
+      );
+    }
+
+    const rawBody: string = await response.text().catch(() => '');
+
+    if (!response.ok) {
+      let reason = 'ResponseError';
+
+      if (response.status === 401) reason = 'UnauthorizedError';
+      if (response.status === 403) reason = 'ForbiddenError';
+      if (response.status === 404) reason = 'NotFoundError';
+
+      let message: string = rawBody;
+
+      try {
+        const parsed: {error?: unknown; error_description?: unknown} = JSON.parse(rawBody) as {
+          error?: unknown;
+          error_description?: unknown;
+        };
+
+        if (typeof parsed?.error === 'string') {
+          message = JSON.stringify({
+            code: parsed.error,
+            message: {
+              defaultValue: typeof parsed.error_description === 'string' ? parsed.error_description : parsed.error,
+            },
+          });
+        }
+      } catch {
+        // Not JSON: keep the body as the message.
+      }
+
+      throw new ThunderIDAPIError(
+        message,
+        `introspectToken-${reason}-001`,
+        'javascript',
+        response.status,
+        response.statusText,
+        'Token introspection failed',
+      );
+    }
+
+    try {
+      return JSON.parse(rawBody) as Record<string, unknown> & {active: boolean};
+    } catch {
+      throw new ThunderIDAPIError(
+        'The introspection response is not JSON.',
+        'introspectToken-ResponseError-002',
+        'javascript',
+        response.status,
+        response.statusText,
+      );
+    }
+  }
+
+  /**
+   * Whether the authorization request `state` belongs to was bounded to an organization unit, so its
+   * callback replaces a session that is still signed in.
+   */
+  protected async isOrganizationUnitBoundRequest(state: string, userId?: string): Promise<boolean> {
+    const organizationUnitId: unknown = await this.storageManager.getHybridDataParameter(
+      getOrganizationUnitStorageKey(extractPkceStorageKeyFromState(state ?? '')),
+      userId,
+    );
+
+    return typeof organizationUnitId === 'string' && organizationUnitId !== '';
   }
 
   protected async getPKCECode(state: string, userId?: string): Promise<string> {

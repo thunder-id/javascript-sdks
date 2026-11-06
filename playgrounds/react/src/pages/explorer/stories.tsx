@@ -45,6 +45,10 @@ import {
 import {ChangeEvent, FC, ReactNode} from 'react';
 import {ADMIN_COMPONENTS} from './adminStories';
 import {SAMPLE_VERIFICATION_STEP, submitSampleVerification, withCustomStory} from './customRenderStories';
+import {ORGANIZATION_UNIT_ADMIN_STORIES} from './organizationUnitAdminStories';
+import {ORGANIZATION_UNIT_SWITCHER_STORY} from './organizationUnitStories';
+import {PROJECT_STORIES} from './projectStories';
+import {SHARING_STORIES} from './sharingStories';
 import {bool, jsx, num, omit, SOURCE_CONTROL, str} from './storyHelpers';
 import {Narrow, OtpFieldStory, PasswordFieldStory, SelectStory} from './StoryWidgets';
 import type {Action, Args, ComponentDef} from './types';
@@ -1071,7 +1075,11 @@ export const COMPONENTS: ComponentDef[] = [
       {args: {expiresIn: 5}, id: 'short', name: 'Expiring'},
     ],
   },
+  ORGANIZATION_UNIT_SWITCHER_STORY,
   ...ADMIN_COMPONENTS,
+  ...PROJECT_STORIES,
+  ...ORGANIZATION_UNIT_ADMIN_STORIES,
+  ...SHARING_STORIES,
 ];
 
 export const STORY_COUNT: number = COMPONENTS.reduce(

@@ -10,13 +10,24 @@ import {
   type BaseUserDetailsRenderProps,
   type BaseUserListRenderProps,
   GroupCreate,
+  RolePermissions,
+  type BaseRolePermissionsRenderProps,
   UserDetails,
   UserList,
   VerifyAttribute,
 } from '@thunderid/nextjs';
 import {BaseVerifyAttribute, type BaseVerifyAttributeRenderProps, type EmbeddedSelfFlowRequest} from '@thunderid/react';
 import {NeedsId} from './AdminParts';
-import {GroupForm, Mui, SampleUserGrid, UserCard, UserDataGrid, VerifyForm} from './CustomRenderParts';
+import {
+  GroupForm,
+  Mui,
+  PermissionCards,
+  SamplePermissionCards,
+  SampleUserGrid,
+  UserCard,
+  UserDataGrid,
+  VerifyForm,
+} from './CustomRenderParts';
 import {
   SAMPLE_MEMBERSHIPS,
   SAMPLE_USERS,
@@ -302,6 +313,62 @@ export const CUSTOM_RENDER_COMPONENTS: ComponentDef[] = [
     stories: [
       {id: 'base', name: 'Sample flow (code 123456)'},
       {args: {source: 'live'}, id: 'live', name: 'Live (needs sign-in, sends a code)'},
+    ],
+  },
+  {
+    code: () => ({
+      imports: ['RolePermissions'],
+      jsx: `<RolePermissions roleId={roleId} editable>
+  {({permissions, resolveResourceServerName, onRemove}) =>
+    permissions.map((entry) => (
+      <Card key={entry.resourceServerId}>
+        <CardHeader title={resolveResourceServerName(entry.resourceServerId)} />
+        <CardContent>
+          {entry.permissions.map((permission) => (
+            <Chip
+              key={permission}
+              label={permission}
+              // Ask before removing: the custom render owns the confirmation.
+              onDelete={onRemove && (() => confirm('Remove ' + permission + '?') &&
+                onRemove({permission, resourceServerId: entry.resourceServerId}))}
+            />
+          ))}
+        </CardContent>
+      </Card>
+    ))
+  }
+</RolePermissions>`,
+      otherImports: ["import {Card, CardContent, CardHeader, Chip} from '@mui/material';"],
+    }),
+    controls: [
+      SOURCE_CONTROL,
+      {control: 'text', description: 'Live only: the role to load and edit.', name: 'roleId', type: 'string'},
+    ],
+    defaults: {roleId: '', source: 'base'},
+    group: 'Custom rendering',
+    id: 'custom-rolepermissions-cards',
+    live: true,
+    name: 'RolePermissions → MUI cards',
+    render: (args: Args, action: Action) => {
+      if (isLive(args) && !str(args, 'roleId')) return <NeedsId name="roleId" from="the RoleList story" />;
+
+      return (
+        <Mui>
+          <Narrow width={560}>
+            {isLive(args) ? (
+              <RolePermissions key={str(args, 'roleId')} roleId={str(args, 'roleId')} editable>
+                {(props: BaseRolePermissionsRenderProps) => <PermissionCards {...props} />}
+              </RolePermissions>
+            ) : (
+              <SamplePermissionCards action={action} />
+            )}
+          </Narrow>
+        </Mui>
+      );
+    },
+    stories: [
+      {id: 'base', name: 'Sample, editable'},
+      {args: {source: 'live'}, id: 'live', name: 'Live (needs roleId, writes)'},
     ],
   },
 ];

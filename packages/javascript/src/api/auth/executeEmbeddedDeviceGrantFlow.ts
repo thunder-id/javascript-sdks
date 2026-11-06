@@ -94,14 +94,17 @@ const postAuthCallback = async (
 };
 
 /**
- * Executes or continues the application's configured Device Grant flow.
+ * Verifies a device's user code: runs, or continues, the application's `DEVICE_GRANT` flow in embedded
+ * mode (the user side of RFC 8628 device authorization), so a signed-in user approves a device from the
+ * application. Start it with `{applicationId, flowType: 'DEVICE_GRANT', inputs: {user_code}}` and drive
+ * it like any embedded flow.
  *
  * The request starts at the existing flow execution endpoint. When the terminal flow response
  * carries the server-issued authorization request ID and assertion, this function relays them
  * to the existing OAuth callback endpoint. A start request requires its application ID; an optional
  * user code is submitted as flow input.
  */
-const executeEmbeddedDeviceGrantFlow = async ({
+export const verifyDeviceCode = async ({
   baseUrl,
   payload,
   url,
@@ -280,5 +283,12 @@ const executeEmbeddedDeviceGrantFlow = async ({
 
   return flowResponse;
 };
+
+/**
+ * Executes or continues the application's configured Device Grant flow.
+ *
+ * @deprecated Use {@link verifyDeviceCode}, the canonical name. This alias is the same function.
+ */
+const executeEmbeddedDeviceGrantFlow: typeof verifyDeviceCode = verifyDeviceCode;
 
 export default executeEmbeddedDeviceGrantFlow;

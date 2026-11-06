@@ -7,6 +7,10 @@ import {
   type BaseGroupMembersProps,
   BaseRoleAssignments,
   type BaseRoleAssignmentsProps,
+  BaseRolePermissions,
+  type BaseRolePermissionsProps,
+  type RolePermissionChange,
+  type RoleResourcePermissions,
   DataTable,
   type GroupMember,
   type RoleAssignment,
@@ -17,7 +21,11 @@ import {
 import {ReactElement, ReactNode, useState} from 'react';
 import {
   CANDIDATES,
+  RESOURCE_SERVER_NAMES,
   SAMPLE_ASSIGNMENTS,
+  SAMPLE_AVAILABLE_PERMISSIONS,
+  SAMPLE_PERMISSIONS,
+  SAMPLE_RESOURCE_SERVERS,
   SAMPLE_MEMBERS,
   SESSION_COLUMNS,
   SESSION_ROWS,
@@ -269,6 +277,78 @@ export const DataTableStory = ({action, args}: {action: Action; args: Args}): Re
             : undefined
         }
       />
+    </Narrow>
+  );
+};
+
+/**
+ * Applies one permission change to a role's permissions, as the server would after `updateRole`.
+ */
+const applyPermissionChange = (
+  current: RoleResourcePermissions[],
+  {permission, resourceServerId}: RolePermissionChange,
+  add: boolean,
+): RoleResourcePermissions[] => {
+  const others: RoleResourcePermissions[] = current.filter(
+    (entry: RoleResourcePermissions) => entry.resourceServerId !== resourceServerId,
+  );
+  const granted: string[] =
+    current.find((entry: RoleResourcePermissions) => entry.resourceServerId === resourceServerId)?.permissions ?? [];
+  const next: string[] = add
+    ? [...granted.filter((item: string) => item !== permission), permission]
+    : granted.filter((item: string) => item !== permission);
+
+  return next.length ? [...others, {permissions: next, resourceServerId}] : others;
+};
+
+/**
+ * `BaseRolePermissions` with sample data held in state, so adding and removing permissions works in the
+ * story the way it does against a server.
+ */
+export const RolePermissionsStory = ({
+  action,
+  args,
+  children = undefined,
+}: {
+  action: Action;
+  args: Args;
+  children?: BaseRolePermissionsProps['children'];
+}): ReactElement => {
+  const [permissions, setPermissions] = useState<RoleResourcePermissions[]>(
+    bool(args, 'empty') ? [] : SAMPLE_PERMISSIONS,
+  );
+  const editable: boolean = bool(args, 'editable');
+
+  return (
+    <Narrow width={560}>
+      <BaseRolePermissions
+        title={str(args, 'title') || undefined}
+        permissions={permissions}
+        resourceServerNames={RESOURCE_SERVER_NAMES}
+        isLoading={bool(args, 'isLoading')}
+        error={str(args, 'error') || null}
+        resourceServers={editable ? SAMPLE_RESOURCE_SERVERS : undefined}
+        availablePermissions={SAMPLE_AVAILABLE_PERMISSIONS}
+        onResourceServerSelect={(id: string) => action('onResourceServerSelect', id)}
+        onAdd={
+          editable
+            ? (change: RolePermissionChange) => {
+                setPermissions((previous: RoleResourcePermissions[]) => applyPermissionChange(previous, change, true));
+                action('onAdd', `${change.resourceServerId}:${change.permission}`);
+              }
+            : undefined
+        }
+        onRemove={
+          editable
+            ? (change: RolePermissionChange) => {
+                setPermissions((previous: RoleResourcePermissions[]) => applyPermissionChange(previous, change, false));
+                action('onRemove', `${change.resourceServerId}:${change.permission}`);
+              }
+            : undefined
+        }
+      >
+        {children}
+      </BaseRolePermissions>
     </Narrow>
   );
 };

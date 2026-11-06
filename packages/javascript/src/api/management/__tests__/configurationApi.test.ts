@@ -40,6 +40,9 @@ import getGateway from '../gateways/getGateway';
 import getGatewayAppliedConfiguration from '../gateways/getGatewayAppliedConfiguration';
 import getGatewayAppliedVersion from '../gateways/getGatewayAppliedVersion';
 import getGatewayConfigurationDiff from '../gateways/getGatewayConfigurationDiff';
+import getGatewayMaster from '../gateways/getGatewayMaster';
+import getGatewayMasterHistory from '../gateways/getGatewayMasterHistory';
+import getGatewayMasterResource from '../gateways/getGatewayMasterResource';
 import getGateways from '../gateways/getGateways';
 import getGatewaySecret from '../gateways/getGatewaySecret';
 import getGatewaySecrets from '../gateways/getGatewaySecrets';
@@ -316,6 +319,20 @@ describe('gateways API', () => {
       'GET',
       '/gateways/gw-1/applied-version',
     ],
+    ['getGatewayMaster', (fetcher) => getGatewayMaster({baseUrl, fetcher, gatewayId}), 'GET', '/gateways/gw-1/master'],
+    [
+      'getGatewayMasterHistory',
+      (fetcher) => getGatewayMasterHistory({baseUrl, fetcher, gatewayId}),
+      'GET',
+      '/gateways/gw-1/master/history',
+    ],
+    [
+      'getGatewayMasterResource',
+      (fetcher) =>
+        getGatewayMasterResource({baseUrl, fetcher, gatewayId, resourceId: 'a/b c', resourceType: 'application'}),
+      'GET',
+      '/gateways/gw-1/master/resources/application/a%2Fb%20c',
+    ],
     [
       'getGatewayVariables',
       (fetcher) => getGatewayVariables({baseUrl, fetcher, gatewayId, limit: 5, names: ['A', 'B']}),
@@ -385,6 +402,33 @@ describe('gateways API', () => {
   itMapsForbiddenAndNotFound('getGatewayVariable', (fetcher) =>
     getGatewayVariable({baseUrl, fetcher, gatewayId, name: 'A'}),
   );
+
+  itMapsForbiddenAndNotFound('getGatewayMasterResource', (fetcher) =>
+    getGatewayMasterResource({baseUrl, fetcher, gatewayId, resourceId: 'app-1', resourceType: 'application'}),
+  );
+
+  it('returns the gateway master as the server sent it', async () => {
+    const master = {entries: [{key: 'application/app-1', state: 'deployed'}], gatewayId, number: 3};
+
+    await expect(getGatewayMaster({baseUrl, fetcher: createFetcher(master), gatewayId})).resolves.toEqual(master);
+  });
+
+  it('refuses a blank gateway master resource identifier before sending anything', async () => {
+    const fetcher: FetcherMock = createFetcher();
+
+    await expect(
+      getGatewayMasterResource({baseUrl, fetcher, gatewayId, resourceId: ' ', resourceType: 'application'}),
+    ).rejects.toMatchObject({code: 'getGatewayMasterResource-ValidationError-002'});
+    expect(fetcher).not.toHaveBeenCalled();
+  });
+
+  it('uses the gateways endpoint override for the gateway master', async () => {
+    const fetcher: FetcherMock = createFetcher();
+
+    await getGatewayMasterHistory({baseUrl, fetcher, gatewayId, url: 'https://rs.example.com/gateways'});
+
+    expect(requests(fetcher)[0].url).toBe('https://rs.example.com/gateways/gw-1/master/history');
+  });
 
   it('uses the gateways endpoint override as the collection URL', async () => {
     const fetcher: FetcherMock = createFetcher();

@@ -23,8 +23,10 @@ import {
   BaseApplicationDetails,
   BaseApplicationList,
   BaseGroupCreate,
+  BaseGroupDetails,
   BaseGroupList,
   BaseRoleCreate,
+  BaseRoleDetails,
   BaseRoleList,
   BaseRolePermissions,
   BaseUserCreate,
@@ -35,11 +37,13 @@ import {
   Card,
   type Group,
   GroupCreate,
+  GroupDetails,
   GroupList,
   GroupMembers,
   type ManagedUser,
   RoleAssignments,
   RoleCreate,
+  RoleDetails,
   RoleList,
   RolePermissions,
   type RoleSummary,
@@ -69,6 +73,7 @@ import {
   Paged,
   RequiresId,
   RoleAssignmentsStory,
+  RolePermissionsStory,
   SampleSearch,
 } from './AdminStoryWidgets';
 import {withCustomStory} from './customRenderStories';
@@ -740,6 +745,95 @@ const STORIES: ComponentDef[] = [
     ],
   },
   {
+    code: (args: Args) =>
+      isLive(args)
+        ? {
+            imports: ['GroupDetails'],
+            jsx: jsx('GroupDetails', pick(args, 'groupId', 'editable', 'deletable', 'administrationMode'), {
+              extra: ['onDeleted={backToList}'],
+            }),
+          }
+        : {
+            imports: ['BaseGroupDetails'],
+            jsx: jsx('BaseGroupDetails', pick(args, 'isLoading', 'error'), {
+              extra: [
+                'group={group}',
+                'members={<GroupMembers groupId={group.id} ouId={group.ouId} />}',
+                ...(bool(args, 'deletable') ? ['onDelete={deleteGroup}'] : []),
+              ],
+            }),
+          },
+    controls: [
+      SOURCE_CONTROL,
+      idControl('groupId'),
+      {
+        control: 'bool',
+        description: 'Live: lets admins add and remove members. Base: the sample members view.',
+        name: 'editable',
+        type: 'boolean',
+      },
+      {control: 'bool', description: 'Shows the delete button (onDelete).', name: 'deletable', type: 'boolean'},
+      {
+        control: ['native', 'flow'],
+        description:
+          'How the delete and member removals run: the management API, or the configured administration flows (live only).',
+        name: 'administrationMode',
+        type: "'native' | 'flow'",
+      },
+      LOADING,
+      ERROR,
+    ],
+    defaults: {
+      administrationMode: 'native',
+      deletable: true,
+      editable: true,
+      error: '',
+      groupId: '',
+      isLoading: false,
+      source: 'base',
+    },
+    group: 'Admin: groups',
+    id: 'groupdetails',
+    live: true,
+    name: 'GroupDetails',
+    render: (args: Args, action: Action) => {
+      if (isLive(args)) {
+        if (!str(args, 'groupId')) return <RequiresId name="groupId" />;
+
+        return (
+          <Narrow width={640}>
+            <GroupDetails
+              groupId={str(args, 'groupId')}
+              editable={bool(args, 'editable')}
+              deletable={bool(args, 'deletable')}
+              administrationMode={str(args, 'administrationMode') as AdministrationMode}
+              onDeleted={() => action('onDeleted')}
+            />
+          </Narrow>
+        );
+      }
+
+      return (
+        <Narrow width={640}>
+          <BaseGroupDetails
+            group={SAMPLE_GROUPS[0]}
+            isLoading={bool(args, 'isLoading')}
+            error={str(args, 'error') || null}
+            onDelete={bool(args, 'deletable') ? () => action('onDelete', SAMPLE_GROUPS[0].id) : undefined}
+            members={<GroupMembersStory args={{...args, error: '', isLoading: false, title: ''}} action={action} />}
+          />
+        </Narrow>
+      );
+    },
+    stories: [
+      {id: 'base', name: 'Sample group'},
+      {args: {deletable: false, editable: false}, id: 'readonly', name: 'Read only'},
+      {args: {isLoading: true}, id: 'loading', name: 'Loading'},
+      {args: {source: 'live'}, id: 'live', name: 'Live (needs groupId)'},
+      {args: {administrationMode: 'flow', source: 'live'}, id: 'live-flows', name: 'Live through administration flows'},
+    ],
+  },
+  {
     code: (args: Args) => listCode(args, 'RoleList', 'roles', 'selectedRoleId'),
     controls: LIST_CONTROLS,
     defaults: LIST_DEFAULTS,
@@ -832,53 +926,74 @@ const STORIES: ComponentDef[] = [
   {
     code: (args: Args) =>
       isLive(args)
-        ? {imports: ['RolePermissions'], jsx: jsx('RolePermissions', pick(args, 'roleId', 'title'))}
+        ? {imports: ['RolePermissions'], jsx: jsx('RolePermissions', pick(args, 'roleId', 'editable', 'title'))}
         : {
             imports: ['BaseRolePermissions'],
             jsx: jsx('BaseRolePermissions', pick(args, 'title', 'isLoading', 'error'), {
-              extra: ['permissions={role.permissions}', 'resourceServerNames={resourceServerNames}'],
+              extra: [
+                'permissions={role.permissions}',
+                'resourceServerNames={resourceServerNames}',
+                ...(bool(args, 'editable')
+                  ? [
+                      'resourceServers={resourceServers}',
+                      'availablePermissions={availablePermissions}',
+                      'onResourceServerSelect={loadPermissions}',
+                      'onAdd={grant}',
+                      'onRemove={revoke}',
+                    ]
+                  : []),
+              ],
             }),
           },
     controls: [
       SOURCE_CONTROL,
       idControl('roleId'),
       TITLE,
+      {
+        control: 'bool',
+        description: 'Adds the resource server and permission picker, and remove buttons that ask first.',
+        name: 'editable',
+        type: 'boolean',
+      },
       LOADING,
       ERROR,
       {...EMPTY, description: 'Base only: a role that grants nothing.'},
     ],
-    defaults: {empty: false, error: '', isLoading: false, roleId: '', source: 'base', title: ''},
+    defaults: {editable: false, empty: false, error: '', isLoading: false, roleId: '', source: 'base', title: ''},
     group: 'Admin: roles',
     id: 'rolepermissions',
     live: true,
     name: 'RolePermissions',
-    render: (args: Args) => {
+    render: (args: Args, action: Action) => {
       if (isLive(args)) {
         if (!str(args, 'roleId')) return <RequiresId name="roleId" />;
 
         return (
           <Narrow width={560}>
-            <RolePermissions roleId={str(args, 'roleId')} title={str(args, 'title') || undefined} />
+            <RolePermissions
+              key={`${str(args, 'roleId')}:${String(bool(args, 'editable'))}`}
+              roleId={str(args, 'roleId')}
+              editable={bool(args, 'editable')}
+              title={str(args, 'title') || undefined}
+            />
           </Narrow>
         );
       }
 
       return (
-        <Narrow width={560}>
-          <BaseRolePermissions
-            title={str(args, 'title') || undefined}
-            permissions={bool(args, 'empty') ? [] : SAMPLE_PERMISSIONS}
-            resourceServerNames={RESOURCE_SERVER_NAMES}
-            isLoading={bool(args, 'isLoading')}
-            error={str(args, 'error') || null}
-          />
-        </Narrow>
+        <RolePermissionsStory
+          key={`${String(bool(args, 'editable'))}:${String(bool(args, 'empty'))}`}
+          args={args}
+          action={action}
+        />
       );
     },
     stories: [
       {id: 'base', name: 'Two resource servers'},
+      {args: {editable: true}, id: 'editable', name: 'Editable'},
       {args: {empty: true}, id: 'empty', name: 'No permissions'},
       {args: {source: 'live'}, id: 'live', name: 'Live (needs roleId)'},
+      {args: {editable: true, source: 'live'}, id: 'live-editable', name: 'Live, editable (PUT /roles, writes)'},
     ],
   },
   {
@@ -938,6 +1053,101 @@ const STORIES: ComponentDef[] = [
       {id: 'base', name: 'Editable'},
       {args: {editable: false}, id: 'readonly', name: 'Read only'},
       {args: {source: 'live'}, id: 'live', name: 'Live (needs roleId)'},
+    ],
+  },
+  {
+    code: (args: Args) =>
+      isLive(args)
+        ? {
+            imports: ['RoleDetails'],
+            jsx: jsx('RoleDetails', pick(args, 'roleId', 'editable', 'deletable', 'administrationMode'), {
+              extra: ['onDeleted={backToList}'],
+            }),
+          }
+        : {
+            imports: ['BaseRoleDetails'],
+            jsx: jsx('BaseRoleDetails', pick(args, 'isLoading', 'error'), {
+              extra: [
+                'role={role}',
+                'permissions={<BaseRolePermissions permissions={role.permissions} />}',
+                'assignments={<RoleAssignments roleId={role.id} ouId={role.ouId} />}',
+                ...(bool(args, 'deletable') ? ['onDelete={deleteRole}'] : []),
+              ],
+            }),
+          },
+    controls: [
+      SOURCE_CONTROL,
+      idControl('roleId'),
+      {
+        control: 'bool',
+        description: 'Live: lets admins assign and unassign the role. Base: the sample assignments view.',
+        name: 'editable',
+        type: 'boolean',
+      },
+      {control: 'bool', description: 'Shows the delete button (onDelete).', name: 'deletable', type: 'boolean'},
+      {
+        control: ['native', 'flow'],
+        description:
+          'How the delete and unassignments run: the management API, or the configured administration flows (live only).',
+        name: 'administrationMode',
+        type: "'native' | 'flow'",
+      },
+      LOADING,
+      ERROR,
+    ],
+    defaults: {
+      administrationMode: 'native',
+      deletable: true,
+      editable: true,
+      error: '',
+      roleId: '',
+      isLoading: false,
+      source: 'base',
+    },
+    group: 'Admin: roles',
+    id: 'roledetails',
+    live: true,
+    name: 'RoleDetails',
+    render: (args: Args, action: Action) => {
+      if (isLive(args)) {
+        if (!str(args, 'roleId')) return <RequiresId name="roleId" />;
+
+        return (
+          <Narrow width={640}>
+            <RoleDetails
+              roleId={str(args, 'roleId')}
+              editable={bool(args, 'editable')}
+              deletable={bool(args, 'deletable')}
+              administrationMode={str(args, 'administrationMode') as AdministrationMode}
+              onDeleted={() => action('onDeleted')}
+            />
+          </Narrow>
+        );
+      }
+
+      return (
+        <Narrow width={640}>
+          <BaseRoleDetails
+            role={SAMPLE_ROLES[1]}
+            isLoading={bool(args, 'isLoading')}
+            error={str(args, 'error') || null}
+            onDelete={bool(args, 'deletable') ? () => action('onDelete', SAMPLE_ROLES[1].id) : undefined}
+            permissions={
+              <BaseRolePermissions permissions={SAMPLE_PERMISSIONS} resourceServerNames={RESOURCE_SERVER_NAMES} />
+            }
+            assignments={
+              <RoleAssignmentsStory args={{...args, error: '', isLoading: false, title: ''}} action={action} />
+            }
+          />
+        </Narrow>
+      );
+    },
+    stories: [
+      {id: 'base', name: 'Sample role'},
+      {args: {deletable: false, editable: false}, id: 'readonly', name: 'Read only'},
+      {args: {isLoading: true}, id: 'loading', name: 'Loading'},
+      {args: {source: 'live'}, id: 'live', name: 'Live (needs roleId)'},
+      {args: {administrationMode: 'flow', source: 'live'}, id: 'live-flows', name: 'Live through administration flows'},
     ],
   },
   {

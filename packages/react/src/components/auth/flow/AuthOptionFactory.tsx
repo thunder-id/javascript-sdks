@@ -356,7 +356,10 @@ const createAuthComponentFromFlow = (
     case EmbeddedFlowComponentType.TextInput:
     case EmbeddedFlowComponentType.PasswordInput:
     case EmbeddedFlowComponentType.EmailInput:
-    case EmbeddedFlowComponentType.PhoneInput: {
+    case EmbeddedFlowComponentType.PhoneInput:
+    // A Resolve OU step asks for the organization unit before sign-in, when no unit is ever listed, so the
+    // user types its handle or identifier. After sign-in the step offers the eligible units as a SELECT.
+    case EmbeddedFlowComponentType.OuSelect: {
       const identifier: string = component.ref!;
       const value: string = formValues[identifier] || '';
       const isTouched: boolean = touchedFields[identifier] || false;
@@ -695,9 +698,6 @@ const createAuthComponentFromFlow = (
         />
       );
     }
-
-    case EmbeddedFlowComponentType.OuSelect:
-      return skipUnsupported('OU_SELECT');
 
     // The resource pickers load with a signed-in user's access token, so without a data source, which is every flow
     // except InviteUser, they are not drawn.

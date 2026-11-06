@@ -41,6 +41,10 @@ import {SAMPLE_VERIFICATION_STEP, submitSampleVerification} from './customRender
 import {CUSTOM_RENDER_COMPONENTS} from './customRenderStories';
 import {bool, fromReact, isLive, jsx, num, omit, str} from './helpers';
 import Narrow from './Narrow';
+import {ORGANIZATION_UNIT_ADMIN_STORIES} from './organizationUnitAdminStories';
+import {ORGANIZATION_UNIT_SWITCHER_STORY} from './organizationUnitStories';
+import {PROJECT_STORIES} from './projectStories';
+import {SHARING_STORIES} from './sharingStories';
 import type {Action, Args, ComponentDef, PropControl} from './types';
 import {getDisplayName} from '../lib/user';
 
@@ -607,7 +611,11 @@ export const COMPONENTS: ComponentDef[] = [
   selectComponent('userselect', 'UserSelect', UserSelect, 'User', 'users'),
   selectComponent('usertypeselect', 'UserTypeSelect', UserTypeSelect, 'User type', 'user types'),
   selectComponent('authflowselect', 'AuthFlowSelect', AuthFlowSelect, 'Sign-in flow', 'flows'),
+  ORGANIZATION_UNIT_SWITCHER_STORY,
   ...ADMIN_COMPONENTS,
+  ...PROJECT_STORIES,
+  ...ORGANIZATION_UNIT_ADMIN_STORIES,
+  ...SHARING_STORIES,
   ...CUSTOM_RENDER_COMPONENTS,
 ];
 

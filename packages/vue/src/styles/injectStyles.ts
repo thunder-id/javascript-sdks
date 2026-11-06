@@ -25,10 +25,11 @@ import DEFAULTS_CSS from './defaults.css';
 
 // Primitives
 import CHANGE_CREDENTIAL_CSS from '../components/account/change-credential/ChangeCredential.css';
+import ORGANIZATION_UNIT_SWITCHER_CSS from '../components/account/organization-unit-switcher/OrganizationUnitSwitcher.css';
 import USER_DROPDOWN_CSS from '../components/account/user-dropdown/UserDropdown.css';
 import USER_PROFILE_CSS from '../components/account/user-profile/UserProfile.css';
 import VERIFY_ATTRIBUTE_CSS from '../components/account/verify-attribute/VerifyAttribute.css';
-import ADMIN_CSS from '../components/admin/shared/Admin.css';
+import ADMIN_CSS from '../components/management/shared/Admin.css';
 import BASE_DEVICE_GRANT_CSS from '../components/auth/device-grant/BaseDeviceGrant.css';
 import CONSENT_CSS from '../components/auth/flow/Consent.css';
 import BASE_SIGN_IN_CSS from '../components/auth/sign-in/BaseSignIn.css';
@@ -85,6 +86,7 @@ const STYLES: string = [
   BASE_DEVICE_GRANT_CSS,
   // Presentation
   CHANGE_CREDENTIAL_CSS,
+  ORGANIZATION_UNIT_SWITCHER_CSS,
   LANGUAGE_SWITCHER_CSS,
   USER_DROPDOWN_CSS,
   USER_PROFILE_CSS,

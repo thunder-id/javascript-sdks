@@ -21,10 +21,12 @@ import {
   BaseApplicationDetails,
   BaseApplicationList,
   BaseGroupCreate,
+  BaseGroupDetails,
   BaseGroupList,
   BaseGroupMembers,
   BaseRoleAssignments,
   BaseRoleCreate,
+  BaseRoleDetails,
   BaseRoleList,
   BaseRolePermissions,
   BaseUserCreate,
@@ -35,6 +37,7 @@ import {
   Card,
   Group,
   GroupCreate,
+  GroupDetails,
   GroupList,
   GroupMember,
   GroupMembers,
@@ -45,6 +48,7 @@ import {
   RoleAssignmentInput,
   RoleAssignments,
   RoleCreate,
+  RoleDetails,
   RoleList,
   RolePermissions,
   RoleResourcePermissions,
@@ -926,6 +930,138 @@ export const ADMIN_COMPONENTS: ComponentDef[] = [
       {args: {source: 'live'}, id: 'live', name: 'Live (first group)'},
     ],
   },
+  {
+    code: (args: Args): Snippet =>
+      isLive(args)
+        ? {
+            imports: ['GroupDetails'],
+            script: handler('handleDeleted'),
+            template: tpl('GroupDetails', omit(args, 'source', 'isLoading', 'error', 'groupId'), {
+              defaults: {administrationMode: 'native'},
+              extra: [`group-id="${str(args, 'groupId') || SAMPLE_GROUPS[0].id}"`, '@deleted="handleDeleted"'],
+            }),
+          }
+        : {
+            imports: ['BaseGroupDetails', 'Group', 'GroupMembers', 'getGroup', 'useManagementRequestConfig'],
+            script: [
+              "const config = useManagementRequestConfig('groups');",
+              `const groupId = '${SAMPLE_GROUPS[0].id}';`,
+              'const group = ref<Group>();',
+              'const isLoading = ref(true);',
+              '',
+              'onMounted(async () => {',
+              '  group.value = await getGroup({...config, groupId});',
+              '  isLoading.value = false;',
+              '});',
+              ...(bool(args, 'deletable') ? handler('handleDelete') : []),
+            ],
+            template: tpl(
+              'BaseGroupDetails',
+              {},
+              {
+                children: `
+  <template #members>
+    <GroupMembers v-if="group" :group-id="group.id" :ou-id="group.ouId" />
+  </template>
+`,
+                extra: [
+                  ':group="group"',
+                  ':is-loading="isLoading"',
+                  ...(bool(args, 'deletable') ? ['@delete="handleDelete"'] : []),
+                ],
+              },
+            ),
+            vueImports: ['onMounted', 'ref'],
+          },
+    controls: [
+      SOURCE_CONTROL,
+      {
+        control: 'bool',
+        description: 'Live: lets admins add and remove members. Base: the sample members view.',
+        name: 'editable',
+        type: 'boolean',
+      },
+      {
+        control: 'bool',
+        description: 'Shows the delete action (`@delete` / `@deleted`).',
+        name: 'deletable',
+        type: 'boolean',
+      },
+      {
+        control: ['native', 'flow'],
+        description:
+          'How the delete and member removals run: the management API, or the configured administration flows (live only).',
+        name: 'administrationMode',
+        type: "'native' | 'flow'",
+      },
+      idControl('groupId', 'group'),
+      ...baseStateControls,
+    ],
+    defaults: {
+      administrationMode: 'native',
+      deletable: true,
+      editable: true,
+      error: '',
+      isLoading: false,
+      groupId: '',
+      source: 'base',
+    },
+    group: 'Admin',
+    id: 'groupdetails',
+    live: true,
+    name: 'GroupDetails',
+    render: (args: Args, action: Action): VNode =>
+      narrow(
+        640,
+        isLive(args)
+          ? h(FirstResource, {
+              explicit: str(args, 'groupId'),
+              noun: 'group',
+              pick: firstOf<Group>('groups'),
+              query: () => useApiQuery(() => getGroups({...useManagementRequestConfig('groups'), limit: 1})),
+              render: (groupId: string): VNode =>
+                h(GroupDetails, {
+                  administrationMode: str(args, 'administrationMode') as AdministrationMode,
+                  deletable: bool(args, 'deletable'),
+                  editable: bool(args, 'editable'),
+                  key: groupId,
+                  onDeleted: () => action('deleted', quoted(groupId)),
+                  groupId,
+                }),
+            })
+          : h(
+              BaseGroupDetails,
+              {
+                error: str(args, 'error') || null,
+                isLoading: bool(args, 'isLoading'),
+                onDelete: bool(args, 'deletable')
+                  ? (): void => action('delete', quoted(SAMPLE_GROUPS[0].id))
+                  : undefined,
+                group: SAMPLE_GROUPS[0],
+              },
+              {
+                members: (): VNode =>
+                  h(BaseGroupMembers, {
+                    candidates: bool(args, 'editable') ? CANDIDATES : undefined,
+                    members: SAMPLE_MEMBERS,
+                    onAdd: bool(args, 'editable')
+                      ? (member: Pick<GroupMember, 'id' | 'type'>): void => action('add', JSON.stringify(member))
+                      : undefined,
+                    onRemove: bool(args, 'editable')
+                      ? (member: GroupMember): void => action('remove', JSON.stringify(member))
+                      : undefined,
+                  }),
+              },
+            ),
+      ),
+    stories: [
+      {id: 'base', name: 'Sample group'},
+      {args: {deletable: false, editable: false}, id: 'readonly', name: 'Read only'},
+      {args: {isLoading: true}, id: 'loading', name: 'Loading'},
+      {args: {source: 'live'}, id: 'live', name: 'Live (first group)'},
+      {args: {administrationMode: 'flow', source: 'live'}, id: 'live-flows', name: 'Live through administration flows'},
+    ],
+  },
   listStory({
     base: BaseRoleList,
     baseTag: 'BaseRoleList',
@@ -1087,7 +1223,7 @@ export const ADMIN_COMPONENTS: ComponentDef[] = [
               '});',
               ...(bool(args, 'named') ? [`const names = ${literal(RESOURCE_SERVER_NAMES)};`] : []),
             ],
-            template: tpl('BaseRolePermissions', omit(args, 'source', 'roleId', 'named', 'isLoading'), {
+            template: tpl('BaseRolePermissions', omit(args, 'source', 'roleId', 'named', 'isLoading', 'editable'), {
               extra: [
                 ':permissions="role?.permissions ?? []"',
                 ':is-loading="isLoading"',
@@ -1105,16 +1241,32 @@ export const ADMIN_COMPONENTS: ComponentDef[] = [
         name: 'named',
         type: 'boolean',
       },
+      {
+        control: 'bool',
+        description: 'Adds the resource server and permission picker, and remove buttons that ask first.',
+        name: 'editable',
+        type: 'boolean',
+      },
       idControl('roleId', 'role'),
       ...baseStateControls,
     ],
-    defaults: {description: '', error: '', isLoading: false, named: true, roleId: '', source: 'base', title: ''},
+    defaults: {
+      description: '',
+      editable: false,
+      error: '',
+      isLoading: false,
+      named: true,
+      roleId: '',
+      source: 'base',
+      title: '',
+    },
     group: 'Admin',
     id: 'rolepermissions',
     live: true,
     name: 'RolePermissions',
-    render: (args: Args): VNode => {
+    render: (args: Args, action: Action): VNode => {
       const names: Record<string, string> | undefined = bool(args, 'named') ? RESOURCE_SERVER_NAMES : undefined;
+      const editable: boolean = bool(args, 'editable');
 
       return narrow(
         640,
@@ -1125,21 +1277,189 @@ export const ADMIN_COMPONENTS: ComponentDef[] = [
               pick: firstOf<RoleSummary>('roles'),
               query: () => useApiQuery(() => getRoles({...useManagementRequestConfig('roles'), limit: 1})),
               render: (roleId: string): VNode =>
-                h(RolePermissions, {...heading(args), key: roleId, resourceServerNames: names, roleId}),
+                h(RolePermissions, {
+                  ...heading(args),
+                  editable,
+                  key: `${roleId}:${String(editable)}`,
+                  resourceServerNames: names,
+                  roleId,
+                }),
             })
           : h(BaseRolePermissions, {
               ...heading(args),
+              availablePermissions: {
+                rs_booking: [
+                  {name: 'Read', permission: 'booking:read'},
+                  {name: 'Cancel', permission: 'booking:cancel'},
+                ],
+                rs_system: [{name: 'Manage users', permission: 'system:user'}],
+              },
               error: str(args, 'error') || null,
               isLoading: bool(args, 'isLoading'),
+              onAdd: editable ? (change: unknown): void => action('add', JSON.stringify(change)) : undefined,
+              onRemove: editable ? (change: unknown): void => action('remove', JSON.stringify(change)) : undefined,
+              onResourceServerSelect: (id: string): void => action('resource-server-select', id),
               permissions: SAMPLE_PERMISSIONS,
               resourceServerNames: names,
+              resourceServers: editable
+                ? [
+                    {id: 'rs_booking', name: 'Booking API'},
+                    {id: 'rs_system', name: 'ThunderID system API'},
+                  ]
+                : undefined,
             }),
       );
     },
     stories: [
       {id: 'base', name: 'Named resource servers'},
+      {args: {editable: true}, id: 'editable', name: 'Editable'},
       {args: {named: false}, id: 'ids', name: 'Resource server IDs'},
       {args: {source: 'live'}, id: 'live', name: 'Live (first role)'},
+      {args: {editable: true, source: 'live'}, id: 'live-editable', name: 'Live, editable (first role, writes)'},
+    ],
+  },
+  {
+    code: (args: Args): Snippet =>
+      isLive(args)
+        ? {
+            imports: ['RoleDetails'],
+            script: handler('handleDeleted'),
+            template: tpl('RoleDetails', omit(args, 'source', 'isLoading', 'error', 'roleId'), {
+              defaults: {administrationMode: 'native'},
+              extra: [`role-id="${str(args, 'roleId') || SAMPLE_ROLES[1].id}"`, '@deleted="handleDeleted"'],
+            }),
+          }
+        : {
+            imports: [
+              'BaseRoleDetails',
+              'BaseRolePermissions',
+              'Role',
+              'RoleAssignments',
+              'getRole',
+              'useManagementRequestConfig',
+            ],
+            script: [
+              "const config = useManagementRequestConfig('roles');",
+              `const roleId = '${SAMPLE_ROLES[1].id}';`,
+              'const role = ref<Role>();',
+              'const isLoading = ref(true);',
+              '',
+              'onMounted(async () => {',
+              '  role.value = await getRole({...config, roleId});',
+              '  isLoading.value = false;',
+              '});',
+              ...(bool(args, 'deletable') ? handler('handleDelete') : []),
+            ],
+            template: tpl(
+              'BaseRoleDetails',
+              {},
+              {
+                children: `
+  <template #permissions>
+    <BaseRolePermissions :permissions="role?.permissions ?? []" />
+  </template>
+  <template #assignments>
+    <RoleAssignments v-if="role" :role-id="role.id" :ou-id="role.ouId" />
+  </template>
+`,
+                extra: [
+                  ':role="role"',
+                  ':is-loading="isLoading"',
+                  ...(bool(args, 'deletable') ? ['@delete="handleDelete"'] : []),
+                ],
+              },
+            ),
+            vueImports: ['onMounted', 'ref'],
+          },
+    controls: [
+      SOURCE_CONTROL,
+      {
+        control: 'bool',
+        description: 'Live: lets admins assign and unassign the role. Base: the sample assignments view.',
+        name: 'editable',
+        type: 'boolean',
+      },
+      {
+        control: 'bool',
+        description: 'Shows the delete action (`@delete` / `@deleted`).',
+        name: 'deletable',
+        type: 'boolean',
+      },
+      {
+        control: ['native', 'flow'],
+        description:
+          'How the delete and unassignments run: the management API, or the configured administration flows (live only).',
+        name: 'administrationMode',
+        type: "'native' | 'flow'",
+      },
+      idControl('roleId', 'role'),
+      ...baseStateControls,
+    ],
+    defaults: {
+      administrationMode: 'native',
+      deletable: true,
+      editable: true,
+      error: '',
+      isLoading: false,
+      roleId: '',
+      source: 'base',
+    },
+    group: 'Admin',
+    id: 'roledetails',
+    live: true,
+    name: 'RoleDetails',
+    render: (args: Args, action: Action): VNode =>
+      narrow(
+        640,
+        isLive(args)
+          ? h(FirstResource, {
+              explicit: str(args, 'roleId'),
+              noun: 'role',
+              pick: firstOf<RoleSummary>('roles'),
+              query: () => useApiQuery(() => getRoles({...useManagementRequestConfig('roles'), limit: 1})),
+              render: (roleId: string): VNode =>
+                h(RoleDetails, {
+                  administrationMode: str(args, 'administrationMode') as AdministrationMode,
+                  deletable: bool(args, 'deletable'),
+                  editable: bool(args, 'editable'),
+                  key: roleId,
+                  onDeleted: () => action('deleted', quoted(roleId)),
+                  roleId,
+                }),
+            })
+          : h(
+              BaseRoleDetails,
+              {
+                error: str(args, 'error') || null,
+                isLoading: bool(args, 'isLoading'),
+                onDelete: bool(args, 'deletable')
+                  ? (): void => action('delete', quoted(SAMPLE_ROLES[1].id))
+                  : undefined,
+                role: SAMPLE_ROLES[1],
+              },
+              {
+                assignments: (): VNode =>
+                  h(BaseRoleAssignments, {
+                    assignments: SAMPLE_ASSIGNMENTS,
+                    candidates: bool(args, 'editable') ? CANDIDATES : undefined,
+                    onAssign: bool(args, 'editable')
+                      ? (assignment: RoleAssignmentInput): void => action('assign', JSON.stringify(assignment))
+                      : undefined,
+                    onUnassign: bool(args, 'editable')
+                      ? (assignment: RoleAssignment): void => action('unassign', JSON.stringify(assignment))
+                      : undefined,
+                  }),
+                permissions: (): VNode =>
+                  h(BaseRolePermissions, {permissions: SAMPLE_PERMISSIONS, resourceServerNames: RESOURCE_SERVER_NAMES}),
+              },
+            ),
+      ),
+    stories: [
+      {id: 'base', name: 'Sample role'},
+      {args: {deletable: false, editable: false}, id: 'readonly', name: 'Read only'},
+      {args: {isLoading: true}, id: 'loading', name: 'Loading'},
+      {args: {source: 'live'}, id: 'live', name: 'Live (first role)'},
+      {args: {administrationMode: 'flow', source: 'live'}, id: 'live-flows', name: 'Live through administration flows'},
     ],
   },
   listStory({

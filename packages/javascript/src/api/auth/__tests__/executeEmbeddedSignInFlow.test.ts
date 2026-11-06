@@ -593,4 +593,27 @@ describe('executeEmbeddedSignInFlow', (): void => {
       expect(captureRequestInit().credentials).toBe('omit');
     });
   });
+
+  describe('organization unit', (): void => {
+    it('sends ouId on the request that starts the flow', async (): Promise<void> => {
+      await executeEmbeddedSignInFlow({
+        payload: {applicationId: 'app-1', flowType: 'AUTHENTICATION', ouId: 'ou-1'},
+        url: URL,
+      });
+
+      expect(captureRequestBody()).toMatchObject({applicationId: 'app-1', ouId: 'ou-1'});
+    });
+
+    it('never sends ouId on a continuation', async (): Promise<void> => {
+      await executeEmbeddedSignInFlow({
+        payload: {action: 'submit', executionId: 'exec-1', inputs: {ouId: 'kept'}, ouId: 'ou-1'},
+        url: URL,
+      });
+
+      const body = captureRequestBody();
+
+      expect(body).not.toHaveProperty('ouId');
+      expect(body['inputs']).toEqual({ouId: 'kept'});
+    });
+  });
 });

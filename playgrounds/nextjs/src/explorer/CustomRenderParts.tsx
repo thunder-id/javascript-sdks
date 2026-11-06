@@ -12,6 +12,7 @@ import CardContent from '@mui/material/CardContent';
 import CardHeader from '@mui/material/CardHeader';
 import Chip from '@mui/material/Chip';
 import CssBaseline from '@mui/material/CssBaseline';
+import MenuItem from '@mui/material/MenuItem';
 import Stack from '@mui/material/Stack';
 import {ThemeProvider, createTheme} from '@mui/material/styles';
 import TextField from '@mui/material/TextField';
@@ -23,10 +24,14 @@ import {
   type BaseUserListRenderProps,
 } from '@thunderid/nextjs';
 import {
+  BaseRolePermissions,
+  type BaseRolePermissionsRenderProps,
   type BaseVerifyAttributeRenderProps,
   type DataTableColumn,
   type EmbeddedFlowComponent,
   type ManagedUser,
+  type RolePermissionChange,
+  type RoleResourcePermissions,
   useTheme,
 } from '@thunderid/react';
 import {ReactElement, ReactNode, useMemo, useState} from 'react';
@@ -278,5 +283,174 @@ export const VerifyForm = (step: BaseVerifyAttributeRenderProps): ReactElement =
           ))}
       </CardActions>
     </Card>
+  );
+};
+
+/**
+ * A role's permissions drawn as one MUI card per resource server. When editable, a chip's delete icon asks
+ * before revoking (the custom render owns that confirmation) and two MUI selects add a permission.
+ */
+export const PermissionCards = ({
+  availablePermissions = undefined,
+  error,
+  isLoading,
+  isMutating,
+  onAdd = undefined,
+  onRemove = undefined,
+  onResourceServerSelect = undefined,
+  permissions,
+  resolveResourceServerName,
+  resourceServers = undefined,
+}: BaseRolePermissionsRenderProps): ReactElement => {
+  const [serverId, setServerId] = useState<string>('');
+  const [permission, setPermission] = useState<string>('');
+  const [pending, setPending] = useState<RolePermissionChange | null>(null);
+  const granted: string[] =
+    permissions.find((entry: RoleResourcePermissions) => entry.resourceServerId === serverId)?.permissions ?? [];
+  const options = (availablePermissions?.[serverId] ?? []).filter(
+    (candidate: {permission: string}) => !granted.includes(candidate.permission),
+  );
+
+  return (
+    <Stack spacing={1.5}>
+      {isLoading && <span>Loading…</span>}
+      {error && <MuiAlert severity="error">{error}</MuiAlert>}
+      {onAdd && resourceServers && (
+        <Stack direction="row" spacing={1} alignItems="center">
+          <TextField
+            select
+            size="small"
+            label="Resource server"
+            value={serverId}
+            sx={{minWidth: 180}}
+            onChange={(event) => {
+              setServerId(event.target.value);
+              setPermission('');
+              onResourceServerSelect?.(event.target.value);
+            }}
+          >
+            {resourceServers.map((server: {id: string; name: string}) => (
+              <MenuItem key={server.id} value={server.id}>
+                {server.name}
+              </MenuItem>
+            ))}
+          </TextField>
+          <TextField
+            select
+            size="small"
+            label="Permission"
+            value={permission}
+            disabled={!serverId}
+            sx={{minWidth: 180}}
+            onChange={(event) => setPermission(event.target.value)}
+          >
+            {options.map((candidate: {name: string; permission: string}) => (
+              <MenuItem key={candidate.permission} value={candidate.permission}>
+                {candidate.name}
+              </MenuItem>
+            ))}
+          </TextField>
+          <Button
+            variant="contained"
+            disabled={!permission || isMutating}
+            onClick={() => {
+              onAdd({permission, resourceServerId: serverId});
+              setPermission('');
+            }}
+          >
+            Add
+          </Button>
+        </Stack>
+      )}
+      {pending && onRemove && (
+        <MuiAlert
+          severity="warning"
+          action={
+            <>
+              <Button size="small" onClick={() => setPending(null)}>
+                Cancel
+              </Button>
+              <Button
+                size="small"
+                color="error"
+                onClick={() => {
+                  onRemove(pending);
+                  setPending(null);
+                }}
+              >
+                Remove
+              </Button>
+            </>
+          }
+        >
+          {`Remove ${pending.permission}?`}
+        </MuiAlert>
+      )}
+      {permissions.map((entry: RoleResourcePermissions) => (
+        <Card key={entry.resourceServerId} variant="outlined">
+          <CardHeader title={resolveResourceServerName(entry.resourceServerId)} />
+          <CardContent>
+            <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
+              {entry.permissions.map((item: string) => (
+                <Chip
+                  key={item}
+                  size="small"
+                  variant="outlined"
+                  label={item}
+                  onDelete={
+                    onRemove
+                      ? () => setPending({permission: item, resourceServerId: entry.resourceServerId})
+                      : undefined
+                  }
+                />
+              ))}
+            </Stack>
+          </CardContent>
+        </Card>
+      ))}
+    </Stack>
+  );
+};
+
+/** `BaseRolePermissions` with sample permissions held in state, drawn by {@link PermissionCards}. */
+export const SamplePermissionCards = ({action}: {action: Action}): ReactElement => {
+  const [permissions, setPermissions] = useState<RoleResourcePermissions[]>([
+    {permissions: ['orders:read'], resourceServerId: 'rs_orders'},
+  ]);
+  const apply = ({permission, resourceServerId}: RolePermissionChange, add: boolean): void => {
+    setPermissions((previous: RoleResourcePermissions[]) => {
+      const granted: string[] =
+        previous.find((entry: RoleResourcePermissions) => entry.resourceServerId === resourceServerId)?.permissions ??
+        [];
+      const next: string[] = add ? [...granted, permission] : granted.filter((item: string) => item !== permission);
+
+      return [
+        ...previous.filter((entry: RoleResourcePermissions) => entry.resourceServerId !== resourceServerId),
+        ...(next.length ? [{permissions: next, resourceServerId}] : []),
+      ];
+    });
+    action(add ? 'onAdd' : 'onRemove', `${resourceServerId} ${permission}`);
+  };
+
+  return (
+    <BaseRolePermissions
+      permissions={permissions}
+      resourceServers={[
+        {id: 'rs_orders', name: 'Orders API'},
+        {id: 'rs_system', name: 'System'},
+      ]}
+      availablePermissions={{
+        rs_orders: [
+          {name: 'Read', permission: 'orders:read'},
+          {name: 'Refund', permission: 'orders:refund'},
+        ],
+        rs_system: [{name: 'Manage users', permission: 'system:user'}],
+      }}
+      onResourceServerSelect={(id: string) => action('onResourceServerSelect', id)}
+      onAdd={(change: RolePermissionChange) => apply(change, true)}
+      onRemove={(change: RolePermissionChange) => apply(change, false)}
+    >
+      {(props: BaseRolePermissionsRenderProps) => <PermissionCards {...props} />}
+    </BaseRolePermissions>
   );
 };

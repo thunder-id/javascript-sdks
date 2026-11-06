@@ -194,9 +194,19 @@ export default defineNitroPlugin((nitro: {hooks: {hook: Function}}) => {
       log.warn('Failed to fetch user schema:', userSchemaResult.reason);
     }
 
+    // The organization unit the session was issued for, read from the ID token claims, for display.
+    let organizationUnit: ThunderIDSSRData['organizationUnit'] = null;
+
+    try {
+      organizationUnit = await client.getCurrentOrganizationUnit(session.sessionId);
+    } catch {
+      organizationUnit = null;
+    }
+
     // ── 5. Write to event context ──────────────────────────────────────────
     const ssrData: ThunderIDSSRData = {
       isSignedIn: true,
+      organizationUnit,
       resolvedBaseUrl,
       session,
       user: userResult.status === 'fulfilled' ? userResult.value : null,

@@ -27,6 +27,7 @@ import {
   Loading,
   Logo,
   MicrosoftButton,
+  OrganizationUnitSwitcher,
   OtpField,
   PasswordField,
   Select,
@@ -49,6 +50,8 @@ import {
 import {Component, h} from 'vue';
 import {ADMIN_COMPONENTS} from './adminStories';
 import {CUSTOM_RENDER_COMPONENTS, SAMPLE_VERIFICATION_STEP, submitSampleVerification} from './customRenderStories';
+import {ORGANIZATION_UNIT_ADMIN_STORIES, PROJECT_STORIES, SHARING_STORIES} from './managementAreaStories';
+import {SampleOrganizationUnitSwitcher} from './organizationUnitSamples';
 import {bool, CARD_VARIANT, handler, num, omit, quoted, SIZE, slot, SOURCE_CONTROL, str, tpl} from './storyKit';
 import type {Action, Args, ComponentDef} from './types';
 import {narrow, VModel} from './widgets';
@@ -994,6 +997,60 @@ export const COMPONENTS: ComponentDef[] = [
     code: (args: Args) =>
       str(args, 'source') === 'live'
         ? {
+            imports: ['OrganizationUnitSwitcher'],
+            script: handler('handleSwitch'),
+            template: tpl('OrganizationUnitSwitcher', omit(args, 'source', 'error'), {
+              defaults: {limit: 10, scope: ''},
+              extra: ['@switch="handleSwitch"'],
+            }),
+          }
+        : {
+            imports: ['BaseOrganizationUnitSwitcher'],
+            script: [
+              "const units = [{id: 'ou_acme_1', handle: 'acme-ou-1', name: 'Acme OU 1'}];",
+              'const handleSwitch = (unit: {id: string}): void => {};',
+            ],
+            template: tpl('BaseOrganizationUnitSwitcher', omit(args, 'source', 'scope'), {
+              defaults: {limit: 10},
+              extra: [':organization-units="units"', 'current="ou_acme_1"', '@switch="handleSwitch"'],
+            }),
+          },
+    controls: [
+      SOURCE_CONTROL,
+      {control: ['', 'siblings'], description: 'Live only: narrows the list.', name: 'scope', type: "'siblings'"},
+      {control: 'number', description: 'Page size.', name: 'limit', type: 'number'},
+      {control: 'text', description: 'Base only: error message.', name: 'error', type: 'string'},
+    ],
+    defaults: {error: '', limit: 2, scope: '', source: 'base'},
+    group: 'User',
+    id: 'organizationunitswitcher',
+    live: true,
+    name: 'OrganizationUnitSwitcher',
+    render: (args: Args, action: Action) =>
+      narrow(
+        420,
+        str(args, 'source') === 'live'
+          ? h(OrganizationUnitSwitcher, {
+              limit: num(args, 'limit') || 10,
+              onSwitch: (unit: {id: string}) => action('switch', quoted(unit.id)),
+              scope: str(args, 'scope') === 'siblings' ? 'siblings' : undefined,
+            })
+          : h(SampleOrganizationUnitSwitcher, {
+              action,
+              error: str(args, 'error') || null,
+              limit: num(args, 'limit') || 2,
+            }),
+      ),
+    stories: [
+      {id: 'base', name: 'Base'},
+      {args: {error: 'This application cannot be used from Acme OU 2.'}, id: 'error', name: 'With error'},
+      {args: {limit: 10, source: 'live'}, id: 'live', name: 'Signed-in user'},
+    ],
+  },
+  {
+    code: (args: Args) =>
+      str(args, 'source') === 'live'
+        ? {
             imports: ['UserDropdown'],
             script: handler('openProfile'),
             template: tpl('UserDropdown', omit(args, 'source'), {
@@ -1267,6 +1324,9 @@ export const COMPONENTS: ComponentDef[] = [
     ],
   },
   ...ADMIN_COMPONENTS,
+  ...PROJECT_STORIES,
+  ...ORGANIZATION_UNIT_ADMIN_STORIES,
+  ...SHARING_STORIES,
   ...CUSTOM_RENDER_COMPONENTS,
 ];
 

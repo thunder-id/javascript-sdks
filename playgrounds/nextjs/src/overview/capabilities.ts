@@ -38,7 +38,7 @@ import type {
   ThunderIDContextProps as ReactContextProps,
   UserContextProps,
 } from '@thunderid/react';
-import {readConfig, readServerSession} from '../app/actions';
+import {readConfig, readOrganizationUnits, readServerSession} from '../app/actions';
 import {COMPONENTS, STORY_COUNT} from '../explorer/stories';
 import {describeError, track} from '../lib/events';
 import {checkServerHealth} from '../lib/health';
@@ -622,10 +622,25 @@ export const CAPABILITIES: Capability[] = [
     section: 'User',
   },
   {
-    api: 'useOrganization() · switchOrganization()',
+    api: 'thunderid().getAccessibleOrganizationUnits() · useThunderID().currentOrganizationUnit',
     id: 'orgs',
-    name: 'Organizations',
-    run: () => unavailable('@thunderid/nextjs has no organization API'),
+    name: 'Organization units',
+    run: async (getContext: () => CapabilityContext) => {
+      const gate: CapabilityResult | null = requireSignedIn(getContext());
+
+      if (gate) return gate;
+
+      const list = await track('getAccessibleOrganizationUnits', () => readOrganizationUnits());
+      const current = list.organizationUnits.find((unit) => unit.id === list.current);
+      const claimed = getContext().reactSdk.currentOrganizationUnit;
+      const claims: string = claimed
+        ? `session claims name ${claimed.handle ?? claimed.id}`
+        : 'session carries no ouId claim';
+
+      return pass(
+        `${list.totalResults} unit${list.totalResults === 1 ? '' : 's'}; current ${current?.handle ?? list.current}; ${claims}. Switch in Components > OrganizationUnitSwitcher (live)`,
+      );
+    },
     section: 'User',
   },
   {

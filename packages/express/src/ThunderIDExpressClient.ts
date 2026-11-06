@@ -120,12 +120,20 @@ class ThunderIDExpressClient<T extends ExpressClientConfig = ExpressClientConfig
       res.redirect(url);
     };
 
+    // `?ouId=` bounds the sign-in to an organization unit, as a backend's sign-in endpoint does. On the
+    // callback the unit is already recorded with the request, so the parameter is not needed there.
+    const ouId: unknown = req.query['ouId'];
+    const resolvedSignInConfig: ExtendedAuthorizeRequestUrlParams | undefined =
+      typeof ouId === 'string' && ouId !== '' && !req.query['code']
+        ? {...signInConfig, organizationUnitId: ouId}
+        : signInConfig;
+
     const authResponse: TokenResponse = (await super.signIn(
       authRedirectCallback,
       userId,
       req.query['code'] as string | undefined,
       req.query['state'] as string | undefined,
-      signInConfig,
+      resolvedSignInConfig,
     )) as unknown as TokenResponse;
 
     if (authResponse.accessToken || authResponse.idToken) {
