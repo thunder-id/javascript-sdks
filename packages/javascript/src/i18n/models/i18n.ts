@@ -430,6 +430,12 @@ export interface I18nTranslations {
   'admin.applications.list.columns.status': string;
   'admin.applications.list.empty': string;
   'admin.applications.list.error': string;
+  'admin.flows.list.title': string;
+  'admin.flows.list.columns.name': string;
+  'admin.flows.list.columns.handle': string;
+  'admin.flows.list.columns.type': string;
+  'admin.flows.list.empty': string;
+  'admin.flows.list.error': string;
   'admin.applications.status.active': string;
   'admin.applications.status.suspended': string;
   'admin.applications.create.title': string;
@@ -581,6 +587,35 @@ export interface I18nTranslations {
   'admin.sharing.overlay.excluded': string;
   'admin.sharing.overlay.editable': string;
   'admin.sharing.overlay.error': string;
+  'admin.flowVariables.title': string;
+  'admin.flowVariables.empty': string;
+  'admin.flowVariables.submit': string;
+  'admin.flowVariables.error': string;
+  'admin.flowVariables.load_error': string;
+  'admin.flowVariables.select_placeholder': string;
+  'admin.flowVariables.enter_value': string;
+  'admin.flowVariables.no_options': string;
+  'admin.flowVariables.errors.required': string;
+  'admin.flowVariables.errors.invalid': string;
+  'admin.flowVariables.errors.min': string;
+  'admin.flowVariables.errors.max': string;
+  'admin.flowVariables.errors.min_length': string;
+  'admin.flowVariables.errors.max_length': string;
+  'admin.flowVariables.errors.pattern': string;
+  'admin.flowVariables.errors.not_option': string;
+  'admin.flowVariables.status.customized': string;
+  'admin.flowVariables.use_default': string;
+  'admin.flowVariables.default_hint': string;
+  'admin.flowVariables.locked': string;
+  'admin.flowVariables.owner_fallback': string;
+  'admin.flowVariables.ou_fallback': string;
+  'admin.flowVariables.connections_hint': string;
+  'admin.flowVariables.create_connection': string;
+  'admin.flowVariables.notice_title': string;
+  'admin.flowVariables.notice_body': string;
+  'admin.flowVariables.reset_defaults': string;
+  'admin.flowVariables.on': string;
+  'admin.flowVariables.off': string;
 }
 
 export type I18nTextDirection = 'ltr' | 'rtl';
