@@ -13,6 +13,11 @@ export interface GetFlowConfig extends ManagementRequestConfig {
    * Identifier of the flow.
    */
   flowId: string;
+  /**
+   * Returns the flow as this organization unit sees it. A flow shared with the unit comes back as its
+   * variables only. Leave it out for the whole definition.
+   */
+  ouId?: string;
 }
 
 /**
@@ -26,13 +31,14 @@ export interface GetFlowConfig extends ManagementRequestConfig {
  * const flow = await getFlow({baseUrl: 'https://localhost:8090', flowId});
  * ```
  */
-const getFlow = async ({flowId, ...config}: GetFlowConfig): Promise<ManagedFlowDefinition> =>
+const getFlow = async ({flowId, ouId, ...config}: GetFlowConfig): Promise<ManagedFlowDefinition> =>
   requestManagementResource<ManagedFlowDefinition>(config, {
     collection: 'flows',
     failureMessage: 'Failed to fetch flow',
     id: flowId,
     method: 'GET',
     operation: 'getFlow',
+    query: {ouId},
   });
 
 export default getFlow;

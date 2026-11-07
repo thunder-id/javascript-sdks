@@ -20,6 +20,11 @@ export type GetConnectionsConfig<T extends ConnectionType | undefined = undefine
      */
     category?: ConnectionCategory;
     /**
+     * Lists the connections this organization unit owns, followed by the ones shared into it, instead of every
+     * connection the caller can see. Applies to the listing across every type.
+     */
+    ouId?: string;
+    /**
      * Lists the connections of this type only. The server returns them as an array, without paging, so
      * `category`, `limit` and `offset` do not apply.
      */
@@ -44,12 +49,14 @@ export type GetConnectionsResult<T extends ConnectionType | undefined> = T exten
  * ```typescript
  * const {connections} = await getConnections({baseUrl: 'https://localhost:8090', category: 'identity-provider'});
  * const googleConnections = await getConnections({baseUrl: 'https://localhost:8090', type: 'google'});
+ * const available = await getConnections({baseUrl: 'https://localhost:8090', ouId: 'ou-1'});
  * ```
  */
 const getConnections = async <T extends ConnectionType | undefined = undefined>({
   category,
   limit,
   offset,
+  ouId,
   type,
   ...config
 }: GetConnectionsConfig<T>): Promise<GetConnectionsResult<T>> =>
@@ -61,7 +68,7 @@ const getConnections = async <T extends ConnectionType | undefined = undefined>(
           failureMessage: 'Failed to fetch connections',
           method: 'GET',
           operation: 'getConnections',
-          query: {category, limit, offset},
+          query: {category, filter: ouId ? `ouId eq "${ouId.replace(/"/g, '')}"` : undefined, limit, offset},
         }
       : {
           collection: 'connections',

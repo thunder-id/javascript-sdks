@@ -217,6 +217,24 @@ export * from './components/management/GroupList/BaseGroupList';
 export {default as GroupList} from './components/management/GroupList/GroupList';
 export * from './components/management/GroupList/GroupList';
 
+export {default as BaseFlowVariables} from './components/management/FlowVariables/BaseFlowVariables';
+export * from './components/management/FlowVariables/BaseFlowVariables';
+
+export {default as FlowVariableField} from './components/management/FlowVariables/FlowVariableField';
+export * from './components/management/FlowVariables/FlowVariableField';
+
+export {default as FlowVariablesForm} from './components/management/FlowVariables/FlowVariablesForm';
+export * from './components/management/FlowVariables/FlowVariablesForm';
+
+export {default as BaseSharedFlowList} from './components/management/SharedFlowList/BaseSharedFlowList';
+export * from './components/management/SharedFlowList/BaseSharedFlowList';
+
+export {default as SharedFlowList} from './components/management/SharedFlowList/SharedFlowList';
+export * from './components/management/SharedFlowList/SharedFlowList';
+
+export {default as useFlowVariables} from './hooks/management/useFlowVariables';
+export * from './hooks/management/useFlowVariables';
+
 export {default as BaseGroupCreate} from './components/management/GroupCreate/BaseGroupCreate';
 export * from './components/management/GroupCreate/BaseGroupCreate';
 
@@ -594,7 +612,23 @@ export {
 export {
   AgentQueryKeys,
   ApplicationQueryKeys,
+  FlowQueryKeys,
+  FlowVariableQueryKeys,
   GroupQueryKeys,
+  getFlowOverlayRules,
+  getFlowVariableDefinitions,
+  getFlowVariableOptions,
+  getFlowVariables,
+  resolveFlowVariableRule,
+  validateFlowVariableValue,
+  type FlowVariableDefinition,
+  type FlowVariableOption,
+  type FlowVariableOptionRestriction,
+  type FlowVariableType,
+  type FlowVariableValidationError,
+  type FlowVariableValidationRule,
+  type FlowVariableValues,
+  type ResolvedFlowVariableRule,
   RoleQueryKeys,
   UserQueryKeys,
   addGroupMembers,
@@ -824,11 +858,9 @@ export {
   getDesignThemeUsages,
   getDesignThemes,
   getFlow,
-  getFlowOverlayRules,
   getFlowSharingPolicies,
   getFlowSharingPolicy,
   getFlowUsages,
-  getFlowVariables,
   getFlowVersion,
   getFlowVersions,
   getFlows,

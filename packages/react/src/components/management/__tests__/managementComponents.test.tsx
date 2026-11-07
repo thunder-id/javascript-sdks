@@ -35,6 +35,8 @@ import RoleDetails from '../RoleDetails/RoleDetails';
 import RoleList from '../RoleList/RoleList';
 import BaseRolePermissions from '../RolePermissions/BaseRolePermissions';
 import RolePermissions from '../RolePermissions/RolePermissions';
+import BaseSharedFlowList from '../SharedFlowList/BaseSharedFlowList';
+import SharedFlowList from '../SharedFlowList/SharedFlowList';
 import BaseUserCreate from '../UserCreate/BaseUserCreate';
 import UserCreate from '../UserCreate/UserCreate';
 import BaseUserDetails from '../UserDetails/BaseUserDetails';
@@ -1294,6 +1296,80 @@ describe('applications', () => {
 
     await screen.findByText('portal-client');
     expect(paths(fetcher)).toEqual(['GET /applications?limit=5&offset=0']);
+  });
+
+  it('lists shared flows with their handle and type, and reports the one chosen', () => {
+    const onSelect: Mock = vi.fn();
+    const flow = {activeVersion: 1, flowType: 'AUTHENTICATION', handle: 'enterprise', id: 'flow-1', name: 'Enterprise'};
+
+    renderWithProviders(<BaseSharedFlowList flows={[flow]} onSelect={onSelect} />);
+
+    const table: HTMLElement = screen.getByRole('table', {name: 'Shared flows'});
+    expect(within(table).getByText('enterprise')).toBeTruthy();
+    expect(within(table).getByText('AUTHENTICATION')).toBeTruthy();
+
+    fireEvent.click(within(table).getByText('Enterprise'));
+    expect(onSelect).toHaveBeenCalledWith(flow);
+  });
+
+  it('says no flow is shared when the list is empty', () => {
+    renderWithProviders(<BaseSharedFlowList flows={[]} />);
+
+    expect(screen.getByText('No flows have been shared with this organization unit.')).toBeTruthy();
+  });
+
+  describe('shared flow list ownership', () => {
+    const unitFlows = {
+      count: 2,
+      flows: [
+        {
+          activeVersion: 1,
+          flowType: 'AUTHENTICATION',
+          handle: 'own',
+          id: 'flow-1',
+          isOwnedByOU: true,
+          name: 'Owned flow',
+        },
+        {
+          activeVersion: 1,
+          flowType: 'AUTHENTICATION',
+          handle: 'shared',
+          id: 'flow-2',
+          isOwnedByOU: false,
+          name: 'Shared flow',
+        },
+      ],
+      totalResults: 2,
+    };
+
+    it('lists only the flows shared with the unit by default', async () => {
+      const fetcher: FetcherMock = vi.fn<ApiFetcher>().mockResolvedValue(respond(unitFlows));
+
+      renderWithProviders(<SharedFlowList ouId="ou-1" />, {fetcher});
+
+      await screen.findByText('Shared flow');
+      expect(screen.queryByText('Owned flow')).toBeNull();
+      expect(paths(fetcher)).toEqual(['GET /flows?filter=ouId+eq+%22ou-1%22&limit=100&offset=0']);
+    });
+
+    it('lists only the flows the unit owns when asked', async () => {
+      const fetcher: FetcherMock = vi.fn<ApiFetcher>().mockResolvedValue(respond(unitFlows));
+
+      renderWithProviders(<SharedFlowList ouId="ou-1" ownership="owned" />, {fetcher});
+
+      await screen.findByText('Owned flow');
+      expect(screen.queryByText('Shared flow')).toBeNull();
+    });
+
+    it('lists both a page at a time when asked for all', async () => {
+      const fetcher: FetcherMock = vi.fn<ApiFetcher>().mockResolvedValue(respond(unitFlows));
+
+      renderWithProviders(<SharedFlowList ouId="ou-1" ownership="all" limit={5} />, {fetcher});
+
+      await screen.findByText('Owned flow');
+      expect(screen.getByText('Shared flow')).toBeTruthy();
+      expect(paths(fetcher)).toEqual(['GET /flows?filter=ouId+eq+%22ou-1%22&limit=5&offset=0']);
+    });
   });
 
   it('needs a redirect URI for the authorization code grant and submits the OAuth basics', () => {

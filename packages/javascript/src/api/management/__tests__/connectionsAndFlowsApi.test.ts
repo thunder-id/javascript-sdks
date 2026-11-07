@@ -39,6 +39,12 @@ describe('connections API', () => {
       '/connections?category=identity-provider&limit=10&offset=0',
     ],
     [
+      'getConnections of one organization unit',
+      (fetcher) => getConnections({baseUrl, fetcher, limit: 100, ouId: 'ou-1'}),
+      'GET',
+      '/connections?filter=ouId+eq+%22ou-1%22&limit=100',
+    ],
+    [
       'getConnections of one type',
       (fetcher) => getConnections({baseUrl, fetcher, limit: 10, type: 'email-smtp'}),
       'GET',

@@ -314,6 +314,15 @@ export {default as restoreFlowVersion} from './api/management/flows/restoreFlowV
 export type {RestoreFlowVersionConfig} from './api/management/flows/restoreFlowVersion';
 export {default as getFlowUsages} from './api/management/flows/getFlowUsages';
 export type {GetFlowUsagesConfig} from './api/management/flows/getFlowUsages';
+export {default as FlowVariableQueryKeys} from './constants/FlowVariableQueryKeys';
+export {default as FlowQueryKeys} from './constants/FlowQueryKeys';
+export * from './models/flow-variable';
+export {default as getFlowVariableDefinitions} from './utils/getFlowVariableDefinitions';
+export {default as getFlowVariableOptions} from './utils/getFlowVariableOptions';
+export type {FlowVariableOption, FlowVariableOptionRestriction} from './utils/getFlowVariableOptions';
+export {default as resolveFlowVariableRule} from './utils/resolveFlowVariableRule';
+export type {ResolvedFlowVariableRule} from './utils/resolveFlowVariableRule';
+export {default as validateFlowVariableValue} from './utils/validateFlowVariableValue';
 export {default as getNotificationTemplates} from './api/management/notification-templates/getNotificationTemplates';
 export type {GetNotificationTemplatesConfig} from './api/management/notification-templates/getNotificationTemplates';
 export {default as getNotificationTemplate} from './api/management/notification-templates/getNotificationTemplate';
