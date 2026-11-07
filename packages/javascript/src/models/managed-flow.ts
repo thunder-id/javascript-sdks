@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import {ApiPaginationLink} from './api';
+import {FlowVariableDefinition} from './flow-variable';
 
 /**
  * A flow definition as listed by the ThunderID management API.
@@ -12,6 +13,11 @@ export interface ManagedFlow {
   flowType: string;
   handle: string;
   id: string;
+  /**
+   * In a list requested for an organization unit: whether it owns the flow. `false` means the flow was shared
+   * with it.
+   */
+  isOwnedByOU?: boolean;
   isReadOnly?: boolean;
   name: string;
   updatedAt?: string;
@@ -36,6 +42,10 @@ export interface ManagedFlowNode {
   executor?: {inputs?: Record<string, unknown>[]; mode?: string; name: string};
   flow?: {ref: string};
   id: string;
+  /**
+   * On a `VARIABLES` node: the variables the flow declares.
+   */
+  inputs?: Record<string, unknown>[];
   layout?: {position?: {x: number; y: number}; size?: {height: number; width: number}};
   message?: string;
   meta?: Record<string, unknown>;
@@ -56,7 +66,20 @@ export interface ManagedFlowNode {
  * A flow with its graph.
  */
 export interface ManagedFlowDefinition extends ManagedFlow {
+  /**
+   * Whether the organization unit the flow was requested for owns it.
+   */
+  isOwnedByOU?: boolean;
   nodes: ManagedFlowNode[];
+  /**
+   * The organization unit the flow was requested for.
+   */
+  ouId?: string;
+  /**
+   * Set on a flow shared with the requested organization unit, which comes back as its variables only. A
+   * flow the unit owns declares them on its `VARIABLES` node instead.
+   */
+  variables?: FlowVariableDefinition[];
 }
 
 /**

@@ -107,6 +107,12 @@ describe('management API', () => {
     ],
     ['getFlows without a flow type', (fetcher: ApiFetcher) => getFlows({baseUrl, fetcher}), 'GET', `${baseUrl}/flows`],
     [
+      'getFlows of an organization unit',
+      (fetcher: ApiFetcher) => getFlows({baseUrl, fetcher, ouId: 'ou-1'}),
+      'GET',
+      `${baseUrl}/flows?filter=ouId+eq+%22ou-1%22`,
+    ],
+    [
       'getUserTypes',
       (fetcher: ApiFetcher) => getUserTypes({baseUrl, fetcher, limit: 30, offset: 30}),
       'GET',

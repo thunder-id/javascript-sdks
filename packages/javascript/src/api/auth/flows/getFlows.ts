@@ -15,6 +15,11 @@ export type GetFlowsConfig = ManagementRequestConfig &
      * when omitted.
      */
     flowType?: string;
+    /**
+     * Lists the flows this organization unit owns, followed by the ones shared with it, instead of every flow the
+     * caller can see.
+     */
+    ouId?: string;
   };
 
 /**
@@ -30,15 +35,16 @@ export type GetFlowsConfig = ManagementRequestConfig &
  *   flowType: 'AUTHENTICATION',
  *   limit: 30,
  * });
+ * const shared = await getFlows({baseUrl: 'https://localhost:8090', ouId: 'ou-1'});
  * ```
  */
-const getFlows = async ({flowType, limit, offset, ...config}: GetFlowsConfig): Promise<ManagedFlowListResponse> =>
+const getFlows = async ({flowType, limit, offset, ouId, ...config}: GetFlowsConfig): Promise<ManagedFlowListResponse> =>
   requestManagementResource<ManagedFlowListResponse>(config, {
     collection: 'flows',
     failureMessage: 'Failed to fetch flows',
     method: 'GET',
     operation: 'getFlows',
-    query: {flowType, limit, offset},
+    query: {filter: ouId ? `ouId eq "${ouId.replace(/"/g, '')}"` : undefined, flowType, limit, offset},
   });
 
 export default getFlows;
