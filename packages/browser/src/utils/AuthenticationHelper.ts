@@ -44,6 +44,9 @@ interface Message<T> {
   data?: T;
 }
 
+/** Methods that change nothing on the server, so sending one twice is harmless. */
+const RETRY_SAFE_HTTP_METHODS: string[] = ['GET', 'HEAD', 'OPTIONS'];
+
 interface HttpRequestInterface {
   httpClient: HttpClient;
   requestConfig: HttpRequestConfig;
@@ -230,6 +233,31 @@ class AuthenticationHelper<T> {
     }
   }
 
+  /**
+   * Whether a failed request should be sent again after a token refresh: any method on a 401, and
+   * only a safe method when there is no response, since the server may have acted on it. A request the
+   * caller aborted is never sent again.
+   *
+   * @param error - The error the request failed with.
+   * @param requestConfig - The failed request's configuration.
+   * @returns `true` if the request should be sent again after a token refresh.
+   */
+  private shouldRetryAfterRefresh(error: HttpError, requestConfig: HttpRequestConfig): boolean {
+    if (error?.code === 'ABORT_ERROR' || error?.name === 'AbortError') {
+      return false;
+    }
+
+    if (error?.response?.status === 401) {
+      return true;
+    }
+
+    if (error?.response) {
+      return false;
+    }
+
+    return RETRY_SAFE_HTTP_METHODS.includes((requestConfig?.method ?? 'GET').toUpperCase());
+  }
+
   private async retryFailedRequests(failedRequest: HttpRequestInterface): Promise<HttpResponse> {
     const {httpClient, requestConfig, isHttpHandlerEnabled, httpErrorCallback, httpFinishCallback} = failedRequest;
 
@@ -253,7 +281,7 @@ class AuthenticationHelper<T> {
 
   /**
    * Sends an HTTP request via the provided client, automatically attaching the token,
-   * and retries once after a token refresh on a 401 response.
+   * and retries once after a token refresh when `shouldRetryAfterRefresh` allows it.
    *
    * @param httpClient - The HTTP client to use.
    * @param requestConfig - The request configuration.
@@ -277,7 +305,7 @@ class AuthenticationHelper<T> {
         return Promise.resolve(response);
       })
       .catch(async (error: HttpError) => {
-        if (error?.response?.status === 401 || !error?.response) {
+        if (this.shouldRetryAfterRefresh(error, requestConfig)) {
           if (this._isTokenRefreshing) {
             return this.retryFailedRequests({
               enableRetrievingSignOutURLFromSession,
