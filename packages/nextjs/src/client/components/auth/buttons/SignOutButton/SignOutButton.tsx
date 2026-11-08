@@ -43,26 +43,46 @@ const SignOutButton: ForwardRefExoticComponent<SignOutButtonProps & RefAttribute
 
     const [isLoading, setIsLoading] = useState(false);
 
-    const handleOnClick = async (e: MouseEvent<HTMLButtonElement>): Promise<void> => {
+    const handleSignOut = async (): Promise<boolean> => {
       try {
         setIsLoading(true);
 
-        logger.debug('[SignOutButton] Initiating a sign-out from a button click');
+        logger.debug('[SignOutButton] Initiating a sign-out');
 
         await signOut();
 
-        if (onClick) {
-          onClick(e);
-        }
+        return true;
       } catch (error) {
-        logger.error('[SignOutButton] Error occurred initiating sign-out from a button click:', error);
+        logger.error('[SignOutButton] Error occurred initiating sign-out:', error);
+
+        return false;
       } finally {
         setIsLoading(false);
       }
     };
 
+    // What a render function receives as `signOut`.
+    const signOutFromRenderProp = async (): Promise<void> => {
+      await handleSignOut();
+    };
+
+    const handleOnClick = async (e: MouseEvent<HTMLButtonElement>): Promise<void> => {
+      if ((await handleSignOut()) && onClick) {
+        onClick(e);
+      }
+    };
+
     return (
-      <BaseSignOutButton ref={ref} onClick={handleOnClick} isLoading={isLoading} preferences={preferences} {...rest}>
+      <BaseSignOutButton
+        className={className}
+        style={style}
+        ref={ref}
+        onClick={handleOnClick}
+        isLoading={isLoading}
+        signOut={signOutFromRenderProp}
+        preferences={preferences}
+        {...rest}
+      >
         {children ?? t('elements.buttons.signout.text')}
       </BaseSignOutButton>
     );
