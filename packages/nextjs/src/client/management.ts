@@ -4,9 +4,10 @@
 'use client';
 
 // The management surface of `@thunderid/react` that needs no Next.js-specific wiring: the
-// unstyled `Base*` admin components, which take their data as props, and `useManagementRequestConfig`,
-// whose config lets an app call the management API functions through the `http.fetcher` that
-// `ThunderIDProvider` installs (a server action holding the access token). The styled admin components
+// unstyled `Base*` admin components and `FlowVariableField`, which take their data as props,
+// `useFlowVariables`, and `useManagementRequestConfig`, whose config lets an app call the management API
+// functions. The hooks reach the management API through the `http.fetcher` that `ThunderIDProvider`
+// installs (a server action holding the access token). The styled admin components
 // have their own wrappers under `components/management`, and `useGrantedPermissions` has a Next.js
 // implementation.
 
@@ -103,6 +104,16 @@ export {
   BaseSharingPolicies,
   type BaseSharingPoliciesProps,
   type BaseSharingPoliciesRenderProps,
+  BaseSharedFlowList,
+  type BaseSharedFlowListProps,
+  type BaseSharedFlowListRenderProps,
+  BaseFlowVariables,
+  type BaseFlowVariablesProps,
+  type BaseFlowVariablesRenderProps,
+  FlowVariableField,
+  type FlowVariableFieldProps,
 } from '@thunderid/react';
 
 export {useManagementRequestConfig, type ManagementCollection, type GrantedPermissions} from '@thunderid/react';
+
+export {useFlowVariables, type UseFlowVariablesOptions, type UseFlowVariablesResult} from '@thunderid/react';

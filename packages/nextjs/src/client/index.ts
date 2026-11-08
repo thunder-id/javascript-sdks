@@ -136,6 +136,12 @@ export type {OrganizationUnitDetailsProps} from './components/management/Organiz
 export {default as SharingPolicies} from './components/management/SharingPolicies/SharingPolicies';
 export type {SharingPoliciesProps} from './components/management/SharingPolicies/SharingPolicies';
 
+export {default as SharedFlowList} from './components/management/SharedFlowList/SharedFlowList';
+export type {SharedFlowListProps} from './components/management/SharedFlowList/SharedFlowList';
+
+export {default as FlowVariablesForm} from './components/management/FlowVariablesForm/FlowVariablesForm';
+export type {FlowVariablesFormProps} from './components/management/FlowVariablesForm/FlowVariablesForm';
+
 export {default as useGrantedPermissions} from './hooks/management/useGrantedPermissions';
 
 export * from './management';
