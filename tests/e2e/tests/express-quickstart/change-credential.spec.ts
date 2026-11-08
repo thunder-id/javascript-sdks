@@ -19,6 +19,7 @@ import {APIRequestContext} from '@playwright/test';
 import {credentialTestUser} from '../../constants/credential-test-users';
 import {SampleApps, sampleAppUrl} from '../../constants/sample-apps';
 import {expect, test} from '../../fixtures/sample-apps';
+import {setUserPassword} from '../../utils/users-api';
 
 const appUrl = sampleAppUrl(SampleApps.EXPRESS);
 const {username, password} = credentialTestUser('EXPRESS');
@@ -34,6 +35,8 @@ function updateCredentials(request: APIRequestContext, accessToken: string, newP
 }
 
 test.describe('express/quickstart - Change credential', () => {
+  test.beforeEach(() => setUserPassword(username, password));
+
   test('TC001: a password change via PATCH /api/me/credentials takes effect and can be reverted', async ({
     expressQuickstartPage,
     request,
