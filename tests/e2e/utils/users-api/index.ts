@@ -38,3 +38,19 @@ export async function deleteUser(userId: string): Promise<boolean> {
   const response = await send('DELETE', `/users/${userId}`);
   return response.ok;
 }
+
+/**
+ * Set a user's password through the admin API, bypassing any UI. The change-credential specs call
+ * this before each attempt. If an attempt fails halfway, the temporary password stays set, and the
+ * retry can't sign in with the original one.
+ */
+export async function setUserPassword(username: string, password: string): Promise<void> {
+  const filter = `username eq "${username}"`;
+  const response = await sendOk('GET', `/users?filter=${encodeURIComponent(filter)}`);
+  const {users} = (await response.json()) as {users?: {attributes?: {username?: string}; id: string}[]};
+  const user = (users ?? []).find((candidate) => candidate.attributes?.username === username);
+  if (!user) {
+    throw new Error(`No user "${username}" to set the password for`);
+  }
+  await sendOk('POST', `/users/${user.id}/update-credentials`, {credentials: {password}});
+}
