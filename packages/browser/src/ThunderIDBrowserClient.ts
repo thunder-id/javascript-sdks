@@ -455,7 +455,10 @@ class ThunderIDBrowserClient<T = BrowserAuthConfig> extends ThunderIDJavaScriptC
    * - Embedded mode starts an `AUTHENTICATION` flow with `ouId`, presenting the SSO session handles kept
    *   from earlier flow steps. A flow that needs input fails with `interaction_required`; render the
    *   sign-in for the unit instead.
-   * - Backend mode sends the page to the backend's sign-in endpoint with `ouId`.
+   * - Backend mode sends `POST {ouSwitch}?ouId=` to the backend, which switches its session, then reads
+   *   the session again, so the page stays where it is. When the backend needs the user, it sends the
+   *   page to the backend's sign-in endpoint with `ouId` (unless `redirect` is `false`). The extra
+   *   parameters do not apply.
    *
    * A failed switch leaves the previous session as it was.
    *
@@ -477,13 +480,7 @@ class ThunderIDBrowserClient<T = BrowserAuthConfig> extends ThunderIDJavaScriptC
     }
 
     if (this._backend) {
-      location.href = this._backend.getSignInUrl(
-        `${window.location.pathname}${window.location.search}`,
-        organizationUnitId,
-      );
-      await SPAUtils.waitTillPageRedirect();
-
-      return undefined;
+      return this._switchOrganizationUnitOnBackend(organizationUnitId, options.redirect !== false);
     }
 
     const {redirect = true, ...params} = options;
@@ -551,6 +548,44 @@ class ThunderIDBrowserClient<T = BrowserAuthConfig> extends ThunderIDJavaScriptC
     await SPAUtils.waitTillPageRedirect();
 
     return undefined;
+  }
+
+  /**
+   * Backend mode: asks the backend's `ouSwitch` endpoint to switch, then reads its session again, so the
+   * page stays where it is. When the backend needs the user, the page goes to the backend's sign-in for
+   * the unit instead, unless `redirect` is off.
+   */
+  private async _switchOrganizationUnitOnBackend(
+    organizationUnitId: string,
+    redirect: boolean,
+  ): Promise<User | undefined> {
+    let refusal: {error?: string} | undefined;
+
+    try {
+      refusal = await this._backend!.switchOrganizationUnit(organizationUnitId);
+    } catch (error) {
+      throw ThunderIDBrowserClient._toSwitchError(undefined, error);
+    }
+
+    if (refusal) {
+      if (!redirect || !refusal.error || !INTERACTION_ERRORS.includes(refusal.error)) {
+        throw ThunderIDBrowserClient._toSwitchError(refusal.error);
+      }
+
+      location.href = this._backend!.getSignInUrl(
+        `${window.location.pathname}${window.location.search}`,
+        organizationUnitId,
+      );
+      await SPAUtils.waitTillPageRedirect();
+
+      return undefined;
+    }
+
+    const user: User = await this.getUser();
+
+    void this._emitHook(Hooks.SignIn, user);
+
+    return user;
   }
 
   /**

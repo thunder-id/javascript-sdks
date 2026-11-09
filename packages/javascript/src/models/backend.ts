@@ -33,6 +33,13 @@ export interface BackendEndpoints {
   /** Ends the session. Defaults to `/api/auth/signout`. */
   signOut?: string;
   /**
+   * Switches the session to another organization unit without leaving the page. The SDK sends
+   * `POST {ouSwitch}?ouId=<unit id>` and reads the session again on success. A refusal answers with an
+   * OAuth `error` in a JSON body; when that error says the user has to sign in (`interaction_required`,
+   * `login_required`, …), the SDK falls back to `signIn` with `ouId`. Defaults to `/api/auth/switch`.
+   */
+  ouSwitch?: string;
+  /**
    * The backend's API proxy, which forwards to the API with the access token. The backend maps it to
    * the API from its own configuration, so the app never needs the API's address. The SDK builds its
    * API requests, such as `/users/me` and the management APIs, on it, and sends a relative request

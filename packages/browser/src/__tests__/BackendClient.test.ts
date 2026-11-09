@@ -10,6 +10,7 @@ import BackendHttpClient from '../BackendHttpClient';
 const ENDPOINTS: ResolvedBackendEndpoints = {
   bypass: {attachToken: true, urls: ['https://dp.example.com/api']},
   checkSession: '/api/auth/checksession',
+  ouSwitch: '/api/auth/switch',
   proxy: '/api/auth/proxy',
   refresh: '/api/auth/refresh',
   session: '/api/auth/session',
@@ -89,6 +90,77 @@ describe('BackendClient', () => {
     expect(new BackendClient(ENDPOINTS).getSignInUrl('/app', 'ou 1')).toBe(
       '/api/auth/signin?returnTo=%2Fapp&ouId=ou+1',
     );
+  });
+
+  it('switches the organization unit with a POST to the backend and reads the session again', async () => {
+    fetchMock
+      .mockResolvedValueOnce(json(200, {isSignedIn: true, user: {ouId: 'ou-1'}}))
+      .mockResolvedValueOnce(empty(204))
+      .mockResolvedValueOnce(json(200, {isSignedIn: true, user: {ouId: 'ou 2'}}));
+    const backend = new BackendClient(ENDPOINTS);
+    await backend.getSession();
+
+    expect(await backend.switchOrganizationUnit('ou 2')).toBeUndefined();
+    expect((await backend.getSession()).user).toEqual({ouId: 'ou 2'});
+
+    const [url, init] = fetchMock.mock.calls[1];
+    expect(url).toBe('/api/auth/switch?ouId=ou+2');
+    expect(init.method).toBe('POST');
+    expect(init.credentials).toBe('include');
+    expect(init.headers[BACKEND_REQUEST_HEADER]).toBe('XMLHttpRequest');
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+  });
+
+  it('refreshes the session and retries the switch once when the session has expired', async () => {
+    fetchMock
+      .mockResolvedValueOnce(json(401, {error: 'session_expired'}))
+      .mockResolvedValueOnce(empty(204))
+      .mockResolvedValueOnce(empty(204));
+
+    expect(await new BackendClient(ENDPOINTS).switchOrganizationUnit('ou-2')).toBeUndefined();
+    expect(fetchMock.mock.calls.map((call: unknown[]) => call[0])).toEqual([
+      '/api/auth/switch?ouId=ou-2',
+      '/api/auth/refresh',
+      '/api/auth/switch?ouId=ou-2',
+    ]);
+  });
+
+  it('reports login_required when the session cannot be refreshed for the switch', async () => {
+    fetchMock
+      .mockResolvedValueOnce(json(200, {isSignedIn: true}))
+      .mockResolvedValueOnce(json(401, {error: 'session_expired'}))
+      .mockResolvedValueOnce(json(401, {}));
+    const backend = new BackendClient(ENDPOINTS);
+    await backend.getSession();
+
+    expect(await backend.switchOrganizationUnit('ou-2')).toEqual({error: 'login_required'});
+    expect((await backend.getSession()).isSignedIn).toBe(false);
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+  });
+
+  it('returns the refusal and keeps the session when the backend will not switch', async () => {
+    fetchMock
+      .mockResolvedValueOnce(json(200, {isSignedIn: true, user: {ouId: 'ou-1'}}))
+      .mockResolvedValueOnce(json(400, {error: 'unauthorized_client'}))
+      .mockResolvedValueOnce(empty(502));
+    const backend = new BackendClient(ENDPOINTS);
+    await backend.getSession();
+
+    expect(await backend.switchOrganizationUnit('ou-2')).toEqual({error: 'unauthorized_client'});
+    expect(await backend.switchOrganizationUnit('ou-2')).toEqual({});
+    expect((await backend.getSession()).user).toEqual({ouId: 'ou-1'});
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+  });
+
+  it('reports signed out when the backend says the switch needs a sign-in', async () => {
+    fetchMock
+      .mockResolvedValueOnce(json(200, {isSignedIn: true}))
+      .mockResolvedValueOnce(json(401, {error: 'login_required'}));
+    const backend = new BackendClient(ENDPOINTS);
+    await backend.getSession();
+
+    expect(await backend.switchOrganizationUnit('ou-2')).toEqual({error: 'login_required'});
+    expect((await backend.getSession()).isSignedIn).toBe(false);
   });
 
   it('signs out and returns the end-session URL', async () => {

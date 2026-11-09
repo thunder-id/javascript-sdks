@@ -19,6 +19,7 @@ describe('resolveBackendEndpoints', () => {
     expect(resolveBackendEndpoints({endpoints: {backend: {}}}, ORIGIN)).toEqual({
       bypass: {attachToken: true, urls: []},
       checkSession: '/api/auth/checksession',
+      ouSwitch: '/api/auth/switch',
       proxy: '/api/auth/proxy',
       refresh: '/api/auth/refresh',
       session: '/api/auth/session',
@@ -32,7 +33,14 @@ describe('resolveBackendEndpoints', () => {
     const resolved = resolveBackendEndpoints(
       {
         baseUrl: 'https://bff.example.com/',
-        endpoints: {backend: {proxy: '/gateway/api/', session: '/gateway/me', signIn: '/gateway/signin'}},
+        endpoints: {
+          backend: {
+            ouSwitch: '/gateway/switch',
+            proxy: '/gateway/api/',
+            session: '/gateway/me',
+            signIn: '/gateway/signin',
+          },
+        },
       },
       ORIGIN,
     );
@@ -40,6 +48,7 @@ describe('resolveBackendEndpoints', () => {
     expect(resolved?.signIn).toBe('https://bff.example.com/gateway/signin');
     expect(resolved?.session).toBe('https://bff.example.com/gateway/me');
     expect(resolved?.proxy).toBe('https://bff.example.com/gateway/api');
+    expect(resolved?.ouSwitch).toBe('https://bff.example.com/gateway/switch');
     expect(resolved?.signOut).toBe('https://bff.example.com/api/auth/signout');
   });
 

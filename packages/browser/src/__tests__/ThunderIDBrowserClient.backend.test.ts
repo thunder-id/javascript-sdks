@@ -2,10 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-member-access */
+import {OrganizationUnitSwitchErrorCodes} from '@thunderid/javascript';
 import {afterEach, beforeEach, describe, expect, it, vi, Mock} from 'vitest';
+import BackendClient from '../BackendClient';
 import BackendHttpClient from '../BackendHttpClient';
 import FetchHttpClient from '../FetchHttpClient';
 import ThunderIDBrowserClient from '../ThunderIDBrowserClient';
+import SPAUtils from '../utils/SPAUtils';
 
 const json = (status: number, body: unknown): Response =>
   new Response(JSON.stringify(body), {headers: {'Content-Type': 'application/json'}, status});
@@ -39,6 +42,7 @@ describe('ThunderIDBrowserClient with sign-in on the backend', () => {
   });
 
   afterEach(() => {
+    vi.restoreAllMocks();
     vi.unstubAllGlobals();
     FetchHttpClient.destroyInstance(7);
   });
@@ -178,6 +182,64 @@ describe('ThunderIDBrowserClient with sign-in on the backend', () => {
 
     await expect(client.httpRequest({url: '/users'})).rejects.toBeDefined();
     expect(onError).toHaveBeenCalledTimes(1);
+  });
+
+  it('switches the organization unit through the backend without leaving the page', async () => {
+    const onSignIn = vi.fn();
+    await client.on('sign-in', onSignIn);
+    const href: string = window.location.href;
+    fetchMock
+      .mockResolvedValueOnce(new Response(null, {status: 204}))
+      .mockResolvedValueOnce(json(200, {isSignedIn: true, user: {name: 'Ada', ouId: 'ou-2', sub: 'u1'}}));
+
+    expect(await client.switchOrganizationUnit('ou-2')).toEqual({name: 'Ada', ouId: 'ou-2', sub: 'u1'});
+
+    expect(fetchMock.mock.calls.map((call: unknown[]) => call[0])).toEqual([
+      `${BFF}/api/auth/switch?ouId=ou-2`,
+      `${BFF}/api/auth/session`,
+    ]);
+    expect(fetchMock.mock.calls[0][1].method).toBe('POST');
+    expect(window.location.href).toBe(href);
+    expect((await client.getCurrentOrganizationUnit())?.id).toBe('ou-2');
+    expect(onSignIn).toHaveBeenCalledWith({name: 'Ada', ouId: 'ou-2', sub: 'u1'});
+  });
+
+  it("fails the switch with the backend's error and keeps the session", async () => {
+    fetchMock.mockResolvedValueOnce(json(400, {error: 'unauthorized_client'}));
+
+    const signInUrl = vi.spyOn(BackendClient.prototype, 'getSignInUrl');
+
+    await expect(client.switchOrganizationUnit('ou-2')).rejects.toMatchObject({
+      code: OrganizationUnitSwitchErrorCodes.UnauthorizedClient,
+    });
+    expect(await client.getUser()).toEqual({name: 'Ada', sub: 'u1'});
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(signInUrl).not.toHaveBeenCalled();
+  });
+
+  it('signs in at the backend for the unit when the switch needs the user', async () => {
+    vi.spyOn(SPAUtils, 'waitTillPageRedirect').mockResolvedValue();
+    vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const signInUrl = vi.spyOn(BackendClient.prototype, 'getSignInUrl');
+    fetchMock.mockResolvedValueOnce(json(400, {error: 'interaction_required'}));
+
+    expect(await client.switchOrganizationUnit('ou-2')).toBeUndefined();
+
+    expect(signInUrl).toHaveBeenCalledTimes(1);
+    expect(signInUrl.mock.results[0].value).toBe(
+      `${BFF}/api/auth/signin?returnTo=${encodeURIComponent(window.location.pathname + window.location.search)}&ouId=ou-2`,
+    );
+  });
+
+  it('fails with interaction_required instead of signing in when redirect is off', async () => {
+    const signInUrl = vi.spyOn(BackendClient.prototype, 'getSignInUrl');
+    fetchMock.mockResolvedValueOnce(json(400, {error: 'interaction_required'}));
+
+    await expect(client.switchOrganizationUnit('ou-2', {redirect: false})).rejects.toMatchObject({
+      code: OrganizationUnitSwitchErrorCodes.InteractionRequired,
+    });
+    expect(signInUrl).not.toHaveBeenCalled();
+    expect(await client.getUser()).toEqual({name: 'Ada', sub: 'u1'});
   });
 
   it('signs out through the backend and navigates to the end-session URL', async () => {

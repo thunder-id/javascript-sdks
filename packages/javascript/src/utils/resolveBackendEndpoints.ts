@@ -56,6 +56,7 @@ const resolveBackendEndpoints = (
       urls: (endpoints.bypass?.urls ?? []).map((url: string) => url.replace(/\/+$/, '')),
     },
     checkSession: resolve(endpoints.checkSession, 'checksession'),
+    ouSwitch: resolve(endpoints.ouSwitch, 'switch'),
     proxy: resolve(endpoints.proxy, 'proxy').replace(/\/+$/, ''),
     refresh: resolve(endpoints.refresh, 'refresh'),
     session: resolve(endpoints.session, 'session'),
