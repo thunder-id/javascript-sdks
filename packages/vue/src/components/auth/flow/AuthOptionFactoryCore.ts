@@ -172,6 +172,8 @@ const createAuthComponentFromFlow = (
     fetchUserTypes?: FetchUserTypes;
     inStack?: boolean;
     inputClassName?: string;
+    /** Live validity of the step with the current values; SUBMIT actions stay disabled while it is `false`. */
+    isFormComplete?: boolean;
     isTimeoutDisabled?: boolean;
     key?: string | number;
     meta?: FlowMetadataResponse | null;
@@ -414,6 +416,7 @@ const createAuthComponentFromFlow = (
           disabled:
             isLoading ||
             (!isFormValid && !shouldSkipValidation) ||
+            (!shouldSkipValidation && options.isFormComplete === false) ||
             options.isTimeoutDisabled ||
             (component as any).config?.disabled,
           endIcon: endIconVNode ?? undefined,
@@ -701,6 +704,8 @@ export const renderSignInComponents = (
     additionalData?: Record<string, any>;
     buttonClassName?: string;
     inputClassName?: string;
+    /** Live validity of the step with the current values; SUBMIT actions stay disabled while it is `false`. */
+    isFormComplete?: boolean;
     isTimeoutDisabled?: boolean;
     meta?: FlowMetadataResponse | null;
     onInputBlur?: (name: string) => void;
@@ -746,6 +751,8 @@ export const renderSignUpComponents = (
     additionalData?: Record<string, any>;
     buttonClassName?: string;
     inputClassName?: string;
+    /** Live validity of the step with the current values; SUBMIT actions stay disabled while it is `false`. */
+    isFormComplete?: boolean;
     isTimeoutDisabled?: boolean;
     meta?: FlowMetadataResponse | null;
     onInputBlur?: (name: string) => void;
@@ -832,6 +839,8 @@ export const renderInviteUserComponents = (
     /** Data source for USER_TYPE_SELECT fields. */
     fetchUserTypes?: FetchUserTypes;
     inputClassName?: string;
+    /** Live validity of the step with the current values; SUBMIT actions stay disabled while it is `false`. */
+    isFormComplete?: boolean;
     isTimeoutDisabled?: boolean;
     meta?: FlowMetadataResponse | null;
     onInputBlur?: (name: string) => void;

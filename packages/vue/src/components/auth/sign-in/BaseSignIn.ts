@@ -243,13 +243,13 @@ const BaseSignIn: Component = defineComponent({
       {immediate: true},
     );
 
-    // Computed form errors based on current values + touched
-    const formErrors: ComputedRef<Record<string, string>> = computed<Record<string, string>>(() => {
+    // Field errors for the current values; `onlyTouched` limits required checks to touched fields
+    const collectFormErrors = (onlyTouched: boolean): Record<string, string> => {
       const fields: FieldDefinition[] = extractFormFields(props.components || []);
       const errors: Record<string, string> = {...serverFormErrors.value};
       fields.forEach((field: FieldDefinition) => {
         const value: string = formValues.value[field.name] || '';
-        const isTouched: boolean = touchedFields.value[field.name] || false;
+        const isTouched: boolean = !onlyTouched || touchedFields.value[field.name] || false;
         if (!(field.name in errors) && field.required && isTouched && (!value || value.trim() === '')) {
           errors[field.name] = t('validations.required.field.error') || 'This field is required';
         }
@@ -263,9 +263,19 @@ const BaseSignIn: Component = defineComponent({
         }
       });
       return errors;
-    });
+    };
+
+    // Computed form errors based on current values + touched
+    const formErrors: ComputedRef<Record<string, string>> = computed<Record<string, string>>(() =>
+      collectFormErrors(true),
+    );
 
     const isFormValid: ComputedRef<boolean> = computed<boolean>(() => Object.keys(formErrors.value).length === 0);
+
+    // Live validity ignoring touched state, so SUBMIT actions stay disabled until the step is filled in
+    const isFormComplete: ComputedRef<boolean> = computed<boolean>(
+      () => Object.keys(collectFormErrors(false)).length === 0,
+    );
 
     const handleError = (error: any): void => {
       const errorMessage: string = extractErrorMessage(error, t);
@@ -371,6 +381,7 @@ const BaseSignIn: Component = defineComponent({
           additionalData: props.additionalData,
           buttonClassName: props.buttonClassName,
           inputClassName: props.inputClassName,
+          isFormComplete: isFormComplete.value,
           isTimeoutDisabled: props.isTimeoutDisabled,
           meta: (metaRef as Ref<FlowMetadataResponse | null>).value,
           onInputBlur: handleInputBlur,

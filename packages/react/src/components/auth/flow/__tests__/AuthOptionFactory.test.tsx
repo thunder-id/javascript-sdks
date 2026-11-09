@@ -13,6 +13,7 @@ import {
 } from '@thunderid/browser';
 import {type ReactElement, useState} from 'react';
 import {afterEach, describe, expect, it, vi} from 'vitest';
+import {ComponentRenderContext} from '../../../../contexts/ComponentRenderer/ComponentRendererContext';
 import I18nProvider from '../../../../contexts/I18n/I18nProvider';
 import ThemeContext, {ThemeContextValue} from '../../../../contexts/Theme/ThemeContext';
 import {UseTranslation} from '../../../../hooks/useTranslation';
@@ -916,6 +917,36 @@ describe('AuthOptionFactory COPYABLE_TEXT', () => {
 });
 
 describe('AuthOptionFactory custom renderers', () => {
+  it('hands a renderer the step expiry state and the hook to expire the step', () => {
+    const onStepExpire = vi.fn();
+    const seen: ComponentRenderContext[] = [];
+    renderSignInComponents(
+      [{id: 'RESEND_OTP', type: 'CUSTOM'} as EmbeddedFlowComponent],
+      {},
+      {},
+      {},
+      false,
+      true,
+      () => undefined,
+      () => undefined,
+      {
+        _customRenderers: {
+          RESEND_OTP: (_component, context) => {
+            seen.push(context);
+            return null;
+          },
+        },
+        isTimeoutDisabled: true,
+        onStepExpire,
+      },
+    );
+
+    expect(seen).toHaveLength(1);
+    expect(seen[0].isTimeoutDisabled).toBe(true);
+    seen[0].expireStep?.();
+    expect(onStepExpire).toHaveBeenCalledTimes(1);
+  });
+
   it('keys what a custom renderer returns, so a step of several renders without a key warning', () => {
     const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
     const components = ['action_a', 'action_b'].map(
@@ -1045,5 +1076,60 @@ describe('AuthOptionFactory RESEND', () => {
     // Each render gets its own React-generated ids.
     const withoutIds = (html: string): string => html.replace(/_r_[^_]+_/g, '_r_');
     expect(withoutIds(withResend)).toBe(withoutIds(withoutResend));
+  });
+});
+
+describe('AuthOptionFactory submit completeness', () => {
+  afterEach(() => {
+    cleanup();
+  });
+
+  const themeContextValue: ThemeContextValue = {
+    colorScheme: 'light',
+    direction: 'ltr',
+    theme: createTheme(),
+    toggleTheme: vi.fn(),
+  };
+
+  const submitAction = (overrides: Partial<EmbeddedFlowComponent> = {}): EmbeddedFlowComponent =>
+    ({
+      eventType: EmbeddedFlowEventType.Submit,
+      id: 'action_submit_otp',
+      label: 'Verify',
+      type: EmbeddedFlowComponentType.Action,
+      ...overrides,
+    }) as EmbeddedFlowComponent;
+
+  const renderAction = (component: EmbeddedFlowComponent, isFormComplete: boolean | undefined): HTMLButtonElement => {
+    const elements = renderSignInComponents(
+      [component],
+      {},
+      {},
+      {},
+      false,
+      true,
+      () => undefined,
+      () => undefined,
+      {isFormComplete},
+    );
+    render(<ThemeContext.Provider value={themeContextValue}>{elements}</ThemeContext.Provider>);
+    return screen.getByRole('button', {name: 'Verify'});
+  };
+
+  it('disables a SUBMIT action while the step is incomplete', () => {
+    expect(renderAction(submitAction(), false).disabled).toBe(true);
+  });
+
+  it('enables the SUBMIT action once the step is complete', () => {
+    expect(renderAction(submitAction(), true).disabled).toBe(false);
+  });
+
+  it('never disables when the host reports no completeness', () => {
+    expect(renderAction(submitAction(), undefined).disabled).toBe(false);
+  });
+
+  it('leaves actions that skip validation enabled while the step is incomplete', () => {
+    const trigger = submitAction({eventType: EmbeddedFlowEventType.Trigger});
+    expect(renderAction(trigger, false).disabled).toBe(false);
   });
 });

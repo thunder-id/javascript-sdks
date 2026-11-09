@@ -20,6 +20,7 @@ import ComponentRendererContext, {
 import useTheme from '../../../contexts/Theme/useTheme';
 import useThunderID from '../../../contexts/ThunderID/useThunderID';
 import {useOAuthCallback} from '../../../hooks/auth/useOAuthCallback';
+import useStepExpiry from '../../../hooks/auth/useStepExpiry';
 import useTranslation from '../../../hooks/useTranslation';
 import {cx} from '../../../styles/emotion';
 import {normalizeFlowResponse, extractErrorMessage} from '../../../utils/flowTransformer';
@@ -283,6 +284,8 @@ const BaseAcceptInvite: FC<BaseAcceptInviteProps> = ({
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [touchedFields, setTouchedFields] = useState<Record<string, boolean>>({});
   const [isFormValid, setIsFormValid] = useState(true);
+  // A custom renderer can expire the step from the client; it holds until the next step response.
+  const {expireStep, isStepExpired} = useStepExpiry(currentFlow);
   const [isStorageReady, setIsStorageReady] = useState(false);
   const challengeTokenRef: any = useRef<string | null>(null);
 
@@ -900,7 +903,10 @@ const BaseAcceptInvite: FC<BaseAcceptInviteProps> = ({
                 {
                   _customRenderers: customRenderers,
                   _theme: theme,
+                  isFormComplete: validateForm(componentsWithoutHeadings).isValid,
+                  isTimeoutDisabled: isStepExpired,
                   onInputBlur: handleInputBlur,
+                  onStepExpire: expireStep,
                   onSubmit: handleSubmit,
                   size,
                   variant,
