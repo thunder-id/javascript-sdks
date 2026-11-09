@@ -455,10 +455,10 @@ class ThunderIDBrowserClient<T = BrowserAuthConfig> extends ThunderIDJavaScriptC
    * - Embedded mode starts an `AUTHENTICATION` flow with `ouId`, presenting the SSO session handles kept
    *   from earlier flow steps. A flow that needs input fails with `interaction_required`; render the
    *   sign-in for the unit instead.
-   * - Backend mode sends `POST {ouSwitch}?ouId=` to the backend, which switches its session, then reads
-   *   the session again, so the page stays where it is. When the backend needs the user, it sends the
-   *   page to the backend's sign-in endpoint with `ouId` (unless `redirect` is `false`). The extra
-   *   parameters do not apply.
+   * - Backend mode sends `POST {ouSwitch}?ouId=` with `{"ouId"}` as a JSON body to the backend, which
+   *   switches its session, then reads the session again, so the page stays where it is. When the
+   *   backend needs the user, or answers `401`, it sends the page to the backend's sign-in endpoint
+   *   with `ouId` (unless `redirect` is `false`). The extra parameters do not apply.
    *
    * A failed switch leaves the previous session as it was.
    *

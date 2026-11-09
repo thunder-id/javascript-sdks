@@ -34,9 +34,10 @@ export interface BackendEndpoints {
   signOut?: string;
   /**
    * Switches the session to another organization unit without leaving the page. The SDK sends
-   * `POST {ouSwitch}?ouId=<unit id>` and reads the session again on success. A refusal answers with an
-   * OAuth `error` in a JSON body; when that error says the user has to sign in (`interaction_required`,
-   * `login_required`, …), the SDK falls back to `signIn` with `ouId`. Defaults to `/api/auth/switch`.
+   * `POST {ouSwitch}?ouId=<unit id>` with the same unit as a JSON body, `{"ouId": "<unit id>"}`, and reads
+   * the session again on success. A refusal answers with an OAuth `error` in a JSON body; when that error
+   * says the user has to sign in (`interaction_required`, `login_required`, …), or the answer is `401`,
+   * the SDK falls back to `signIn` with `ouId`. Defaults to `/api/auth/switch`.
    */
   ouSwitch?: string;
   /**

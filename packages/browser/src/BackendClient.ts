@@ -191,6 +191,10 @@ class BackendClient {
    * success the cached session is dropped, so the next read returns the unit's; on a refusal the
    * session stays as it was.
    *
+   * The unit goes in the query (`ouId`) and in a JSON body (`{"ouId": …}`), so a backend can read it
+   * from either. A `401` left after the refresh means the backend has no session to switch, so it is
+   * reported as `login_required` whatever its body says.
+   *
    * @returns The refusal, with the backend's OAuth `error` when it sent one, or `undefined` on success.
    */
   async switchOrganizationUnit(ouId: string): Promise<{error?: string} | undefined> {
@@ -198,7 +202,8 @@ class BackendClient {
     const readError = async (response: Response): Promise<string | undefined> =>
       ((await response.json().catch(() => ({}))) as {error?: string}).error;
 
-    let response: Response = await this.send(url, 'POST');
+    const body: string = JSON.stringify({ouId});
+    let response: Response = await this.send(url, 'POST', body);
     let error: string | undefined = response.ok ? undefined : await readError(response);
 
     if (response.status === 401 && error === 'session_expired') {
@@ -206,8 +211,12 @@ class BackendClient {
       if (!(await this.refresh())) {
         return {error: 'login_required'};
       }
-      response = await this.send(url, 'POST');
+      response = await this.send(url, 'POST', body);
       error = response.ok ? undefined : await readError(response);
+    }
+
+    if (response.status === 401) {
+      error = 'login_required';
     }
 
     if (response.ok) {
@@ -362,8 +371,16 @@ class BackendClient {
     return {isSignedIn: false};
   }
 
-  private send(url: string, method: string): Promise<Response> {
-    return fetch(url, {method, ...BackendClient.requestInit({Accept: 'application/json'})});
+  private send(url: string, method: string, body?: string): Promise<Response> {
+    if (body === undefined) {
+      return fetch(url, {method, ...BackendClient.requestInit({Accept: 'application/json'})});
+    }
+
+    return fetch(url, {
+      body,
+      method,
+      ...BackendClient.requestInit({Accept: 'application/json', 'Content-Type': 'application/json'}),
+    });
   }
 }
 
