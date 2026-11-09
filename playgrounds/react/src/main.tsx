@@ -18,6 +18,7 @@ createRoot(document.getElementById('root')!).render(
       clientId={playgroundConfig.clientId}
       endpoints={playgroundConfig.endpoints}
       scopes={playgroundConfig.scopes}
+      signInOptions={playgroundConfig.resource ? {resource: playgroundConfig.resource} : undefined}
       storage={playgroundConfig.storage}
     >
       <App />
