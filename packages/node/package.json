@@ -1,6 +1,6 @@
 {
   "name": "@thunderid/node",
-  "version": "1.14.0",
+  "version": "1.15.0",
   "description": "Node.js runtime SDK for ThunderID",
   "keywords": [
     "thunderid",
