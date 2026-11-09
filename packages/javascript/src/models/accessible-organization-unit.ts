@@ -78,9 +78,10 @@ export interface CurrentOrganizationUnit {
  */
 export interface SwitchOrganizationUnitOptions {
   /**
-   * Redirect mode in a browser: when the server needs the user (for example no SSO session reaches the
-   * unit), fall back to a full-page redirect to the unit's authorization endpoint. Defaults to `true`.
-   * Set it to `false` to fail with `interaction_required` instead.
+   * Redirect and backend modes in a browser: when the server needs the user (for example no SSO session
+   * reaches the unit), fall back to a full-page redirect to the unit's authorization endpoint, or in
+   * backend mode to the backend's sign-in endpoint with `ouId`. Defaults to `true`. Set it to `false` to
+   * fail with `interaction_required` instead.
    */
   redirect?: boolean;
   /**

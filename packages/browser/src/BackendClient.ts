@@ -187,6 +187,43 @@ class BackendClient {
   }
 
   /**
+   * Switches the session to the organization unit `ouId` at the backend, without leaving the page. On
+   * success the cached session is dropped, so the next read returns the unit's; on a refusal the
+   * session stays as it was.
+   *
+   * @returns The refusal, with the backend's OAuth `error` when it sent one, or `undefined` on success.
+   */
+  async switchOrganizationUnit(ouId: string): Promise<{error?: string} | undefined> {
+    const url = `${this.endpoints.ouSwitch}?${new URLSearchParams({ouId}).toString()}`;
+    const readError = async (response: Response): Promise<string | undefined> =>
+      ((await response.json().catch(() => ({}))) as {error?: string}).error;
+
+    let response: Response = await this.send(url, 'POST');
+    let error: string | undefined = response.ok ? undefined : await readError(response);
+
+    if (response.status === 401 && error === 'session_expired') {
+      // A session that cannot be refreshed has ended, so the user has to sign in again.
+      if (!(await this.refresh())) {
+        return {error: 'login_required'};
+      }
+      response = await this.send(url, 'POST');
+      error = response.ok ? undefined : await readError(response);
+    }
+
+    if (response.ok) {
+      this.session = undefined;
+
+      return undefined;
+    }
+
+    if (error === 'login_required') {
+      this.markSignedOut();
+    }
+
+    return error ? {error} : {};
+  }
+
+  /**
    * Ends the backend session.
    *
    * @returns The URL the browser visits to end the session at the authorization server.
