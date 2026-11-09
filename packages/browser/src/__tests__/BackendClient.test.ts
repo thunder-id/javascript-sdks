@@ -106,6 +106,8 @@ describe('BackendClient', () => {
     const [url, init] = fetchMock.mock.calls[1];
     expect(url).toBe('/api/auth/switch?ouId=ou+2');
     expect(init.method).toBe('POST');
+    expect(init.body).toBe(JSON.stringify({ouId: 'ou 2'}));
+    expect(init.headers['Content-Type']).toBe('application/json');
     expect(init.credentials).toBe('include');
     expect(init.headers[BACKEND_REQUEST_HEADER]).toBe('XMLHttpRequest');
     expect(fetchMock).toHaveBeenCalledTimes(3);
@@ -150,6 +152,18 @@ describe('BackendClient', () => {
     expect(await backend.switchOrganizationUnit('ou-2')).toEqual({});
     expect((await backend.getSession()).user).toEqual({ouId: 'ou-1'});
     expect(fetchMock).toHaveBeenCalledTimes(3);
+  });
+
+  it('reports login_required when the backend answers the switch with a 401 of its own', async () => {
+    fetchMock
+      .mockResolvedValueOnce(json(200, {isSignedIn: true}))
+      .mockResolvedValueOnce(json(401, {error: 'unauthorized', message: 'Invalid or expired credentials.'}));
+    const backend = new BackendClient(ENDPOINTS);
+    await backend.getSession();
+
+    expect(await backend.switchOrganizationUnit('ou-2')).toEqual({error: 'login_required'});
+    expect((await backend.getSession()).isSignedIn).toBe(false);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
   it('reports signed out when the backend says the switch needs a sign-in', async () => {
