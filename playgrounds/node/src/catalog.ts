@@ -454,10 +454,10 @@ const operations: OperationSpec[] = [
     summary: 'Run a SELF flow step.',
   },
   {
-    args: json({password: ''}),
+    args: json({currentValue: '', name: 'password', newValue: ''}),
     call: 'client.updateUserCredentials(payload, sessionId)',
     description:
-      'Updates credentials of the signed-in user, such as password, through the /users/me credentials endpoint. Running it changes your real credentials.',
+      'Updates one credential of the signed-in user, such as password, through the /users/me credentials endpoint. Changing a held credential needs its current value. Running it changes your real credentials.',
     group: 'Management API',
     id: 'updateUserCredentials',
     network: true,

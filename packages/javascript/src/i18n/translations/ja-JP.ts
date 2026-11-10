@@ -148,6 +148,10 @@ const translations: I18nTranslations = {
   /* |---------------------------------------------------------------| */
 
   'user.change_password.heading': '{credential}の変更',
+
+  'user.change_password.current.label': '現在の{credential}',
+
+  'user.change_password.current.placeholder': '現在の{credentialLower}を入力してください',
   'user.change_password.new.label': '新しい{credential}',
   'user.change_password.new.placeholder': '新しい{credentialLower}を入力してください',
   'user.change_password.confirm.label': '新しい{credential}の確認',
@@ -156,6 +160,8 @@ const translations: I18nTranslations = {
   'user.change_password.submit': '{credential}を更新',
   'user.change_password.success': '{credentialLower}を更新しました。',
   'user.change_password.mismatch.error': '{credentialLower}が一致しません。',
+
+  'user.change_password.current.error': '現在の{credentialLower}が正しくありません。',
   'user.change_password.generic.error': '{credentialLower}の更新中にエラーが発生しました。もう一度お試しください。',
   'user.change_password.unavailable.heading': '{credential}の変更はできません',
   'user.change_password.unavailable.description': '管理者にお問い合わせください。',

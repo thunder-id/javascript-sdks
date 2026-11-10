@@ -97,7 +97,7 @@ const ChangeCredential: Component = defineComponent({
       resolveChangeCredentialPolicy(userSchema?.value, props.attribute, props.policy),
     );
 
-    async function handleSubmit({newPassword}: ChangePasswordValues): Promise<void> {
+    async function handleSubmit({currentPassword, newPassword}: ChangePasswordValues): Promise<void> {
       error.value = null;
       fieldErrors.value = {};
       success.value = false;
@@ -105,7 +105,9 @@ const ChangeCredential: Component = defineComponent({
 
       try {
         const result: UpdateUserCredentialsResult = await $fetch(NuxtAPIRoutes.USER_CREDENTIALS, {
-          body: {payload: {[props.attribute]: newPassword}},
+          body: {
+            payload: {currentValue: currentPassword || undefined, name: props.attribute, newValue: newPassword},
+          },
           method: 'PATCH',
         });
 

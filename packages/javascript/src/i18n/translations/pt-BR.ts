@@ -148,6 +148,10 @@ const translations: I18nTranslations = {
   /* |---------------------------------------------------------------| */
 
   'user.change_password.heading': 'Alterar {credential}',
+
+  'user.change_password.current.label': '{credential} atual',
+
+  'user.change_password.current.placeholder': 'Digite seu {credentialLower} atual',
   'user.change_password.new.label': 'Novo {credential}',
   'user.change_password.new.placeholder': 'Digite seu novo {credentialLower}',
   'user.change_password.confirm.label': 'Confirmar novo {credential}',
@@ -156,6 +160,8 @@ const translations: I18nTranslations = {
   'user.change_password.submit': 'Atualizar {credential}',
   'user.change_password.success': 'Seu {credentialLower} foi atualizado.',
   'user.change_password.mismatch.error': 'Os {credentialLower}s não coincidem.',
+
+  'user.change_password.current.error': 'Seu {credentialLower} atual está incorreto.',
   'user.change_password.generic.error': 'Ocorreu um erro ao atualizar seu {credentialLower}. Tente novamente.',
   'user.change_password.unavailable.heading': 'Alteração de {credentialLower} indisponível',
   'user.change_password.unavailable.description': 'Entre em contato com o administrador.',

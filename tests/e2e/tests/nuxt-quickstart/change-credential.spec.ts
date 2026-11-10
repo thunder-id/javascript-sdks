@@ -49,7 +49,7 @@ test.describe('nuxt/quickstart - Change credential', () => {
     await nuxtQuickstartPage.openSecurityTab();
 
     try {
-      await nuxtQuickstartPage.changeCredential('Change password', tempPassword);
+      await nuxtQuickstartPage.changeCredential('Change password', password, tempPassword);
 
       // Prove the change landed server-side, not just that the UI collapsed the form: sign
       // out and back in using the new password.
@@ -77,7 +77,7 @@ test.describe('nuxt/quickstart - Change credential', () => {
         await nuxtQuickstartPage.verifyLoggedIn();
       }
       await nuxtQuickstartPage.openSecurityTab();
-      await nuxtQuickstartPage.changeCredential('Change password', password);
+      await nuxtQuickstartPage.changeCredential('Change password', tempPassword, password);
     }
 
     // The restore itself also has to have actually worked, or the next test to sign in with

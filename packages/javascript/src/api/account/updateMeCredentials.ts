@@ -4,6 +4,26 @@
 import ThunderIDAPIError from '../../errors/ThunderIDAPIError';
 
 /**
+ * The credential to set, and the proof for it.
+ */
+export interface UpdateMeCredentialsPayload {
+  /**
+   * The current value of the credential. Required by the server when the user already holds a
+   * value for it. A user setting a credential for the first time has none to send.
+   */
+  currentValue?: string;
+  /**
+   * The credential attribute to set, whatever attribute the user's entity type schema declares
+   * `credential: true` for (for example `password` or `pin`). One credential per call.
+   */
+  name: string;
+  /**
+   * The value to set.
+   */
+  newValue: string;
+}
+
+/**
  * Configuration for the updateMeCredentials request
  */
 export interface UpdateMeCredentialsConfig extends Omit<RequestInit, 'method' | 'body'> {
@@ -17,13 +37,9 @@ export interface UpdateMeCredentialsConfig extends Omit<RequestInit, 'method' | 
    */
   fetcher?: (url: string, config: RequestInit) => Promise<Response>;
   /**
-   * The new values to set, keyed by credential name, whatever attribute the user's entity
-   * type schema declares `credential: true` (for example `password` or `pin`). One or more
-   * may be included in a single call. The server requires each value here to be a plain
-   * string, and the whole map to be wrapped under `attributes` on the wire, which this
-   * function does; do not pass a pre-wrapped `{attributes: ...}` object.
+   * The credential to set, its current value, and the new value.
    */
-  payload: Record<string, string>;
+  payload: UpdateMeCredentialsPayload;
   /**
    * The absolute API endpoint.
    */
@@ -31,8 +47,10 @@ export interface UpdateMeCredentialsConfig extends Omit<RequestInit, 'method' | 
 }
 
 /**
- * Updates one or more of the signed-in user's credentials at the
- * /users/me/update-credentials endpoint.
+ * Updates one of the signed-in user's credentials at the /users/me/update-credentials endpoint.
+ *
+ * Changing a credential the user already holds needs its current value. A credential the user
+ * doesn't hold yet can be set only when the user holds no credential at all.
  *
  * The endpoint responds with `204 No Content` on success, so this function resolves with
  * `void` rather than a parsed body.
@@ -44,7 +62,7 @@ export interface UpdateMeCredentialsConfig extends Omit<RequestInit, 'method' | 
  * // Using default fetch
  * await updateMeCredentials({
  *   url: "https://localhost:8090/users/me/update-credentials",
- *   payload: {password: "n3wP@ssword!"}
+ *   payload: {name: "password", currentValue: "0ldP@ssword!", newValue: "n3wP@ssword!"}
  * });
  * ```
  *
@@ -53,7 +71,7 @@ export interface UpdateMeCredentialsConfig extends Omit<RequestInit, 'method' | 
  * // Using custom fetcher (e.g. an httpClient that attaches the access token)
  * await updateMeCredentials({
  *   baseUrl: "https://localhost:8090",
- *   payload: {password: "n3wP@ssword!"},
+ *   payload: {name: "password", currentValue: "0ldP@ssword!", newValue: "n3wP@ssword!"},
  *   fetcher: async (url, config) => {
  *     const response = await httpClient({url, method: config.method, headers: config.headers, data: config.body});
  *     return {
@@ -93,7 +111,7 @@ const updateMeCredentials = async ({
   const requestInit: RequestInit = {
     ...requestConfig,
     method: 'POST',
-    body: JSON.stringify({attributes: payload}),
+    body: JSON.stringify(payload),
     headers: {
       ...requestConfig.headers,
       Accept: 'application/json',

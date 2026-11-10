@@ -147,6 +147,10 @@ const translations: I18nTranslations = {
   /* |---------------------------------------------------------------| */
 
   'user.change_password.heading': '{credential} बदलें',
+
+  'user.change_password.current.label': 'वर्तमान {credential}',
+
+  'user.change_password.current.placeholder': 'अपना वर्तमान {credentialLower} दर्ज करें',
   'user.change_password.new.label': 'नया {credential}',
   'user.change_password.new.placeholder': 'अपना नया {credentialLower} दर्ज करें',
   'user.change_password.confirm.label': 'नए {credential} की पुष्टि करें',
@@ -155,6 +159,8 @@ const translations: I18nTranslations = {
   'user.change_password.submit': '{credential} अपडेट करें',
   'user.change_password.success': 'आपका {credentialLower} अपडेट कर दिया गया है।',
   'user.change_password.mismatch.error': '{credential} मेल नहीं खाते।',
+
+  'user.change_password.current.error': 'आपका वर्तमान {credentialLower} गलत है।',
   'user.change_password.generic.error': 'आपका {credentialLower} अपडेट करते समय त्रुटि हुई। कृपया पुनः प्रयास करें।',
   'user.change_password.unavailable.heading': '{credential} परिवर्तन उपलब्ध नहीं है',
   'user.change_password.unavailable.description': 'कृपया अपने व्यवस्थापक से संपर्क करें।',

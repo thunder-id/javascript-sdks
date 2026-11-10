@@ -35,6 +35,7 @@ import {
   ThunderIDRuntimeError,
   TokenResponse,
   updateMeCredentials,
+  UpdateMeCredentialsPayload,
   User,
 } from '@thunderid/javascript';
 import evaluateAccessRequest from './api/access/evaluateAccess';
@@ -588,10 +589,11 @@ class ThunderIDNodeClient<T extends ThunderIDNodeConfig = ThunderIDNodeConfig> e
   }
 
   /**
-   * Updates one or more of the signed-in user's credentials (e.g. `password`, or any other
-   * attribute the user type schema declares `credential: true`).
+   * Updates one of the signed-in user's credentials (e.g. `password`, or any other attribute the
+   * user type schema declares `credential: true`). Changing a credential the user already holds
+   * needs its current value in `payload.currentValue`.
    */
-  public async updateUserCredentials(payload: Record<string, string>, userId?: string): Promise<void> {
+  public async updateUserCredentials(payload: UpdateMeCredentialsPayload, userId?: string): Promise<void> {
     const configData: AuthClientConfig<T> = await this.getStorageManager().getConfigData();
     const baseUrl: string | undefined = configData?.baseUrl;
 
