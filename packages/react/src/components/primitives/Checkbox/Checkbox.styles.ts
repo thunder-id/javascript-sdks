@@ -27,7 +27,7 @@ const useStyles = (theme: Theme, colorScheme: string, hasError: boolean, require
       accent-color: ${theme.vars.colors.primary.main};
       cursor: pointer;
 
-      &:focus {
+      &:focus-visible {
         outline: 2px solid ${theme.vars.colors.primary.main};
         outline-offset: 2px;
       }
@@ -41,7 +41,7 @@ const useStyles = (theme: Theme, colorScheme: string, hasError: boolean, require
     const errorInputStyles: string = css`
       accent-color: ${theme.vars.colors.error.main};
 
-      &:focus {
+      &:focus-visible {
         outline-color: ${theme.vars.colors.error.main};
       }
     `;

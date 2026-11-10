@@ -244,6 +244,17 @@ const translations: I18nTranslations = {
   'consent.optional_scope.info': 'ఈ అనుమతులు ఐచ్ఛికం మరియు మీ విచక్షణ మేరకు మంజూరు చేయవచ్చు.',
   'consent.permissions.subtree_notice':
     'ఒక అనుమతిని ఆమోదిస్తే దాని కింద ఉన్న అనుమతులు, తర్వాత జోడించేవాటితో సహా, కూడా ఆమోదించబడతాయి.',
+  'consent.validity_period.label': 'మళ్లీ నన్ను అడగండి',
+  'consent.validity_period.remember': 'నా నిర్ణయాన్ని గుర్తుంచుకోండి',
+  'consent.validity_period.option_never': 'గడువు ముగియదు',
+  'consent.validity_period.option_custom': 'అనుకూలం',
+  'consent.validity_period.custom_label': 'అనుకూల చెల్లుబాటు',
+  'consent.validity_period.custom_unit_label': 'యూనిట్',
+  'consent.validity_period.hint_once': 'మీరు తదుపరిసారి సైన్ ఇన్ చేసినప్పుడు మళ్లీ అడగబడుతుంది.',
+  'consent.validity_period.hint_expires': 'మీ సమ్మతి {duration}లో ముగుస్తుంది.',
+  'consent.validity_period.hint_never': 'ఈ అప్లికేషన్ మరింత యాక్సెస్ అడిగే వరకు మళ్లీ అడగబడదు.',
+  'consent.validity_period.hint_custom': 'పూర్ణ సంఖ్యను నమోదు చేయండి.',
+  'consent.validity_period.hint_custom_max': '{max} వరకు పూర్ణ సంఖ్యను నమోదు చేయండి.',
 
   /* |---------------------------------------------------------------| */
   /* |                        Errors                                 | */

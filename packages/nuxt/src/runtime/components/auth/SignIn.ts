@@ -5,8 +5,12 @@ import {navigateTo} from '#app';
 import {
   CONSENT_INVALID_KEY_PREFIX,
   CONSENT_MODIFIED_KEY_PREFIX,
+  CONSENT_ONE_TIME_KEY,
+  CONSENT_VALIDITY_PERIOD_KEY,
   ConsentConstants,
   getConsentElementDecision,
+  getConsentOneTime,
+  getConsentValidityPeriod,
   ThunderIDRuntimeError,
   type ConsentPurposeData,
   type EmbeddedFlowComponent,
@@ -541,9 +545,14 @@ const SignIn: Component = defineComponent({
             }
           }
 
+          const oneTime: boolean = !isDeny && getConsentOneTime(processedInputs);
+          const validityPeriod: number | undefined =
+            isDeny || oneTime ? undefined : getConsentValidityPeriod(processedInputs);
           const decisions: Record<string, unknown> = {
             approved: !isDeny,
             ...(isDeny ? {reason: ConsentConstants.REASON_USER_DENIED} : {}),
+            ...(validityPeriod === undefined ? {} : {validityPeriod}),
+            ...(oneTime ? {oneTime} : {}),
             purposes: purposes.map((p) => ({
               approved: !isDeny,
               elements: [
@@ -565,6 +574,8 @@ const SignIn: Component = defineComponent({
 
           Object.keys(processedInputs).forEach((key: string) => {
             if (
+              key === CONSENT_VALIDITY_PERIOD_KEY ||
+              key === CONSENT_ONE_TIME_KEY ||
               key.startsWith('__consent_opt__') ||
               key.startsWith(CONSENT_MODIFIED_KEY_PREFIX) ||
               key.startsWith(CONSENT_INVALID_KEY_PREFIX)

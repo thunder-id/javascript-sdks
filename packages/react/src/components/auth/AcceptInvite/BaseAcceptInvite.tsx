@@ -10,7 +10,11 @@ import {
   buildValidatorFromRules,
   CONSENT_INVALID_KEY_PREFIX,
   CONSENT_MODIFIED_KEY_PREFIX,
+  CONSENT_ONE_TIME_KEY,
+  CONSENT_VALIDITY_PERIOD_KEY,
   getConsentElementDecision,
+  getConsentOneTime,
+  getConsentValidityPeriod,
 } from '@thunderid/browser';
 import {FC, ReactElement, ReactNode, useCallback, useContext, useEffect, useRef, useState} from 'react';
 import useStyles from './BaseAcceptInvite.styles';
@@ -565,9 +569,14 @@ const BaseAcceptInvite: FC<BaseAcceptInviteProps> = ({
             if (!isDeny && isConsentApprovalBlocked(purposes, inputs)) {
               return;
             }
+            const oneTime: boolean = !isDeny && getConsentOneTime(inputs as Record<string, unknown>);
+            const validityPeriod: number | undefined =
+              isDeny || oneTime ? undefined : getConsentValidityPeriod(inputs as Record<string, unknown>);
             const decisions = {
               approved: !isDeny,
               ...(isDeny ? {reason: ConsentConstants.REASON_USER_DENIED} : {}),
+              ...(validityPeriod === undefined ? {} : {validityPeriod}),
+              ...(oneTime ? {oneTime} : {}),
               purposes: purposes.map((p: any) => ({
                 approved: !isDeny,
                 purposeName: p.purposeName,
@@ -584,6 +593,8 @@ const BaseAcceptInvite: FC<BaseAcceptInviteProps> = ({
             inputs.consent_decisions = JSON.stringify(decisions);
             Object.keys(inputs).forEach((k: string) => {
               if (
+                k === CONSENT_VALIDITY_PERIOD_KEY ||
+                k === CONSENT_ONE_TIME_KEY ||
                 k.startsWith('__consent_opt__') ||
                 k.startsWith(CONSENT_MODIFIED_KEY_PREFIX) ||
                 k.startsWith(CONSENT_INVALID_KEY_PREFIX)

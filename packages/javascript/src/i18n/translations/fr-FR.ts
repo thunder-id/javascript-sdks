@@ -232,6 +232,18 @@ const translations: I18nTranslations = {
   'consent.optional_scope.info': 'Ces autorisations sont facultatives et peuvent être accordées à votre discrétion.',
   'consent.permissions.subtree_notice':
     'Approuver une autorisation approuve aussi les autorisations qui en dépendent, y compris celles ajoutées plus tard.',
+  'consent.validity_period.label': 'Me redemander',
+  'consent.validity_period.remember': 'Mémoriser ma décision',
+  'consent.validity_period.option_never': 'Sans expiration',
+  'consent.validity_period.option_custom': 'Personnalisé',
+  'consent.validity_period.custom_label': 'Durée personnalisée',
+  'consent.validity_period.custom_unit_label': 'Unité',
+  'consent.validity_period.hint_once': 'Votre consentement vous sera redemandé à votre prochaine connexion.',
+  'consent.validity_period.hint_expires': 'Votre consentement expire dans {duration}.',
+  'consent.validity_period.hint_never':
+    'Votre consentement ne vous sera plus redemandé, sauf si cette application demande un accès supplémentaire.',
+  'consent.validity_period.hint_custom': 'Saisissez un nombre entier.',
+  'consent.validity_period.hint_custom_max': "Saisissez un nombre entier, jusqu'à {max}.",
 
   /* |---------------------------------------------------------------| */
   /* |                        Errors                                 | */

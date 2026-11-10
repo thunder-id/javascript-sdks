@@ -242,6 +242,17 @@ const translations: I18nTranslations = {
   'consent.optional_scope.info': 'These permissions are optional and can be granted at your discretion.',
   'consent.permissions.subtree_notice':
     'Approving a permission also approves the permissions beneath it, including any added later.',
+  'consent.validity_period.label': 'Ask me again',
+  'consent.validity_period.remember': 'Remember my decision',
+  'consent.validity_period.option_never': 'No expiry',
+  'consent.validity_period.option_custom': 'Custom',
+  'consent.validity_period.custom_label': 'Custom validity',
+  'consent.validity_period.custom_unit_label': 'Unit',
+  'consent.validity_period.hint_once': 'You will be asked again the next time you sign in.',
+  'consent.validity_period.hint_expires': 'Your consent expires in {duration}.',
+  'consent.validity_period.hint_never': 'You will not be asked again unless this application asks for more access.',
+  'consent.validity_period.hint_custom': 'Enter a whole number.',
+  'consent.validity_period.hint_custom_max': 'Enter a whole number, up to {max}.',
 
   /* |---------------------------------------------------------------| */
   /* |                        Errors                                 | */

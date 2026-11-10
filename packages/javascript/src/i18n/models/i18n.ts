@@ -247,6 +247,17 @@ export interface I18nTranslations {
   'consent.essential_scope.info': string;
   'consent.optional_scope.info': string;
   'consent.permissions.subtree_notice': string;
+  'consent.validity_period.label': string;
+  'consent.validity_period.remember': string;
+  'consent.validity_period.option_never': string;
+  'consent.validity_period.option_custom': string;
+  'consent.validity_period.custom_label': string;
+  'consent.validity_period.custom_unit_label': string;
+  'consent.validity_period.hint_once': string;
+  'consent.validity_period.hint_expires': string;
+  'consent.validity_period.hint_never': string;
+  'consent.validity_period.hint_custom': string;
+  'consent.validity_period.hint_custom_max': string;
 
   /* |---------------------------------------------------------------| */
   /* |                        Errors                                 | */
