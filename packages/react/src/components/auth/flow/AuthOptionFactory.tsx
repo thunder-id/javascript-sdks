@@ -27,6 +27,8 @@ import {
   FetchUserTypes,
   FetchUsers,
   getConsentElementDecision,
+  getConsentValidityInput,
+  getConsentValidityPeriod,
 } from '@thunderid/browser';
 import DOMPurify from 'dompurify';
 import {ChangeEvent, cloneElement, CSSProperties, FormEvent, MouseEvent, ReactElement} from 'react';
@@ -526,9 +528,11 @@ const createAuthComponentFromFlow = (
             | undefined;
           if (consentPrompt && eventType.toUpperCase() === EmbeddedFlowEventType.Submit) {
             const isDeny: boolean = componentVariant.toLowerCase() !== 'primary';
+            const validityPeriod: number | undefined = isDeny ? undefined : getConsentValidityPeriod(formValues);
             const decisions: ConsentDecisions = {
               approved: !isDeny,
               ...(isDeny ? {reason: ConsentConstants.REASON_USER_DENIED} : {}),
+              ...(validityPeriod === undefined ? {} : {validityPeriod}),
               purposes: consentPrompt.purposes.map(
                 (p: ConsentPurposeData): ConsentPurposeDecision => ({
                   approved: !isDeny,
@@ -968,14 +972,17 @@ const createAuthComponentFromFlow = (
 
     case EmbeddedFlowComponentType.Consent: {
       const consentPromptRawData: ConsentPromptData | string | undefined = options.additionalData?.['consentPrompt'];
+      const {enabled: validityInput, maxValidityPeriod} = getConsentValidityInput(options.additionalData);
 
       return (
         <Consent
           key={key}
           consentData={consentPromptRawData as any}
           formValues={formValues}
+          maxValidityPeriod={maxValidityPeriod}
           onInputChange={onInputChange}
           t={options.t}
+          validityInput={validityInput}
         />
       );
     }

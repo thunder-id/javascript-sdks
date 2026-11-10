@@ -169,4 +169,31 @@ describe('SignIn consent decisions', () => {
     ]);
     expect(Object.keys(submittedInputs())).toEqual(['consent_decisions']);
   });
+
+  it('sends the validity period the user chose and removes its form key', async () => {
+    const {onSubmit} = await setUpOnConsentStep();
+
+    await onSubmit({action: 'allow', inputs: {__consent_validity_period__: '3600'}});
+
+    expect(submittedDecisions().validityPeriod).toBe(3600);
+    expect(Object.keys(submittedInputs())).toEqual(['consent_decisions']);
+  });
+
+  it('leaves the validity period out when the consent is denied', async () => {
+    const {onSubmit} = await setUpOnConsentStep();
+
+    await onSubmit({action: 'deny', inputs: {__consent_validity_period__: '60'}});
+
+    expect(submittedDecisions()).not.toHaveProperty('validityPeriod');
+    expect(Object.keys(submittedInputs())).toEqual(['consent_decisions']);
+  });
+
+  it('leaves the validity period out when the user chose none', async () => {
+    const {onSubmit} = await setUpOnConsentStep();
+
+    await onSubmit({action: 'allow', inputs: {__consent_validity_period__: ''}});
+
+    expect(submittedDecisions()).not.toHaveProperty('validityPeriod');
+    expect(Object.keys(submittedInputs())).toEqual(['consent_decisions']);
+  });
 });

@@ -148,6 +148,9 @@ export type {
   ConsentAuthorizationDetailRenderProps,
 } from './components/auth/flow/ConsentAuthorizationDetail';
 
+export {default as ConsentValidityPeriodField} from './components/auth/flow/ConsentValidityPeriodField';
+export type {ConsentValidityPeriodFieldProps} from './components/auth/flow/ConsentValidityPeriodField';
+
 export {default as ConsentDetailField} from './components/auth/flow/ConsentDetailField';
 export type {ConsentDetailFieldProps} from './components/auth/flow/ConsentDetailField';
 
@@ -607,6 +610,28 @@ export {
   getConsentInvalidKey,
   CONSENT_INVALID_KEY_PREFIX,
   getConsentElementDecision,
+  getConsentValidityInput,
+  getConsentValidityPeriod,
+  CONSENT_VALIDITY_PERIOD_KEY,
+  CONSENT_VALIDITY_NEVER_SECONDS,
+  CONSENT_VALIDITY_ONCE_SECONDS,
+  isConsentValidityUnlimited,
+  getConsentValidityCustomMax,
+  getConsentValidityCustomPeriod,
+  getConsentValidityCustomUnits,
+  getConsentValidityUnitLabel,
+  splitConsentValidityPeriod,
+  getConsentValidityOptions,
+  getConsentValidityOptionText,
+  getConsentValidityChoices,
+  type ConsentValidityChoices,
+  type ConsentValidityCustomPeriod,
+  type ConsentValidityInput,
+  type ConsentValidityOption,
+  type ConsentValidityOptionText,
+  type ConsentValidityTextKey,
+  type ConsentValidityTranslate,
+  type ConsentValidityUnit,
 } from '@thunderid/browser';
 
 export {

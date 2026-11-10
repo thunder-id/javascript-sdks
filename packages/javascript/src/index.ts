@@ -1088,6 +1088,34 @@ export {default as getConsentElementDecision} from './utils/getConsentElementDec
 export {default as compileConsentDecisions} from './utils/compileConsentDecisions';
 export type {ConsentDecisionOptions} from './utils/compileConsentDecisions';
 export {default as getConsentInvalidKey, CONSENT_INVALID_KEY_PREFIX} from './utils/getConsentInvalidKey';
+export {default as getConsentValidityPeriod, CONSENT_VALIDITY_PERIOD_KEY} from './utils/getConsentValidityPeriod';
+export {default as getConsentValidityInput} from './utils/getConsentValidityInput';
+export {
+  default as getConsentValidityOptions,
+  CONSENT_VALIDITY_NEVER_SECONDS,
+  CONSENT_VALIDITY_ONCE_SECONDS,
+  isConsentValidityUnlimited,
+} from './utils/getConsentValidityOptions';
+export {
+  default as getConsentValidityCustomPeriod,
+  getConsentValidityCustomMax,
+  getConsentValidityCustomUnits,
+  splitConsentValidityPeriod,
+} from './utils/getConsentValidityCustomPeriod';
+export type {ConsentValidityCustomPeriod} from './utils/getConsentValidityCustomPeriod';
+export type {ConsentValidityOption, ConsentValidityUnit} from './utils/getConsentValidityOptions';
+export {
+  default as getConsentValidityOptionText,
+  getConsentValidityUnitLabel,
+} from './utils/getConsentValidityOptionText';
+export {default as getConsentValidityChoices} from './utils/getConsentValidityChoices';
+export type {ConsentValidityChoices} from './utils/getConsentValidityChoices';
+export type {
+  ConsentValidityOptionText,
+  ConsentValidityTextKey,
+  ConsentValidityTranslate,
+} from './utils/getConsentValidityOptionText';
+export type {ConsentValidityInput} from './utils/getConsentValidityInput';
 export {default as isEmpty} from './utils/isEmpty';
 export {default as isEmojiUri, EMOJI_URI_SCHEME} from './utils/isEmojiUri';
 export {default as extractEmojiFromUri} from './utils/extractEmojiFromUri';

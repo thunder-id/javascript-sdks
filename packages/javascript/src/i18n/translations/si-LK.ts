@@ -241,6 +241,17 @@ const translations: I18nTranslations = {
   'consent.authorization_details.new_item': '{label}, එක් කරන්න',
   'consent.essential_scope.info': 'සේවාව නිසි ලෙස ක්‍රියාත්මක වීම සඳහා මෙම අවසර අවශ්‍ය වේ.',
   'consent.optional_scope.info': 'මෙම අවසර විකල්ප වන අතර ඔබේ අභිමතය පරිදි ලබා දිය හැක.',
+  'consent.validity_period.label': 'නැවත මගෙන් අසන්න',
+  'consent.validity_period.remember': 'මගේ තීරණය මතක තබාගන්න',
+  'consent.validity_period.option_never': 'කල් ඉකුත් නොවේ',
+  'consent.validity_period.option_custom': 'අභිරුචි',
+  'consent.validity_period.custom_label': 'අභිරුචි වලංගුභාවය',
+  'consent.validity_period.custom_unit_label': 'ඒකකය',
+  'consent.validity_period.hint_once': 'ඔබ ඊළඟ වතාවේ පුරනය වන විට නැවත ඔබෙන් අසනු ඇත.',
+  'consent.validity_period.hint_expires': 'ඔබේ කැමැත්ත {duration} කින් කල් ඉකුත් වේ.',
+  'consent.validity_period.hint_never': 'මෙම යෙදුම වැඩි ප්‍රවේශයක් ඉල්ලන තෙක් ඔබෙන් නැවත අසනු නොලැබේ.',
+  'consent.validity_period.hint_custom': 'පූර්ණ සංඛ්‍යාවක් ඇතුළත් කරන්න.',
+  'consent.validity_period.hint_custom_max': '{max} දක්වා පූර්ණ සංඛ්‍යාවක් ඇතුළත් කරන්න.',
 
   /* |---------------------------------------------------------------| */
   /* |                        Errors                                 | */

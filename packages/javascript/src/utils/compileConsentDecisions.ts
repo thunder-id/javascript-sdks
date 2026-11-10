@@ -4,6 +4,7 @@
 import getConsentElementDecision from './getConsentElementDecision';
 import {CONSENT_INVALID_KEY_PREFIX} from './getConsentInvalidKey';
 import {CONSENT_MODIFIED_KEY_PREFIX} from './getConsentModifiedKey';
+import getConsentValidityPeriod, {CONSENT_VALIDITY_PERIOD_KEY} from './getConsentValidityPeriod';
 import type {ConsentPurposeData} from '../models/embedded-flow';
 
 export interface ConsentDecisionOptions {
@@ -26,9 +27,11 @@ const compileConsentDecisions = (
 
   if (purposes) {
     const {approved, reason} = options;
+    const validityPeriod: number | undefined = approved ? getConsentValidityPeriod(processedInputs) : undefined;
     const decisions = {
       approved,
       ...(reason ? {reason} : {}),
+      ...(validityPeriod === undefined ? {} : {validityPeriod}),
       purposes: purposes.map((purpose: ConsentPurposeData) => ({
         approved,
         elements: [
@@ -50,6 +53,7 @@ const compileConsentDecisions = (
 
   Object.keys(processedInputs).forEach((key: string) => {
     if (
+      key === CONSENT_VALIDITY_PERIOD_KEY ||
       key.startsWith('__consent_opt__') ||
       key.startsWith(CONSENT_MODIFIED_KEY_PREFIX) ||
       key.startsWith(CONSENT_INVALID_KEY_PREFIX)
