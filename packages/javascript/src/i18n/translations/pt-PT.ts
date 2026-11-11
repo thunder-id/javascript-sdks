@@ -264,6 +264,21 @@ const translations: I18nTranslations = {
   'errors.signin.components.not.available':
     'O formulário de início de sessão não está disponível de momento. Tente novamente mais tarde.',
   'errors.signin.timeout': 'O tempo permitido para completar a etapa expirou.',
+  'errors.signin.session.expired': 'A sua sessão expirou. Volte à aplicação e inicie sessão novamente.',
+
+  /* |---------------------------------------------------------------| */
+  /* |                        Flow Expiry                            | */
+  /* |---------------------------------------------------------------| */
+
+  'flow.expired.heading': 'Sessão expirada',
+  'flow.expired.restart.description': 'Comece novamente.',
+  'flow.expired.restart': 'Começar novamente',
+  'flow.expired.return.description': 'Volte a {application} e tente novamente.',
+  'flow.expired.application': 'a aplicação',
+  'flow.expired.redirecting': 'A voltar a {application} em {seconds}s.',
+  'flow.expired.redirect.now': 'Voltar a {application} agora',
+  'flow.expired.redirect.link': 'Voltar a {application}',
+  'flow.expired.restarted': 'A sua sessão expirou, por isso começámos de novo.',
   /* Admin */
   'admin.common.loading': 'A carregar…',
   'attribution.secured_by': 'Protegido por',

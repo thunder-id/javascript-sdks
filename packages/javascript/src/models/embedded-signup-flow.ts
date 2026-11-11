@@ -169,6 +169,12 @@ export interface EmbeddedSignUpFlowResponse extends ExtendedEmbeddedSignUpFlowRe
   error?: FlowExecutionError;
 
   /**
+   * How many seconds the flow execution stays valid, from when this response was sent. Present while the flow
+   * is INCOMPLETE. A request for the execution after that is refused.
+   */
+  expiresIn?: number;
+
+  /**
    * Current status of the sign-up flow.
    * Determines whether more input is needed or the flow is complete.
    */

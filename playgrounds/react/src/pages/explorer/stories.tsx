@@ -3,6 +3,7 @@
 
 import {
   Alert,
+  BaseSignIn,
   BaseSignInButton,
   BaseSignOutButton,
   BaseSignUpButton,
@@ -79,6 +80,14 @@ const SOCIAL: Record<string, FC<{children?: ReactNode; onClick?: () => void}>> =
   LinkedInButton,
   MicrosoftButton,
   SignInWithEthereumButton,
+};
+
+/** The props a BaseSignIn expired-flow snippet needs for each mode of the Expired flow story. */
+const expiredFlowCode = (mode: string): string[] => {
+  if (mode === 'restart') return ['onRestart={handleRestart}'];
+  if (mode === 'redirect' || mode === 'redirect-failed') return ['flowExpiryRedirect={flowExpiryRedirect}'];
+
+  return [];
 };
 
 export const COMPONENTS: ComponentDef[] = [
@@ -774,6 +783,55 @@ export const COMPONENTS: ComponentDef[] = [
     stories: [
       {id: 'default', name: 'Default'},
       {args: {size: 'small', variant: 'elevated'}, id: 'compact', name: 'Compact'},
+    ],
+  },
+  {
+    code: (args: Args) => ({
+      imports: ['BaseSignIn'],
+      jsx: jsx('BaseSignIn', {isFlowExpired: true}, {extra: expiredFlowCode(str(args, 'mode'))}),
+    }),
+    controls: [
+      {
+        control: ['restart', 'redirect', 'redirect-failed', 'back'],
+        description:
+          'What the expired flow offers: start again in place (embedded), count down to the application ' +
+          '(afterFlowExpiredUrl), the link back once that redirect did not happen, or only telling the user to go back.',
+        name: 'mode',
+        type: "'restart' | 'redirect' | 'redirect-failed' | 'back'",
+      },
+    ],
+    defaults: {mode: 'restart'},
+    group: 'Auth flows',
+    id: 'flow-expired',
+    name: 'Expired flow',
+    render: (args: Args, action: Action) => {
+      const mode: string = str(args, 'mode');
+
+      return (
+        <Narrow width={400}>
+          <BaseSignIn
+            isFlowExpired
+            flowExpiryRedirect={
+              mode === 'redirect' || mode === 'redirect-failed'
+                ? {
+                    countdownSeconds: 10,
+                    isCountingDown: mode === 'redirect',
+                    isRedirectFailed: mode === 'redirect-failed',
+                    secondsLeft: mode === 'redirect' ? 7 : 0,
+                    url: '#',
+                  }
+                : null
+            }
+            onRestart={mode === 'restart' ? () => action('onRestart') : undefined}
+          />
+        </Narrow>
+      );
+    },
+    stories: [
+      {id: 'default', name: 'Start again'},
+      {args: {mode: 'redirect'}, id: 'redirect', name: 'Counting down'},
+      {args: {mode: 'redirect-failed'}, id: 'redirect-failed', name: 'Redirect did not happen'},
+      {args: {mode: 'back'}, id: 'back', name: 'Back to the application'},
     ],
   },
   {

@@ -255,6 +255,21 @@ const translations: I18nTranslations = {
   'errors.signin.flow.passkeys.completion.failure':
     'An error occurred while completing the passkeys sign-in flow. Please try again later.',
   'errors.signin.timeout': 'Time allowed to complete the step has expired.',
+  'errors.signin.session.expired': 'Your session has expired. Please return to the application and sign in again.',
+
+  /* |---------------------------------------------------------------| */
+  /* |                        Flow Expiry                            | */
+  /* |---------------------------------------------------------------| */
+
+  'flow.expired.heading': 'Session expired',
+  'flow.expired.restart.description': 'Please start again.',
+  'flow.expired.restart': 'Start again',
+  'flow.expired.return.description': 'Please go back to {application} and try again.',
+  'flow.expired.application': 'the application',
+  'flow.expired.redirecting': 'Taking you back to {application} in {seconds}s.',
+  'flow.expired.redirect.now': 'Back to {application} now',
+  'flow.expired.redirect.link': 'Back to {application}',
+  'flow.expired.restarted': 'Your session expired, so we started again.',
 
   'errors.signup.initialization': 'An error occurred while initializing. Please try again later.',
   'errors.signup.flow.failure': 'An error occurred during the sign-up flow. Please try again later.',

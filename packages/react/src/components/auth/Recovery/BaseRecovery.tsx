@@ -9,6 +9,7 @@ import {
   FieldError,
   withVendorCSSClassPrefix,
   buildValidatorFromRules,
+  isFlowExpiredError,
   Preferences,
   FlowMetadataResponse,
 } from '@thunderid/browser';
@@ -21,6 +22,8 @@ import useFlow from '../../../contexts/Flow/useFlow';
 import ComponentPreferencesContext from '../../../contexts/I18n/ComponentPreferencesContext';
 import useTheme from '../../../contexts/Theme/useTheme';
 import useThunderID from '../../../contexts/ThunderID/useThunderID';
+import useFlowExpiryHandling from '../../../hooks/auth/useFlowExpiryHandling';
+import type {FlowExpiryRedirect} from '../../../hooks/auth/useFlowExpiryRedirect';
 import useStepExpiry from '../../../hooks/auth/useStepExpiry';
 import {useForm, FormField} from '../../../hooks/useForm';
 import useTranslation from '../../../hooks/useTranslation';
@@ -28,12 +31,14 @@ import {cx} from '../../../styles/emotion';
 import composeAffixedInputs from '../../../utils/composeAffixedInputs';
 import {normalizeFlowResponse, extractErrorMessage} from '../../../utils/flowTransformer';
 import getAuthComponentHeadings from '../../../utils/getAuthComponentHeadings';
+import removeUrlParams from '../../../utils/removeUrlParams';
 import AlertPrimitive from '../../primitives/Alert/Alert';
 import CardPrimitive, {CardProps} from '../../primitives/Card/Card';
 import Logo from '../../primitives/Logo/Logo';
 import Spinner from '../../primitives/Spinner/Spinner';
 import Typography from '../../primitives/Typography/Typography';
 import {renderRecoveryComponents} from '../flow/AuthOptionFactory';
+import FlowExpired from '../flow/FlowExpired';
 import useStyles from '../SignUp/BaseSignUp.styles';
 
 /**
@@ -43,8 +48,17 @@ export interface BaseRecoveryRenderProps {
   components: any[];
   error?: Error | null;
   fieldErrors: Record<string, string>;
+  /**
+   * The countdown that sends the user back to the application once the flow expires. Set only with
+   * `afterFlowExpiredUrl` and while the flow is expired.
+   */
+  flowExpiryRedirect: FlowExpiryRedirect | null;
   handleInputChange: (name: string, value: string) => void;
   handleSubmit: (component: any, data?: Record<string, any>) => Promise<void>;
+  /** Whether the flow execution has expired: its time ran out, or the server refused it as expired. */
+  isFlowExpired: boolean;
+  /** Whether the flow was started again because the previous one expired, until the user submits a step. */
+  isFlowRestarted: boolean;
   isLoading: boolean;
   isValid: boolean;
   messages: {message: string; type: string}[];
@@ -60,6 +74,11 @@ export interface BaseRecoveryRenderProps {
  * Props for the BaseRecovery component.
  */
 export interface BaseRecoveryProps {
+  /**
+   * Where to send the user once the flow expires, e.g. the application's URL. With it, an expired flow counts
+   * down and redirects there. Without it, the flow is started again in place.
+   */
+  afterFlowExpiredUrl?: string;
   afterRecoveryUrl?: string;
   buttonClassName?: string;
   /**
@@ -101,6 +120,7 @@ export interface BaseRecoveryProps {
  * @internal
  */
 const BaseRecoveryContent: FC<BaseRecoveryProps> = ({
+  afterFlowExpiredUrl = undefined,
   onInitialize,
   onSubmit,
   onError,
@@ -131,18 +151,43 @@ const BaseRecoveryContent: FC<BaseRecoveryProps> = ({
   const [isFlowInitialized, setIsFlowInitialized] = useState(false);
   const [currentFlow, setCurrentFlow] = useState<EmbeddedRecoveryFlowResponse | null>(null);
   const [apiError, setApiError] = useState<Error | null>(null);
+  // Bumped to run the mount-time initialization again for an expired flow.
+  const [restartCount, setRestartCount] = useState<number>(0);
+  const {
+    clearFlowRestarted,
+    expireFlow,
+    flowExpiryRedirect,
+    isFlowExpired,
+    isFlowRestarted,
+    restartFlow,
+    restartsInPlace,
+  } = useFlowExpiryHandling({
+    afterFlowExpiredUrl,
+    canRestart: true,
+    // Deferred, since the restart is defined further down.
+    restart: (): void => startFlowAgain(),
+    step: currentFlow,
+  });
+  // An expiry the flow restarts from in place is not an error for the application.
+  const reportError = (error: unknown): void => {
+    if (restartsInPlace && isFlowExpiredError(error)) return;
+    onError?.(error as Error);
+  };
 
   const initializationAttemptedRef: any = useRef(false);
   const challengeTokenRef: any = useRef<string | null>(null);
 
   const handleError: any = useCallback(
     (error: any) => {
+      if (isFlowExpiredError(error)) {
+        expireFlow();
+      }
       const errorMessage: string = extractErrorMessage(error, t);
       setApiError(error instanceof Error ? error : new Error(errorMessage));
       clearMessages();
       addMessage({message: errorMessage, type: 'error'});
     },
-    [t, addMessage, clearMessages],
+    [t, addMessage, clearMessages, expireFlow],
   );
 
   const normalizeFlowResponseLocal: any = useCallback(
@@ -307,6 +352,7 @@ const BaseRecoveryContent: FC<BaseRecoveryProps> = ({
     }
 
     setIsLoading(true);
+    clearFlowRestarted();
     setApiError(null);
     clearMessages();
 
@@ -363,7 +409,7 @@ const BaseRecoveryContent: FC<BaseRecoveryProps> = ({
       }
     } catch (err) {
       handleError(err);
-      onError?.(err as Error);
+      reportError(err);
     } finally {
       setIsLoading(false);
     }
@@ -491,7 +537,7 @@ const BaseRecoveryContent: FC<BaseRecoveryProps> = ({
           }
         } catch (err) {
           handleError(err);
-          onError?.(err as Error);
+          reportError(err);
         } finally {
           setIsLoading(false);
         }
@@ -500,6 +546,7 @@ const BaseRecoveryContent: FC<BaseRecoveryProps> = ({
   }, [
     isFlowInitialized,
     isInitialized,
+    restartCount,
     normalizeFlowResponseLocal,
     onComplete,
     onError,
@@ -509,6 +556,21 @@ const BaseRecoveryContent: FC<BaseRecoveryProps> = ({
     t,
   ]);
 
+  /**
+   * Starts an expired flow again: clears it, drops the expired execution from the URL so a recovery link is
+   * not resumed again, and runs the mount-time initialization once more.
+   */
+  const startFlowAgain = (): void => {
+    setCurrentFlow(null);
+    setApiError(null);
+    clearMessages();
+    challengeTokenRef.current = null;
+    removeUrlParams('executionId');
+    initializationAttemptedRef.current = false;
+    setIsFlowInitialized(false);
+    setRestartCount((count: number) => count + 1);
+  };
+
   if (children) {
     if (typeof children === 'function') {
       const renderProps: BaseRecoveryRenderProps = {
@@ -517,6 +579,9 @@ const BaseRecoveryContent: FC<BaseRecoveryProps> = ({
         fieldErrors: formErrors,
         handleInputChange,
         handleSubmit,
+        flowExpiryRedirect,
+        isFlowExpired,
+        isFlowRestarted,
         isLoading,
         isValid: isFormValid,
         messages: flowMessages || [],
@@ -535,6 +600,16 @@ const BaseRecoveryContent: FC<BaseRecoveryProps> = ({
     }
 
     return <div className={containerClasses}>{children}</div>;
+  }
+
+  if (isFlowExpired) {
+    return (
+      <CardPrimitive className={cx(containerClasses, styles.card)} variant={variant}>
+        <CardPrimitive.Content>
+          <FlowExpired redirect={flowExpiryRedirect} onRestart={restartsInPlace ? restartFlow : undefined} />
+        </CardPrimitive.Content>
+      </CardPrimitive>
+    );
   }
 
   if (!isFlowInitialized && isLoading) {
@@ -588,6 +663,13 @@ const BaseRecoveryContent: FC<BaseRecoveryProps> = ({
         </CardPrimitive.Header>
       )}
       <CardPrimitive.Content>
+        {isFlowRestarted && (
+          <div className={styles.flowMessagesContainer}>
+            <AlertPrimitive variant="info" className={cx(styles.flowMessageItem, messageClasses)}>
+              <AlertPrimitive.Description>{t('flow.expired.restarted')}</AlertPrimitive.Description>
+            </AlertPrimitive>
+          </div>
+        )}
         {externalError && (
           <div className={styles.flowMessagesContainer}>
             <AlertPrimitive variant="error" className={cx(styles.flowMessageItem, messageClasses)}>

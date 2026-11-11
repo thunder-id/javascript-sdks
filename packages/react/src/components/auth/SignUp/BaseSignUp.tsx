@@ -11,6 +11,7 @@ import {
   FieldError,
   createPackageComponentLogger,
   buildValidatorFromRules,
+  isFlowExpiredError,
   Preferences,
 } from '@thunderid/browser';
 import {FC, ReactElement, ReactNode, useCallback, useContext, useEffect, useMemo, useRef, useState} from 'react';
@@ -23,6 +24,8 @@ import useFlow from '../../../contexts/Flow/useFlow';
 import ComponentPreferencesContext from '../../../contexts/I18n/ComponentPreferencesContext';
 import useTheme from '../../../contexts/Theme/useTheme';
 import useThunderID from '../../../contexts/ThunderID/useThunderID';
+import useFlowExpiryHandling from '../../../hooks/auth/useFlowExpiryHandling';
+import type {FlowExpiryRedirect} from '../../../hooks/auth/useFlowExpiryRedirect';
 import useStepExpiry from '../../../hooks/auth/useStepExpiry';
 import {useForm, FormField} from '../../../hooks/useForm';
 import useTranslation from '../../../hooks/useTranslation';
@@ -31,6 +34,7 @@ import composeAffixedInputs from '../../../utils/composeAffixedInputs';
 import {normalizeFlowResponse, extractErrorMessage, resolveFlowError} from '../../../utils/flowTransformer';
 import getAuthComponentHeadings from '../../../utils/getAuthComponentHeadings';
 import {handlePasskeyRegistration} from '../../../utils/passkey';
+import removeUrlParams from '../../../utils/removeUrlParams';
 import AlertPrimitive from '../../primitives/Alert/Alert';
 // eslint-disable-next-line import/no-named-as-default
 import CardPrimitive, {CardProps} from '../../primitives/Card/Card';
@@ -38,6 +42,7 @@ import Logo from '../../primitives/Logo/Logo';
 import Spinner from '../../primitives/Spinner/Spinner';
 import Typography from '../../primitives/Typography/Typography';
 import {renderSignUpComponents} from '../flow/AuthOptionFactory';
+import FlowExpired from '../flow/FlowExpired';
 
 const logger: ReturnType<typeof createPackageComponentLogger> = createPackageComponentLogger(
   '@thunderid/react',
@@ -65,6 +70,17 @@ export interface BaseSignUpRenderProps {
   additionalData: Record<string, unknown>;
 
   /**
+   * The countdown that sends the user back to the application once the flow expires. Set only with
+   * `afterFlowExpiredUrl` and while the flow is expired.
+   */
+  flowExpiryRedirect: FlowExpiryRedirect | null;
+
+  /**
+   * Whether the flow was started again because the previous one expired, until the user submits a step.
+   */
+  isFlowRestarted: boolean;
+
+  /**
    * Flow components
    */
   components: any[];
@@ -88,6 +104,12 @@ export interface BaseSignUpRenderProps {
    * Function to handle form submission
    */
   handleSubmit: (component: any, data?: Record<string, any>) => Promise<void>;
+
+  /**
+   * Whether the flow execution has expired: its time ran out, or the server refused it as expired.
+   * The flow cannot continue, so the user has to start again from the application.
+   */
+  isFlowExpired: boolean;
 
   /**
    * Loading state
@@ -134,6 +156,12 @@ export interface BaseSignUpRenderProps {
  * Props for the BaseSignUp component.
  */
 export interface BaseSignUpProps {
+  /**
+   * Where to send the user once the flow expires, e.g. the application's URL. With it, an expired flow counts
+   * down and redirects there. Without it, the flow is started again in place.
+   */
+  afterFlowExpiredUrl?: string;
+
   /**
    * URL to redirect after successful sign-up.
    */
@@ -263,6 +291,7 @@ export interface BaseSignUpProps {
  */
 const BaseSignUpContent: FC<BaseSignUpProps> = ({
   afterSignUpUrl,
+  afterFlowExpiredUrl = undefined,
   onInitialize,
   onSubmit,
   onError,
@@ -293,6 +322,28 @@ const BaseSignUpContent: FC<BaseSignUpProps> = ({
   const [isLoading, setIsLoading] = useState(false);
   const [isFlowInitialized, setIsFlowInitialized] = useState(false);
   const [currentFlow, setCurrentFlow] = useState<EmbeddedSignUpFlowResponse | null>(null);
+  // Bumped to run the mount-time initialization again for an expired flow.
+  const [restartCount, setRestartCount] = useState<number>(0);
+  const {
+    clearFlowRestarted,
+    expireFlow,
+    flowExpiryRedirect,
+    isFlowExpired,
+    isFlowRestarted,
+    restartFlow,
+    restartsInPlace,
+  } = useFlowExpiryHandling({
+    afterFlowExpiredUrl,
+    canRestart: true,
+    // Deferred, since the restart is defined further down.
+    restart: (): void => startFlowAgain(),
+    step: currentFlow,
+  });
+  // An expiry the flow restarts from in place is not an error for the application.
+  const reportError = (error: unknown): void => {
+    if (restartsInPlace && isFlowExpiredError(error)) return;
+    onError?.(error as Error);
+  };
   // Raw error source, resolved on render so the message follows a language change.
   const [apiErrorSource, setApiErrorSource] = useState<unknown>(null);
   const apiError: Error | null = useMemo(
@@ -364,9 +415,15 @@ const BaseSignUpContent: FC<BaseSignUpProps> = ({
   /**
    * Handle error responses. The message is resolved from the stored source on render.
    */
-  const handleError: any = useCallback((error: unknown) => {
-    setApiErrorSource(error);
-  }, []);
+  const handleError: any = useCallback(
+    (error: unknown) => {
+      if (isFlowExpiredError(error)) {
+        expireFlow();
+      }
+      setApiErrorSource(error);
+    },
+    [expireFlow],
+  );
 
   // Flow messages hold plain strings, so re-add the message on a new error or a changed text.
   // Keyed on the text, not `t`, so an unstable translator cannot re-run this on every render.
@@ -698,7 +755,7 @@ const BaseSignUpContent: FC<BaseSignUpProps> = ({
           popup.close();
         } catch (err) {
           handleError(err);
-          onError?.(err as Error);
+          reportError(err);
           popup.close();
           cleanup();
         }
@@ -815,6 +872,7 @@ const BaseSignUpContent: FC<BaseSignUpProps> = ({
     }
 
     setIsLoading(true);
+    clearFlowRestarted();
     setApiErrorSource(null);
     clearMessages();
 
@@ -891,7 +949,7 @@ const BaseSignUpContent: FC<BaseSignUpProps> = ({
       }
     } catch (err) {
       handleError(err);
-      onError?.(err as Error);
+      reportError(err);
     } finally {
       setIsLoading(false);
     }
@@ -948,7 +1006,7 @@ const BaseSignUpContent: FC<BaseSignUpProps> = ({
       .catch((error: any) => {
         setPasskeyState((prev: any) => ({...prev, error: error as Error, isActive: false}));
         handleError(error);
-        onError?.(error as Error);
+        reportError(error);
       });
   }, [passkeyState.isActive, passkeyState.creationOptions, passkeyState.executionId]);
 
@@ -1078,12 +1136,7 @@ const BaseSignUpContent: FC<BaseSignUpProps> = ({
           onFlowChange?.(response);
 
           // Clean up executionId and applicationId from URL after storing in state
-          if (window?.location?.href) {
-            const url: URL = new URL(window.location.href);
-            url.searchParams.delete('executionId');
-            url.searchParams.delete('applicationId');
-            window.history.replaceState({}, '', url.toString());
-          }
+          removeUrlParams('executionId', 'applicationId');
 
           if (response.flowStatus === EmbeddedSignUpFlowStatus.Error) {
             handleError(response);
@@ -1107,7 +1160,7 @@ const BaseSignUpContent: FC<BaseSignUpProps> = ({
           }
         } catch (err) {
           handleError(err);
-          onError?.(err as Error);
+          reportError(err);
         } finally {
           setIsLoading(false);
         }
@@ -1117,6 +1170,7 @@ const BaseSignUpContent: FC<BaseSignUpProps> = ({
     isInitialized,
     isStorageReady,
     isFlowInitialized,
+    restartCount,
     onInitialize,
     onComplete,
     onError,
@@ -1127,6 +1181,22 @@ const BaseSignUpContent: FC<BaseSignUpProps> = ({
     t,
   ]);
 
+  /**
+   * Starts an expired flow again: clears it, drops the expired execution from the URL so it is not resumed,
+   * and runs the mount-time initialization once more.
+   */
+  const startFlowAgain = (): void => {
+    setCurrentFlow(null);
+    setApiErrorSource(null);
+    clearMessages();
+    void setChallengeToken(null);
+    isFlowCompletedRef.current = false;
+    removeUrlParams('executionId');
+    initializationAttemptedRef.current = false;
+    setIsFlowInitialized(false);
+    setRestartCount((count: number) => count + 1);
+  };
+
   // If render props are provided, use them
   if (children) {
     const renderProps: BaseSignUpRenderProps = {
@@ -1135,7 +1205,10 @@ const BaseSignUpContent: FC<BaseSignUpProps> = ({
       error: apiError,
       fieldErrors: formErrors,
       handleInputChange,
+      flowExpiryRedirect,
       handleSubmit,
+      isFlowExpired,
+      isFlowRestarted,
       isLoading,
       isValid: isFormValid,
       messages: flowMessages || [],
@@ -1153,6 +1226,16 @@ const BaseSignUpContent: FC<BaseSignUpProps> = ({
       <div id={id} className={containerClasses}>
         {children(renderProps)}
       </div>
+    );
+  }
+
+  if (isFlowExpired) {
+    return (
+      <CardPrimitive id={id} className={cx(containerClasses, styles.card)} variant={variant}>
+        <CardPrimitive.Content>
+          <FlowExpired redirect={flowExpiryRedirect} onRestart={restartsInPlace ? restartFlow : undefined} />
+        </CardPrimitive.Content>
+      </CardPrimitive>
     );
   }
 
@@ -1208,6 +1291,13 @@ const BaseSignUpContent: FC<BaseSignUpProps> = ({
         </CardPrimitive.Header>
       )}
       <CardPrimitive.Content>
+        {isFlowRestarted && (
+          <div className={styles.flowMessagesContainer}>
+            <AlertPrimitive variant="info" className={cx(styles.flowMessageItem, messageClasses)}>
+              <AlertPrimitive.Description>{t('flow.expired.restarted')}</AlertPrimitive.Description>
+            </AlertPrimitive>
+          </div>
+        )}
         {externalError && (
           <div className={styles.flowMessagesContainer}>
             <AlertPrimitive variant="error" className={cx(styles.flowMessageItem, messageClasses)}>

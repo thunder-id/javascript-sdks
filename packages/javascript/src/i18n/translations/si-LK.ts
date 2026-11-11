@@ -262,6 +262,21 @@ const translations: I18nTranslations = {
   'errors.signup.components.not.available': 'ගිණුම් තැනීමේ පිටුව දැන් ලබා ගත නොහැකිය. කරුණාකර පසුව නැවත උත්සාහ කරන්න.',
   'errors.signin.components.not.available': 'ප්‍රවේශ වීමේ පිටුව දැන් ලබා ගත නොහැකිය. කරුණාකර පසුව නැවත උත්සාහ කරන්න.',
   'errors.signin.timeout': 'පියවර සම්පූර්ණ කිරීමට ලබා දී තිබූ කාලය ඉකුත් වී ඇත.',
+  'errors.signin.session.expired': 'ඔබගේ සැසිය කල් ඉකුත් වී ඇත. කරුණාකර යෙදුම වෙත ආපසු ගොස් නැවත ලොග් වන්න.',
+
+  /* |---------------------------------------------------------------| */
+  /* |                        Flow Expiry                            | */
+  /* |---------------------------------------------------------------| */
+
+  'flow.expired.heading': 'සැසිය කල් ඉකුත් විය',
+  'flow.expired.restart.description': 'කරුණාකර නැවත ආරම්භ කරන්න.',
+  'flow.expired.restart': 'නැවත ආරම්භ කරන්න',
+  'flow.expired.return.description': 'කරුණාකර {application} වෙත ආපසු ගොස් නැවත උත්සාහ කරන්න.',
+  'flow.expired.application': 'යෙදුම',
+  'flow.expired.redirecting': 'තත්පර {seconds} කින් ඔබව {application} වෙත ආපසු ගෙන යයි.',
+  'flow.expired.redirect.now': 'දැන් {application} වෙත ආපසු යන්න',
+  'flow.expired.redirect.link': '{application} වෙත ආපසු යන්න',
+  'flow.expired.restarted': 'ඔබගේ සැසිය කල් ඉකුත් වූ බැවින් අපි නැවත ආරම්භ කළෙමු.',
   /* Admin */
   'admin.common.loading': 'පූරණය වෙමින්…',
   'attribution.secured_by': 'ආරක්ෂාව සපයන්නේ',

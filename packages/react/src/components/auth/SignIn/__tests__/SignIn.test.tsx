@@ -236,6 +236,280 @@ describe('SignIn error banner on a language change', () => {
   });
 });
 
+describe('SignIn flow expiry', () => {
+  // A fragment of this page, so a redirect in a test never navigates the test page away.
+  const appUrl = (): string => `${window.location.origin}${window.location.pathname}#app`;
+
+  // `expiresIn` is in seconds, so 0.1 expires the step 100 ms after the response.
+  const step = (expiresIn?: number): Record<string, unknown> => ({
+    data: {
+      meta: {components: [{eventType: 'TRIGGER', id: 'action_continue', label: 'Continue', type: 'ACTION'}]},
+    },
+    executionId: 'exec-1',
+    ...(expiresIn !== undefined ? {expiresIn} : {}),
+    flowStatus: 'INCOMPLETE',
+    type: 'VIEW',
+  });
+
+  const expiredError = (): ThunderIDAPIError =>
+    new ThunderIDAPIError(
+      JSON.stringify({code: 'FES-1004', message: {defaultValue: 'Invalid request', key: 'error.invalid_request'}}),
+      'executeEmbeddedSignInFlow-ResponseError-100',
+      'javascript',
+      400,
+      'Bad Request',
+    );
+
+  const renderSignIn = (
+    renderChild?: Mock<(props: SignInRenderProps) => ReactNode>,
+    props: {afterFlowExpiredUrl?: string; onError?: Mock} = {},
+    context: Partial<ThunderIDContextProps> = {applicationId: 'app-1'},
+  ): void => {
+    render(
+      <ThunderIDContext.Provider value={{...thunderIDContext, ...context}}>
+        <I18nProvider>
+          <ThemeProvider>
+            <SignIn {...props}>{renderChild}</SignIn>
+          </ThemeProvider>
+        </I18nProvider>
+      </ThunderIDContext.Provider>,
+    );
+  };
+
+  const lastProps = (renderChild: Mock<(props: SignInRenderProps) => ReactNode>): SignInRenderProps | undefined =>
+    renderChild.mock.lastCall?.[0];
+
+  const submittingChild = (): Mock<(props: SignInRenderProps) => ReactNode> =>
+    vi.fn((props: SignInRenderProps) => (
+      <button type="button" data-testid="submit" onClick={() => void props.onSubmit({action: 'action_continue'})} />
+    ));
+
+  const setUserPresent = (present: boolean): void => {
+    vi.spyOn(document, 'hasFocus').mockReturnValue(present);
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockSignIn.mockReset();
+    sessionStorage.clear();
+    window.history.replaceState({}, '', '/signin');
+  });
+
+  afterEach(() => {
+    cleanup();
+    vi.restoreAllMocks();
+    window.history.replaceState({}, '', '/signin');
+  });
+
+  it('is not expired while the flow is active', async () => {
+    mockSignIn.mockResolvedValueOnce(step(60));
+    const renderChild: Mock<(props: SignInRenderProps) => ReactNode> = vi.fn(() => null);
+    renderSignIn(renderChild);
+
+    await waitFor(() => {
+      expect(lastProps(renderChild)?.components.length).toBeGreaterThan(0);
+    });
+    expect(lastProps(renderChild)?.isFlowExpired).toBe(false);
+    expect(lastProps(renderChild)?.flowExpiryRedirect).toBeNull();
+  });
+
+  it('starts an expired flow again once the user is on the page, says so, and raises no error', async () => {
+    setUserPresent(true);
+    const onError: Mock = vi.fn();
+    mockSignIn.mockResolvedValueOnce(step(0.1)).mockResolvedValueOnce(step(60));
+    const renderChild: Mock<(props: SignInRenderProps) => ReactNode> = vi.fn(() => null);
+    renderSignIn(renderChild, {onError});
+
+    await waitFor(() => {
+      expect(mockSignIn).toHaveBeenCalledTimes(2);
+    });
+    expect(mockSignIn).toHaveBeenLastCalledWith(expect.objectContaining({applicationId: 'app-1'}));
+    await waitFor(() => {
+      expect(lastProps(renderChild)?.isFlowRestarted).toBe(true);
+    });
+    expect(lastProps(renderChild)?.isFlowExpired).toBe(false);
+    expect(onError).not.toHaveBeenCalled();
+  });
+
+  it('waits for the user before starting an expired flow again', async () => {
+    setUserPresent(false);
+    mockSignIn.mockResolvedValueOnce(step(0.1)).mockResolvedValueOnce(step(60));
+    const renderChild: Mock<(props: SignInRenderProps) => ReactNode> = vi.fn(() => null);
+    renderSignIn(renderChild);
+
+    await waitFor(() => {
+      expect(lastProps(renderChild)?.isFlowExpired).toBe(true);
+    });
+    expect(mockSignIn).toHaveBeenCalledTimes(1);
+
+    window.dispatchEvent(new Event('focus'));
+
+    await waitFor(() => {
+      expect(mockSignIn).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  it('starts a resumed execution the server refused again, for the application from the URL', async () => {
+    setUserPresent(true);
+    window.history.replaceState({}, '', '/signin?executionId=stale-exec&applicationId=app-from-url');
+    mockSignIn.mockRejectedValueOnce(expiredError()).mockResolvedValueOnce(step(60));
+    const renderChild: Mock<(props: SignInRenderProps) => ReactNode> = vi.fn(() => null);
+    renderSignIn(renderChild, {}, {applicationId: undefined});
+
+    await waitFor(() => {
+      expect(mockSignIn).toHaveBeenCalledTimes(2);
+    });
+    expect(mockSignIn.mock.calls[0][0]).toMatchObject({executionId: 'stale-exec'});
+    expect(mockSignIn.mock.calls[1][0]).toMatchObject({applicationId: 'app-from-url'});
+    expect(mockSignIn.mock.calls[1][0]).not.toHaveProperty('executionId');
+    await waitFor(() => {
+      expect(lastProps(renderChild)?.components.length).toBeGreaterThan(0);
+    });
+    expect(lastProps(renderChild)?.isFlowRestarted).toBe(true);
+  });
+
+  it('does not start a sign-in an authorize request started again, and tells the user to go back', async () => {
+    setUserPresent(true);
+    window.history.replaceState({}, '', '/signin?executionId=exec-1&authId=auth-1&applicationId=app-1');
+    mockSignIn.mockResolvedValueOnce(step(0.1));
+    renderSignIn(undefined, {}, {applicationId: undefined});
+
+    expect(await screen.findByRole('heading', {name: 'Session expired'})).toBeInTheDocument();
+    expect(screen.getByText('Please go back to the application and try again.')).toBeInTheDocument();
+    expect(screen.queryByRole('button', {name: 'Start again'})).not.toBeInTheDocument();
+    expect(mockSignIn).toHaveBeenCalledTimes(1);
+  });
+
+  it('counts down to the application with afterFlowExpiredUrl instead of starting again', async () => {
+    setUserPresent(false);
+    mockSignIn.mockResolvedValueOnce(step(0.1));
+    const renderChild: Mock<(props: SignInRenderProps) => ReactNode> = vi.fn(() => null);
+    renderSignIn(renderChild, {afterFlowExpiredUrl: appUrl()});
+
+    await waitFor(() => {
+      expect(lastProps(renderChild)?.isFlowExpired).toBe(true);
+    });
+    expect(lastProps(renderChild)?.flowExpiryRedirect).toMatchObject({
+      countdownSeconds: 10,
+      isCountingDown: false,
+      secondsLeft: 10,
+      url: appUrl(),
+    });
+
+    window.dispatchEvent(new Event('focus'));
+
+    await waitFor(() => {
+      expect(lastProps(renderChild)?.flowExpiryRedirect?.isCountingDown).toBe(true);
+    });
+    expect(mockSignIn).toHaveBeenCalledTimes(1);
+  });
+
+  it('expires when the server refuses a submission as expired', async () => {
+    mockSignIn.mockResolvedValueOnce(step());
+    const renderChild = submittingChild();
+    renderSignIn(renderChild, {afterFlowExpiredUrl: appUrl()});
+
+    const button: HTMLElement = await screen.findByTestId('submit');
+    await waitFor(() => {
+      expect(lastProps(renderChild)?.components.length).toBeGreaterThan(0);
+    });
+    mockSignIn.mockRejectedValueOnce(expiredError());
+    fireEvent.click(button);
+
+    await waitFor(() => {
+      expect(lastProps(renderChild)?.isFlowExpired).toBe(true);
+    });
+    expect(lastProps(renderChild)?.error?.message).toBe(
+      'Your session has expired. Please return to the application and sign in again.',
+    );
+  });
+
+  it('shows the countdown in the default UI with afterFlowExpiredUrl', async () => {
+    setUserPresent(false);
+    mockSignIn.mockResolvedValueOnce(step(0.1));
+    renderSignIn(undefined, {afterFlowExpiredUrl: appUrl()});
+
+    expect(await screen.findByRole('heading', {name: 'Session expired'})).toBeInTheDocument();
+    // Until the user is on the page, there is no countdown, only the link back.
+    expect(screen.getByText('Please go back to the application and try again.')).toBeInTheDocument();
+    expect(screen.getByRole('link', {name: 'Back to the application'})).toHaveAttribute('href', appUrl());
+
+    // The user comes back; repeated until the listener is in place, since it runs only once.
+    await waitFor(() => {
+      window.dispatchEvent(new Event('focus'));
+      expect(screen.getByText(/Taking you back to the application in \d+s\./)).toBeInTheDocument();
+    });
+    expect(screen.getByRole('link', {name: 'Back to the application now'})).toHaveAttribute('href', appUrl());
+  });
+
+  it('starts again in the default UI and tells the user', async () => {
+    setUserPresent(true);
+    mockSignIn.mockResolvedValueOnce(step(0.1)).mockResolvedValueOnce(step(60));
+    renderSignIn();
+
+    expect(await screen.findByText('Your session expired, so we started again.')).toBeInTheDocument();
+    expect(await screen.findByTestId('thunderid-signin-submit')).toBeInTheDocument();
+  });
+
+  it('keeps the expired error when a flow already expired is refused again', async () => {
+    setUserPresent(false);
+    mockSignIn.mockResolvedValueOnce(step(0.1));
+    const renderChild = submittingChild();
+    renderSignIn(renderChild, {afterFlowExpiredUrl: appUrl()});
+
+    await waitFor(() => {
+      expect(lastProps(renderChild)?.isFlowExpired).toBe(true);
+    });
+    mockSignIn.mockRejectedValueOnce(expiredError());
+    fireEvent.click(screen.getByTestId('submit'));
+
+    await waitFor(() => {
+      expect(mockSignIn).toHaveBeenCalledTimes(2);
+    });
+    await waitFor(() => {
+      expect(lastProps(renderChild)?.error?.message).toBe(
+        'Your session has expired. Please return to the application and sign in again.',
+      );
+    });
+    expect(lastProps(renderChild)?.isFlowExpired).toBe(true);
+  });
+
+  it('starts a stored execution the server refused as expired again, and says so', async () => {
+    setUserPresent(true);
+    sessionStorage.setItem('thunderid_execution_id', 'stale-exec');
+    mockSignIn.mockRejectedValueOnce(expiredError()).mockResolvedValueOnce(step(60));
+    const renderChild: Mock<(props: SignInRenderProps) => ReactNode> = vi.fn(() => null);
+    renderSignIn(renderChild);
+
+    await waitFor(() => {
+      expect(mockSignIn).toHaveBeenCalledTimes(2);
+    });
+    expect(mockSignIn.mock.calls[0][0]).toMatchObject({executionId: 'stale-exec'});
+    expect(mockSignIn.mock.calls[1][0]).toMatchObject({applicationId: 'app-1'});
+    await waitFor(() => {
+      expect(lastProps(renderChild)?.isFlowRestarted).toBe(true);
+    });
+  });
+
+  it('does not expire for another refusal', async () => {
+    mockSignIn.mockResolvedValueOnce(step());
+    const renderChild = submittingChild();
+    renderSignIn(renderChild);
+
+    const button: HTMLElement = await screen.findByTestId('submit');
+    await waitFor(() => {
+      expect(lastProps(renderChild)?.components.length).toBeGreaterThan(0);
+    });
+    mockSignIn.mockRejectedValueOnce(new ThunderIDAPIError('Server error', 'FLOW_ERROR', 'react', 500, 'Error'));
+    fireEvent.click(button);
+
+    await waitFor(() => {
+      expect(lastProps(renderChild)?.error).not.toBeNull();
+    });
+    expect(lastProps(renderChild)?.isFlowExpired).toBe(false);
+  });
+});
+
 const consentPrompt = [
   {
     essential: [],

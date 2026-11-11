@@ -166,6 +166,12 @@ export interface EmbeddedSignInFlowResponse extends ExtendedEmbeddedSignInFlowRe
   errorAssertion?: string;
 
   /**
+   * How many seconds the flow execution stays valid, from when this response was sent. Present while the flow
+   * is INCOMPLETE. A request for the execution after that is refused.
+   */
+  expiresIn?: number;
+
+  /**
    * SSO sessions this step started. A step that starts one need not be the last, so they can arrive on
    * an INCOMPLETE response.
    */

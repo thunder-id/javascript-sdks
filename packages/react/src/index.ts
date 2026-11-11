@@ -53,6 +53,7 @@ export * from './hooks/useBrowserUrl';
 export {default as useTranslation} from './hooks/useTranslation';
 export * from './hooks/useTranslation';
 export {default as useFetchAuthFlows} from './hooks/auth/useFetchAuthFlows';
+export type {FlowExpiryRedirect} from './hooks/auth/useFlowExpiryRedirect';
 
 export {normalizeFlowResponse, extractErrorMessage} from './utils/flowTransformer';
 

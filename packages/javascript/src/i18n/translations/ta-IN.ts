@@ -264,6 +264,21 @@ const translations: I18nTranslations = {
   'errors.signup.components.not.available': 'பதிவு படிவம் இப்போது கிடைக்கவில்லை. பின்னர் மீண்டும் முயற்சிக்கவும்.',
   'errors.signin.components.not.available': 'உள்நுழைவு படிவம் இப்போது கிடைக்கவில்லை. பின்னர் மீண்டும் முயற்சிக்கவும்.',
   'errors.signin.timeout': 'படிநிலையை முடிக்க அனுமதிக்கப்பட்ட நேரம் காலாவதியானது.',
+  'errors.signin.session.expired': 'உங்கள் அமர்வு காலாவதியானது. பயன்பாட்டிற்குத் திரும்பி மீண்டும் உள்நுழையவும்.',
+
+  /* |---------------------------------------------------------------| */
+  /* |                        Flow Expiry                            | */
+  /* |---------------------------------------------------------------| */
+
+  'flow.expired.heading': 'அமர்வு காலாவதியானது',
+  'flow.expired.restart.description': 'மீண்டும் தொடங்கவும்.',
+  'flow.expired.restart': 'மீண்டும் தொடங்கு',
+  'flow.expired.return.description': '{application} க்குத் திரும்பி மீண்டும் முயற்சிக்கவும்.',
+  'flow.expired.application': 'பயன்பாடு',
+  'flow.expired.redirecting': '{seconds} வினாடிகளில் உங்களை {application} க்குத் திருப்பி அனுப்புகிறோம்.',
+  'flow.expired.redirect.now': 'இப்போதே {application} க்குத் திரும்பு',
+  'flow.expired.redirect.link': '{application} க்குத் திரும்பு',
+  'flow.expired.restarted': 'உங்கள் அமர்வு காலாவதியானதால், மீண்டும் தொடங்கினோம்.',
   /* Admin */
   'admin.common.loading': 'ஏற்றுகிறது…',
   'attribution.secured_by': 'பாதுகாப்பு வழங்குநர்',

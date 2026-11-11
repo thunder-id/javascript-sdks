@@ -264,6 +264,22 @@ const translations: I18nTranslations = {
   'errors.signin.components.not.available':
     'సైన్ ఇన్ ఫారం ప్రస్తుతం అందుబాటులో లేదు. దయచేసి తరువాత మళ్లీ ప్రయత్నించండి.',
   'errors.signin.timeout': 'దశను పూర్తి చేయడానికి అనుమతించబడిన సమయం ముగిసింది.',
+  'errors.signin.session.expired':
+    'మీ సెషన్ గడువు ముగిసింది. దయచేసి అప్లికేషన్‌కు తిరిగి వెళ్లి మళ్లీ సైన్ ఇన్ చేయండి.',
+
+  /* |---------------------------------------------------------------| */
+  /* |                        Flow Expiry                            | */
+  /* |---------------------------------------------------------------| */
+
+  'flow.expired.heading': 'సెషన్ గడువు ముగిసింది',
+  'flow.expired.restart.description': 'దయచేసి మళ్లీ ప్రారంభించండి.',
+  'flow.expired.restart': 'మళ్లీ ప్రారంభించండి',
+  'flow.expired.return.description': 'దయచేసి {application}కు తిరిగి వెళ్లి మళ్లీ ప్రయత్నించండి.',
+  'flow.expired.application': 'అప్లికేషన్',
+  'flow.expired.redirecting': '{seconds} సెకన్లలో మిమ్మల్ని {application}కు తిరిగి తీసుకెళ్తున్నాము.',
+  'flow.expired.redirect.now': 'ఇప్పుడే {application}కు తిరిగి వెళ్లండి',
+  'flow.expired.redirect.link': '{application}కు తిరిగి వెళ్లండి',
+  'flow.expired.restarted': 'మీ సెషన్ గడువు ముగిసినందున, మేము మళ్లీ ప్రారంభించాము.',
   /* Admin */
   'admin.common.loading': 'లోడ్ అవుతోంది…',
   'attribution.secured_by': 'భద్రత అందించేది',

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import {render, waitFor, cleanup, act, fireEvent, screen} from '@testing-library/react';
-import {I18nPreferences} from '@thunderid/browser';
+import {I18nPreferences, ThunderIDAPIError} from '@thunderid/browser';
 import {afterEach, beforeEach, describe, expect, it, vi, Mock, MockInstance} from 'vitest';
 import type {ReactElement, ReactNode} from 'react';
 import I18nProvider from '../../../../contexts/I18n/I18nProvider';
@@ -436,5 +436,203 @@ describe('SignUp', () => {
         expect.objectContaining({message: 'Could not continue the sign-up in the pop-up window. Please try again.'}),
       );
     });
+  });
+});
+
+describe('SignUp flow expiry', () => {
+  // A fragment of this page, so a redirect in a test never navigates the test page away.
+  const appUrl = (): string => `${window.location.origin}${window.location.pathname}#app`;
+
+  const renderWithProps = (
+    props: {afterFlowExpiredUrl?: string} = {},
+  ): {last: () => SignUpRenderProps | undefined; submit: () => Promise<void>} => {
+    const renderChild: Mock<(props: SignUpRenderProps) => ReactNode> = vi.fn(() => <div />);
+    render(
+      <ThunderIDContext.Provider value={thunderIDContext}>
+        <I18nProvider>
+          <ThemeProvider>
+            <SignUp shouldRedirectAfterSignUp={false} {...props}>
+              {renderChild}
+            </SignUp>
+          </ThemeProvider>
+        </I18nProvider>
+      </ThunderIDContext.Provider>,
+    );
+
+    const last = (): SignUpRenderProps | undefined => renderChild.mock.lastCall?.[0];
+    return {last, submit: () => last()!.handleSubmit({id: 'continue'}, {}, true as never)};
+  };
+
+  const setUserPresent = (present: boolean): void => {
+    vi.spyOn(document, 'hasFocus').mockReturnValue(present);
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    window.history.replaceState({}, '', '/signup');
+  });
+
+  afterEach(() => {
+    cleanup();
+    vi.restoreAllMocks();
+    window.history.replaceState({}, '', '/signup');
+  });
+
+  it('counts down to the application with afterFlowExpiredUrl once the response expiresIn passes', async () => {
+    setUserPresent(false);
+    mockSignUp.mockResolvedValueOnce({executionId: 'exec-1', expiresIn: 0.1, flowStatus: 'INCOMPLETE'});
+    const {last} = renderWithProps({afterFlowExpiredUrl: appUrl()});
+
+    await waitFor(() => {
+      expect(mockSignUp).toHaveBeenCalledTimes(1);
+    });
+
+    await waitFor(() => {
+      expect(last()?.isFlowExpired).toBe(true);
+    });
+    expect(last()?.flowExpiryRedirect).toMatchObject({isCountingDown: false, secondsLeft: 10, url: appUrl()});
+    expect(mockSignUp).toHaveBeenCalledTimes(1);
+  });
+
+  it('expires when the server refuses a submission as expired', async () => {
+    mockSignUp.mockResolvedValueOnce({executionId: 'exec-1', flowStatus: 'INCOMPLETE'});
+    const {last, submit} = renderWithProps({afterFlowExpiredUrl: appUrl()});
+    await waitFor(() => {
+      expect(mockSignUp).toHaveBeenCalledTimes(1);
+    });
+
+    mockSignUp.mockRejectedValueOnce(
+      new ThunderIDAPIError(
+        JSON.stringify({code: 'FES-1004', message: {defaultValue: 'Invalid request', key: 'error.invalid_request'}}),
+        'executeEmbeddedSignUpFlow-ResponseError-001',
+        'javascript',
+        400,
+        'Bad Request',
+      ),
+    );
+    await act(async () => {
+      await submit();
+    });
+
+    await waitFor(() => {
+      expect(last()?.isFlowExpired).toBe(true);
+    });
+  });
+
+  it('starts an expired flow again once the user is on the page, and says so', async () => {
+    setUserPresent(true);
+    mockSignUp
+      .mockResolvedValueOnce({executionId: 'exec-1', expiresIn: 0.1, flowStatus: 'INCOMPLETE'})
+      .mockResolvedValueOnce({executionId: 'exec-2', expiresIn: 60, flowStatus: 'INCOMPLETE'});
+    const {last} = renderWithProps();
+
+    await waitFor(() => {
+      expect(mockSignUp).toHaveBeenCalledTimes(2);
+    });
+    await waitFor(() => {
+      expect(last()?.isFlowRestarted).toBe(true);
+    });
+    expect(last()?.isFlowExpired).toBe(false);
+  });
+
+  it('shows the countdown in the default UI with afterFlowExpiredUrl', async () => {
+    setUserPresent(false);
+    mockSignUp.mockResolvedValueOnce({executionId: 'exec-1', expiresIn: 0.1, flowStatus: 'INCOMPLETE'});
+    render(
+      <ThunderIDContext.Provider value={thunderIDContext}>
+        <I18nProvider>
+          <ThemeProvider>
+            <SignUp shouldRedirectAfterSignUp={false} afterFlowExpiredUrl={appUrl()} />
+          </ThemeProvider>
+        </I18nProvider>
+      </ThunderIDContext.Provider>,
+    );
+
+    expect(await screen.findByRole('heading', {name: 'Session expired'})).toBeInTheDocument();
+    // Until the user is on the page, there is no countdown, only the link back.
+    expect(screen.getByText('Please go back to the application and try again.')).toBeInTheDocument();
+    expect(screen.getByRole('link', {name: 'Back to the application'})).toHaveAttribute('href', appUrl());
+
+    // The user comes back; repeated until the listener is in place, since it runs only once.
+    await waitFor(() => {
+      window.dispatchEvent(new Event('focus'));
+      expect(screen.getByText(/Taking you back to the application in \d+s\./)).toBeInTheDocument();
+    });
+    expect(screen.getByRole('link', {name: 'Back to the application now'})).toHaveAttribute('href', appUrl());
+    expect(mockSignUp).toHaveBeenCalledTimes(1);
+  });
+
+  it('starts a sign-up opened with an expired executionId again, without resuming it or reporting it', async () => {
+    setUserPresent(true);
+    window.history.replaceState({}, '', '/signup?executionId=stale-exec');
+    const onError: Mock = vi.fn();
+    mockSignUp
+      .mockRejectedValueOnce(
+        new ThunderIDAPIError(
+          JSON.stringify({code: 'FES-1004', message: {defaultValue: 'Invalid request', key: 'error.invalid_request'}}),
+          'executeEmbeddedSignUpFlow-ResponseError-001',
+          'javascript',
+          400,
+          'Bad Request',
+        ),
+      )
+      .mockResolvedValueOnce({executionId: 'exec-2', expiresIn: 60, flowStatus: 'INCOMPLETE'});
+    render(
+      <ThunderIDContext.Provider value={thunderIDContext}>
+        <I18nProvider>
+          <ThemeProvider>
+            <SignUp shouldRedirectAfterSignUp={false} onError={onError} />
+          </ThemeProvider>
+        </I18nProvider>
+      </ThunderIDContext.Provider>,
+    );
+
+    await waitFor(() => {
+      expect(mockSignUp).toHaveBeenCalledTimes(2);
+    });
+    expect(mockSignUp.mock.calls[0][0]).toMatchObject({executionId: 'stale-exec'});
+    expect(mockSignUp.mock.calls[1][0]).not.toHaveProperty('executionId');
+    expect(onError).not.toHaveBeenCalled();
+  });
+
+  it('starts an expired sign-up again for the application from the URL', async () => {
+    setUserPresent(true);
+    window.history.replaceState({}, '', '/signup?applicationId=app-from-url');
+    mockSignUp
+      .mockResolvedValueOnce({executionId: 'exec-1', expiresIn: 0.1, flowStatus: 'INCOMPLETE'})
+      .mockResolvedValueOnce({executionId: 'exec-2', expiresIn: 60, flowStatus: 'INCOMPLETE'});
+    render(
+      <ThunderIDContext.Provider value={{...thunderIDContext, applicationId: undefined}}>
+        <I18nProvider>
+          <ThemeProvider>
+            <SignUp shouldRedirectAfterSignUp={false} />
+          </ThemeProvider>
+        </I18nProvider>
+      </ThunderIDContext.Provider>,
+    );
+
+    await waitFor(() => {
+      expect(mockSignUp).toHaveBeenCalledTimes(2);
+    });
+    expect(mockSignUp.mock.calls[1][0]).toMatchObject({applicationId: 'app-from-url'});
+  });
+
+  it('tells the user in the default UI that the flow started again', async () => {
+    setUserPresent(true);
+    mockSignUp
+      .mockResolvedValueOnce({executionId: 'exec-1', expiresIn: 0.1, flowStatus: 'INCOMPLETE'})
+      .mockResolvedValueOnce({executionId: 'exec-2', expiresIn: 60, flowStatus: 'INCOMPLETE'});
+    render(
+      <ThunderIDContext.Provider value={thunderIDContext}>
+        <I18nProvider>
+          <ThemeProvider>
+            <SignUp shouldRedirectAfterSignUp={false} />
+          </ThemeProvider>
+        </I18nProvider>
+      </ThunderIDContext.Provider>,
+    );
+
+    expect(await screen.findByText('Your session expired, so we started again.')).toBeInTheDocument();
+    expect(mockSignUp).toHaveBeenCalledTimes(2);
   });
 });

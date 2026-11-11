@@ -258,6 +258,21 @@ const translations: I18nTranslations = {
   'errors.signup.components.not.available': 'साइन-अप फॉर्म फिलहाल उपलब्ध नहीं है। कृपया बाद में पुनः प्रयास करें।',
   'errors.signin.components.not.available': 'साइन-इन फॉर्म फिलहाल उपलब्ध नहीं है। कृपया बाद में पुनः प्रयास करें।',
   'errors.signin.timeout': 'स्टेप पूरा करने के लिए दिया गया समय खत्म हो गया है।',
+  'errors.signin.session.expired': 'आपका सत्र समाप्त हो गया है। कृपया एप्लिकेशन पर वापस जाएँ और फिर से साइन इन करें।',
+
+  /* |---------------------------------------------------------------| */
+  /* |                        Flow Expiry                            | */
+  /* |---------------------------------------------------------------| */
+
+  'flow.expired.heading': 'सत्र समाप्त हो गया',
+  'flow.expired.restart.description': 'कृपया फिर से शुरू करें।',
+  'flow.expired.restart': 'फिर से शुरू करें',
+  'flow.expired.return.description': 'कृपया {application} पर वापस जाएँ और फिर से प्रयास करें।',
+  'flow.expired.application': 'एप्लिकेशन',
+  'flow.expired.redirecting': '{seconds} सेकंड में आपको {application} पर वापस ले जाया जा रहा है।',
+  'flow.expired.redirect.now': 'अभी {application} पर वापस जाएँ',
+  'flow.expired.redirect.link': '{application} पर वापस जाएँ',
+  'flow.expired.restarted': 'आपका सत्र समाप्त हो गया था, इसलिए हमने फिर से शुरू किया।',
   /* Admin */
   'admin.common.loading': 'लोड हो रहा है…',
   'attribution.secured_by': 'सुरक्षा प्रदाता',

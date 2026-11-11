@@ -20,6 +20,7 @@ import useFlow from '../../../contexts/Flow/useFlow';
 import ComponentPreferencesContext from '../../../contexts/I18n/ComponentPreferencesContext';
 import useTheme from '../../../contexts/Theme/useTheme';
 import useThunderID from '../../../contexts/ThunderID/useThunderID';
+import type {FlowExpiryRedirect} from '../../../hooks/auth/useFlowExpiryRedirect';
 import useStepExpiry from '../../../hooks/auth/useStepExpiry';
 import {FormField, useForm} from '../../../hooks/useForm';
 import useTranslation from '../../../hooks/useTranslation';
@@ -32,6 +33,7 @@ import CardPrimitive, {CardProps} from '../../primitives/Card/Card';
 import Spinner from '../../primitives/Spinner/Spinner';
 import Typography from '../../primitives/Typography/Typography';
 import {renderSignInComponents} from '../flow/AuthOptionFactory';
+import FlowExpired from '../flow/FlowExpired';
 
 /**
  * Render props for custom UI rendering
@@ -173,6 +175,21 @@ export interface BaseSignInProps {
   initialValues?: Record<string, string>;
 
   /**
+   * The countdown that sends the user back to the application once the flow expires, shown by the default UI.
+   */
+  flowExpiryRedirect?: FlowExpiryRedirect | null;
+
+  /**
+   * Whether the flow execution has expired. The default UI then shows the expired state in place of the form.
+   */
+  isFlowExpired?: boolean;
+
+  /**
+   * Whether the flow was started again because the previous one expired. The default UI then tells the user.
+   */
+  isFlowRestarted?: boolean;
+
+  /**
    * Timer flag disabling actions
    */
   isTimeoutDisabled?: boolean;
@@ -187,6 +204,12 @@ export interface BaseSignInProps {
    * @param error - The error that occurred during authentication.
    */
   onError?: (error: Error) => void;
+
+  /**
+   * Starts an expired flow again, from the expired state of the default UI. Without it the expired state
+   * tells the user to go back to the application.
+   */
+  onRestart?: () => void;
 
   /**
    * Function to handle form submission.
@@ -260,7 +283,11 @@ const BaseSignInContent: FC<BaseSignInProps> = ({
   initialValues,
   children,
   additionalData = {},
+  flowExpiryRedirect = null,
+  isFlowExpired = false,
+  isFlowRestarted = false,
   isTimeoutDisabled = false,
+  onRestart = undefined,
   serverFieldErrors = null,
   revalidateOnChangeAfterBlur = false,
 }: BaseSignInProps): ReactElement => {
@@ -636,6 +663,21 @@ const BaseSignInContent: FC<BaseSignInProps> = ({
   }
 
   // Default UI rendering
+  if (isFlowExpired) {
+    return (
+      <CardPrimitive
+        id={id}
+        className={cx(containerClasses, styles.card)}
+        data-testid="thunderid-signin"
+        variant={variant}
+      >
+        <CardPrimitive.Content>
+          <FlowExpired redirect={flowExpiryRedirect} onRestart={onRestart} />
+        </CardPrimitive.Content>
+      </CardPrimitive>
+    );
+  }
+
   if (isLoading) {
     return (
       <CardPrimitive
@@ -678,6 +720,13 @@ const BaseSignInContent: FC<BaseSignInProps> = ({
       variant={variant}
     >
       <CardPrimitive.Content>
+        {isFlowRestarted && (
+          <div className={styles.flowMessagesContainer}>
+            <AlertPrimitive variant="info" className={cx(styles.flowMessageItem, messageClasses)}>
+              <AlertPrimitive.Description>{t('flow.expired.restarted')}</AlertPrimitive.Description>
+            </AlertPrimitive>
+          </div>
+        )}
         {externalError && (
           <div className={styles.flowMessagesContainer}>
             <AlertPrimitive variant="error" className={cx(styles.flowMessageItem, messageClasses)}>

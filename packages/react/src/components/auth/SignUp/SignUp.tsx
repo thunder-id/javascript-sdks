@@ -7,7 +7,7 @@ import {
   EmbeddedSignUpFlowType,
   EmbeddedFlowType,
 } from '@thunderid/browser';
-import {FC, ReactElement, ReactNode} from 'react';
+import {FC, MutableRefObject, ReactElement, ReactNode, useRef} from 'react';
 // eslint-disable-next-line import/no-named-as-default
 import BaseSignUp, {BaseSignUpProps, BaseSignUpRenderProps} from './BaseSignUp';
 import useThunderID from '../../../contexts/ThunderID/useThunderID';
@@ -42,6 +42,7 @@ const SignUp: FC<SignUpProps> = ({
   ...rest
 }: SignUpProps): ReactElement => {
   const {signUp, isInitialized, applicationId, scopes} = useThunderID();
+  const startedApplicationIdRef: MutableRefObject<string> = useRef<string>('');
 
   /**
    * Initialize the sign-up flow.
@@ -51,7 +52,12 @@ const SignUp: FC<SignUpProps> = ({
     const executionIdFromUrl: string = urlParams.get('executionId') || '';
     const applicationIdFromUrl: string = urlParams.get('applicationId') ?? '';
 
-    const effectiveApplicationId: any = applicationId ?? applicationIdFromUrl;
+    // The URL that carried the application is cleaned up after the first step, so an expired flow
+    // started again falls back to the application the first one was started for.
+    const effectiveApplicationId: any = applicationId ?? (applicationIdFromUrl || startedApplicationIdRef.current);
+    if (applicationIdFromUrl) {
+      startedApplicationIdRef.current = applicationIdFromUrl;
+    }
 
     const challengeToken: string | undefined = (payload as any)?.challengeToken;
 
