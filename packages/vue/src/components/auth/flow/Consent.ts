@@ -1,7 +1,13 @@
 // Copyright 2026 The ThunderID Authors
 // SPDX-License-Identifier: Apache-2.0
 
-import {type ConsentPurposeData, withVendorCSSClassPrefix} from '@thunderid/browser';
+import {
+  type ConsentPermissionBranch,
+  type ConsentPermissionBranchItem,
+  type ConsentPurposeData,
+  getConsentPermissionBranches,
+  withVendorCSSClassPrefix,
+} from '@thunderid/browser';
 import {type Component, type PropType, type SetupContext, type VNode, defineComponent, h} from 'vue';
 import {InfoIcon} from '../../primitives/Icons';
 import Typography from '../../primitives/Typography';
@@ -26,6 +32,13 @@ export const getConsentOptionalKey = (purposeId: string, attrName: string): stri
 
 const isObject = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null;
 
+const toPromptElements = (value: unknown): {name: string}[] =>
+  Array.isArray(value)
+    ? value.filter(
+        (element: unknown): element is {name: string} => isObject(element) && typeof element['name'] === 'string',
+      )
+    : [];
+
 const parsePurposes = (consentData: ConsentData | undefined): ConsentPurposeData[] => {
   if (!consentData) return [];
 
@@ -49,16 +62,11 @@ const parsePurposes = (consentData: ConsentData | undefined): ConsentPurposeData
     .map(
       (purpose: Record<string, unknown>): ConsentPurposeData => ({
         ...(purpose as unknown as ConsentPurposeData),
-        essential: Array.isArray(purpose['essential'])
-          ? purpose['essential'].filter(
-              (element: unknown): element is {name: string} => isObject(element) && typeof element['name'] === 'string',
-            )
-          : [],
-        optional: Array.isArray(purpose['optional'])
-          ? purpose['optional'].filter(
-              (element: unknown): element is {name: string} => isObject(element) && typeof element['name'] === 'string',
-            )
-          : [],
+        essential: toPromptElements(purpose['essential']),
+        optional: toPromptElements(purpose['optional']),
+        ...(purpose['displayElements'] !== undefined
+          ? {displayElements: toPromptElements(purpose['displayElements'])}
+          : {}),
       }),
     )
     .sort(
@@ -161,6 +169,55 @@ const Consent: Component = defineComponent({
               }),
             );
 
+          const branchList = (branches: ConsentPermissionBranch[]): VNode =>
+            h('div', {class: withVendorCSSClassPrefix('consent__items')}, [
+              ...branches.map((branch: ConsentPermissionBranch) => {
+                const label: string = translate(`consent.${branch.name}`, branch.name);
+                return h('div', {class: withVendorCSSClassPrefix('consent__branch'), key: branch.name}, [
+                  h('div', {class: withVendorCSSClassPrefix('consent__item')}, [
+                    h('div', {class: withVendorCSSClassPrefix('consent__item-label')}, [
+                      h('span', {class: withVendorCSSClassPrefix('consent__bullet')}),
+                      h(Typography, {component: 'span', variant: 'body2'}, () => label),
+                    ]),
+                    toggle(
+                      `consent_opt_${purpose.purposeId}_${branch.name}`,
+                      props.formValues[getConsentOptionalKey(purpose.purposeId, branch.name)] === 'true',
+                      label,
+                      (value: boolean) =>
+                        branch.decisions.forEach((name: string) =>
+                          props.onInputChange(getConsentOptionalKey(purpose.purposeId, name), value ? 'true' : 'false'),
+                        ),
+                    ),
+                  ]),
+                  ...branch.descendants.map((item: ConsentPermissionBranchItem) =>
+                    h(
+                      'div',
+                      {
+                        class: withVendorCSSClassPrefix('consent__branch-descendant'),
+                        key: item.name,
+                        style: {paddingLeft: `${item.depth}rem`},
+                      },
+                      [
+                        h(Typography, {component: 'span', variant: 'body2'}, () =>
+                          translate(`consent.${item.name}`, item.name),
+                        ),
+                      ],
+                    ),
+                  ),
+                ]);
+              }),
+              h(
+                Typography,
+                {class: withVendorCSSClassPrefix('consent__branch-notice'), component: 'p', variant: 'caption'},
+                () =>
+                  translate(
+                    'consent.permissions.subtree_notice',
+                    'Approving a permission also approves the permissions beneath it, including any added later.',
+                  ),
+              ),
+            ]);
+          const branches: ConsentPermissionBranch[] = getConsentPermissionBranches(purpose);
+
           return h('section', {class: withVendorCSSClassPrefix('consent__purpose'), key: purpose.purposeId}, [
             purpose.essential.length > 0
               ? h('div', {class: withVendorCSSClassPrefix('consent__section')}, [
@@ -201,7 +258,7 @@ const Consent: Component = defineComponent({
                       ),
                     ),
                   ]),
-                  itemList(purpose.optional, false),
+                  branches.length > 0 ? branchList(branches) : itemList(purpose.optional, false),
                 ])
               : null,
           ]);

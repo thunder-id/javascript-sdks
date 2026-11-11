@@ -28,6 +28,7 @@ export interface ResourceServer {
   authorizationEngine?: ResourceServerAuthorizationEngine;
   delimiter: string;
   description?: string | null;
+  hierarchicalPermissions?: boolean;
   id: string;
   identifier: string;
   isReadOnly?: boolean;
@@ -53,6 +54,7 @@ export interface ResourceServerListResponse {
 export interface CreateResourceServerRequest {
   delimiter?: string;
   description?: string;
+  hierarchicalPermissions?: boolean;
   identifier: string;
   name: string;
   ouId: string;

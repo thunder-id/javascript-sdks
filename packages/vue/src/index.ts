@@ -125,6 +125,11 @@ export {default as BaseSignIn} from './components/auth/sign-in/BaseSignIn';
 export type {BaseSignInRenderProps, BaseSignInProps} from './components/auth/sign-in/BaseSignIn';
 export {default as Consent} from './components/auth/flow/Consent';
 export type {ConsentData, ConsentProps, ConsentRenderProps} from './components/auth/flow/Consent';
+export {
+  getConsentPermissionBranches,
+  type ConsentPermissionBranch,
+  type ConsentPermissionBranchItem,
+} from '@thunderid/browser';
 export {default as FlowExpired} from './components/auth/flow/FlowExpired';
 export type {FlowExpiredProps} from './components/auth/flow/FlowExpired';
 export {default as DeviceGrant} from './components/auth/device-grant/DeviceGrant';
@@ -415,6 +420,7 @@ export {
   addRoleAssignments,
   getTokenPermissions,
   hasPermission,
+  type PermissionMatching,
   createAgent,
   createApplication,
   createGroup,

@@ -1,7 +1,7 @@
 // Copyright 2026 The ThunderID Authors
 // SPDX-License-Identifier: Apache-2.0
 
-import {hasPermission} from '@thunderid/browser';
+import {type PermissionMatching, hasPermission} from '@thunderid/browser';
 import {useCallback, useEffect, useMemo, useState} from 'react';
 import useThunderID from '../../contexts/ThunderID/useThunderID';
 
@@ -12,9 +12,9 @@ export interface GrantedPermissions {
   /**
    * Whether the granted permissions cover a required one. A permission covers everything under it,
    * so `system:user` covers `system:user:view`. Use it to decide what to show; the server still
-   * checks every request.
+   * checks every request. Pass `matching` for a permission of your own resource server.
    */
-  can: (required: string) => boolean;
+  can: (required: string, matching?: PermissionMatching) => boolean;
   isLoading: boolean;
   permissions: string[];
 }
@@ -59,8 +59,8 @@ const useGrantedPermissions = (): GrantedPermissions => {
   const permissions: string[] = useMemo(() => (isSignedIn ? (granted ?? []) : []), [granted, isSignedIn]);
   const isLoading: boolean = isSignedIn && granted === null;
 
-  const can: (required: string) => boolean = useCallback(
-    (required: string): boolean => hasPermission(permissions, required),
+  const can: (required: string, matching?: PermissionMatching) => boolean = useCallback(
+    (required: string, matching?: PermissionMatching): boolean => hasPermission(permissions, required, matching),
     [permissions],
   );
 

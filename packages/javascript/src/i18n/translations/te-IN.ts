@@ -242,6 +242,8 @@ const translations: I18nTranslations = {
   'consent.authorization_details.new_item': '{label}, జోడించు',
   'consent.essential_scope.info': 'సేవ సరిగ్గా పనిచేయడానికి ఈ అనుమతులు అవసరం.',
   'consent.optional_scope.info': 'ఈ అనుమతులు ఐచ్ఛికం మరియు మీ విచక్షణ మేరకు మంజూరు చేయవచ్చు.',
+  'consent.permissions.subtree_notice':
+    'ఒక అనుమతిని ఆమోదిస్తే దాని కింద ఉన్న అనుమతులు, తర్వాత జోడించేవాటితో సహా, కూడా ఆమోదించబడతాయి.',
 
   /* |---------------------------------------------------------------| */
   /* |                        Errors                                 | */

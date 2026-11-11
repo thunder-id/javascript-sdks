@@ -112,6 +112,30 @@ describe('defineThunderIDMiddleware', () => {
       expect(_navigateToTarget).toBeDefined();
     });
 
+    it('requires an exact scope by default', async () => {
+      _authState.scopes = 'openid reservations';
+
+      await (defineThunderIDMiddleware({requireScopes: ['reservations:create']}) as Function)(
+        makeTo('/a'),
+        makeTo('/'),
+      );
+      expect(_navigateToTarget).toBeDefined();
+    });
+
+    it('accepts a granted parent for a required child with hierarchical scope matching', async () => {
+      _authState.scopes = 'openid reservations';
+
+      await (
+        defineThunderIDMiddleware({requireScopes: ['reservations:create'], scopeMatching: {delimiter: ':'}}) as Function
+      )(makeTo('/a'), makeTo('/'));
+      expect(_navigateToTarget).toBeUndefined();
+
+      await (
+        defineThunderIDMiddleware({requireScopes: ['invoices:create'], scopeMatching: {delimiter: ':'}}) as Function
+      )(makeTo('/a'), makeTo('/'));
+      expect(_navigateToTarget).toBeDefined();
+    });
+
     it('redirects when a required scope is missing', async () => {
       const middleware = defineThunderIDMiddleware({requireScopes: ['admin']});
       await (middleware as Function)(makeTo('/admin'), makeTo('/'));
