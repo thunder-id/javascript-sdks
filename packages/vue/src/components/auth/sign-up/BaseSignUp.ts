@@ -6,6 +6,7 @@ import {
   EmbeddedFlowResponseType,
   EmbeddedSignUpFlowStatus,
   FlowMetadataResponse,
+  isFlowExpiredError,
   withVendorCSSClassPrefix,
 } from '@thunderid/browser';
 import {
@@ -23,6 +24,8 @@ import {
   shallowRef,
   watch,
 } from 'vue';
+import useFlowExpiryHandling from '../../../composables/auth/useFlowExpiryHandling';
+import type {FlowExpiryRedirect} from '../../../composables/auth/useFlowExpiryRedirect';
 import useFlowMeta from '../../../composables/useFlowMeta';
 import useI18n from '../../../composables/useI18n';
 import {normalizeFlowResponse, resolveFlowError} from '../../../utils/flowTransformer';
@@ -34,6 +37,7 @@ import Card from '../../primitives/Card';
 import Spinner from '../../primitives/Spinner';
 import Typography from '../../primitives/Typography';
 import {renderSignUpComponents} from '../flow/AuthOptionFactory';
+import FlowExpired from '../flow/FlowExpired';
 
 const logger: ReturnType<typeof createVueLogger> = createVueLogger('BaseSignUp');
 
@@ -56,8 +60,23 @@ export interface BaseSignUpRenderProps {
   components: any[];
   error?: Error | null;
   fieldErrors: Record<string, string>;
+  /**
+   * The countdown that sends the user back to the application once the flow expires. Set only with
+   * `afterFlowExpiredUrl` and while the flow is expired.
+   */
+  flowExpiryRedirect: FlowExpiryRedirect | null;
   handleInputChange: (name: string, value: string) => void;
   handleSubmit: (component: any, data?: Record<string, any>) => Promise<void>;
+  /**
+   * Whether the flow execution has expired: its time ran out, or the server refused it as expired. The flow
+   * cannot continue: it is started again, or with `afterFlowExpiredUrl` the user is sent back to the application.
+   */
+  isFlowExpired: boolean;
+  /**
+   * Whether the flow was started again because the previous one expired, until the user submits a step. Lets
+   * the UI tell the user why the form reset.
+   */
+  isFlowRestarted: boolean;
   isLoading: boolean;
   isValid: boolean;
   messages: {message: string; type: string}[];
@@ -69,6 +88,11 @@ export interface BaseSignUpRenderProps {
 }
 
 export interface BaseSignUpProps {
+  /**
+   * Where to send the user once the flow expires, e.g. the application's URL. With it, an expired flow counts
+   * down and redirects there. Without it, the flow is started again in place.
+   */
+  afterFlowExpiredUrl?: string;
   afterSignUpUrl?: string;
   buttonClassName?: string;
   className?: string;
@@ -127,6 +151,7 @@ const extractFormFields = (components: any[]): FieldDefinition[] => {
 const BaseSignUp: Component = defineComponent({
   name: 'BaseSignUp',
   props: {
+    afterFlowExpiredUrl: {default: undefined, type: String},
     afterSignUpUrl: {default: undefined, type: String},
     buttonClassName: {default: '', type: String},
     className: {default: '', type: String},
@@ -169,6 +194,25 @@ const BaseSignUp: Component = defineComponent({
     const isLoading: Ref<boolean> = ref(false);
     const isFlowInitialized: Ref<boolean> = ref(false);
     const currentFlow: Ref<any | null> = ref(null);
+    // Bumped to run the initialization again for an expired flow.
+    const restartCount: Ref<number> = ref(0);
+    const {
+      clearFlowRestarted,
+      expireFlow,
+      flowExpiryRedirect,
+      isFlowExpired,
+      isFlowRestarted,
+      restartFlow,
+      restartsInPlace,
+    } = useFlowExpiryHandling({
+      afterFlowExpiredUrl: () => props.afterFlowExpiredUrl,
+      canRestart: true,
+      // Deferred, since the restart is defined further down.
+      restart: (): void => {
+        startFlowAgain();
+      },
+      step: () => currentFlow.value,
+    });
     // Raw error source, resolved on read so the message follows a language change.
     const apiErrorSource: Ref<unknown> = shallowRef(null);
     const apiError: ComputedRef<Error | null> = computed(() =>
@@ -196,8 +240,17 @@ const BaseSignUp: Component = defineComponent({
     // ── Helpers ──
 
     const handleError = (error: any): void => {
+      if (isFlowExpiredError(error)) {
+        expireFlow();
+      }
       apiErrorSource.value = error;
       flowMessages.value = [{message: apiError.value!.message, type: 'error'}];
+    };
+
+    // An expiry the flow restarts from in place is not an error for the application.
+    const reportError = (error: unknown): void => {
+      if (restartsInPlace.value && isFlowExpiredError(error)) return;
+      props.onError?.(error as Error);
     };
 
     // Flow messages hold plain strings, so refresh the error message on a language change.
@@ -385,7 +438,7 @@ const BaseSignUp: Component = defineComponent({
           popup.close();
         } catch (err) {
           handleError(err);
-          props.onError?.(err as Error);
+          reportError(err);
           popup.close();
           cleanup();
         }
@@ -461,6 +514,7 @@ const BaseSignUp: Component = defineComponent({
       }
 
       isLoading.value = true;
+      clearFlowRestarted();
       apiErrorSource.value = null;
       flowMessages.value = [];
 
@@ -518,7 +572,7 @@ const BaseSignUp: Component = defineComponent({
         }
       } catch (err) {
         handleError(err);
-        props.onError?.(err as Error);
+        reportError(err);
       } finally {
         isLoading.value = false;
       }
@@ -569,7 +623,7 @@ const BaseSignUp: Component = defineComponent({
         } catch (error: unknown) {
           passkeyState.value = {...passkeyState.value, error: error as Error, isActive: false};
           handleError(error);
-          props.onError?.(error as Error);
+          reportError(error);
         }
       },
       {deep: true},
@@ -578,8 +632,8 @@ const BaseSignUp: Component = defineComponent({
     // ── Flow initialization ──
 
     watch(
-      () => [props.isInitialized, isFlowInitialized.value] as [boolean, boolean],
-      ([initialized, flowInit]: [boolean, boolean]) => {
+      () => [props.isInitialized, isFlowInitialized.value, restartCount.value] as [boolean, boolean, number],
+      ([initialized, flowInit]: [boolean, boolean, number]) => {
         // Skip if URL has OAuth code params. `window` is unavailable during SSR
         // (e.g. Nuxt) — initialization simply proceeds and the check re-runs
         // once this watch re-evaluates on the client.
@@ -617,7 +671,7 @@ const BaseSignUp: Component = defineComponent({
               }
             } catch (err) {
               handleError(err);
-              props.onError?.(err as Error);
+              reportError(err);
             } finally {
               isLoading.value = false;
             }
@@ -626,6 +680,24 @@ const BaseSignUp: Component = defineComponent({
       },
       {immediate: true},
     );
+
+    /**
+     * Starts an expired flow again: clears it, drops the expired execution from the URL so it is not resumed,
+     * and runs the initialization once more.
+     */
+    const startFlowAgain = (): void => {
+      currentFlow.value = null;
+      apiErrorSource.value = null;
+      flowMessages.value = [];
+      if (typeof window !== 'undefined' && window.location?.href) {
+        const url: URL = new URL(window.location.href);
+        url.searchParams.delete('executionId');
+        window.history.replaceState({}, '', url.toString());
+      }
+      initializationAttempted = false;
+      isFlowInitialized.value = false;
+      restartCount.value += 1;
+    };
 
     // ── Render ──
 
@@ -646,8 +718,11 @@ const BaseSignUp: Component = defineComponent({
           components: currentFlow.value?.data?.components || [],
           error: apiError.value,
           fieldErrors: formErrors.value,
+          flowExpiryRedirect: flowExpiryRedirect.value,
           handleInputChange,
           handleSubmit,
+          isFlowExpired: isFlowExpired.value,
+          isFlowRestarted: isFlowRestarted.value,
           isLoading: isLoading.value,
           isValid: isFormValid.value,
           messages: flowMessages.value,
@@ -661,6 +736,15 @@ const BaseSignUp: Component = defineComponent({
           values: formValues.value,
         };
         return h('div', {class: containerClass}, slots['default'](renderProps));
+      }
+
+      if (isFlowExpired.value) {
+        return h(Card, {class: containerClass, variant: props.variant}, () =>
+          h(FlowExpired, {
+            onRestart: restartsInPlace.value ? restartFlow : undefined,
+            redirect: flowExpiryRedirect.value,
+          }),
+        );
       }
 
       // Loading state
@@ -728,6 +812,13 @@ const BaseSignUp: Component = defineComponent({
                 ? h(Typography, {style: 'margin-top: 0.25rem', variant: 'body1'}, () => subtitle)
                 : null,
             ])
+          : null,
+        isFlowRestarted.value
+          ? h(
+              'div',
+              {style: 'padding: 0 1rem'},
+              h(Alert, {severity: 'info'}, () => t('flow.expired.restarted')),
+            )
           : null,
         // External error
         props.error

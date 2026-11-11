@@ -108,4 +108,12 @@ describe('POST /api/auth/signup', () => {
       statusCode: 502,
     });
   });
+
+  it("keeps the server's error envelope when the step is refused", async () => {
+    const serverError = {code: 'FES-1004', message: 'Invalid request'};
+    vi.mocked(readBody).mockResolvedValue({payload: {flowType: 'REGISTRATION', flowId: 'f', inputs: {}}});
+    mockClientInstance.signUp.mockRejectedValueOnce(Object.assign(new Error('Invalid request'), {serverError}));
+
+    await expect((signupHandler as any)(mockEvent)).rejects.toMatchObject({data: {serverError}, statusCode: 502});
+  });
 });

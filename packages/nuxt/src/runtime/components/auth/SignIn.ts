@@ -16,14 +16,18 @@ import {
   EmbeddedSignInFlowStatus,
   EmbeddedSignInFlowType,
   type FlowMetadataResponse,
+  isFlowExpiredError,
 } from '@thunderid/browser';
 import {
   BaseSignIn,
   extractErrorMessage,
+  type FlowExpiryRedirect,
+  type FlowExpiryStep,
   handlePasskeyAuthentication,
   handlePasskeyRegistration,
   initiateOAuthRedirect,
   normalizeFlowResponse,
+  useFlowExpiryHandling,
   useFlowMeta,
   useI18n,
   useOAuthCallback,
@@ -74,7 +78,22 @@ export interface SignInRenderProps {
   additionalData?: Record<string, any>;
   components: EmbeddedFlowComponent[];
   error: Error | null;
+  /**
+   * The countdown that sends the user back to the application once the flow expires. Set only with
+   * `afterFlowExpiredUrl` and while the flow is expired.
+   */
+  flowExpiryRedirect: FlowExpiryRedirect | null;
   initialize: () => Promise<void>;
+  /**
+   * Whether the flow execution has expired: its time ran out, or the server refused it as expired. The flow
+   * cannot continue: it is started again, or with `afterFlowExpiredUrl` the user is sent back to the application.
+   */
+  isFlowExpired: boolean;
+  /**
+   * Whether the flow was started again because the previous one expired, until the user submits a step. Lets
+   * the UI tell the user why the form reset.
+   */
+  isFlowRestarted: boolean;
   isInitialized: boolean;
   isLoading: boolean;
   isTimeoutDisabled?: boolean;
@@ -108,6 +127,12 @@ const SignIn: Component = defineComponent({
   emits: ['error', 'success'],
   name: 'SignIn',
   props: {
+    /**
+     * Where to send the user once the flow expires, e.g. the application's URL. With it, an expired flow counts
+     * down and redirects there. Without it, the flow is started again in place. Set it when the sign-in runs on
+     * a page of its own, such as a login portal, rather than inside the application.
+     */
+    afterFlowExpiredUrl: {default: undefined, type: String},
     className: {default: '', type: String},
     /**
      * Bounds the sign-in to this organization unit: sent as `ouId` on the request that starts the
@@ -125,6 +150,7 @@ const SignIn: Component = defineComponent({
   },
   setup(
     props: Readonly<{
+      afterFlowExpiredUrl?: string;
       className: string;
       organizationUnitId?: string;
       size: 'small' | 'medium' | 'large';
@@ -167,6 +193,31 @@ const SignIn: Component = defineComponent({
       error: null,
       executionId: null,
       isActive: false,
+    });
+
+    const flowExpiryStep: Ref<FlowExpiryStep | null> = shallowRef(null);
+    // The application the flow was started for. Kept since the URL that carried it is cleaned up, and an
+    // expired flow is started again for it.
+    const startedApplicationId: Ref<string | null> = ref(null);
+    // A flow an authorize request started cannot be started again here: the server refuses to start a sign-in
+    // directly for such an application, so the user has to go back to it.
+    const isStartedByAuthorizeRequest: Ref<boolean> = ref(false);
+    const {
+      clearFlowRestarted,
+      expireFlow,
+      flowExpiryRedirect,
+      isFlowExpired,
+      isFlowRestarted,
+      restartFlow,
+      restartsInPlace,
+    } = useFlowExpiryHandling({
+      afterFlowExpiredUrl: () => props.afterFlowExpiredUrl,
+      canRestart: () => Boolean(applicationId || startedApplicationId.value) && !isStartedByAuthorizeRequest.value,
+      // Deferred, since the restart is defined further down.
+      restart: (): void => {
+        void startFlowAgain();
+      },
+      step: flowExpiryStep,
     });
 
     // Track one-time initialization and OAuth processing
@@ -256,6 +307,36 @@ const SignIn: Component = defineComponent({
       emit('error', flowError.value);
     };
 
+    const sessionExpiredError: FlowErrorBuilder = (translate) =>
+      new ThunderIDRuntimeError(
+        translate('errors.signin.session.expired') ||
+          'Your session has expired. Please return to the application and sign in again.',
+        'SIGN_IN_ERROR',
+        'nuxt',
+      );
+
+    /**
+     * Marks the flow as expired. Unless the flow is started again in place, the error follows from the expiry,
+     * set by the watcher below; once already expired, it is set again here since a new submission clears it.
+     */
+    const handleFlowExpired = (): void => {
+      if (isFlowExpired.value && !restartsInPlace.value) {
+        setError(sessionExpiredError);
+      } else {
+        expireFlow();
+      }
+    };
+
+    // A flow that starts again in place needs no error: the user only sees the notice on the new flow.
+    watch(
+      () => isFlowExpired.value && !restartsInPlace.value,
+      (isExpiredForGood: boolean) => {
+        if (isExpiredForGood) {
+          setError(sessionExpiredError);
+        }
+      },
+    );
+
     /**
      * Updates challengeTokenRef immediately and persists via the provider's
      * StorageManager so the token survives OAuth redirects.
@@ -330,7 +411,14 @@ const SignIn: Component = defineComponent({
         }
       }
 
-      const effectiveApplicationId: string | null | undefined = applicationId || urlParams.applicationId;
+      const effectiveApplicationId: string | null | undefined =
+        applicationId || urlParams.applicationId || startedApplicationId.value;
+      if (effectiveApplicationId) {
+        startedApplicationId.value = effectiveApplicationId;
+      }
+      if (urlParams.authId) {
+        isStartedByAuthorizeRequest.value = true;
+      }
 
       // Reported through `error` (state, event and render props) only: the flow is started from a watcher, where a
       // thrown error would go unhandled.
@@ -394,14 +482,31 @@ const SignIn: Component = defineComponent({
           additionalData.value = normalizedAdditionalData ?? {};
           isFlowInitialized.value = true;
           isTimeoutDisabled.value = false;
+          flowExpiryStep.value = {expiresIn: response.expiresIn};
           cleanupFlowUrlParams();
         }
       } catch (error: unknown) {
+        // An execution the server refused as expired takes the same path as any other expiry.
+        if (isFlowExpiredError(error)) {
+          handleFlowExpired();
+          return;
+        }
         const err: any = error as any;
         clearFlowState();
         setError(err);
         initializationAttempted = false;
       }
+    };
+
+    /**
+     * Starts an expired flow again for the application it was started for. The expired execution is dropped
+     * from the URL and storage first, so the new flow does not resume it.
+     */
+    const startFlowAgain = async (): Promise<void> => {
+      await clearFlowState();
+      cleanupFlowUrlParams();
+      flowExpiryStep.value = null;
+      await initializeFlow();
     };
 
     // ── Submit handler ────────────────────────────────────────────────────
@@ -471,6 +576,8 @@ const SignIn: Component = defineComponent({
           // Ignore consent construction failures
         }
       }
+
+      clearFlowRestarted();
 
       try {
         isSubmitting.value = true;
@@ -551,6 +658,7 @@ const SignIn: Component = defineComponent({
           additionalData.value = normalizedAdditionalData ?? {};
           isTimeoutDisabled.value = false;
           isFlowInitialized.value = true;
+          flowExpiryStep.value = {expiresIn: response.expiresIn};
           cleanupFlowUrlParams();
 
           if ((response as any)?.error) {
@@ -562,6 +670,10 @@ const SignIn: Component = defineComponent({
         if (err instanceof Error && flowError.value === err) {
           // Already set; re-throw
           throw err;
+        }
+        if (isFlowExpiredError(err)) {
+          handleFlowExpired();
+          return;
         }
         clearFlowState();
         setError(err);
@@ -729,7 +841,10 @@ const SignIn: Component = defineComponent({
           additionalData: additionalData.value,
           components: components.value,
           error: flowError.value,
+          flowExpiryRedirect: flowExpiryRedirect.value,
           initialize: initializeFlow,
+          isFlowExpired: isFlowExpired.value,
+          isFlowRestarted: isFlowRestarted.value,
           isInitialized: isFlowInitialized.value,
           isLoading: combinedIsLoading,
           isTimeoutDisabled: isTimeoutDisabled.value,
@@ -746,9 +861,13 @@ const SignIn: Component = defineComponent({
         class: props.className,
         components: components.value,
         error: flowError.value,
+        flowExpiryRedirect: flowExpiryRedirect.value,
+        isFlowExpired: isFlowExpired.value,
+        isFlowRestarted: isFlowRestarted.value,
         isLoading: combinedIsLoading || !isFlowInitialized.value,
         isTimeoutDisabled: isTimeoutDisabled.value,
         onError: (err: Error) => emit('error', err),
+        onRestart: restartsInPlace.value ? restartFlow : undefined,
         onSubmit: handleSubmit,
         size: props.size,
         variant: props.variant,

@@ -2,11 +2,35 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import {navigateTo, useState, useRuntimeConfig} from '#app';
-import {EmbeddedSignInFlowStatus, EmbeddedSignUpFlowStatus, getRedirectBasedSignUpUrl} from '@thunderid/browser';
+import {
+  EmbeddedSignInFlowStatus,
+  EmbeddedSignUpFlowStatus,
+  ThunderIDAPIError,
+  getRedirectBasedSignUpUrl,
+} from '@thunderid/browser';
 import {useThunderID as useThunderIDVue, type ThunderIDContext} from '@thunderid/vue';
 import type {Ref} from 'vue';
 import NuxtAPIRoutes from '../constants/NuxtAPIRoutes';
 import type {ThunderIDAuthState} from '../types';
+
+/**
+ * Turns a failed flow step from the server routes back into the `ThunderIDAPIError` the server raised, when the
+ * route kept its error envelope, so the caller can tell the failures apart, e.g. an expired flow execution.
+ */
+const toFlowStepError = (error: unknown, code: string): unknown => {
+  const serverError: unknown = (error as {data?: {data?: {serverError?: unknown}}})?.data?.data?.serverError;
+  if (!serverError) {
+    return error;
+  }
+
+  return new ThunderIDAPIError(
+    JSON.stringify(serverError),
+    code,
+    'nuxt',
+    (error as {statusCode?: number})?.statusCode,
+    (error as {statusMessage?: string})?.statusMessage,
+  );
+};
 
 /**
  * Nuxt-aware primary composable for ThunderID authentication.
@@ -54,10 +78,15 @@ export function useThunderID(): ThunderIDContext {
     if (isEmbedded) {
       const payload: Record<string, unknown> = arg0 as Record<string, unknown>;
       const request: Record<string, unknown> = (args[1] ?? {}) as Record<string, unknown>;
-      const res: {data: any; success: boolean} = await $fetch<{data: any; success: boolean}>(NuxtAPIRoutes.SIGN_IN, {
-        body: {payload, request},
-        method: 'POST',
-      });
+      let res: {data: any; success: boolean};
+      try {
+        res = await $fetch<{data: any; success: boolean}>(NuxtAPIRoutes.SIGN_IN, {
+          body: {payload, request},
+          method: 'POST',
+        });
+      } catch (error: unknown) {
+        throw toFlowStepError(error, 'SIGN_IN_ERROR');
+      }
 
       // Flow complete — server has set the session cookie. Refresh the client
       // auth state so `useThunderID().isSignedIn` flips to true *immediately*
@@ -123,10 +152,15 @@ export function useThunderID(): ThunderIDContext {
     const isEmbedded: boolean = typeof payload === 'object' && payload !== null && 'flowType' in payload;
 
     if (isEmbedded) {
-      const res: {data: any; success: boolean} = await $fetch<{data: any; success: boolean}>(NuxtAPIRoutes.SIGN_UP, {
-        body: {payload},
-        method: 'POST',
-      });
+      let res: {data: any; success: boolean};
+      try {
+        res = await $fetch<{data: any; success: boolean}>(NuxtAPIRoutes.SIGN_UP, {
+          body: {payload},
+          method: 'POST',
+        });
+      } catch (error: unknown) {
+        throw toFlowStepError(error, 'SIGN_UP_ERROR');
+      }
 
       // Flow complete — the server route replies with `{ afterSignUpUrl }`
       // (no `flowStatus`). Synthesize one so `BaseSignUp`'s completion check

@@ -156,6 +156,14 @@ describe('POST /api/auth/signin', () => {
 
       expect(result).toEqual({data: stepResponse, success: true});
     });
+
+    it("keeps the server's error envelope when the step is refused", async () => {
+      const serverError = {code: 'FES-1004', message: 'Invalid request'};
+      mockClientInstance.signIn.mockRejectedValueOnce(Object.assign(new Error('Invalid request'), {serverError}));
+      vi.mocked(readBody).mockResolvedValue({payload: {executionId: 'e-1', inputs: {}}});
+
+      await expect((signinHandler as any)(mockEvent)).rejects.toMatchObject({data: {serverError}, statusCode: 502});
+    });
   });
 
   describe('embedded flow completion (SUCCESS_COMPLETED)', () => {

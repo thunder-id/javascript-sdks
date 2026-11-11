@@ -32,6 +32,7 @@ import VERIFY_ATTRIBUTE_CSS from '../components/account/verify-attribute/VerifyA
 import ADMIN_CSS from '../components/management/shared/Admin.css';
 import BASE_DEVICE_GRANT_CSS from '../components/auth/device-grant/BaseDeviceGrant.css';
 import CONSENT_CSS from '../components/auth/flow/Consent.css';
+import FLOW_EXPIRED_CSS from '../components/auth/flow/FlowExpired.css';
 import BASE_SIGN_IN_CSS from '../components/auth/sign-in/BaseSignIn.css';
 import ATTRIBUTION_CSS from '../components/common/attribution/Attribution.css';
 import LANGUAGE_SWITCHER_CSS from '../components/common/language-switcher/LanguageSwitcher.css';
@@ -83,6 +84,7 @@ const STYLES: string = [
   // Auth
   BASE_SIGN_IN_CSS,
   CONSENT_CSS,
+  FLOW_EXPIRED_CSS,
   BASE_DEVICE_GRANT_CSS,
   // Presentation
   CHANGE_CREDENTIAL_CSS,

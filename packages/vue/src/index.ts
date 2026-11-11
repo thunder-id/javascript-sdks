@@ -27,6 +27,10 @@ export {default as useUser} from './composables/useUser';
 export {useOAuthCallback} from './composables/auth/useOAuthCallback';
 export type {UseOAuthCallbackOptions, OAuthCallbackPayload} from './composables/auth/useOAuthCallback';
 export {default as useFetchAuthFlows} from './composables/auth/useFetchAuthFlows';
+export {default as useFlowExpiryHandling} from './composables/auth/useFlowExpiryHandling';
+export type {FlowExpiryHandling, FlowExpiryHandlingOptions} from './composables/auth/useFlowExpiryHandling';
+export type {FlowExpiryStep} from './composables/auth/useFlowExpiry';
+export type {FlowExpiryRedirect} from './composables/auth/useFlowExpiryRedirect';
 export {default as useInfiniteOptions} from './composables/management/useInfiniteOptions';
 export type {UseInfiniteOptionsArgs, UseInfiniteOptionsResult} from './composables/management/useInfiniteOptions';
 export {default as useFetchUsers} from './composables/management/useFetchUsers';
@@ -121,6 +125,8 @@ export {default as BaseSignIn} from './components/auth/sign-in/BaseSignIn';
 export type {BaseSignInRenderProps, BaseSignInProps} from './components/auth/sign-in/BaseSignIn';
 export {default as Consent} from './components/auth/flow/Consent';
 export type {ConsentData, ConsentProps, ConsentRenderProps} from './components/auth/flow/Consent';
+export {default as FlowExpired} from './components/auth/flow/FlowExpired';
+export type {FlowExpiredProps} from './components/auth/flow/FlowExpired';
 export {default as DeviceGrant} from './components/auth/device-grant/DeviceGrant';
 export type {
   BaseDeviceGrantProps,

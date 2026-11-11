@@ -54,6 +54,9 @@ export {default as useTranslation} from './hooks/useTranslation';
 export * from './hooks/useTranslation';
 export {default as useFetchAuthFlows} from './hooks/auth/useFetchAuthFlows';
 export type {FlowExpiryRedirect} from './hooks/auth/useFlowExpiryRedirect';
+export {default as useFlowExpiryHandling} from './hooks/auth/useFlowExpiryHandling';
+export type {FlowExpiryHandling, FlowExpiryHandlingOptions} from './hooks/auth/useFlowExpiryHandling';
+export type {FlowExpiryStep} from './hooks/auth/useFlowExpiry';
 
 export {normalizeFlowResponse, extractErrorMessage} from './utils/flowTransformer';
 

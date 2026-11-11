@@ -14,6 +14,7 @@ import {
   ThunderIDRuntimeError,
   getVendorPrefix,
   CurrentOrganizationUnit,
+  ServerError,
   SwitchOrganizationUnitOptions,
   ThunderIDAPIError,
 } from '@thunderid/node';
@@ -276,6 +277,17 @@ const ThunderIDClientProvider: FC<PropsWithChildren<ThunderIDClientProviderProps
     }
 
     if (result?.error) {
+      // The server's error envelope, when there was one, keeps the server's error code, e.g. an expired flow
+      // execution.
+      const {serverError, statusCode} = result as {serverError?: ServerError; statusCode?: number};
+      if (serverError) {
+        throw new ThunderIDAPIError(
+          JSON.stringify(serverError),
+          'ThunderIDClientProvider-handleSignIn-APIError-001',
+          'nextjs',
+          statusCode,
+        );
+      }
       throw new Error(result.error);
     }
 

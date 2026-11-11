@@ -15,6 +15,11 @@ export type SignUpRenderProps = BaseSignUpRenderProps;
 const SignUp: Component = defineComponent({
   name: 'SignUp',
   props: {
+    /**
+     * Where to send the user once the flow expires, e.g. the application's URL. With it, an expired flow counts
+     * down and redirects there. Without it, the flow is started again in place.
+     */
+    afterFlowExpiredUrl: {default: undefined, type: String},
     afterSignUpUrl: {default: undefined, type: String},
     buttonClassName: {default: '', type: String},
     className: {default: '', type: String},
@@ -81,6 +86,7 @@ const SignUp: Component = defineComponent({
       h(
         BaseSignUp,
         {
+          afterFlowExpiredUrl: props.afterFlowExpiredUrl,
           afterSignUpUrl: props.afterSignUpUrl,
           buttonClassName: props.buttonClassName,
           className: props.className,
