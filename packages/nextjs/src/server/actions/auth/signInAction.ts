@@ -9,6 +9,8 @@ import {
   EmbeddedFlowExecuteRequestConfig,
   IdToken,
   isEmpty,
+  ServerError,
+  ThunderIDAPIError,
 } from '@thunderid/node';
 import {cookies} from 'next/headers';
 import {ThunderIDNextConfig} from '../../../models/config';
@@ -38,6 +40,8 @@ const signInAction = async (
       }
     | Record<string, unknown>;
   error?: string;
+  serverError?: ServerError;
+  statusCode?: number;
   success: boolean;
 }> => {
   try {
@@ -151,6 +155,11 @@ const signInAction = async (
           ? (error as any).message
           : String(error);
     logger.error(`[signInAction] Error during sign-in: ${message}`);
+    // A server action returns plain data, so the server's error envelope and status go back as fields. The
+    // client rebuilds the API error from them, to tell the failures apart, e.g. an expired flow execution.
+    if (error instanceof ThunderIDAPIError && error.serverError) {
+      return {error: message, serverError: error.serverError, statusCode: error.statusCode, success: false};
+    }
     return {error: message, success: false};
   }
 };

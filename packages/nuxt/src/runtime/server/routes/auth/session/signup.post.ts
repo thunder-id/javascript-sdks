@@ -48,6 +48,9 @@ export default defineEventHandler(async (event: H3Event) => {
     response = await client.signUp(payload as any);
   } catch (err: any) {
     throw createError({
+      // Keeps the server's error envelope, so the browser can tell the failures apart, e.g. an expired flow
+      // execution.
+      data: err?.serverError ? {serverError: err.serverError} : undefined,
       statusCode: 502,
       statusMessage: `Embedded sign-up step failed: ${err?.message ?? String(err)}`,
     });

@@ -21,6 +21,7 @@ import {
   ref,
   watch,
 } from 'vue';
+import type {FlowExpiryRedirect} from '../../../composables/auth/useFlowExpiryRedirect';
 import useFlow from '../../../composables/useFlow';
 import useFlowMeta from '../../../composables/useFlowMeta';
 import useI18n from '../../../composables/useI18n';
@@ -30,6 +31,7 @@ import Card from '../../primitives/Card';
 import Spinner from '../../primitives/Spinner';
 import Typography from '../../primitives/Typography';
 import {renderSignInComponents} from '../flow/AuthOptionFactory';
+import FlowExpired from '../flow/FlowExpired';
 
 /**
  * Render props passed to the default scoped slot for custom UI rendering.
@@ -135,14 +137,25 @@ const BaseSignIn: Component = defineComponent({
     },
     error: {default: null, type: Object as PropType<Error | null>},
     errorClassName: {default: '', type: String},
+    /** The countdown that sends the user back to the application once the flow expires, shown by the default UI. */
+    flowExpiryRedirect: {default: null, type: Object as PropType<FlowExpiryRedirect | null>},
     inputClassName: {default: '', type: String},
     initialValues: {
       default: (): Record<string, string> => ({}),
       type: Object as PropType<Record<string, string>>,
     },
+    /** Whether the flow execution has expired. The default UI then shows the expired state in place of the form. */
+    isFlowExpired: {default: false, type: Boolean},
+    /** Whether the flow was started again because the previous one expired. The default UI then tells the user. */
+    isFlowRestarted: {default: false, type: Boolean},
     isLoading: {default: false, type: Boolean},
     isTimeoutDisabled: {default: false, type: Boolean},
     messageClassName: {default: '', type: String},
+    /**
+     * Starts an expired flow again, from the expired state of the default UI. Without it the expired state tells
+     * the user to go back to the application.
+     */
+    onRestart: {default: undefined, type: Function as PropType<() => void>},
     // Declared explicitly (not just in the `BaseSignInProps` TS interface) because Vue treats any
     // undeclared `onXxx`-named prop as a DOM event-listener fallthrough rather than a component
     // prop. Without this, `props.onSubmit` is `undefined` at runtime — the callback instead falls
@@ -173,11 +186,15 @@ const BaseSignIn: Component = defineComponent({
       components: EmbeddedFlowComponent[];
       error: Error | null;
       errorClassName: string;
+      flowExpiryRedirect: FlowExpiryRedirect | null;
       inputClassName: string;
       initialValues: Record<string, string>;
+      isFlowExpired: boolean;
+      isFlowRestarted: boolean;
       isLoading: boolean;
       isTimeoutDisabled: boolean;
       messageClassName: string;
+      onRestart?: () => void;
       onSubmit?: (payload: EmbeddedSignInFlowRequest, component: EmbeddedFlowComponent) => Promise<void>;
       serverFieldErrors: FieldError[] | null;
       size: 'small' | 'medium' | 'large';
@@ -428,6 +445,12 @@ const BaseSignIn: Component = defineComponent({
         );
       }
 
+      if (props.isFlowExpired) {
+        return h(Card, {class: containerClass, variant: props.variant}, () =>
+          h(FlowExpired, {onRestart: props.onRestart, redirect: props.flowExpiryRedirect}),
+        );
+      }
+
       // Loading state
       if (isLoading.value && (!props.components || props.components.length === 0)) {
         return h(Card, {class: containerClass, variant: props.variant}, () =>
@@ -457,11 +480,15 @@ const BaseSignIn: Component = defineComponent({
         {...attrs, class: [containerClass, (attrs as any).class].filter(Boolean).join(' '), variant: props.variant},
         () => [
           // Show errors and flow messages
-          (externalError || messages.length > 0) &&
+          (props.isFlowRestarted || externalError || messages.length > 0) &&
             h(
               'div',
               {class: [withVendorCSSClassPrefix('signin__messages'), props.messageClassName].filter(Boolean).join(' ')},
               [
+                props.isFlowRestarted &&
+                  h(Alert, {severity: 'info'}, () =>
+                    h(Typography, {variant: 'body2'}, () => t('flow.expired.restarted')),
+                  ),
                 externalError &&
                   h(Alert, {severity: 'error'}, () => h(Typography, {variant: 'body2'}, () => externalError.message)),
                 ...messages.map((msg: {message: string; type: string}, index: number) =>
