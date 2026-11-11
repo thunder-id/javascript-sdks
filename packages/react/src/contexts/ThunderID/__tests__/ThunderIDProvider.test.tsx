@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import {cleanup, render, screen, waitFor} from '@testing-library/react';
+import {ThunderIDAPIError, ThunderIDRuntimeError} from '@thunderid/browser';
 import {ReactElement, useEffect} from 'react';
 import {Mock, afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
 import {UserContextProps} from '../../User/UserContext';
@@ -326,5 +327,56 @@ describe('ThunderIDProvider revalidateProfile', () => {
     await user!.revalidateProfile();
 
     expect(mocks.getUsersMe).not.toHaveBeenCalled();
+  });
+});
+
+describe('ThunderIDProvider signIn errors', () => {
+  let signIn: ((...args: unknown[]) => Promise<unknown>) | null = null;
+
+  const Probe = (): ReactElement => {
+    const context: {signIn: (...args: unknown[]) => Promise<unknown>} = useThunderID() as never;
+
+    useEffect(() => {
+      signIn = context.signIn;
+    });
+
+    return <div data-testid="probe" />;
+  };
+
+  const renderWithProbe = (): void => {
+    render(
+      <ThunderIDProvider baseUrl="https://localhost:8090" clientId="test-client" preferences={{resolveFromMeta: false}}>
+        <Probe />
+      </ThunderIDProvider>,
+    );
+  };
+
+  afterEach(() => {
+    signIn = null;
+  });
+
+  it('rethrows an API error unchanged, keeping its status and server code', async () => {
+    renderWithProbe();
+    await waitFor(() => expect(signIn).not.toBeNull());
+
+    const apiError: ThunderIDAPIError = new ThunderIDAPIError(
+      JSON.stringify({code: 'FES-1004', message: {defaultValue: 'Invalid request', key: 'error.invalid_request'}}),
+      'executeEmbeddedSignInFlow-ResponseError-100',
+      'javascript',
+      400,
+      'Bad Request',
+    );
+    mocks.client.signIn.mockRejectedValueOnce(apiError);
+
+    await expect(signIn!({executionId: 'exec-1'})).rejects.toBe(apiError);
+  });
+
+  it('wraps any other failure as a runtime error', async () => {
+    renderWithProbe();
+    await waitFor(() => expect(signIn).not.toBeNull());
+
+    mocks.client.signIn.mockRejectedValueOnce(new Error('boom'));
+
+    await expect(signIn!({executionId: 'exec-1'})).rejects.toBeInstanceOf(ThunderIDRuntimeError);
   });
 });

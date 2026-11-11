@@ -264,6 +264,21 @@ export interface I18nTranslations {
   'errors.signup.components.not.available': string;
   'errors.signin.components.not.available': string;
   'errors.signin.timeout': string;
+  'errors.signin.session.expired': string;
+
+  /* |---------------------------------------------------------------| */
+  /* |                        Flow Expiry                            | */
+  /* |---------------------------------------------------------------| */
+
+  'flow.expired.heading': string;
+  'flow.expired.restart.description': string;
+  'flow.expired.restart': string;
+  'flow.expired.return.description': string;
+  'flow.expired.application': string;
+  'flow.expired.redirecting': string;
+  'flow.expired.redirect.now': string;
+  'flow.expired.redirect.link': string;
+  'flow.expired.restarted': string;
 
   /* |---------------------------------------------------------------| */
   /* |                        Admin                                  | */

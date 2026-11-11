@@ -269,6 +269,21 @@ const translations: I18nTranslations = {
   'errors.signin.components.not.available':
     "Le formulaire de connexion n'est pas disponible pour le moment. Veuillez réessayer plus tard.",
   'errors.signin.timeout': "Le temps imparti pour effectuer cette e'tape est expire'.",
+  'errors.signin.session.expired': "Votre session a expiré. Veuillez retourner à l'application et vous reconnecter.",
+
+  /* |---------------------------------------------------------------| */
+  /* |                        Flow Expiry                            | */
+  /* |---------------------------------------------------------------| */
+
+  'flow.expired.heading': 'Session expirée',
+  'flow.expired.restart.description': 'Veuillez recommencer.',
+  'flow.expired.restart': 'Recommencer',
+  'flow.expired.return.description': 'Veuillez retourner à {application} et réessayer.',
+  'flow.expired.application': "l'application",
+  'flow.expired.redirecting': 'Retour à {application} dans {seconds} s.',
+  'flow.expired.redirect.now': 'Retourner à {application} maintenant',
+  'flow.expired.redirect.link': 'Retourner à {application}',
+  'flow.expired.restarted': 'Votre session a expiré, nous avons donc recommencé.',
   /* Admin */
   'admin.common.loading': 'Chargement…',
   'attribution.secured_by': 'Sécurisé par',

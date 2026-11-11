@@ -260,6 +260,22 @@ const translations: I18nTranslations = {
   'errors.signup.components.not.available': 'サインアップフォームは現在利用できません。後でもう一度お試しください。',
   'errors.signin.components.not.available': 'サインインフォームは現在利用できません。後でもう一度お試しください。',
   'errors.signin.timeout': 'ステップを完了するために許可された時間が経過しました。',
+  'errors.signin.session.expired':
+    'セッションの有効期限が切れました。アプリケーションに戻って、もう一度サインインしてください。',
+
+  /* |---------------------------------------------------------------| */
+  /* |                        Flow Expiry                            | */
+  /* |---------------------------------------------------------------| */
+
+  'flow.expired.heading': 'セッションの有効期限が切れました',
+  'flow.expired.restart.description': 'もう一度最初からやり直してください。',
+  'flow.expired.restart': '最初からやり直す',
+  'flow.expired.return.description': '{application} に戻って、もう一度お試しください。',
+  'flow.expired.application': 'アプリケーション',
+  'flow.expired.redirecting': '{seconds} 秒後に {application} に戻ります。',
+  'flow.expired.redirect.now': '今すぐ {application} に戻る',
+  'flow.expired.redirect.link': '{application} に戻る',
+  'flow.expired.restarted': 'セッションの有効期限が切れたため、最初からやり直しました。',
   /* Admin */
   'admin.common.loading': '読み込み中…',
   'attribution.secured_by': 'セキュリティ提供',

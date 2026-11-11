@@ -4,6 +4,7 @@
 import {
   ResourceInvalidator,
   createResourceInvalidator,
+  ThunderIDAPIError,
   ThunderIDRuntimeError,
   generateFlattenedUserProfile,
   OIDCDiscoveryApiResponse,
@@ -239,6 +240,12 @@ const ThunderIDProvider: FC<PropsWithChildren<ThunderIDProviderProps>> = ({
 
       return await client.signIn(...args);
     } catch (error) {
+      // An API error keeps its status and the server's error code, which the caller needs to tell the
+      // failures apart, e.g. an expired flow execution.
+      if (error instanceof ThunderIDAPIError) {
+        throw error;
+      }
+
       throw new ThunderIDRuntimeError(
         `Sign in failed: ${error instanceof Error ? error.message : String(JSON.stringify(error))}`,
         'thunderid-signIn-Error',

@@ -1114,6 +1114,7 @@ export {default as toSelectOption} from './utils/toSelectOption';
 export {default as toSelectOptions} from './utils/toSelectOptions';
 export {default as normalizeSelectOptions} from './utils/normalizeSelectOptions';
 export {default as isRetryableError} from './utils/isRetryableError';
+export {default as isFlowExpiredError} from './utils/isFlowExpiredError';
 export {default as withRetry} from './utils/withRetry';
 export {default as mergeOptionsBatch} from './utils/mergeOptionsBatch';
 export {default as loadUntilOptionsGrow} from './utils/loadUntilOptionsGrow';

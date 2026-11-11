@@ -16,11 +16,15 @@ import {
   Preferences,
   logger,
   compileConsentDecisions,
+  isFlowExpiredError,
 } from '@thunderid/browser';
 import {FC, ReactElement, useState, useEffect, useMemo, useRef, ReactNode} from 'react';
 // eslint-disable-next-line import/no-named-as-default
 import BaseSignIn, {BaseSignInProps} from './BaseSignIn';
 import useThunderID from '../../../contexts/ThunderID/useThunderID';
+import type {FlowExpiryStep} from '../../../hooks/auth/useFlowExpiry';
+import useFlowExpiryHandling from '../../../hooks/auth/useFlowExpiryHandling';
+import type {FlowExpiryRedirect} from '../../../hooks/auth/useFlowExpiryRedirect';
 import {useOAuthCallback} from '../../../hooks/auth/useOAuthCallback';
 import useTranslation from '../../../hooks/useTranslation';
 import {
@@ -32,6 +36,7 @@ import {
 import isConsentApprovalBlocked from '../../../utils/isConsentApprovalBlocked';
 import {initiateOAuthRedirect} from '../../../utils/oauth';
 import {handlePasskeyAuthentication, handlePasskeyRegistration} from '../../../utils/passkey';
+import removeUrlParams from '../../../utils/removeUrlParams';
 
 /**
  * Render props function parameters
@@ -77,6 +82,25 @@ export interface SignInRenderProps {
   isLoading: boolean;
 
   /**
+   * The countdown that sends the user back to the application once the flow expires. Set only with
+   * `afterFlowExpiredUrl` and while the flow is expired.
+   */
+  flowExpiryRedirect: FlowExpiryRedirect | null;
+
+  /**
+   * Whether the flow execution has expired: its time ran out, or the server refused it as expired.
+   * The flow cannot continue: it is started again, or with `afterFlowExpiredUrl` the user is sent back to the
+   * application.
+   */
+  isFlowExpired: boolean;
+
+  /**
+   * Whether the flow was started again because the previous one expired, until the user submits a step.
+   * Lets the UI tell the user why the form reset.
+   */
+  isFlowRestarted: boolean;
+
+  /**
    * Flag indicating whether the flow step timeout has expired.
    * Consuming components can use this to disable submit buttons.
    */
@@ -98,6 +122,13 @@ export interface SignInRenderProps {
  * Matches the interface from the main SignIn component for consistency.
  */
 export interface SignInProps {
+  /**
+   * Where to send the user once the flow expires, e.g. the application's URL. With it, an expired flow counts
+   * down and redirects there. Without it, the flow is started again in place. Set it when the sign-in runs
+   * on a page of its own, such as a login portal, rather than inside the application.
+   */
+  afterFlowExpiredUrl?: string;
+
   /**
    * Render props function for custom UI
    */
@@ -261,6 +292,7 @@ const SignIn: FC<SignInProps> = ({
   children,
   revalidateOnChangeAfterBlur,
   organizationUnitId,
+  afterFlowExpiredUrl = undefined,
 }: SignInProps): ReactElement => {
   const {applicationId, afterSignInUrl, signIn, isInitialized, isLoading, meta, getStorageManager, scopes, vendor} =
     useThunderID();
@@ -284,6 +316,30 @@ const SignIn: FC<SignInProps> = ({
   );
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isTimeoutDisabled, setIsTimeoutDisabled] = useState<boolean>(false);
+  const [flowExpiryStep, setFlowExpiryStep] = useState<FlowExpiryStep | null>(null);
+  // The application the flow was started for. Kept since the URL that carried it is cleaned up, and an
+  // expired flow is started again for it.
+  const [startedApplicationId, setStartedApplicationId] = useState<string | null>(null);
+  // A flow an authorize request started cannot be started again here: the server refuses to start a sign-in
+  // directly for such an application, so the user has to go back to it.
+  const [isStartedByAuthorizeRequest, setIsStartedByAuthorizeRequest] = useState<boolean>(false);
+  const {
+    clearFlowRestarted,
+    expireFlow,
+    flowExpiryRedirect,
+    isFlowExpired,
+    isFlowRestarted,
+    restartFlow,
+    restartsInPlace,
+  } = useFlowExpiryHandling({
+    afterFlowExpiredUrl,
+    canRestart: Boolean(applicationId || startedApplicationId) && !isStartedByAuthorizeRequest,
+    // Deferred, since the restart is defined further down.
+    restart: (): void => {
+      void startFlowAgain();
+    },
+    step: flowExpiryStep,
+  });
   const [passkeyState, setPasskeyState] = useState<PasskeyState>({
     actionId: null,
     challenge: null,
@@ -447,12 +503,7 @@ const SignIn: FC<SignInProps> = ({
    * Used after executionId is set in state to prevent using invalidated executionId from URL.
    */
   const cleanupFlowUrlParams = (): void => {
-    if (!window?.location?.href) return;
-    const url: any = new URL(window.location.href);
-    url.searchParams.delete('executionId');
-    url.searchParams.delete('authId');
-    url.searchParams.delete('applicationId');
-    window?.history?.replaceState({}, '', url.toString());
+    removeUrlParams('executionId', 'authId', 'applicationId');
   };
 
   /**
@@ -465,6 +516,33 @@ const SignIn: FC<SignInProps> = ({
     setIsFlowInitialized(true);
     onError?.(resolveFlowError(source, t));
   };
+
+  const sessionExpiredError: FlowErrorBuilder = (translate) =>
+    new ThunderIDRuntimeError(
+      translate('errors.signin.session.expired') ||
+        'Your session has expired. Please return to the application and sign in again.',
+      'SIGN_IN_ERROR',
+      'react',
+    );
+
+  /**
+   * Marks the flow as expired. Unless the flow is started again in place, the error follows from the expiry,
+   * set by the effect below; once already expired, it is set again here since a new submission clears it.
+   */
+  const handleFlowExpired = (): void => {
+    if (isFlowExpired && !restartsInPlace) {
+      setError(sessionExpiredError);
+    } else {
+      expireFlow();
+    }
+  };
+
+  // A flow that starts again in place needs no error: the user only sees the notice on the new flow.
+  useEffect(() => {
+    if (isFlowExpired && !restartsInPlace) {
+      setError(sessionExpiredError);
+    }
+  }, [isFlowExpired, restartsInPlace]);
 
   /**
    * Handle OAuth error from URL parameters.
@@ -585,7 +663,13 @@ const SignIn: FC<SignInProps> = ({
 
     await handleAuthId(urlParams.authId, urlParams.executionId);
 
-    const effectiveApplicationId: any = applicationId || urlParams.applicationId;
+    const effectiveApplicationId: any = applicationId || urlParams.applicationId || startedApplicationId;
+    if (effectiveApplicationId) {
+      setStartedApplicationId(effectiveApplicationId);
+    }
+    if (urlParams.authId) {
+      setIsStartedByAuthorizeRequest(true);
+    }
 
     // On a page refresh the executionId is no longer in the URL (it is scrubbed by
     // cleanupFlowUrlParams after the first load). Fall back to the executionId persisted in
@@ -618,6 +702,10 @@ const SignIn: FC<SignInProps> = ({
             ...(challengeTokenRef.current ? {challengeToken: challengeTokenRef.current} : {}),
           })) as EmbeddedSignInFlowResponse;
         } catch (resumeError) {
+          // An execution the server refused as expired takes the same path as any other expiry.
+          if (isFlowExpiredError(resumeError)) {
+            throw resumeError;
+          }
           // Only treat a stale/expired session (HTTP 400 from the server, meaning the stored
           // executionId is no longer valid) as a recoverable condition. Transient failures
           // such as 5xx server errors or network errors are rethrown so they surface correctly.
@@ -631,14 +719,7 @@ const SignIn: FC<SignInProps> = ({
             setExecutionId(null);
             await clearAuthId(resumeExecutionId);
             if (!effectiveApplicationId) {
-              const expiredError: FlowErrorBuilder = (translate) =>
-                new ThunderIDRuntimeError(
-                  translate('errors.signin.session.expired') ||
-                    'Your session has expired. Please return to the application and sign in again.',
-                  'SIGN_IN_ERROR',
-                  'react',
-                );
-              setError(expiredError);
+              handleFlowExpired();
               return;
             }
             response = (await signIn({
@@ -695,6 +776,7 @@ const SignIn: FC<SignInProps> = ({
         setExecutionId(normalizedExecutionId);
         setComponents(normalizedComponents);
         setAdditionalData(normalizedAdditionalData ?? {});
+        setFlowExpiryStep({expiresIn: response.expiresIn});
         setIsFlowInitialized(true);
         setIsTimeoutDisabled(false);
         // The URL's authId belongs to this execution even when the URL had no executionId.
@@ -705,6 +787,11 @@ const SignIn: FC<SignInProps> = ({
     } catch (error) {
       const err: any = error;
       await clearFlowState();
+
+      if (isFlowExpiredError(error)) {
+        handleFlowExpired();
+        return;
+      }
 
       setError(err);
       initializationAttemptedRef.current = false;
@@ -826,6 +913,7 @@ const SignIn: FC<SignInProps> = ({
 
     try {
       setIsSubmitting(true);
+      clearFlowRestarted();
       setFlowErrorSource(null);
       // Clear any field errors from the previous response before the new round-trip.
       setServerFieldErrors(null);
@@ -892,6 +980,7 @@ const SignIn: FC<SignInProps> = ({
         setExecutionId(normalizedExecutionId);
         setComponents(normalizedComponents);
         setAdditionalData(normalizedAdditionalData ?? {});
+        setFlowExpiryStep({expiresIn: response.expiresIn});
         setIsTimeoutDisabled(false);
         // Ensure flow is marked as initialized when we have components
         setIsFlowInitialized(true);
@@ -913,6 +1002,11 @@ const SignIn: FC<SignInProps> = ({
     } catch (error) {
       const err: any = error;
       await clearFlowState();
+
+      if (isFlowExpiredError(error)) {
+        handleFlowExpired();
+        return;
+      }
 
       setError(err);
       return;
@@ -970,6 +1064,17 @@ const SignIn: FC<SignInProps> = ({
 
     return () => clearTimeout(timerId);
   }, [additionalData?.['stepTimeout'], isFlowInitialized, t]);
+
+  /**
+   * Starts an expired flow again for the application it was started for. The expired execution is dropped
+   * from the URL and storage first, so the new flow does not resume it.
+   */
+  const startFlowAgain = async (): Promise<void> => {
+    await clearFlowState();
+    cleanupFlowUrlParams();
+    setFlowExpiryStep(null);
+    await initializeFlow();
+  };
 
   /**
    * Handle authentication errors.
@@ -1083,6 +1188,9 @@ const SignIn: FC<SignInProps> = ({
       fieldErrors: renderPropFieldErrors,
       initialize: initializeFlow,
       isInitialized: isFlowInitialized,
+      flowExpiryRedirect,
+      isFlowExpired,
+      isFlowRestarted,
       isLoading: isLoading || isSubmitting || !isInitialized,
       isTimeoutDisabled,
       meta,
@@ -1097,7 +1205,11 @@ const SignIn: FC<SignInProps> = ({
       additionalData={additionalData}
       components={components}
       isLoading={isLoading || !isInitialized || !isFlowInitialized}
+      flowExpiryRedirect={flowExpiryRedirect}
+      isFlowExpired={isFlowExpired}
+      isFlowRestarted={isFlowRestarted}
       isTimeoutDisabled={isTimeoutDisabled}
+      onRestart={restartsInPlace ? restartFlow : undefined}
       onSubmit={handleSubmit}
       onError={handleError}
       error={flowError}
