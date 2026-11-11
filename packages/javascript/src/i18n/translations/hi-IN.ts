@@ -239,6 +239,8 @@ const translations: I18nTranslations = {
   'consent.authorization_details.new_item': '{label}, जोड़ें',
   'consent.essential_scope.info': 'सेवा के सही ढंग से कार्य करने के लिए ये अनुमतियाँ आवश्यक हैं।',
   'consent.optional_scope.info': 'ये अनुमतियाँ वैकल्पिक हैं और आपके विवेकानुसार दी जा सकती हैं।',
+  'consent.permissions.subtree_notice':
+    'किसी अनुमति को स्वीकृत करने से उसके अंतर्गत आने वाली अनुमतियाँ भी स्वीकृत हो जाती हैं, जिनमें बाद में जोड़ी गई अनुमतियाँ भी शामिल हैं।',
 
   /* |---------------------------------------------------------------| */
   /* |                        Errors                                 | */

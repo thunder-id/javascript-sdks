@@ -69,6 +69,17 @@ const CONSENT_CSS = `
   gap: calc(var(--thunderid-spacing-unit) * 0.75);
 }
 
+.${withVendorCSSClassPrefix('consent__branch')} {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--thunderid-spacing-unit) * 0.5);
+}
+
+.${withVendorCSSClassPrefix('consent__branch-descendant')},
+.${withVendorCSSClassPrefix('consent__branch-notice')} {
+  color: var(--thunderid-color-text-secondary);
+}
+
 .${withVendorCSSClassPrefix('consent__bullet')} {
   width: 4px;
   height: 4px;

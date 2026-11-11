@@ -5,6 +5,7 @@ import {type ConsentPurposeData, PromptElement} from '@thunderid/browser';
 import {type ChangeEvent, FC, ReactNode, useEffect, useMemo} from 'react';
 import ConsentAuthorizationDetail from './ConsentAuthorizationDetail';
 import ConsentCheckboxList, {getConsentOptionalKey} from './ConsentCheckboxList';
+import ConsentPermissionBranchList from './ConsentPermissionBranchList';
 import Typography from '../../primitives/Typography/Typography';
 import Toggle from '../../primitives/Toggle/Toggle';
 import {Info} from '../../primitives/Icons';
@@ -215,6 +216,9 @@ const Consent: FC<ConsentProps> = ({consentData, formValues, onInputChange, chil
           ...(purpose as unknown as ConsentPurposeData),
           essential: toPromptElements(purpose['essential']),
           optional: toPromptElements(purpose['optional']),
+          ...(purpose['displayElements'] !== undefined
+            ? {displayElements: toPromptElements(purpose['displayElements'])}
+            : {}),
         }),
       );
 
@@ -319,13 +323,22 @@ const Consent: FC<ConsentProps> = ({consentData, formValues, onInputChange, chil
                     onChange={(e: ChangeEvent<HTMLInputElement>): void => handleChange(purpose, e.target.checked)}
                   />
                 </div>
-                <ConsentCheckboxList
-                  variant="OPTIONAL"
-                  purpose={purpose}
-                  formValues={formValues}
-                  onInputChange={onInputChange}
-                  t={t}
-                />
+                {isPermission && purpose.permissionDelimiter ? (
+                  <ConsentPermissionBranchList
+                    purpose={purpose}
+                    formValues={formValues}
+                    onInputChange={onInputChange}
+                    t={t}
+                  />
+                ) : (
+                  <ConsentCheckboxList
+                    variant="OPTIONAL"
+                    purpose={purpose}
+                    formValues={formValues}
+                    onInputChange={onInputChange}
+                    t={t}
+                  />
+                )}
               </div>
             )}
           </div>
