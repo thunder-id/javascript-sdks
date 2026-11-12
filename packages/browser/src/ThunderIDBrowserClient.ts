@@ -10,6 +10,8 @@ import {
   IdToken,
   OIDCEndpoints,
   OIDCRequestConstants,
+  OrganizationUnitsConfig,
+  OrganizationUnitSwitchConfig,
   SessionConfig,
   Storage,
   TokenResponse,
@@ -56,6 +58,7 @@ import MemoryStore from './stores/MemoryStore';
 import SessionStore from './stores/SessionStore';
 import AuthenticationHelper from './utils/AuthenticationHelper';
 import createHttpClientFetcher from './utils/createHttpClientFetcher';
+import loadPage from './utils/loadPage';
 import navigate from './utils/navigate';
 import SPACryptoUtils from './utils/SPACryptoUtils';
 import SPAHelper from './utils/SPAHelper';
@@ -117,6 +120,8 @@ class ThunderIDBrowserClient<T = BrowserAuthConfig> extends ThunderIDJavaScriptC
   private _startedInitialize = false;
   private _backend: BackendClient | undefined;
   private _stopBackendWatch: (() => void) | undefined;
+
+  private _organizationUnitSwitch: OrganizationUnitSwitchConfig | undefined;
   private _backendTokenRequest: Promise<string> | undefined;
 
   public constructor(instanceId = 0) {
@@ -149,6 +154,9 @@ class ThunderIDBrowserClient<T = BrowserAuthConfig> extends ThunderIDJavaScriptC
       await this._authHelper?.attachTokenToRequestConfig(request);
     };
 
+    // Held here, not in the stored config, which keeps no functions.
+    this._organizationUnitSwitch = (merged as {organizationUnits?: OrganizationUnitsConfig}).organizationUnits?.switch;
+
     const backendEndpoints: ResolvedBackendEndpoints | undefined = resolveBackendEndpoints(
       merged as BackendEndpointConfig,
       window.location.origin,
@@ -159,11 +167,16 @@ class ThunderIDBrowserClient<T = BrowserAuthConfig> extends ThunderIDJavaScriptC
       // repeated initialization with the same endpoints, as React's strict mode does in development,
       // keeps the client and its session read.
       if (!this._backend?.hasEndpoints(backendEndpoints)) {
+        this._backend?.dispose();
         this._backend = new BackendClient(backendEndpoints);
         // A session that ends elsewhere, such as a sign-out in another app, signs the app out too.
         this._backend.onSignedOut(() => {
           void this.getStorageManager().removeSessionData();
           void this._emitHook(Hooks.SignOut);
+        });
+        // A switch made in place in another tab keeps the session live, so only that tab can tell.
+        this._backend.onOrganizationUnitSwitchedElsewhere((organizationUnitId: string) => {
+          void this._afterOrganizationUnitSwitch(organizationUnitId, false);
         });
       }
       // Poll the backend every `session.checkInterval` seconds. Checks on focus run either way.
@@ -180,6 +193,7 @@ class ThunderIDBrowserClient<T = BrowserAuthConfig> extends ThunderIDJavaScriptC
     } else {
       this._stopBackendWatch?.();
       this._stopBackendWatch = undefined;
+      this._backend?.dispose();
       this._backend = undefined;
       this._httpClient = FetchHttpClient.getInstance(this._browserInstanceId, true, attachToken);
     }
@@ -460,11 +474,30 @@ class ThunderIDBrowserClient<T = BrowserAuthConfig> extends ThunderIDJavaScriptC
    *   backend needs the user, or answers `401`, it sends the page to the backend's sign-in endpoint
    *   with `ouId` (unless `redirect` is `false`). The extra parameters do not apply.
    *
-   * A failed switch leaves the previous session as it was.
+   * A failed switch leaves the previous session as it was. A switch that completes on the page then runs
+   * `organizationUnits.switch` (`onSwitch`, or `afterSwitchUrl`) in this tab, and in backend mode in the
+   * app's other tabs on the same session.
    *
    * @throws {ThunderIDAPIError} With a code from `OrganizationUnitSwitchErrorCodes`.
    */
   public override async switchOrganizationUnit(
+    organizationUnitId: string,
+    options: SwitchOrganizationUnitOptions = {},
+  ): Promise<User | undefined> {
+    const user: User | undefined = await this._switchOrganizationUnit(organizationUnitId, options);
+
+    if (user) {
+      await this._afterOrganizationUnitSwitch(organizationUnitId, true);
+    }
+
+    return user;
+  }
+
+  /**
+   * Switches without running `organizationUnits.switch`; see `switchOrganizationUnit`. Returns the user
+   * when the switch completed on the page, or `undefined` when the page is leaving to sign in again.
+   */
+  private async _switchOrganizationUnit(
     organizationUnitId: string,
     options: SwitchOrganizationUnitOptions = {},
   ): Promise<User | undefined> {
@@ -586,6 +619,35 @@ class ThunderIDBrowserClient<T = BrowserAuthConfig> extends ThunderIDJavaScriptC
     void this._emitHook(Hooks.SignIn, user);
 
     return user;
+  }
+
+  /**
+   * Runs `organizationUnits.switch` after the session moved to `organizationUnitId`: in this tab when it
+   * switched (`initiatedHere`), or when another tab on the same backend session did. `onSwitch` decides
+   * when set, with the session read again first in another tab, so the app sees the unit's user. Without
+   * it, a tab loads `afterSwitchUrl` when set; otherwise the tab that switched stays and the others load
+   * their page again, so nothing of the previous unit stays on screen.
+   */
+  private async _afterOrganizationUnitSwitch(organizationUnitId: string, initiatedHere: boolean): Promise<void> {
+    const {afterSwitchUrl, onSwitch} = this._organizationUnitSwitch ?? {};
+
+    if (onSwitch) {
+      if (!initiatedHere) {
+        try {
+          const user: User = await this.getUser();
+          void this._emitHook(Hooks.SignIn, user);
+        } catch (error) {
+          logger.debug('Could not read the session after an organization unit switch in another tab.', error);
+        }
+      }
+      await onSwitch({id: organizationUnitId}, {initiatedHere});
+
+      return;
+    }
+
+    if (afterSwitchUrl || !initiatedHere) {
+      loadPage(afterSwitchUrl);
+    }
   }
 
   /**

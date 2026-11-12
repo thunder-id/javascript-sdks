@@ -113,6 +113,78 @@ describe('BackendClient', () => {
     expect(fetchMock).toHaveBeenCalledTimes(3);
   });
 
+  describe('a switch made in another tab', () => {
+    const delivered = (): Promise<void> => new Promise((resolve: () => void) => setTimeout(resolve, 20));
+    const clients: BackendClient[] = [];
+    const client = (endpoints: ResolvedBackendEndpoints = ENDPOINTS): BackendClient => {
+      const created: BackendClient = new BackendClient(endpoints);
+      clients.push(created);
+
+      return created;
+    };
+
+    afterEach(() => {
+      clients.splice(0).forEach((created: BackendClient) => created.dispose());
+    });
+
+    it('tells the other tabs that switch at the same endpoint, which read the session again', async () => {
+      fetchMock
+        .mockResolvedValueOnce(json(200, {isSignedIn: true, user: {ouId: 'ou-1'}}))
+        .mockResolvedValueOnce(empty(204))
+        .mockResolvedValueOnce(json(200, {isSignedIn: true, user: {ouId: 'ou-2'}}));
+      const switching: BackendClient = client();
+      const other: BackendClient = client();
+      const heardBySwitching: Mock = vi.fn();
+      const heardByOther: Mock = vi.fn();
+      switching.onOrganizationUnitSwitchedElsewhere(heardBySwitching);
+      other.onOrganizationUnitSwitchedElsewhere(heardByOther);
+      expect((await other.getSession()).user).toEqual({ouId: 'ou-1'});
+
+      expect(await switching.switchOrganizationUnit('ou-2')).toBeUndefined();
+      await delivered();
+
+      expect(heardByOther).toHaveBeenCalledWith('ou-2');
+      expect(heardBySwitching).not.toHaveBeenCalled();
+      expect((await other.getSession()).user).toEqual({ouId: 'ou-2'});
+    });
+
+    it('tells an app whose own session is read elsewhere, when it switches at the same endpoint', async () => {
+      fetchMock.mockResolvedValueOnce(empty(204));
+      const product: BackendClient = client({...ENDPOINTS, session: '/product/auth/session'});
+      const heard: Mock = vi.fn();
+      product.onOrganizationUnitSwitchedElsewhere(heard);
+
+      expect(await client().switchOrganizationUnit('ou-2')).toBeUndefined();
+      await delivered();
+
+      expect(heard).toHaveBeenCalledWith('ou-2');
+    });
+
+    it('tells no one when the switch is refused', async () => {
+      fetchMock.mockResolvedValueOnce(json(400, {error: 'unauthorized_client'}));
+      const other: BackendClient = client();
+      const heard: Mock = vi.fn();
+      other.onOrganizationUnitSwitchedElsewhere(heard);
+
+      expect(await client().switchOrganizationUnit('ou-2')).toEqual({error: 'unauthorized_client'});
+      await delivered();
+
+      expect(heard).not.toHaveBeenCalled();
+    });
+
+    it('does not reach tabs that switch at another endpoint', async () => {
+      fetchMock.mockResolvedValueOnce(empty(204));
+      const elsewhere: BackendClient = client({...ENDPOINTS, ouSwitch: '/other/auth/switch'});
+      const heard: Mock = vi.fn();
+      elsewhere.onOrganizationUnitSwitchedElsewhere(heard);
+
+      expect(await client().switchOrganizationUnit('ou-2')).toBeUndefined();
+      await delivered();
+
+      expect(heard).not.toHaveBeenCalled();
+    });
+  });
+
   it('refreshes the session and retries the switch once when the session has expired', async () => {
     fetchMock
       .mockResolvedValueOnce(json(401, {error: 'session_expired'}))
