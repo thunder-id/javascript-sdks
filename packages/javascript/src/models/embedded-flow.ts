@@ -752,6 +752,8 @@ export interface ConsentDecisions {
   purposes: ConsentPurposeDecision[];
   /** Why the decision was made, when it was not a direct user choice, e.g. the prompt expired */
   reason?: string;
+  /** The number of seconds the user chose their consent to last, when the consent prompt asked for it */
+  validityPeriod?: number;
 }
 
 /**

@@ -19,6 +19,9 @@ const MODIFIED_KEY = `__consent_modified__${PURPOSE_ID}__d-1__instructedAmount.a
 const INVALID_KEY = `__consent_invalid__${PURPOSE_ID}__d-1__instructedAmount.amount`;
 const APPROVED_KEY = `__consent_opt__${PURPOSE_ID}__d-1`;
 
+const mountElements = (elements: VNode[]): VueWrapper =>
+  mount(defineComponent({render: (): VNode => h('div', elements)}));
+
 const consentAction = (variant: string): EmbeddedFlowComponent =>
   ({
     eventType: EmbeddedFlowEventType.Submit,
@@ -64,7 +67,7 @@ describe('AuthOptionFactory consent decisions', () => {
       () => undefined,
       {additionalData: {consentPrompt: {purposes: [detailPurpose]}}, onSubmit},
     );
-    const wrapper: VueWrapper = mount(defineComponent({render: (): VNode => h('div', elements)}));
+    const wrapper: VueWrapper = mountElements(elements);
     (wrapper.find('button').element as HTMLButtonElement).click();
 
     expect(onSubmit).toHaveBeenCalledTimes(1);
@@ -88,6 +91,78 @@ describe('AuthOptionFactory consent decisions', () => {
     const decisions: ConsentDecisions = JSON.parse(submitted['consent_decisions']) as ConsentDecisions;
 
     expect(decisions.purposes[0].elements).toEqual([{approved: false, name: 'd-1'}]);
+  });
+
+  it('carries the validity period the user chose', () => {
+    const submitted: Record<string, string> = submit('PRIMARY', {__consent_validity_period__: '3600'});
+    const decisions: ConsentDecisions = JSON.parse(submitted['consent_decisions']) as ConsentDecisions;
+
+    expect(decisions.validityPeriod).toBe(3600);
+  });
+
+  it('leaves the validity period out when the consent is denied', () => {
+    const submitted: Record<string, string> = submit('SECONDARY', {__consent_validity_period__: '60'});
+    const decisions: ConsentDecisions = JSON.parse(submitted['consent_decisions']) as ConsentDecisions;
+
+    expect(decisions.approved).toBe(false);
+    expect(decisions).not.toHaveProperty('validityPeriod');
+  });
+
+  it('leaves the validity period out when the user chose none', () => {
+    const submitted: Record<string, string> = submit('PRIMARY', {__consent_validity_period__: ''});
+    const decisions: ConsentDecisions = JSON.parse(submitted['consent_decisions']) as ConsentDecisions;
+
+    expect(decisions).not.toHaveProperty('validityPeriod');
+  });
+});
+
+describe('AuthOptionFactory consent validity period', () => {
+  const mountConsent = (additionalData: Record<string, unknown>): VueWrapper => {
+    const elements: VNode[] = renderSignInComponents(
+      [{id: 'consent', type: EmbeddedFlowComponentType.Consent} as unknown as EmbeddedFlowComponent],
+      {},
+      {},
+      {},
+      false,
+      true,
+      () => undefined,
+      () => undefined,
+      {additionalData: {consentPrompt: {purposes: [attributePurpose]}, ...additionalData}, onSubmit: vi.fn()},
+    );
+
+    return mountElements(elements);
+  };
+
+  it('shows no field unless the step data asks for one', () => {
+    expect(mountConsent({maxConsentValidity: '3600'}).find('#consent_validity_period').exists()).toBe(false);
+  });
+
+  it('lists the periods within the period in the step data', () => {
+    const wrapper: VueWrapper = mountConsent({maxConsentValidity: '86400', promptConsentValidity: 'true'});
+
+    expect(wrapper.findAll('#consent_validity_period option').map((option) => option.attributes('value'))).toEqual([
+      '60',
+      '1800',
+      '3600',
+      '43200',
+      '86400',
+      'custom',
+    ]);
+  });
+
+  it('shows the box ticked, so the decision is remembered', () => {
+    const wrapper: VueWrapper = mountConsent({maxConsentValidity: '86400', promptConsentValidity: 'true'});
+
+    expect((wrapper.find('#consent_validity_remember').element as HTMLInputElement).checked).toBe(true);
+  });
+
+  it('ends the periods with no expiry when the step data has no maximum', () => {
+    const wrapper: VueWrapper = mountConsent({promptConsentValidity: 'true'});
+    const values: (string | undefined)[] = wrapper
+      .findAll('#consent_validity_period option')
+      .map((option) => option.attributes('value'));
+
+    expect(values).toEqual(['60', '3600', '43200', '2592000', '2147483647', 'custom']);
   });
 });
 
@@ -176,6 +251,14 @@ describe('SignIn consent decisions', () => {
     expect(decisions.approved).toBe(false);
     expect(decisions.reason).toBe('user_denied');
     expect(decisions.purposes[1].elements).toEqual([{approved: false, name: 'd-1'}]);
+    expect(Object.keys(inputs)).toEqual(['consent_decisions']);
+  });
+
+  it('sends the validity period the user chose and removes its form key', async () => {
+    const inputs: Record<string, string> = await submit('allow', {__consent_validity_period__: '3600'});
+    const decisions: ConsentDecisions = JSON.parse(inputs['consent_decisions']) as ConsentDecisions;
+
+    expect(decisions.validityPeriod).toBe(3600);
     expect(Object.keys(inputs)).toEqual(['consent_decisions']);
   });
 });

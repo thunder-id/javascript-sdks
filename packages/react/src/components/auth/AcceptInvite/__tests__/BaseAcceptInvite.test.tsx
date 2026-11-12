@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import {cleanup, fireEvent, render, waitFor} from '@testing-library/react';
-import {type ConsentDecisions} from '@thunderid/browser';
+import {CONSENT_VALIDITY_PERIOD_KEY, type ConsentDecisions} from '@thunderid/browser';
 import {afterEach, describe, expect, it, vi} from 'vitest';
 import I18nProvider from '../../../../contexts/I18n/I18nProvider';
 import ThemeProvider from '../../../../contexts/Theme/ThemeProvider';
@@ -71,6 +71,13 @@ const renderOnConsentStep = async (): Promise<{container: HTMLElement; onSubmit:
                 <button type="button" id="deny" onClick={(): void => void handleSubmit(deny)}>
                   Deny
                 </button>
+                <button
+                  type="button"
+                  id="choose-validity"
+                  onClick={(): void => handleInputChange(CONSENT_VALIDITY_PERIOD_KEY, '3600')}
+                >
+                  Choose validity
+                </button>
               </>
             )}
           </BaseAcceptInvite>
@@ -116,6 +123,46 @@ describe('BaseAcceptInvite consent decisions', () => {
       {approved: true, modified: {'instructedAmount.amount': 20}, name: 'd-1'},
     ]);
     expect(Object.keys(inputs).filter((key: string) => key.startsWith('__consent_'))).toEqual([]);
+  });
+
+  it('sends the validity period the user chose and removes its form key', async () => {
+    const {container, onSubmit} = await renderOnConsentStep();
+
+    fireEvent.click(container.querySelector('#choose-validity')!);
+    fireEvent.click(container.querySelector('#allow')!);
+    await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(2));
+
+    const inputs: Record<string, string> = submittedInputs(onSubmit);
+    const decisions: ConsentDecisions = JSON.parse(inputs['consent_decisions']) as ConsentDecisions;
+
+    expect(decisions.validityPeriod).toBe(3600);
+    expect(Object.keys(inputs).filter((key: string) => key.startsWith('__consent_'))).toEqual([]);
+  });
+
+  it('sends no validity period when the consent is denied', async () => {
+    const {container, onSubmit} = await renderOnConsentStep();
+
+    fireEvent.click(container.querySelector('#choose-validity')!);
+    fireEvent.click(container.querySelector('#deny')!);
+    await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(2));
+
+    const inputs: Record<string, string> = submittedInputs(onSubmit);
+    const decisions: ConsentDecisions = JSON.parse(inputs['consent_decisions']) as ConsentDecisions;
+
+    expect(decisions.approved).toBe(false);
+    expect(decisions).not.toHaveProperty('validityPeriod');
+    expect(Object.keys(inputs).filter((key: string) => key.startsWith('__consent_'))).toEqual([]);
+  });
+
+  it('sends no validity period when the user chose none', async () => {
+    const {container, onSubmit} = await renderOnConsentStep();
+
+    fireEvent.click(container.querySelector('#allow')!);
+    await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(2));
+
+    const decisions: ConsentDecisions = JSON.parse(submittedInputs(onSubmit)['consent_decisions']) as ConsentDecisions;
+
+    expect(decisions).not.toHaveProperty('validityPeriod');
   });
 
   it('denies the detail without its modified values on the deny action', async () => {

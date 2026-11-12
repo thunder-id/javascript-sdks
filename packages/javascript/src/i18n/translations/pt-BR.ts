@@ -240,6 +240,18 @@ const translations: I18nTranslations = {
   'consent.authorization_details.new_item': '{label}, adicionar',
   'consent.essential_scope.info': 'Essas permissões são necessárias para o funcionamento adequado do serviço.',
   'consent.optional_scope.info': 'Essas permissões são opcionais e podem ser concedidas a seu critério.',
+  'consent.validity_period.label': 'Perguntar novamente',
+  'consent.validity_period.remember': 'Lembrar minha decisão',
+  'consent.validity_period.option_never': 'Sem expiração',
+  'consent.validity_period.option_custom': 'Personalizado',
+  'consent.validity_period.custom_label': 'Validade personalizada',
+  'consent.validity_period.custom_unit_label': 'Unidade',
+  'consent.validity_period.hint_once': 'Você será perguntado novamente na próxima vez que entrar.',
+  'consent.validity_period.hint_expires': 'Seu consentimento expira em {duration}.',
+  'consent.validity_period.hint_never':
+    'Você não será perguntado novamente, a menos que este aplicativo peça mais acesso.',
+  'consent.validity_period.hint_custom': 'Informe um número inteiro.',
+  'consent.validity_period.hint_custom_max': 'Informe um número inteiro, até {max}.',
 
   /* |---------------------------------------------------------------| */
   /* |                        Errors                                 | */

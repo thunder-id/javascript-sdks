@@ -2,7 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import {cleanup, fireEvent, render, screen, waitFor} from '@testing-library/react';
-import {type ConsentDecisions, I18nPreferences, ThunderIDAPIError, ThunderIDRuntimeError} from '@thunderid/browser';
+import {
+  CONSENT_VALIDITY_PERIOD_KEY,
+  type ConsentDecisions,
+  I18nPreferences,
+  ThunderIDAPIError,
+  ThunderIDRuntimeError,
+} from '@thunderid/browser';
 import {ReactElement, ReactNode, useState} from 'react';
 import {afterEach, beforeEach, describe, expect, it, vi, Mock} from 'vitest';
 import I18nProvider from '../../../../contexts/I18n/I18nProvider';
@@ -654,6 +660,15 @@ const RenderPropsConsent = ({additionalData, onSubmit}: SignInRenderProps): Reac
       <button type="button" id="deny" onClick={(): void => void onSubmit({action: 'deny', inputs: values})}>
         Deny
       </button>
+      <button
+        type="button"
+        id="choose-validity"
+        onClick={(): void =>
+          setValues((prev: Record<string, string>) => ({...prev, [CONSENT_VALIDITY_PERIOD_KEY]: '3600'}))
+        }
+      >
+        Choose validity
+      </button>
     </>
   );
 };
@@ -745,6 +760,31 @@ describe('SignIn consent approval through render props', () => {
     expect(decisions.purposes[0].elements).toEqual([
       {approved: true, modified: {'instructedAmount.amount': 20}, name: 'd-1'},
     ]);
+  });
+
+  it('sends the validity period the user chose and removes its form key', async () => {
+    const {container, signIn} = await renderRenderPropsOnConsentStep();
+
+    fireEvent.click(container.querySelector('#choose-validity')!);
+    fireEvent.click(container.querySelector('#allow')!);
+    await waitFor(() => expect(signIn).toHaveBeenCalledTimes(2));
+
+    const inputs: Record<string, string> = submittedInputs(signIn);
+    const decisions: ConsentDecisions = JSON.parse(inputs['consent_decisions']) as ConsentDecisions;
+
+    expect(decisions.validityPeriod).toBe(3600);
+    expect(Object.keys(inputs)).toEqual(['consent_decisions']);
+  });
+
+  it('sends no validity period when the user chose none', async () => {
+    const {container, signIn} = await renderRenderPropsOnConsentStep();
+
+    fireEvent.click(container.querySelector('#allow')!);
+    await waitFor(() => expect(signIn).toHaveBeenCalledTimes(2));
+
+    const decisions: ConsentDecisions = JSON.parse(submittedInputs(signIn)['consent_decisions']) as ConsentDecisions;
+
+    expect(decisions).not.toHaveProperty('validityPeriod');
   });
 });
 

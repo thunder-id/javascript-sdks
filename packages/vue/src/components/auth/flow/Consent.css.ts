@@ -134,6 +134,79 @@ const CONSENT_CSS = `
   cursor: not-allowed;
   opacity: 0.4;
 }
+
+.${withVendorCSSClassPrefix('consent__validity')} {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--thunderid-spacing-unit) * 2);
+  margin-top: var(--thunderid-spacing-unit);
+}
+
+.${withVendorCSSClassPrefix('consent__validity-group')} {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--thunderid-spacing-unit) * 0.5);
+}
+
+.${withVendorCSSClassPrefix('consent__validity-remember')} {
+  display: flex;
+  align-items: center;
+  gap: var(--thunderid-spacing-unit);
+  color: var(--thunderid-color-text-primary);
+  font-size: var(--thunderid-typography-fontSize-sm);
+  font-weight: var(--thunderid-typography-fontWeight-medium);
+  cursor: pointer;
+}
+
+.${withVendorCSSClassPrefix('consent__validity-checkbox')} {
+  cursor: pointer;
+}
+
+.${withVendorCSSClassPrefix('consent__validity-input')} {
+  box-sizing: border-box;
+  width: 100%;
+  height: var(--thunderid-input-height);
+  padding: 0 var(--thunderid-input-paddingX);
+  border: 1px solid var(--thunderid-input-borderColor);
+  border-radius: var(--thunderid-input-borderRadius);
+  background-color: var(--thunderid-color-background-surface);
+  color: var(--thunderid-color-text-primary);
+  font-family: var(--thunderid-typography-fontFamily);
+  font-size: var(--thunderid-input-fontSize);
+  cursor: pointer;
+}
+
+.${withVendorCSSClassPrefix('consent__validity-custom')} {
+  display: flex;
+  align-items: flex-start;
+  gap: calc(var(--thunderid-spacing-unit) * 1.5);
+}
+
+.${withVendorCSSClassPrefix('consent__validity-custom')} .${withVendorCSSClassPrefix('consent__validity-input')} {
+  cursor: text;
+}
+
+.${withVendorCSSClassPrefix('consent__validity-custom')} input.${withVendorCSSClassPrefix('consent__validity-input')} {
+  flex: 1;
+  min-width: 0;
+}
+
+.${withVendorCSSClassPrefix('consent__validity-custom')} select.${withVendorCSSClassPrefix('consent__validity-input')} {
+  width: auto;
+  flex: 0 0 auto;
+  cursor: pointer;
+}
+
+.${withVendorCSSClassPrefix('consent__validity-input')}:focus {
+  border-color: var(--thunderid-input-focusBorderColor);
+  box-shadow: var(--thunderid-input-focusRing);
+  outline: none;
+}
+
+.${withVendorCSSClassPrefix('consent__validity-hint')} {
+  color: var(--thunderid-color-text-secondary);
+  font-size: var(--thunderid-typography-fontSize-xs);
+}
 `;
 
 export default CONSENT_CSS;

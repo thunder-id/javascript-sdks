@@ -5,6 +5,7 @@ import {type ConsentPurposeData, PromptElement} from '@thunderid/browser';
 import {type ChangeEvent, FC, ReactNode, useEffect, useMemo} from 'react';
 import ConsentAuthorizationDetail from './ConsentAuthorizationDetail';
 import ConsentCheckboxList, {getConsentOptionalKey} from './ConsentCheckboxList';
+import ConsentValidityPeriodField from './ConsentValidityPeriodField';
 import Typography from '../../primitives/Typography/Typography';
 import Toggle from '../../primitives/Toggle/Toggle';
 import {Info} from '../../primitives/Icons';
@@ -32,10 +33,14 @@ export interface ConsentRenderProps {
    * stays possible.
    */
   isApprovalBlocked: boolean;
+  /** The longest validity period in seconds the user can choose. Absent when there is no limit. */
+  maxValidityPeriod?: number;
   /** Callback invoked when a user toggles an optional attribute. */
   onInputChange: (name: string, value: string) => void;
   /** The resolved list of consent purposes parsed from `consentData`. */
   purposes: ConsentPurposeData[];
+  /** Whether the user can choose how long their consent lasts. */
+  validityInput: boolean;
 }
 
 /**
@@ -68,6 +73,10 @@ export interface ConsentProps {
    */
   formValues: Record<string, string>;
   /**
+   * The longest validity period in seconds the user can choose. Absent when there is no limit.
+   */
+  maxValidityPeriod?: number;
+  /**
    * Callback invoked when a user toggles an optional attribute.
    */
   onInputChange: (name: string, value: string) => void;
@@ -76,6 +85,10 @@ export interface ConsentProps {
    * translation data
    */
   t?: UseTranslation['t'];
+  /**
+   * Whether the user can choose how long their consent lasts. The default UI then shows a validity period field.
+   */
+  validityInput?: boolean;
 }
 
 const isObject = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null;
@@ -96,7 +109,15 @@ const toPromptElements = (value: unknown): PromptElement[] =>
  * based on the data provided by the backend. It allows users to toggle optional attributes while essential
  * attributes are displayed as read-only.
  */
-const Consent: FC<ConsentProps> = ({consentData, formValues, onInputChange, children, t}: ConsentProps) => {
+const Consent: FC<ConsentProps> = ({
+  consentData = undefined,
+  formValues,
+  maxValidityPeriod = undefined,
+  onInputChange,
+  children = undefined,
+  t = undefined,
+  validityInput = false,
+}: ConsentProps) => {
   // Computed per render (not at module scope): a CSP nonce configured on <ThunderIDProvider>
   // isn't known until the provider renders, and Emotion needs it applied before any style
   // insertion happens. These are static, so Emotion's own cache dedupes the repeat calls to a
@@ -250,8 +271,10 @@ const Consent: FC<ConsentProps> = ({consentData, formValues, onInputChange, chil
         {children({
           formValues,
           isApprovalBlocked: isConsentApprovalBlocked(purposes, formValues),
+          maxValidityPeriod,
           onInputChange,
           purposes,
+          validityInput,
         })}
       </>
     );
@@ -331,6 +354,14 @@ const Consent: FC<ConsentProps> = ({consentData, formValues, onInputChange, chil
           </div>
         );
       })}
+      {validityInput && (
+        <ConsentValidityPeriodField
+          formValues={formValues}
+          maxValidityPeriod={maxValidityPeriod}
+          onInputChange={onInputChange}
+          t={t}
+        />
+      )}
     </div>
   );
 };

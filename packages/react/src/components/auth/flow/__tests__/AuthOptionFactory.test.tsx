@@ -405,6 +405,156 @@ describe('AuthOptionFactory consent decisions', () => {
     return JSON.parse(submitted['consent_decisions']) as ConsentDecisions;
   };
 
+  it('carries the validity period the user chose', () => {
+    const decisions = submitConsent('PRIMARY', [attributesPurpose], {__consent_validity_period__: '3600'});
+
+    expect(decisions.validityPeriod).toBe(3600);
+  });
+
+  it('leaves the validity period out when the consent is denied', () => {
+    const decisions = submitConsent('SECONDARY', [attributesPurpose], {__consent_validity_period__: '60'});
+
+    expect(decisions.approved).toBe(false);
+    expect(decisions).not.toHaveProperty('validityPeriod');
+  });
+
+  it('leaves the validity period out when the user chose none', () => {
+    const decisions = submitConsent('PRIMARY', [attributesPurpose], {});
+
+    expect(decisions).not.toHaveProperty('validityPeriod');
+  });
+
+  describe('validity period field', () => {
+    const renderConsentForm = (additionalData: Record<string, unknown>) => {
+      const onSubmit = vi.fn();
+      const Form = (): ReactElement => {
+        const [formValues, setFormValues] = useState<Record<string, string>>({});
+        const onInputChange = (name: string, value: string): void =>
+          setFormValues((prev: Record<string, string>) => ({...prev, [name]: value}));
+
+        return (
+          <div>
+            {renderSignInComponents(
+              [
+                {id: 'consent', type: EmbeddedFlowComponentType.Consent} as unknown as EmbeddedFlowComponent,
+                consentAction('PRIMARY'),
+              ],
+              formValues,
+              {},
+              {},
+              false,
+              true,
+              () => undefined,
+              onInputChange,
+              {additionalData: {consentPrompt: {purposes: [attributesPurpose]}, ...additionalData}, onSubmit},
+            )}
+          </div>
+        );
+      };
+      const {container} = render(
+        <ThemeContext.Provider value={themeContextValue}>
+          <Form />
+        </ThemeContext.Provider>,
+      );
+
+      return {
+        allow: container.querySelector<HTMLButtonElement>('#action_PRIMARY')!,
+        container,
+        field: container.querySelector<HTMLSelectElement>('#consent_validity_period'),
+        remember: container.querySelector<HTMLInputElement>('#consent_validity_remember'),
+        onSubmit,
+      };
+    };
+
+    it('shows nothing unless the step data asks for it', () => {
+      const {field, remember} = renderConsentForm({maxConsentValidity: '3600'});
+
+      expect(remember).toBeNull();
+      expect(field).toBeNull();
+    });
+
+    it('lists the periods within the period in the step data and submits the one the user picks', () => {
+      const {allow, field, onSubmit} = renderConsentForm({
+        maxConsentValidity: '86400',
+        promptConsentValidity: 'true',
+      });
+
+      expect(Array.from(field!.options).map((option: HTMLOptionElement) => option.value)).toEqual([
+        '60',
+        '1800',
+        '3600',
+        '43200',
+        '86400',
+        'custom',
+      ]);
+      fireEvent.change(field!, {target: {value: '3600'}});
+      expect(field!.value).toBe('3600');
+      allow.click();
+
+      const submitted = onSubmit.mock.calls[0][1] as Record<string, string>;
+      expect((JSON.parse(submitted['consent_decisions']) as ConsentDecisions).validityPeriod).toBe(3600);
+    });
+
+    it('submits the short value when the user unticks the box', () => {
+      const {allow, onSubmit, remember} = renderConsentForm({
+        maxConsentValidity: '86400',
+        promptConsentValidity: 'true',
+      });
+
+      fireEvent.click(remember!);
+      allow.click();
+
+      const submitted = onSubmit.mock.calls[0][1] as Record<string, string>;
+      expect((JSON.parse(submitted['consent_decisions']) as ConsentDecisions).validityPeriod).toBe(1);
+    });
+
+    it('submits the shortest period when the user changes nothing', () => {
+      const {allow, field, onSubmit, remember} = renderConsentForm({
+        maxConsentValidity: '86400',
+        promptConsentValidity: 'true',
+      });
+
+      expect(remember!.checked).toBe(true);
+      expect(field!.value).toBe('60');
+      allow.click();
+
+      const submitted = onSubmit.mock.calls[0][1] as Record<string, string>;
+      expect((JSON.parse(submitted['consent_decisions']) as ConsentDecisions).validityPeriod).toBe(60);
+    });
+
+    it('submits a custom period as seconds, from the number typed and its unit', () => {
+      const {allow, container, field, onSubmit} = renderConsentForm({
+        maxConsentValidity: '86400',
+        promptConsentValidity: 'true',
+      });
+
+      fireEvent.change(field!, {target: {value: 'custom'}});
+      fireEvent.change(container.querySelector<HTMLInputElement>('#consent_validity_custom')!, {
+        target: {value: '90'},
+      });
+      fireEvent.change(container.querySelector<HTMLSelectElement>('#consent_validity_unit')!, {
+        target: {value: 'second'},
+      });
+      allow.click();
+
+      const submitted = onSubmit.mock.calls[0][1] as Record<string, string>;
+      expect((JSON.parse(submitted['consent_decisions']) as ConsentDecisions).validityPeriod).toBe(90);
+    });
+
+    it('ends the periods with no expiry when the step data has no maximum', () => {
+      const {field} = renderConsentForm({promptConsentValidity: 'true'});
+
+      expect(Array.from(field!.options).map((option: HTMLOptionElement) => option.value)).toEqual([
+        '60',
+        '3600',
+        '43200',
+        '2592000',
+        '2147483647',
+        'custom',
+      ]);
+    });
+  });
+
   it('marks the whole consent approved when the primary action submits', () => {
     const decisions = submitConsent('PRIMARY', [attributesPurpose], {__consent_opt__p1__phone: 'true'});
 

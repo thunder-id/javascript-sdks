@@ -22,6 +22,8 @@ import {
   KeyValuePair,
   parseKeyValuePairs,
   getConsentElementDecision,
+  getConsentValidityInput,
+  getConsentValidityPeriod,
 } from '@thunderid/browser';
 import type {FetchAuthFlows, FetchUsers, FetchUserTypes} from '@thunderid/browser';
 import DOMPurify from 'dompurify';
@@ -338,9 +340,11 @@ const createAuthComponentFromFlow = (
             | undefined;
           if (consentPrompt && eventType.toUpperCase() === EmbeddedFlowEventType.Submit) {
             const isDeny: boolean = componentVariant.toLowerCase() !== 'primary';
+            const validityPeriod: number | undefined = isDeny ? undefined : getConsentValidityPeriod(formValues);
             const decisions: ConsentDecisions = {
               approved: !isDeny,
               ...(isDeny ? {reason: ConsentConstants.REASON_USER_DENIED} : {}),
+              ...(validityPeriod === undefined ? {} : {validityPeriod}),
               purposes: consentPrompt.purposes.map(
                 (p: ConsentPurposeData): ConsentPurposeDecision => ({
                   approved: !isDeny,
@@ -640,12 +644,16 @@ const createAuthComponentFromFlow = (
     }
 
     case EmbeddedFlowComponentType.Consent: {
+      const {enabled: validityInput, maxValidityPeriod} = getConsentValidityInput(options.additionalData);
+
       return h(Consent, {
         consentData: options.additionalData?.['consentPrompt'] as ConsentPromptData | string | undefined,
         formValues,
         key,
+        maxValidityPeriod,
         onInputChange,
         t: options.t,
+        validityInput,
       });
     }
 
