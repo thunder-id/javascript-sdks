@@ -21,6 +21,12 @@ describe('fetchFlowMetaFromServer', () => {
     expect(getFlowMetaAction).toHaveBeenCalledWith({applicationId: 'app-1', language: 'fr'});
   });
 
+  it('resolves to null when the server has no flow metadata endpoint', async () => {
+    vi.mocked(getFlowMetaAction).mockResolvedValue({meta: null, success: true});
+
+    await expect(fetchFlowMetaFromServer({})).resolves.toBeNull();
+  });
+
   it('throws a runtime error when the action reports a failure without a status', async () => {
     vi.mocked(getFlowMetaAction).mockResolvedValue({
       message: 'Failed to load flow metadata: no base URL is configured.',

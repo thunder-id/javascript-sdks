@@ -18,7 +18,9 @@ import {FlowMetadataResponse, GetFlowMetaRequestConfig} from '../../models/flow-
  *                 and `id` are omitted the server returns i18n-only metadata.
  * @returns A promise that resolves to the {@link FlowMetadataResponse}.
  *
- * @throws {ThunderIDAPIError} When the server returns a non-OK response.
+ * @throws {ThunderIDAPIError} When the server returns a non-OK response, or an OK response whose body is not JSON.
+ * Use {@link isFlowMetaUnavailableError} to tell a server that has no flow metadata endpoint, such as an OpenID
+ * Connect provider other than ThunderID, from a real failure.
  *
  * @example
  * ```typescript
@@ -80,9 +82,19 @@ const getFlowMeta = async ({
     );
   }
 
-  const flowMetadata: FlowMetadataResponse = await response.json();
-
-  return flowMetadata;
+  try {
+    return (await response.json()) as FlowMetadataResponse;
+  } catch {
+    // A server that does not implement this endpoint can still answer 2xx, for example with an HTML page.
+    throw new ThunderIDAPIError(
+      'The response body is not JSON.',
+      'getFlowMeta-InvalidResponseError-001',
+      'javascript',
+      response.status,
+      response.statusText,
+      'Flow metadata request failed',
+    );
+  }
 };
 
 export default getFlowMeta;

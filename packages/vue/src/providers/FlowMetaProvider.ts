@@ -6,6 +6,7 @@ import {
   FlowMetaType,
   getFlowMeta,
   I18nBundle,
+  isFlowMetaUnavailableError,
   resolveResourceEndpoint,
   TranslationBundleConstants,
 } from '@thunderid/browser';
@@ -39,7 +40,7 @@ import type {ThunderIDContext, FlowMetaContextValue, I18nContextValue} from '../
  */
 interface FlowMetaProviderProps {
   enabled: boolean;
-  fetchMeta?: (params: {applicationId?: string; language?: string}) => Promise<FlowMetadataResponse>;
+  fetchMeta?: (params: {applicationId?: string; language?: string}) => Promise<FlowMetadataResponse | null>;
   initialMeta?: FlowMetadataResponse | null;
 }
 
@@ -58,7 +59,8 @@ const FlowMetaProvider: Component = defineComponent({
      * different origin than the app and CORS isn't (or can't be) configured for it — the override
      * runs server-side, so the browser never talks to `baseUrl` directly.
      *
-     * Called for both the initial fetch and `switchLanguage()`.
+     * Called for both the initial fetch and `switchLanguage()`. Resolve to `null` when the server has
+     * no flow metadata, so the provider falls back to the defaults without reporting an error.
      */
     fetchMeta: {default: undefined, type: Function as PropType<FlowMetaProviderProps['fetchMeta']>},
     /**
@@ -84,6 +86,30 @@ const FlowMetaProvider: Component = defineComponent({
       endpoints: thunderIDContext?.endpoints,
     });
 
+    // Loads the metadata for a language. A server without a flow metadata endpoint, such as an OpenID
+    // Connect provider other than ThunderID, yields `null` rather than an error, so the components
+    // fall back to their defaults. Any other failure still rejects and is reported through `error`.
+    const loadMeta = async (language?: string): Promise<FlowMetadataResponse | null> => {
+      try {
+        if (props.fetchMeta) {
+          return (await props.fetchMeta({applicationId, ...(language ? {language} : {})})) ?? null;
+        }
+
+        return await getFlowMeta({
+          baseUrl,
+          url: flowMetaUrl,
+          ...(applicationId ? {id: applicationId, type: FlowMetaType.App} : {}),
+          ...(language ? {language} : {}),
+        });
+      } catch (err: unknown) {
+        if (isFlowMetaUnavailableError(err)) {
+          return null;
+        }
+
+        throw err;
+      }
+    };
+
     const fetchFlowMeta = async (): Promise<void> => {
       if (!props.enabled) {
         meta.value = null;
@@ -94,14 +120,7 @@ const FlowMetaProvider: Component = defineComponent({
       error.value = null;
 
       try {
-        const result: FlowMetadataResponse = props.fetchMeta
-          ? await props.fetchMeta({applicationId})
-          : await getFlowMeta({
-              baseUrl,
-              url: flowMetaUrl,
-              ...(applicationId ? {id: applicationId, type: FlowMetaType.App} : {}),
-            });
-        meta.value = result;
+        meta.value = await loadMeta();
       } catch (err: unknown) {
         error.value = err instanceof Error ? err : new Error(String(err));
       } finally {
@@ -116,17 +135,10 @@ const FlowMetaProvider: Component = defineComponent({
       error.value = null;
 
       try {
-        const result: FlowMetadataResponse = props.fetchMeta
-          ? await props.fetchMeta({applicationId, language})
-          : await getFlowMeta({
-              baseUrl,
-              url: flowMetaUrl,
-              ...(applicationId ? {id: applicationId, type: FlowMetaType.App} : {}),
-              language,
-            });
+        const result: FlowMetadataResponse | null = await loadMeta(language);
 
         // Inject translations before switching language so the i18n state is updated
-        if (result.i18n?.translations && i18nContext?.injectBundles) {
+        if (result?.i18n?.translations && i18nContext?.injectBundles) {
           const flatTranslations: Record<string, string> = {};
           Object.entries(result.i18n.translations).forEach(([namespace, keys]: [string, Record<string, string>]) => {
             Object.entries(keys).forEach(([key, value]: [string, string]) => {

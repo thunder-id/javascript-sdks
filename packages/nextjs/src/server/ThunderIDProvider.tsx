@@ -13,6 +13,7 @@ import {
   UserProfile,
   getFlowMeta,
   extractUserClaimsFromIdToken,
+  isFlowMetaUnavailableError,
   resolveResourceEndpoint,
 } from '@thunderid/node';
 import {ThunderIDProviderProps} from '@thunderid/react';
@@ -115,7 +116,13 @@ const ThunderIDServerProvider: FC<PropsWithChildren<ThunderIDServerProviderProps
       ...(config?.applicationId ? {id: config.applicationId, type: FlowMetaType.App} : {}),
     });
   } catch (error) {
-    logger.warn('[ThunderIDServerProvider] Failed to fetch flow metadata:', error?.toString());
+    // A server without a flow metadata endpoint (an OpenID Connect provider other than ThunderID) is expected, and
+    // `getFlowMetaAction` already warns about it once, so it is only noted at debug level here.
+    if (isFlowMetaUnavailableError(error)) {
+      logger.debug('[ThunderIDServerProvider] The server has no flow metadata endpoint:', error?.toString());
+    } else {
+      logger.warn('[ThunderIDServerProvider] Failed to fetch flow metadata:', error?.toString());
+    }
   }
 
   // Try to get session information from JWT first, then fall back to legacy

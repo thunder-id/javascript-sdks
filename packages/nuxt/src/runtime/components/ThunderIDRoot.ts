@@ -152,12 +152,16 @@ const ThunderIDRoot: Component = defineComponent({
      * default direct browser-to-`baseUrl` fetch — so the browser never talks to the ThunderID
      * server directly and no CORS configuration is required there. Used for both the initial
      * fetch (when SSR seeding via `flowMetaState` didn't happen, e.g. it failed server-side) and
-     * subsequent `switchLanguage()` calls.
+     * subsequent `switchLanguage()` calls. Resolves to `null` when the server has no flow metadata.
      */
-    const fetchMeta = async (params: {applicationId?: string; language?: string}): Promise<FlowMetadataResponse> =>
-      $fetch<FlowMetadataResponse>(NuxtAPIRoutes.META, {
+    const fetchMeta = async (params: {
+      applicationId?: string;
+      language?: string;
+    }): Promise<FlowMetadataResponse | null> =>
+      // The route answers 204 with no body when the server has no flow metadata endpoint.
+      (await $fetch<FlowMetadataResponse | null>(NuxtAPIRoutes.META, {
         query: {...(params.language ? {language: params.language} : {})},
-      });
+      })) ?? null;
 
     // ── Render tree — mirrors ThunderIDClientProvider (Next.js) ─────────────
     return (): VNode =>
