@@ -369,10 +369,18 @@ class ThunderIDNextClient<T extends ThunderIDNextConfig = ThunderIDNextConfig> e
     const config: T = await this.getConfiguration();
     const afterSignOutUrl: string = config?.afterSignOutUrl || '/';
 
-    const resolvedSessionId: string = args[1] || (await getSessionId())!;
+    const resolvedSessionId: string | undefined = args[1] || (await getSessionId());
+
+    // With no session there is no server session to end, so the browser goes straight to afterSignOutUrl.
+    if (!resolvedSessionId) {
+      return afterSignOutUrl;
+    }
 
     try {
-      await (super.signOut as (...a: any[]) => Promise<string>)(resolvedSessionId);
+      // The end-session URL ends the server's single sign-on session, then returns the browser to
+      // afterSignOutUrl. It carries the ID token as id_token_hint, so the server signs the user out
+      // without asking them to confirm.
+      return await (super.signOut as (...a: any[]) => Promise<string>)(resolvedSessionId);
     } catch (error) {
       const message: string = error instanceof Error ? error.message : String(error);
 

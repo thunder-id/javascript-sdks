@@ -332,12 +332,21 @@ const ThunderIDClientProvider: FC<PropsWithChildren<ThunderIDClientProviderProps
     try {
       const result: any = await signOut();
 
-      logger.debug('[ThunderIDClientProvider][handleSignOut] Sign out result:', result);
+      // The sign-out URL carries the ID token as id_token_hint, so it stays out of the log.
+      logger.debug('[ThunderIDClientProvider][handleSignOut] Sign out completed.', {success: result?.success});
 
-      if (result?.data?.afterSignOutUrl) {
-        router.push(result.data.afterSignOutUrl);
+      const signOutUrl: string | undefined = result?.data?.signOutUrl;
 
-        return {location: result.data.afterSignOutUrl, redirected: true};
+      if (signOutUrl) {
+        // The end-session endpoint is on the ThunderID server, so leave the app with a full navigation, as
+        // handleSignIn does for the authorization endpoint. A URL in the app itself stays a client navigation.
+        if (new URL(signOutUrl, window.location.href).origin === window.location.origin) {
+          router.push(signOutUrl);
+        } else {
+          window.location.href = signOutUrl;
+        }
+
+        return {location: signOutUrl, redirected: true};
       }
 
       if (result?.error) {

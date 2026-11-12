@@ -155,9 +155,28 @@ class ThunderIDNuxtClient extends ThunderIDNodeClient<ThunderIDNuxtClientConfig>
     return this.getSignInUrl(customParams, userId);
   }
 
+  /**
+   * Returns the URL to send the browser to on sign-out: the end-session URL, which ends the server's single
+   * sign-on session and returns to afterSignOutUrl, or afterSignOutUrl itself when there is no session or the
+   * server publishes no end-session endpoint.
+   */
   override async signOut(...args: any[]): Promise<string> {
-    const configData: any = this.getStorageManager().getConfigData();
-    return (configData?.afterSignOutUrl as string) || (configData?.afterSignInUrl as string) || '/';
+    const configData: any = await this.getStorageManager().getConfigData();
+    const afterSignOutUrl: string =
+      (configData?.afterSignOutUrl as string) || (configData?.afterSignInUrl as string) || '/';
+    const sessionId: string | undefined = typeof args[0] === 'string' ? args[0] : undefined;
+
+    if (!sessionId) {
+      return afterSignOutUrl;
+    }
+
+    try {
+      // Carries the ID token as id_token_hint, so the server signs the user out without asking them to confirm.
+      return await super.signOut(sessionId);
+    } catch {
+      // The server publishes no end-session endpoint, or its metadata cannot be read: return to the app.
+      return afterSignOutUrl;
+    }
   }
 
   override async getUser(sessionId?: string): Promise<User> {

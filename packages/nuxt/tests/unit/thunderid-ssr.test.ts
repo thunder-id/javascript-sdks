@@ -267,4 +267,33 @@ describe('thunderid-ssr Nitro plugin', () => {
 
     expect(event.context.thunderid.ssr.resolvedBaseUrl).toBe('https://localhost:8090/o');
   });
+
+  // ── Client initialization ───────────────────────────────────────────────
+  // The server matches post_logout_redirect_uri exactly against the registered URIs, so the
+  // after sign-out URL the client sends must be absolute, as the callback URL already is.
+
+  describe('afterSignOutUrl passed to the client', () => {
+    const initializeWith = async (afterSignOutUrl?: string): Promise<Record<string, unknown>> => {
+      mockClient.isInitialized = false;
+      vi.mocked(useRuntimeConfig).mockReturnValue({
+        public: {thunderid: {afterSignOutUrl, baseUrl: 'https://localhost:8090', clientId: 'test-client-id'}},
+      } as any);
+
+      await callHandler('/');
+
+      return (mockClient.initialize.mock.calls[0] as unknown as [Record<string, unknown>])[0];
+    };
+
+    it('resolves the default against the request origin', async () => {
+      expect((await initializeWith(undefined)).afterSignOutUrl).toBe('http://localhost:3000/');
+    });
+
+    it('resolves a relative URL against the request origin', async () => {
+      expect((await initializeWith('/signed-out')).afterSignOutUrl).toBe('http://localhost:3000/signed-out');
+    });
+
+    it('keeps an absolute URL as configured', async () => {
+      expect((await initializeWith('https://app.example.com/bye')).afterSignOutUrl).toBe('https://app.example.com/bye');
+    });
+  });
 });

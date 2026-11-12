@@ -25,6 +25,16 @@ function resolveCallbackUrl(event: H3Event): string {
 }
 
 /**
+ * Resolve the after sign-out URL against the incoming request origin. It becomes the end-session
+ * request's post_logout_redirect_uri, which the server matches exactly against the registered URIs,
+ * so a path such as the default '/' is sent as an absolute URL. An absolute URL is kept as is.
+ */
+function resolveAfterSignOutUrl(event: H3Event, afterSignOutUrl: string | undefined): string {
+  const url: URL = getRequestURL(event, {xForwardedHost: true, xForwardedProto: true});
+  return new URL(afterSignOutUrl || '/', url.origin).href;
+}
+
+/**
  * Nitro server plugin — the Nuxt equivalent of `ThunderIDServerProvider` in the
  * Next.js SDK.
  *
@@ -90,7 +100,7 @@ export default defineNitroPlugin((nitro: {hooks: {hook: Function}}) => {
       try {
         await client.initialize({
           afterSignInUrl: resolveCallbackUrl(event),
-          afterSignOutUrl: publicConfig.afterSignOutUrl || '/',
+          afterSignOutUrl: resolveAfterSignOutUrl(event, publicConfig.afterSignOutUrl),
           baseUrl: publicConfig.baseUrl,
           clientId: publicConfig.clientId,
           clientSecret: privateConfig?.clientSecret || undefined,
