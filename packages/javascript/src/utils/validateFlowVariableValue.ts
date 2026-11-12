@@ -62,7 +62,8 @@ const validateFlowVariableValue = (
       return undefined;
     }
     case 'SELECT':
-      return (definition.options ?? []).some((option: FlowVariableValue) => option === value)
+      // The server compares a select value by its text, so `'true'` matches an option `true`.
+      return (definition.options ?? []).some((option: FlowVariableValue) => String(option) === String(value))
         ? undefined
         : {code: 'not_option'};
     case 'EMAIL_INPUT':

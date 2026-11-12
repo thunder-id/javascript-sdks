@@ -54,6 +54,16 @@ describe('validateFlowVariableValue', () => {
     expect(validateFlowVariableValue(def, 2)).toBeUndefined();
   });
 
+  it('accepts the text of a select option, as the server does', () => {
+    const flags: FlowVariableDefinition = {identifier: 'f', options: [true, false], type: 'SELECT'};
+    const mixed: FlowVariableDefinition = {identifier: 'm', options: ['A', 2], type: 'SELECT'};
+
+    expect(validateFlowVariableValue(flags, 'true')).toBeUndefined();
+    expect(validateFlowVariableValue(flags, false)).toBeUndefined();
+    expect(validateFlowVariableValue(flags, 'yes')).toEqual({code: 'not_option'});
+    expect(validateFlowVariableValue(mixed, '2')).toBeUndefined();
+  });
+
   it('checks the format of email, phone and date', () => {
     expect(validateFlowVariableValue({identifier: 'e', type: 'EMAIL_INPUT'}, 'nope')).toEqual({code: 'invalid'});
     expect(validateFlowVariableValue({identifier: 'e', type: 'EMAIL_INPUT'}, 'a@b.co')).toBeUndefined();

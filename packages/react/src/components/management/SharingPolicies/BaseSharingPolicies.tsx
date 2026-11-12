@@ -147,7 +147,7 @@ interface Draft {
   values: SharingPolicyFormValues;
 }
 
-const isOwned = (overlay: ResolvedOverlay): boolean => Boolean(overlay.isOwned ?? overlay.isOwnedByOU ?? overlay.owned);
+const isOwned = (overlay: ResolvedOverlay): boolean => Boolean(overlay.isOwnedByOU);
 
 /**
  * Lists the sharing policies of one resource (a user, an application, a role or a flow) with the
