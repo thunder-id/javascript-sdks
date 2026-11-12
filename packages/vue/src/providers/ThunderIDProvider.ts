@@ -507,6 +507,23 @@ const ThunderIDProvider: Component = defineComponent({
       const alreadySignedIn: boolean = await client.isSignedIn();
 
       if (alreadySignedIn) {
+        // A switch to another organization unit returns with a code, or a silent switch response, while the
+        // previous session is still signed in. signIn() redeems the code only for a switch this app started, and
+        // only when the returned state matches the one it stored. Otherwise it returns the current user, so a
+        // stale or injected callback leaves the session as it is.
+        const signedInUrl: URL = new URL(window.location.href);
+
+        if (
+          hasAuthParams(signedInUrl, (initializedConfig as {afterSignInUrl?: string} | undefined)?.afterSignInUrl) &&
+          hasCalledForThisInstanceInUrl(props.instanceId ?? 0, signedInUrl.search)
+        ) {
+          try {
+            await signIn();
+          } catch (error) {
+            logger.warn('Could not complete the organization unit switch, so the current session is kept.', error);
+          }
+        }
+
         await updateSession();
       } else {
         const currentUrl: URL = new URL(window.location.href);
