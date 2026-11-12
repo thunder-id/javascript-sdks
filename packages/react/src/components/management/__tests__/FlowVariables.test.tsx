@@ -245,7 +245,7 @@ describe('BaseFlowVariables', () => {
         connections={connections}
         ownerName="Root organization"
         overlay={{
-          owned: false,
+          isOwnedByOU: false,
           rules: {
             'variables.showSignUp': {editable: false, value: ['false']},
             'variables.supportEmail': {editable: true},
@@ -261,14 +261,14 @@ describe('BaseFlowVariables', () => {
   });
 
   it('locks every variable no policy names', () => {
-    renderWithProviders(<BaseFlowVariables variables={variables} overlay={{owned: false, rules: {}}} />);
+    renderWithProviders(<BaseFlowVariables variables={variables} overlay={{isOwnedByOU: false, rules: {}}} />);
 
     expect(screen.queryByTestId('flow-variable-status')).toBeNull();
     expect(screen.getAllByText(/Set by the flow owner/)).toHaveLength(variables.length);
   });
 
   it('lets the owner of the flow edit everything', () => {
-    renderWithProviders(<BaseFlowVariables variables={variables} overlay={{owned: true, rules: {}}} />);
+    renderWithProviders(<BaseFlowVariables variables={variables} overlay={{isOwnedByOU: true, rules: {}}} />);
 
     expect(screen.queryByTestId('flow-variable-status')).toBeNull();
   });
@@ -279,7 +279,7 @@ describe('BaseFlowVariables', () => {
         variables={variables}
         connections={connections}
         overlay={{
-          owned: false,
+          isOwnedByOU: false,
           rules: {
             'variables.mfaMode': {allowedValues: ['SMS_OTP'], editable: true},
             'variables.social': {editable: true, excludedValues: ['c-2']},
@@ -299,7 +299,7 @@ describe('BaseFlowVariables', () => {
     renderWithProviders(
       <BaseFlowVariables
         variables={variables}
-        overlay={{owned: false, rules: {'variables.supportEmail': {editable: true, value: ['team@acme.io']}}}}
+        overlay={{isOwnedByOU: false, rules: {'variables.supportEmail': {editable: true, value: ['team@acme.io']}}}}
       />,
     );
 
@@ -314,7 +314,7 @@ describe('BaseFlowVariables', () => {
         variables={variables}
         connections={connections}
         overlay={{
-          owned: false,
+          isOwnedByOU: false,
           rules: {
             'variables.showSignUp': {editable: false, value: ['false']},
             'variables.supportEmail': {editable: true},
@@ -438,7 +438,7 @@ describe('FlowVariablesForm', () => {
   };
 
   const overlay = {
-    owned: false,
+    isOwnedByOU: false,
     ouId: 'ou-1',
     policyIds: ['p-1'],
     rules: {

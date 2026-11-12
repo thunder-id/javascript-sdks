@@ -508,7 +508,7 @@ export const MuiSharingPolicies = ({
       {overlayOuId && overlay && (
         <MuiAlert severity="info">
           In {overlayOuId}:{' '}
-          {overlay.isOwned
+          {overlay.isOwnedByOU
             ? 'owned'
             : `shared by ${overlay.policyIds?.length ? overlay.policyIds.join(', ') : 'no policy'}`}
         </MuiAlert>
