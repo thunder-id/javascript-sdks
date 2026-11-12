@@ -23,6 +23,10 @@ export interface ThunderIDNuxtConfig extends Omit<AuthClientConfig, 'baseUrl'> {
   /**
    * Base URL of the ThunderID server. Optional here because `NUXT_PUBLIC_THUNDERID_BASE_URL` can supply it, and the
    * server refuses to initialize when neither does.
+   *
+   * To sign in with a standard OpenID Connect provider other than ThunderID, set it to the provider's issuer URL.
+   * Features that only ThunderID serves, such as the flow APIs, `/users/me` and branding from flow metadata, are
+   * skipped.
    */
   baseUrl?: string;
   /**

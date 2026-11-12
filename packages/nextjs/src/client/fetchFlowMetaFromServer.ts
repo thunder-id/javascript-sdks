@@ -7,12 +7,13 @@ import getFlowMetaAction, {GetFlowMetaActionResult} from '../server/actions/auth
 /**
  * The `fetchMeta` behind `FlowMetaProvider`: loads flow metadata through {@link getFlowMetaAction} so the browser
  * never calls `baseUrl` directly, and throws the failure the action returned as an SDK error, which
- * `FlowMetaProvider` reports through its `error` state.
+ * `FlowMetaProvider` reports through its `error` state. Resolves to `null` when the server has no flow metadata
+ * endpoint.
  */
 const fetchFlowMetaFromServer = async (params: {
   applicationId?: string;
   language?: string;
-}): Promise<FlowMetadataResponse> => {
+}): Promise<FlowMetadataResponse | null> => {
   const result: GetFlowMetaActionResult = await getFlowMetaAction(params);
 
   if (result.success) {

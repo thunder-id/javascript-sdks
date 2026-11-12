@@ -229,6 +229,11 @@ export interface BaseConfig<T = unknown> extends WithPreferences, WithExtensions
   /**
    * The base URL of the ThunderID identity server.
    * Example: "https://localhost:8090"
+   *
+   * To sign in with a standard OpenID Connect provider other than ThunderID, set `baseUrl` to the provider's
+   * issuer URL. The SDK discovers the provider's endpoints from `{baseUrl}/.well-known/openid-configuration` and
+   * runs the redirect-based sign-in. Features that only ThunderID serves, such as the flow APIs, `/users/me` and
+   * branding from flow metadata, are skipped, and the SDK falls back to its defaults and the ID token claims.
    */
   baseUrl: string | undefined;
 

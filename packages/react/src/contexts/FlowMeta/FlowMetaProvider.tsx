@@ -6,6 +6,7 @@ import {
   FlowMetaType,
   getFlowMeta,
   I18nBundle,
+  isFlowMetaUnavailableError,
   resolveResourceEndpoint,
   TranslationBundleConstants,
 } from '@thunderid/browser';
@@ -29,9 +30,10 @@ export interface FlowMetaProviderProps {
    * different origin than the app and CORS isn't (or can't be) configured for it — the
    * override runs server-side, so the browser never talks to `baseUrl` directly.
    *
-   * Called for both the initial fetch and `switchLanguage()`.
+   * Called for both the initial fetch and `switchLanguage()`. Resolve to `null` when the server has
+   * no flow metadata, so the provider falls back to the defaults without reporting an error.
    */
-  fetchMeta?: (params: {applicationId?: string; language?: string}) => Promise<FlowMetadataResponse>;
+  fetchMeta?: (params: {applicationId?: string; language?: string}) => Promise<FlowMetadataResponse | null>;
 
   /**
    * Flow metadata resolved ahead of time (e.g. fetched server-side during SSR) and used to seed
@@ -83,6 +85,34 @@ const FlowMetaProvider: FC<PropsWithChildren<FlowMetaProviderProps>> = ({
   const [error, setError] = useState<Error | null>(null);
   const [pendingLanguage, setPendingLanguage] = useState<string | null>(null);
 
+  // Loads the metadata for a language. A server without a flow metadata endpoint, such as an OpenID
+  // Connect provider other than ThunderID, yields `null` rather than an error, so the components
+  // fall back to their defaults. Any other failure still rejects and is reported through `error`.
+  const loadMeta: (language?: string) => Promise<FlowMetadataResponse | null> = useCallback(
+    async (language?: string): Promise<FlowMetadataResponse | null> => {
+      try {
+        if (fetchMeta) {
+          return (await fetchMeta({applicationId, language})) ?? null;
+        }
+
+        return await getFlowMeta({
+          baseUrl,
+          url: resolveResourceEndpoint('flowMeta', {endpoints}),
+          ...(applicationId ? {id: applicationId, type: FlowMetaType.App} : {}),
+          ...(namespace ? {namespace} : {}),
+          language,
+        });
+      } catch (err: unknown) {
+        if (isFlowMetaUnavailableError(err)) {
+          return null;
+        }
+
+        throw err;
+      }
+    },
+    [baseUrl, endpoints, applicationId, fetchMeta, namespace],
+  );
+
   // The last request the initial-fetch effect dispatched, as a key of everything that shapes it.
   // `fetchFlowMeta` is recreated whenever a dependency changes identity, and several do while
   // ThunderID initializes (`isInitialized` flips, `endpoints` is replaced with the resolved
@@ -108,22 +138,14 @@ const FlowMetaProvider: FC<PropsWithChildren<FlowMetaProviderProps>> = ({
     setError(null);
 
     try {
-      const result: FlowMetadataResponse = fetchMeta
-        ? await fetchMeta({applicationId, language: i18nContext?.currentLanguage})
-        : await getFlowMeta({
-            baseUrl,
-            url: resolveResourceEndpoint('flowMeta', {endpoints}),
-            ...(applicationId ? {id: applicationId, type: FlowMetaType.App} : {}),
-            ...(namespace ? {namespace} : {}),
-            language: i18nContext?.currentLanguage,
-          });
+      const result: FlowMetadataResponse | null = await loadMeta(i18nContext?.currentLanguage);
       setMeta(result);
     } catch (err: unknown) {
       setError(err instanceof Error ? err : new Error(String(err)));
     } finally {
       setIsLoading(false);
     }
-  }, [enabled, baseUrl, endpoints, applicationId, isInitialized, i18nContext?.currentLanguage, fetchMeta, namespace]);
+  }, [enabled, applicationId, isInitialized, i18nContext?.currentLanguage, loadMeta]);
 
   const fetchMetaRef: RefObject<FlowMetaProviderProps['fetchMeta'] | null> = useRef(fetchMeta);
   const fetchMetaVersionRef: RefObject<number> = useRef(0);
@@ -154,18 +176,10 @@ const FlowMetaProvider: FC<PropsWithChildren<FlowMetaProviderProps>> = ({
       setError(null);
 
       try {
-        const result: FlowMetadataResponse = fetchMeta
-          ? await fetchMeta({applicationId, language})
-          : await getFlowMeta({
-              baseUrl,
-              url: resolveResourceEndpoint('flowMeta', {endpoints}),
-              ...(applicationId ? {id: applicationId, type: FlowMetaType.App} : {}),
-              ...(namespace ? {namespace} : {}),
-              language,
-            });
+        const result: FlowMetadataResponse | null = await loadMeta(language);
 
         // Inject translations for the new language before switching
-        if (result.i18n?.translations && i18nContext?.injectBundles) {
+        if (result?.i18n?.translations && i18nContext?.injectBundles) {
           const flatTranslations: Record<string, string> = {};
           Object.entries(result.i18n.translations).forEach(([namespace, keys]: [string, Record<string, string>]) => {
             Object.entries(keys).forEach(([key, value]: [string, string]) => {
@@ -186,7 +200,7 @@ const FlowMetaProvider: FC<PropsWithChildren<FlowMetaProviderProps>> = ({
         setIsLoading(false);
       }
     },
-    [enabled, baseUrl, endpoints, applicationId, i18nContext, fetchMeta, namespace],
+    [enabled, i18nContext, loadMeta],
   );
 
   // After injectBundles + setPendingLanguage are batched and committed, this

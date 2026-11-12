@@ -1,19 +1,15 @@
 // Copyright 2025 The ThunderID Authors
 // SPDX-License-Identifier: Apache-2.0
 
-import {
-  FlowMetadataResponse,
-  FlowMetaType,
-  getFlowMeta,
-  resolveResourceEndpoint,
-  VendorConstants,
-} from '@thunderid/node';
+import {VendorConstants} from '@thunderid/node';
+import type {FlowMetadataResponse} from '@thunderid/node';
 import {getRequestURL, type H3Event} from 'h3';
 import {defineNitroPlugin} from 'nitropack/runtime';
 import NuxtAPIRoutes from '../../constants/NuxtAPIRoutes';
 import type {ThunderIDAuthState, ThunderIDNuxtConfig, ThunderIDSSRData} from '../../types';
 import {createLogger} from '../../utils/log';
 import ThunderIDNuxtClient from '../ThunderIDNuxtClient';
+import loadFlowMeta from '../utils/loadFlowMeta';
 import {verifyAndRehydrateSession} from '../utils/serverSession';
 import {useRuntimeConfig} from '#imports';
 
@@ -129,14 +125,11 @@ export default defineNitroPlugin((nitro: {hooks: {hook: Function}}) => {
     // fetched unconditionally and seeded via `useState` — same as `ThunderIDServerProvider` in
     // `@thunderid/nextjs` — so `FlowMetaProvider` can skip its own initial client-side fetch.
     let flowMeta: FlowMetadataResponse | null = null;
+    // A server with no flow metadata endpoint yields `null` (see `loadFlowMeta`); only real failures land here.
     try {
-      flowMeta = await getFlowMeta({
-        baseUrl: publicConfig?.baseUrl,
-        url: resolveResourceEndpoint('flowMeta', publicConfig),
-        ...(publicConfig?.applicationId ? {id: publicConfig.applicationId, type: FlowMetaType.App} : {}),
-      });
+      flowMeta = await loadFlowMeta(publicConfig);
     } catch (err) {
-      log.warn('Failed to fetch flow metadata:', err);
+      log.warn('Failed to fetch flow metadata:', err instanceof Error ? err.message : String(err));
     }
 
     const session: Awaited<ReturnType<typeof verifyAndRehydrateSession>> = await verifyAndRehydrateSession(

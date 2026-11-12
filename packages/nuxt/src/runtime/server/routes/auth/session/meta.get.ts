@@ -1,12 +1,15 @@
 // Copyright 2026 The ThunderID Authors
 // SPDX-License-Identifier: Apache-2.0
 
-import {FlowMetaType, getFlowMeta, resolveResourceEndpoint} from '@thunderid/node';
 import type {AuthClientConfig, FlowMetadataResponse} from '@thunderid/node';
-import {defineEventHandler, getQuery} from 'h3';
+import {createError, defineEventHandler, getQuery} from 'h3';
 import type {H3Event} from 'h3';
+import type {ThunderIDNuxtConfig} from '../../../../types';
+import {createLogger} from '../../../../utils/log';
 import ThunderIDNuxtClient from '../../../ThunderIDNuxtClient';
-import type {ThunderIDNuxtConfig} from '../../../types';
+import loadFlowMeta from '../../../utils/loadFlowMeta';
+
+const log: ReturnType<typeof createLogger> = createLogger('meta');
 
 /**
  * GET /api/auth/meta
@@ -18,19 +21,23 @@ import type {ThunderIDNuxtConfig} from '../../../types';
  * entirely, mirroring `getFlowMetaAction` in `@thunderid/nextjs`.
  *
  * Accepts an optional `?language=` query parameter, used by `FlowMetaProvider.switchLanguage()`.
+ *
+ * Answers `204 No Content` when the server has no flow metadata endpoint, as with an OpenID Connect
+ * provider other than ThunderID, and `502` with a generic message when the request fails for any
+ * other reason. The upstream reply is never passed on.
  */
-export default defineEventHandler(async (event: H3Event): Promise<FlowMetadataResponse> => {
+export default defineEventHandler(async (event: H3Event): Promise<FlowMetadataResponse | null> => {
   const client: ThunderIDNuxtClient = ThunderIDNuxtClient.getInstance();
   const configData: AuthClientConfig<ThunderIDNuxtConfig> = await client.getStorageManager().getConfigData();
 
   const query: Record<string, unknown> = getQuery(event);
   const language: string | undefined = typeof query.language === 'string' ? query.language : undefined;
-  const applicationId: string | undefined = configData?.applicationId;
 
-  return getFlowMeta({
-    baseUrl: configData?.baseUrl,
-    url: resolveResourceEndpoint('flowMeta', configData),
-    ...(applicationId ? {id: applicationId, type: FlowMetaType.App} : {}),
-    ...(language ? {language} : {}),
-  });
+  try {
+    return await loadFlowMeta(configData, language);
+  } catch (error) {
+    log.error('Failed to fetch flow metadata:', error instanceof Error ? error.message : String(error));
+
+    throw createError({statusCode: 502, statusMessage: 'Failed to load flow metadata.'});
+  }
 });

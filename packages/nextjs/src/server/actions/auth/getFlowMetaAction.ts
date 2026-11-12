@@ -7,6 +7,7 @@ import {
   FlowMetadataResponse,
   FlowMetaType,
   getFlowMeta,
+  isFlowMetaUnavailableError,
   resolveResourceEndpoint,
   ThunderIDAPIError,
 } from '@thunderid/node';
@@ -15,12 +16,21 @@ import logger from '../../../utils/logger';
 import getClient from '../../getClient';
 
 /**
+ * Whether this server has already warned that the configured server has no flow metadata endpoint, so the warning
+ * appears once rather than on every request.
+ */
+let hasWarnedFlowMetaUnavailable = false;
+
+/**
  * What {@link getFlowMetaAction} returns: the flow metadata, or a plain failure. It never throws, because a thrown
  * error reaches the browser as a generic 500 and loses its prototype chain crossing the server action boundary. A
  * failure carries a message built on the server and the status, never the text of the upstream reply.
+ *
+ * `meta` is `null` when the server has no flow metadata endpoint, as with an OpenID Connect provider other than
+ * ThunderID. That is not a failure: the components fall back to their defaults.
  */
 export type GetFlowMetaActionResult =
-  | {meta: FlowMetadataResponse; success: true}
+  | {meta: FlowMetadataResponse | null; success: true}
   | {message: string; statusCode?: number; success: false};
 
 /**
@@ -31,7 +41,8 @@ export type GetFlowMetaActionResult =
  * origin. Routing it through this action instead means the browser never talks to `baseUrl`
  * directly — the request happens server-to-server, same as `signInAction`/`signUpAction`.
  *
- * Never throws across the server action boundary; failures are mapped to a plain result.
+ * Never throws across the server action boundary; failures are mapped to a plain result. When the server has no
+ * flow metadata endpoint (see `isFlowMetaUnavailableError`), the action succeeds with `meta: null` and warns once.
  *
  * @param language - Optional language override, used by `FlowMetaProvider.switchLanguage()`.
  */
@@ -61,6 +72,18 @@ const getFlowMetaAction = async (params?: {
     return {meta, success: true};
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
+
+    if (isFlowMetaUnavailableError(error)) {
+      if (!hasWarnedFlowMetaUnavailable) {
+        hasWarnedFlowMetaUnavailable = true;
+        logger.warn(
+          `[getFlowMetaAction] The server has no flow metadata endpoint, so the defaults are used: ${message}`,
+        );
+      }
+
+      return {meta: null, success: true};
+    }
+
     logger.error(`[getFlowMetaAction] Error fetching flow metadata: ${message}`);
 
     if (error instanceof ThunderIDAPIError && error.statusCode !== undefined) {

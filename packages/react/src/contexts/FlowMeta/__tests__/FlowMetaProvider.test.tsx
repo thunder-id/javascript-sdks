@@ -2,12 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import {cleanup, render, waitFor} from '@testing-library/react';
-import {getFlowMeta} from '@thunderid/browser';
-import {ReactElement, StrictMode} from 'react';
+import {getFlowMeta, ThunderIDAPIError} from '@thunderid/browser';
+import {ReactElement, StrictMode, useContext, useEffect} from 'react';
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
 import I18nContext, {I18nContextValue} from '../../I18n/I18nContext';
 import ThunderIDContext, {ThunderIDContextProps} from '../../ThunderID/ThunderIDContext';
-import FlowMetaProvider from '../FlowMetaProvider';
+import FlowMetaContext, {FlowMetaContextValue} from '../FlowMetaContext';
+import FlowMetaProvider, {FlowMetaProviderProps} from '../FlowMetaProvider';
 
 vi.mock('@thunderid/browser', async (importOriginal: () => Promise<Record<string, unknown>>) => ({
   ...(await importOriginal()),
@@ -16,12 +17,28 @@ vi.mock('@thunderid/browser', async (importOriginal: () => Promise<Record<string
 
 const i18n = {currentLanguage: 'en-GB', injectBundles: vi.fn(), setLanguage: vi.fn()} as unknown as I18nContextValue;
 
-const renderProvider = (thunderID: Partial<ThunderIDContextProps>, language = 'en-GB'): ReactElement => (
+let latest: FlowMetaContextValue | null = null;
+
+const Probe = (): ReactElement => {
+  const value: FlowMetaContextValue | null = useContext(FlowMetaContext);
+
+  useEffect(() => {
+    latest = value;
+  });
+
+  return <span />;
+};
+
+const renderProvider = (
+  thunderID: Partial<ThunderIDContextProps>,
+  language = 'en-GB',
+  props: FlowMetaProviderProps = {},
+): ReactElement => (
   <StrictMode>
     <ThunderIDContext.Provider value={{baseUrl: 'https://localhost:8090', ...thunderID} as ThunderIDContextProps}>
       <I18nContext.Provider value={{...i18n, currentLanguage: language}}>
-        <FlowMetaProvider>
-          <span />
+        <FlowMetaProvider {...props}>
+          <Probe />
         </FlowMetaProvider>
       </I18nContext.Provider>
     </ThunderIDContext.Provider>
@@ -35,6 +52,7 @@ beforeEach(() => {
 afterEach(() => {
   cleanup();
   vi.clearAllMocks();
+  latest = null;
 });
 
 describe('FlowMetaProvider', () => {
@@ -65,5 +83,52 @@ describe('FlowMetaProvider', () => {
 
     await waitFor(() => expect(getFlowMeta).toHaveBeenCalledTimes(2));
     expect(getFlowMeta).toHaveBeenLastCalledWith(expect.objectContaining({language: 'fr-FR'}));
+  });
+
+  it('provides no metadata and no error when the server has no flow metadata endpoint', async () => {
+    vi.mocked(getFlowMeta).mockRejectedValue(
+      new ThunderIDAPIError('<html>Not Found</html>', 'getFlowMeta-ResponseError-001', 'javascript', 404),
+    );
+
+    render(renderProvider({applicationId: 'app-1', baseUrl: 'https://idp.example.com', isInitialized: true}));
+
+    await waitFor(() => expect(latest?.isLoading).toBe(false));
+    expect(getFlowMeta).toHaveBeenCalled();
+    expect(latest?.meta).toBeNull();
+    expect(latest?.error).toBeNull();
+  });
+
+  it('still switches the language when the server has no flow metadata endpoint', async () => {
+    vi.mocked(getFlowMeta).mockRejectedValue(
+      new ThunderIDAPIError('Not JSON', 'getFlowMeta-InvalidResponseError-001', 'javascript', 200),
+    );
+
+    render(renderProvider({applicationId: 'app-1', isInitialized: true}));
+    await waitFor(() => expect(latest?.isLoading).toBe(false));
+
+    await latest?.switchLanguage('fr-FR');
+
+    await waitFor(() => expect(i18n.setLanguage).toHaveBeenCalledWith('fr-FR'));
+    expect(latest?.error).toBeNull();
+  });
+
+  it('accepts null from a custom fetchMeta', async () => {
+    const fetchMeta = vi.fn().mockResolvedValue(null);
+
+    render(renderProvider({applicationId: 'app-1', isInitialized: true}, 'en-GB', {fetchMeta}));
+
+    await waitFor(() => expect(fetchMeta).toHaveBeenCalled());
+    await waitFor(() => expect(latest?.isLoading).toBe(false));
+    expect(latest?.meta).toBeNull();
+    expect(latest?.error).toBeNull();
+  });
+
+  it('reports any other failure through error', async () => {
+    vi.mocked(getFlowMeta).mockRejectedValue(new TypeError('Failed to fetch'));
+
+    render(renderProvider({applicationId: 'app-1', isInitialized: true}));
+
+    await waitFor(() => expect(latest?.error).toBeInstanceOf(TypeError));
+    expect(latest?.meta).toBeNull();
   });
 });
