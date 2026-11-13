@@ -81,13 +81,22 @@ const MUI_FORM_SNIPPET = `<GroupCreate onCreated={(group) => navigate(group.id)}
   )}
 </GroupCreate>`;
 
-const MUI_CARD_SNIPPET = `<UserDetails userId={userId} deletable>
-  {({user, displayName, attributes, groups, onDelete}) => (
+const MUI_CARD_SNIPPET = `<UserDetails userId={userId} deletable attributeVerification>
+  {({user, displayName, attributes, groups, onDelete, verifiableAttributes, verificationStatusAttributes, verifiedAttributes, onSendVerification, isSendingVerification, sentVerification}) => (
     <Card>
       <CardHeader title={displayName} subheader={user?.type} />
       <CardContent>
+        {sentVerification && <Alert severity="success">Link sent to {sentVerification.maskedDestination}</Alert>}
         {Object.entries(attributes).map(([name, value]) => (
           <Chip key={name} label={\`\${name}: \${value}\`} />
+        ))}
+        {verificationStatusAttributes.map((name) => (
+          <Stack key={name} direction="row">
+            <Chip label={\`\${name}: \${verifiedAttributes?.[name] ? 'verified' : 'not verified'}\`} />
+            {onSendVerification && verifiableAttributes.includes(name) && !verifiedAttributes?.[name] && (
+              <Button loading={isSendingVerification} onClick={() => onSendVerification(name)}>Verify</Button>
+            )}
+          </Stack>
         ))}
         {groups.map((group) => <Chip key={group.id} color="primary" label={group.name} />)}
       </CardContent>
@@ -213,7 +222,7 @@ export const CUSTOM_RENDER_COMPONENTS: ComponentDef[] = [
     code: () => ({
       imports: ['UserDetails'],
       jsx: MUI_CARD_SNIPPET,
-      otherImports: ["import {Button, Card, CardContent, CardHeader, Chip} from '@mui/material';"],
+      otherImports: ["import {Alert, Button, Card, CardContent, CardHeader, Chip, Stack} from '@mui/material';"],
     }),
     controls: [
       SOURCE_CONTROL,
@@ -235,15 +244,17 @@ export const CUSTOM_RENDER_COMPONENTS: ComponentDef[] = [
               <UserDetails
                 userId={str(args, 'userId')}
                 deletable={bool(args, 'deletable')}
+                attributeVerification
                 onDeleted={() => action('onDeleted')}
               >
                 {(props: BaseUserDetailsRenderProps) => <UserCard {...props} />}
               </UserDetails>
             ) : (
               <BaseUserDetails
-                user={SAMPLE_USERS[0]}
+                user={{...SAMPLE_USERS[0], verifiedAttributes: {}}}
                 groups={SAMPLE_MEMBERSHIPS}
                 onDelete={bool(args, 'deletable') ? () => action('onDelete', SAMPLE_USERS[0].id) : undefined}
+                onSendVerification={(attribute: string) => action('onSendVerification', attribute)}
               >
                 {(props: BaseUserDetailsRenderProps) => <UserCard {...props} />}
               </BaseUserDetails>

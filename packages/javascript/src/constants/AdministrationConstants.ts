@@ -19,10 +19,12 @@ const AdministrationModes: {
 
 /**
  * Keys of the `flow` server-config section that name the administration flow for each operation. An
- * unset key is the opt-out: the operation calls the management API directly.
+ * unset key is the opt-out: the operation calls the management API directly. `adminAttributeVerificationFlow`
+ * names an administrator-initiated flow, started by its handle, and has no such fallback.
  */
 export const AdministrationFlowConfigKey: {
   ACTION_DELETION: 'actionDeletionFlow';
+  ADMIN_ATTRIBUTE_VERIFICATION: 'adminAttributeVerificationFlow';
   AGENT_SUSPEND: 'agentSuspendFlow';
   AGENT_UNLOCK: 'agentUnlockFlow';
   AGENT_UNSUSPEND: 'agentUnsuspendFlow';
@@ -41,6 +43,7 @@ export const AdministrationFlowConfigKey: {
   USER_UNSUSPEND: 'userUnsuspendFlow';
 } = {
   ACTION_DELETION: 'actionDeletionFlow',
+  ADMIN_ATTRIBUTE_VERIFICATION: 'adminAttributeVerificationFlow',
   AGENT_SUSPEND: 'agentSuspendFlow',
   AGENT_UNLOCK: 'agentUnlockFlow',
   AGENT_UNSUSPEND: 'agentUnsuspendFlow',

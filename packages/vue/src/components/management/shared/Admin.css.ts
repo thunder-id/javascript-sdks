@@ -10,7 +10,7 @@
  *   Section:  __header | __heading | __title | __description | __actions
  *   Forms:    __form | __form-actions
  *   Parts:    __panel | __panel-header | __panel-title | __detail | __detail-label | __detail-value
- *             __chip-list | __chip | __confirm | __muted | __row | __avatar | __picker
+ *             __chip-list | __chip | __status-chip | __confirm | __muted | __row | __avatar | __picker
  *
  * Each component root also carries its own block class (for example `.thunderid-user-list`), so an
  * application can target a single component.
@@ -131,6 +131,35 @@ const ADMIN_CSS = `
   color: var(--thunderid-color-text-primary);
 }
 
+.thunderid-admin__status-chip {
+  display: inline-flex;
+  flex-shrink: 0;
+  gap: calc(var(--thunderid-spacing-unit) * 0.5);
+  align-items: center;
+  padding: 0 var(--thunderid-spacing-unit);
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  line-height: 22px;
+  white-space: nowrap;
+}
+
+.thunderid-admin__status-chip svg {
+  width: 12px;
+  height: 12px;
+}
+
+.thunderid-admin__status-chip--success {
+  color: var(--thunderid-color-success-dark, var(--thunderid-color-success-main));
+  background: color-mix(in srgb, var(--thunderid-color-success-main) 12%, transparent);
+}
+
+/* Amber marks an action the administrator can take. */
+.thunderid-admin__status-chip--warning {
+  color: var(--thunderid-color-warning-contrastText);
+  background: color-mix(in srgb, var(--thunderid-color-warning-main) 14%, transparent);
+}
+
 .thunderid-admin__confirm {
   display: inline-flex;
   flex-wrap: wrap;
@@ -152,6 +181,32 @@ const ADMIN_CSS = `
   flex-wrap: wrap;
   align-items: center;
   gap: calc(var(--thunderid-spacing-unit) * 1.5);
+}
+
+/* The value and its status on the left, the send action at the row's end. */
+.thunderid-admin__verification-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: calc(var(--thunderid-spacing-unit) * 1.5);
+}
+
+/* The action's padding must not make the row taller than its label. */
+.thunderid-admin__verification-row > button {
+  margin-block: calc(var(--thunderid-spacing-unit) * -0.75);
+}
+
+.thunderid-admin__verification-value {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--thunderid-spacing-unit);
+  min-width: 0;
+}
+
+.thunderid-admin__verification-row svg {
+  width: 14px;
+  height: 14px;
 }
 
 .thunderid-admin__name {

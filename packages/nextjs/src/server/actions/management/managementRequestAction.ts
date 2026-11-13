@@ -3,7 +3,7 @@
 
 'use server';
 
-import {getManagementCollectionUrls, matchManagementUrl} from '@thunderid/node';
+import {getManagementCollectionUrls, matchAdminInitiatedFlowStart, matchManagementUrl} from '@thunderid/node';
 import {ThunderIDNextConfig} from '../../../models/config';
 import getClient from '../../getClient';
 import getSessionId from '../getSessionId';
@@ -11,7 +11,7 @@ import getSessionId from '../getSessionId';
 /**
  * Request from the browser: one management API request as the core API function built it. It carries
  * no token or session; the session comes from the request cookie, and the URL must address one of
- * the configured management collections.
+ * the configured management collections, or start an administrator-initiated flow.
  */
 export interface ManagementRequestActionRequest {
   /**
@@ -86,7 +86,9 @@ const managementRequestAction = async (
 
     // The storage manager may hand the configuration back as a promise.
     const config: ThunderIDNextConfig = await Promise.resolve(client.getConfiguration());
-    const url: URL | undefined = matchManagementUrl(rawUrl, getManagementCollectionUrls(config));
+    const url: URL | undefined =
+      matchManagementUrl(rawUrl, getManagementCollectionUrls(config)) ??
+      matchAdminInitiatedFlowStart(rawUrl, method, body, config.baseUrl);
 
     if (!url) {
       return failure(400);

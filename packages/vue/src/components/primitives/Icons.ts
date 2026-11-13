@@ -62,6 +62,8 @@ export const TriangleAlertIcon = (): VNode =>
     h('line', {x1: '12', x2: '12.01', y1: '17', y2: '17'}),
   ]);
 
+export const SendIcon = (): VNode => icon([h('path', {d: 'm22 2-7 20-4-9-9-4Z'}), h('path', {d: 'M22 2 11 13'})]);
+
 export const PlusIcon = (): VNode =>
   icon([h('line', {x1: '12', x2: '12', y1: '5', y2: '19'}), h('line', {x1: '5', x2: '19', y1: '12', y2: '12'})]);
 

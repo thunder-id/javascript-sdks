@@ -11,6 +11,7 @@ import ComponentRendererContext, {
 import I18nProvider from '../../../../contexts/I18n/I18nProvider';
 import ThemeProvider from '../../../../contexts/Theme/ThemeProvider';
 import ThunderIDContext, {ThunderIDContextProps} from '../../../../contexts/ThunderID/ThunderIDContext';
+import OtpField from '../../../primitives/OtpField/OtpField';
 import BaseVerifyAttribute, {BaseVerifyAttributeProps, BaseVerifyAttributeRenderProps} from '../BaseVerifyAttribute';
 
 const thunderIDContext: ThunderIDContextProps = {
@@ -396,6 +397,31 @@ describe('BaseVerifyAttribute', () => {
     expect(onError).toHaveBeenCalledWith(failure);
   });
 
+  it.each([400, 520])('spaces standard OTP boxes across a %ipx panel', async (width: number) => {
+    render(
+      withProviders(
+        <div style={{width}}>
+          <BaseVerifyAttribute attributeDisplayName="Email" onInitialize={onInitialize} onSubmit={onSubmit} />
+          <div data-testid="standard-otp">
+            <OtpField length={6} />
+          </div>
+        </div>,
+      ),
+    );
+
+    const verify: DOMRect = (await screen.findByRole('button', {name: 'Verify'})).getBoundingClientRect();
+    const digits: HTMLElement[] = screen.getAllByRole('textbox').slice(0, 6);
+    const standard: DOMRect = screen.getByTestId('standard-otp').querySelector('input')!.getBoundingClientRect();
+    const first: DOMRect = digits[0].getBoundingClientRect();
+    const last: DOMRect = digits[digits.length - 1].getBoundingClientRect();
+
+    expect(first.width).toBeCloseTo(standard.width);
+    expect(first.height).toBeCloseTo(standard.height);
+    expect(first.left).toBeCloseTo(verify.left);
+    expect(last.right).toBeCloseTo(verify.right);
+    expect(last.top).toBeCloseTo(first.top);
+  });
+
   it('offers Cancel while verifying when the panel can be dismissed', async () => {
     const onCancel = vi.fn();
     renderVerify({onCancel, onInitialize, onSubmit});
@@ -409,9 +435,12 @@ describe('BaseVerifyAttribute', () => {
   it('tells the user to open the link and reports Done for a link flow', async () => {
     const onDone = vi.fn();
     onInitialize.mockResolvedValue(linkSent);
-    renderVerify({onDone, onInitialize, onSubmit});
+    renderVerify({onCancel: vi.fn(), onDone, onInitialize, onSubmit});
 
     await screen.findByText('Open the link we sent you.');
+    const cancel: HTMLElement = screen.getByRole('button', {name: 'Cancel'});
+    const done: HTMLElement = screen.getByRole('button', {name: 'Done'});
+    expect(cancel.compareDocumentPosition(done)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
     expect(screen.getByText('Sent to a•••@example.com.')).toBeTruthy();
     expect(screen.queryAllByRole('textbox')).toHaveLength(0);
     fireEvent.click(screen.getByText('Done'));

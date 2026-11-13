@@ -33,6 +33,7 @@ import getUserOverlayRules from '../users/getUserOverlayRules';
 import getUsersByPath from '../users/getUsersByPath';
 import getUserSharingPolicies from '../users/getUserSharingPolicies';
 import getUserSharingPolicy from '../users/getUserSharingPolicy';
+import sendUserAttributeVerification from '../users/sendUserAttributeVerification';
 import suspendUser from '../users/suspendUser';
 import unlockUser from '../users/unlockUser';
 import unsuspendUser from '../users/unsuspendUser';
@@ -293,5 +294,170 @@ describe('account lifecycle', () => {
       code: 'suspendUser-ValidationError-002',
     });
     expect(fetcher).not.toHaveBeenCalled();
+  });
+});
+
+describe('sendUserAttributeVerification', () => {
+  const linkSent: unknown = {
+    data: {additionalData: {channel: 'email', emailSent: 'true', maskedDestination: 'j***@example.com'}},
+    executionId: 'exec-1',
+    flowStatus: 'INCOMPLETE',
+    type: 'VIEW',
+  };
+
+  const configServer = (handle?: string): FetcherMock =>
+    vi
+      .fn<ApiFetcher>()
+      .mockImplementation((url: string) =>
+        Promise.resolve(
+          url === `${baseUrl}/server-config/flow`
+            ? respond({merged: handle ? {adminAttributeVerificationFlow: {defaultHandle: handle}} : {}})
+            : respond(linkSent),
+        ),
+      );
+
+  it('starts the flow the server configures for the user and the attribute', async () => {
+    const fetcher: FetcherMock = configServer('admin-verify');
+
+    await expect(
+      sendUserAttributeVerification({
+        attribute: 'email',
+        baseUrl,
+        fetcher,
+        headers: {Authorization: 'Bearer admin-token'},
+        userId: 'u-1',
+      }),
+    ).resolves.toEqual({channel: 'email', emailSent: true, maskedDestination: 'j***@example.com'});
+    expect(requests(fetcher)).toEqual([
+      {method: 'GET', url: `${baseUrl}/server-config/flow`},
+      {
+        body: {
+          flowType: 'ADMIN_INITIATED',
+          handle: 'admin-verify',
+          inputs: {attribute: 'email', subject: 'u-1'},
+          verbose: true,
+        },
+        method: 'POST',
+        url: `${baseUrl}/flow/execute`,
+      },
+    ]);
+    expect(fetcher.mock.calls[0][1]?.headers).toMatchObject({Authorization: 'Bearer admin-token'});
+    expect(fetcher.mock.calls[1][1]?.headers).toMatchObject({Authorization: 'Bearer admin-token'});
+  });
+
+  it('fails as not configured when the server names no flow, and starts nothing', async () => {
+    const fetcher: FetcherMock = configServer();
+    const error: unknown = await sendUserAttributeVerification({
+      attribute: 'email',
+      baseUrl,
+      fetcher,
+      userId: 'u-1',
+    }).catch((caught: unknown) => caught);
+
+    expect(error).toBeInstanceOf(AdministrationFlowError);
+    expect(error).toMatchObject({code: 'sendUserAttributeVerification-NotConfiguredError-001'});
+    expect(requests(fetcher).map((request) => request.url)).toEqual([`${baseUrl}/server-config/flow`]);
+  });
+
+  it('runs the flow the caller names without reading the configuration, at the server even when given a collection URL', async () => {
+    const fetcher: FetcherMock = configServer('admin-verify');
+
+    await sendUserAttributeVerification({
+      attribute: 'email',
+      baseUrl,
+      fetcher,
+      handle: 'custom-admin-flow',
+      url: `${baseUrl}/users`,
+      userId: 'u-1',
+    });
+
+    expect(requests(fetcher)).toHaveLength(1);
+    expect(requests(fetcher)[0]).toMatchObject({body: {handle: 'custom-admin-flow'}, url: `${baseUrl}/flow/execute`});
+  });
+
+  it('leaves out what the flow does not report', async () => {
+    const fetcher: FetcherMock = vi
+      .fn<ApiFetcher>()
+      .mockResolvedValue(respond({data: {additionalData: {channel: 'email'}}, flowStatus: 'INCOMPLETE'}));
+
+    await expect(
+      sendUserAttributeVerification({attribute: 'email', baseUrl, fetcher, handle: 'admin-verify', userId: 'u-1'}),
+    ).resolves.toEqual({channel: 'email'});
+  });
+
+  it('reports an unsent email as not sent', async () => {
+    const fetcher: FetcherMock = vi
+      .fn<ApiFetcher>()
+      .mockResolvedValue(
+        respond({data: {additionalData: {channel: 'email', emailSent: 'false'}}, flowStatus: 'INCOMPLETE'}),
+      );
+
+    await expect(
+      sendUserAttributeVerification({attribute: 'email', baseUrl, fetcher, handle: 'admin-verify', userId: 'u-1'}),
+    ).resolves.toEqual({channel: 'email', emailSent: false});
+  });
+
+  it('passes the refused step code through', async () => {
+    const fetcher: FetcherMock = vi.fn<ApiFetcher>().mockResolvedValue(
+      respond({
+        error: {code: 'FET-1114', message: {defaultValue: 'The account is suspended'}},
+        flowStatus: 'ERROR',
+      }),
+    );
+    const error: unknown = await sendUserAttributeVerification({
+      attribute: 'email',
+      baseUrl,
+      fetcher,
+      handle: 'admin-verify',
+      userId: 'u-1',
+    }).catch((caught: unknown) => caught);
+
+    expect(error).toBeInstanceOf(AdministrationFlowError);
+    expect(error).toMatchObject({code: 'FET-1114', flowError: {code: 'FET-1114'}});
+  });
+
+  it.each<[string, unknown]>([
+    ['a step that asks for input', {data: {additionalData: {}}, flowStatus: 'INCOMPLETE'}],
+    ['a completed flow', {data: {additionalData: {channel: 'email'}}, flowStatus: 'COMPLETE'}],
+  ])('fails on %s, since no link was reported sent', async (_label, body) => {
+    const fetcher: FetcherMock = vi.fn<ApiFetcher>().mockResolvedValue(respond(body));
+
+    await expect(
+      sendUserAttributeVerification({attribute: 'email', baseUrl, fetcher, handle: 'admin-verify', userId: 'u-1'}),
+    ).rejects.toMatchObject({code: 'sendUserAttributeVerification-UnexpectedStateError-001'});
+  });
+
+  it('keeps an HTTP refusal of the start, such as a token without the permission', async () => {
+    const fetcher: FetcherMock = vi
+      .fn<ApiFetcher>()
+      .mockResolvedValue(respond({code: 'FES-1019', message: 'Forbidden'}, 403, 'Forbidden'));
+
+    await expect(
+      sendUserAttributeVerification({attribute: 'email', baseUrl, fetcher, handle: 'admin-verify', userId: 'u-1'}),
+    ).rejects.toMatchObject({code: 'sendUserAttributeVerification-ForbiddenError-001', statusCode: 403});
+  });
+
+  it.each<[string, string, string]>([
+    ['a blank user', '', 'email'],
+    ['a blank attribute', 'u-1', ' '],
+  ])('refuses %s before calling the server', async (_label, userId, attribute) => {
+    const fetcher: FetcherMock = vi.fn<ApiFetcher>();
+
+    await expect(sendUserAttributeVerification({attribute, baseUrl, fetcher, userId})).rejects.toMatchObject({
+      code: 'sendUserAttributeVerification-ValidationError-002',
+    });
+    expect(fetcher).not.toHaveBeenCalled();
+  });
+
+  it('needs the server URL', async () => {
+    await expect(
+      sendUserAttributeVerification({
+        attribute: 'email',
+        fetcher: vi.fn<ApiFetcher>(),
+        handle: 'admin-verify',
+        url: `${baseUrl}/users`,
+        userId: 'u-1',
+      }),
+    ).rejects.toMatchObject({code: 'sendUserAttributeVerification-ValidationError-003'});
   });
 });

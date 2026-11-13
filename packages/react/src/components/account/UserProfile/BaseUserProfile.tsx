@@ -149,9 +149,6 @@ const readonlyFields: string[] = ['attributes', 'id', 'isReadOnly', 'ouId', 'use
 const isStatusType = (type?: string): boolean =>
   !!type && AttributeVerificationConstants.VERIFIABLE_ATTRIBUTE_TYPES.includes(type.toLowerCase());
 
-const isVerifiedAfterSave = (type?: string): boolean =>
-  !!type && AttributeVerificationConstants.VERIFY_AFTER_SAVE_ATTRIBUTE_TYPES.includes(type.toLowerCase());
-
 const BaseUserProfile: FC<BaseUserProfileProps> = ({
   fallback = null,
   className = '',
@@ -182,8 +179,6 @@ const BaseUserProfile: FC<BaseUserProfileProps> = ({
   const [verifyingField, setVerifyingField] = useState<string | null>(null);
   // Label of the attribute whose verification was just recorded.
   const [verifiedNotice, setVerifiedNotice] = useState<string | null>(null);
-  // A saved attribute to verify once the profile reflects the change.
-  const [pendingVerification, setPendingVerification] = useState<{name: string; previousValue: unknown} | null>(null);
   // Fields whose save is in flight; their stored value is about to change.
   const [savingFields, setSavingFields] = useState<Record<string, boolean>>({});
   const {t, currentLanguage} = useTranslation(preferences?.i18n);
@@ -198,36 +193,6 @@ const BaseUserProfile: FC<BaseUserProfileProps> = ({
     () => reportedVerifiedAttributes ?? {},
     [reportedVerifiedAttributes],
   );
-
-  useEffect(() => {
-    if (!pendingVerification) return;
-
-    if (error) {
-      setPendingVerification(null);
-      return;
-    }
-
-    const {name, previousValue} = pendingVerification;
-    const storedUser: User | undefined = flattenedProfile ?? profile;
-    const storedAttributes: Record<string, unknown> | undefined = storedUser?.['attributes'] as
-      | Record<string, unknown>
-      | undefined;
-    const storedValue: unknown = storedAttributes?.[name] ?? storedUser?.[name];
-
-    if (storedValue === previousValue) return;
-
-    // An absent verification record leaves the status unknown, so nothing opens on that basis.
-    if (
-      supportsVerification &&
-      typeof storedValue === 'string' &&
-      storedValue.trim() !== '' &&
-      !verifiedAttributes[name]
-    ) {
-      setVerifiedNotice(null);
-      setVerifyingField(name);
-    }
-    setPendingVerification(null);
-  }, [pendingVerification, flattenedProfile, profile, error, verifiedAttributes, supportsVerification]);
 
   useEffect(() => {
     const nextUser = flattenedProfile ?? profile;
@@ -422,9 +387,9 @@ const BaseUserProfile: FC<BaseUserProfileProps> = ({
       set(payload, fieldName, fieldValue);
 
       setSavingFields((prev: Record<string, boolean>) => ({...prev, [fieldName]: true}));
-      // A failed save is reported through `error`; it only drops the verification it would have opened.
+      // The caller reports a failed save through `error`.
       Promise.resolve(onUpdate(payload))
-        .catch((): void => setPendingVerification(null))
+        .catch((): undefined => undefined)
         .finally((): void =>
           setSavingFields((prev: Record<string, boolean>) => {
             const next: Record<string, boolean> = {...prev};
@@ -434,27 +399,8 @@ const BaseUserProfile: FC<BaseUserProfileProps> = ({
         );
 
       toggleFieldEdit(fieldName);
-
-      // Offer verification once a changed, verifiable value is saved.
-      const savedUser: User | undefined = flattenedProfile ?? profile;
-      const savedAttributes: Record<string, unknown> | undefined = savedUser?.['attributes'] as
-        | Record<string, unknown>
-        | undefined;
-      const storedValue: unknown = savedAttributes?.[fieldName] ?? savedUser?.[fieldName];
-      if (
-        renderVerification &&
-        isVerifiedAfterSave(schema.type) &&
-        isVerifiableAttribute(userSchema, fieldName) &&
-        typeof fieldValue === 'string' &&
-        fieldValue.trim() !== '' &&
-        fieldValue !== storedValue
-      ) {
-        setPendingVerification({name: fieldName, previousValue: storedValue});
-      } else {
-        setPendingVerification(null);
-      }
     },
-    [editedUser, flattenedProfile, profile, onUpdate, toggleFieldEdit, t, renderVerification, userSchema],
+    [editedUser, flattenedProfile, profile, onUpdate, toggleFieldEdit, t],
   );
 
   const handleFieldCancel: any = useCallback(

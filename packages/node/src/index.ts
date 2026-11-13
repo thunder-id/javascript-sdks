@@ -68,6 +68,7 @@ export {
   MANAGEMENT_COLLECTIONS,
   MANAGEMENT_COLLECTION_KEYS,
   getManagementCollectionUrls,
+  matchAdminInitiatedFlowStart,
   matchManagementUrl,
   type ManagementCollectionKey,
 } from './utils/managementCollections';

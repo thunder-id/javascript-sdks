@@ -141,7 +141,19 @@ const SessionCard = (): ReactElement => {
               className="pg-btn"
               data-variant="primary"
               disabled={!!busy || !isInitialized}
-              onClick={() => void act('signIn', () => sdkSignIn(sdk))}
+              onClick={() =>
+                void act('signIn', () =>
+                  // Same arguments as <SignInButton />, so a configured resource reaches both requests.
+                  sdkSignIn(
+                    sdk,
+                    sdk.signInOptions,
+                    undefined,
+                    undefined,
+                    undefined,
+                    sdk.tokenRequest?.params ? {params: sdk.tokenRequest.params} : undefined,
+                  ),
+                )
+              }
             >
               Sign in
             </button>

@@ -1,7 +1,7 @@
 // Copyright 2026 The ThunderID Authors
 // SPDX-License-Identifier: Apache-2.0
 
-import {Theme, withVendorCSSClassPrefix} from '@thunderid/browser';
+import {Theme} from '@thunderid/browser';
 import {css} from '../../../styles/emotion';
 
 /**
@@ -44,17 +44,6 @@ const useStyles = (theme: Theme, colorScheme: string): Record<string, string> =>
     display: flex;
     flex-direction: column;
     gap: calc(${theme.vars.spacing.unit} * 1.5);
-
-    .${withVendorCSSClassPrefix('otp-field__input-container')} {
-      justify-content: flex-start;
-
-      > input {
-        box-sizing: border-box;
-        flex: 1 1 calc(${theme.vars.spacing.unit} * 4);
-        max-width: calc(${theme.vars.spacing.unit} * 6);
-        min-width: 0;
-      }
-    }
   `;
 
   const alert: string = css`

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 export enum EmbeddedFlowType {
+  AdminInitiated = 'ADMIN_INITIATED',
   Authentication = 'AUTHENTICATION',
   DeviceGrant = 'DEVICE_GRANT',
   Recovery = 'RECOVERY',

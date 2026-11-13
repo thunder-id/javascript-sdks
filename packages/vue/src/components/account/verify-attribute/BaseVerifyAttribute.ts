@@ -505,6 +505,24 @@ const BaseVerifyAttribute: Component = defineComponent({
           : null,
         props.onCancel || showDone
           ? h('div', {class: px('verify-attribute__actions')}, [
+              props.onCancel
+                ? h(
+                    Button,
+                    {
+                      color: 'secondary',
+                      'data-testid': 'thunderid-action-verificationCancel',
+                      disabled: isSubmitting.value,
+                      onClick: () => props.onCancel?.(),
+                      size: 'small',
+                      type: 'button',
+                      variant: 'text',
+                    },
+                    () =>
+                      state.value === 'active' || state.value === 'loading'
+                        ? t('user.verification.buttons.cancel.text')
+                        : t('user.verification.buttons.close.text'),
+                  )
+                : null,
               showDone
                 ? h(
                     Button,
@@ -516,23 +534,6 @@ const BaseVerifyAttribute: Component = defineComponent({
                       variant: 'solid',
                     },
                     () => t('user.verification.buttons.done.text'),
-                  )
-                : null,
-              props.onCancel
-                ? h(
-                    Button,
-                    {
-                      color: 'secondary',
-                      'data-testid': 'thunderid-action-verificationCancel',
-                      disabled: isSubmitting.value,
-                      onClick: () => props.onCancel?.(),
-                      size: 'small',
-                      variant: 'outline',
-                    },
-                    () =>
-                      state.value === 'active' || state.value === 'loading'
-                        ? t('user.verification.buttons.cancel.text')
-                        : t('user.verification.buttons.close.text'),
                   )
                 : null,
             ])

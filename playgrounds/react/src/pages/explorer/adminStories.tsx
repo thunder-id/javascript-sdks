@@ -82,9 +82,11 @@ import {Narrow} from './StoryWidgets';
 import type {Action, Args, ComponentDef, PropControl, Snippet} from './types';
 
 /**
- * Every user lifecycle flow configured, so the sample offers whatever its status allows.
+ * Every user lifecycle flow and the administrator verification flow configured, so the sample offers
+ * whatever its status allows.
  */
 const ALL_USER_LIFECYCLE_FLOWS: Record<string, string> = {
+  adminAttributeVerificationFlow: 'admin-attribute-verification',
   userSuspendFlow: 'user-suspend',
   userUnlockFlow: 'user-unlock',
   userUnsuspendFlow: 'user-unsuspend',
@@ -487,7 +489,15 @@ const STORIES: ComponentDef[] = [
             imports: ['UserDetails'],
             jsx: jsx(
               'UserDetails',
-              pick(args, 'userId', 'editable', 'deletable', 'lifecycleActions', 'administrationMode'),
+              pick(
+                args,
+                'userId',
+                'editable',
+                'deletable',
+                'lifecycleActions',
+                'attributeVerification',
+                'administrationMode',
+              ),
               {extra: ['onDeleted={backToList}']},
             ),
           }
@@ -502,6 +512,9 @@ const STORIES: ComponentDef[] = [
                 ...(bool(args, 'lifecycleActions')
                   ? ['lifecycleActions={lifecycleActions}', 'onLifecycleAction={runLifecycleAction}']
                   : []),
+                ...(bool(args, 'attributeVerification')
+                  ? ['onSendVerification={sendVerificationLink}', 'sentVerification={sentVerification}']
+                  : []),
               ],
             }),
           },
@@ -514,6 +527,24 @@ const STORIES: ComponentDef[] = [
         control: 'bool',
         description: 'Offers suspend, unsuspend and unlock through the configured administration flows.',
         name: 'lifecycleActions',
+        type: 'boolean',
+      },
+      {
+        control: 'bool',
+        description: "Offers a verification link for the user's unverified email (onSendVerification).",
+        name: 'attributeVerification',
+        type: 'boolean',
+      },
+      {
+        control: 'bool',
+        description: "Whether the sample user's email is verified (base only).",
+        name: 'emailVerified',
+        type: 'boolean',
+      },
+      {
+        control: 'bool',
+        description: 'Shows the message for a sent verification link (sentVerification, base only).',
+        name: 'linkSent',
         type: 'boolean',
       },
       {
@@ -533,11 +564,14 @@ const STORIES: ComponentDef[] = [
     ],
     defaults: {
       administrationMode: 'native',
+      attributeVerification: true,
       deletable: true,
       editable: true,
+      emailVerified: false,
       error: '',
       isLoading: false,
       lifecycleActions: true,
+      linkSent: false,
       source: 'base',
       status: 'LOCKED',
       userId: '',
@@ -557,6 +591,7 @@ const STORIES: ComponentDef[] = [
               editable={bool(args, 'editable')}
               deletable={bool(args, 'deletable')}
               lifecycleActions={bool(args, 'lifecycleActions')}
+              attributeVerification={bool(args, 'attributeVerification')}
               administrationMode={str(args, 'administrationMode') as AdministrationMode}
               onDeleted={() => action('onDeleted')}
             />
@@ -569,7 +604,19 @@ const STORIES: ComponentDef[] = [
       return (
         <Narrow width={560}>
           <BaseUserDetails
-            user={{...SAMPLE_USERS[0], status: {value: status}}}
+            user={{
+              ...SAMPLE_USERS[0],
+              status: {value: status},
+              verifiedAttributes: bool(args, 'emailVerified') ? {email: {verifiedAt: '2026-11-03T10:00:00Z'}} : {},
+            }}
+            onSendVerification={
+              bool(args, 'attributeVerification')
+                ? (attribute: string) => action('onSendVerification', attribute)
+                : undefined
+            }
+            sentVerification={
+              bool(args, 'linkSent') ? {channel: 'email', emailSent: true, maskedDestination: 'l•••@acme.io'} : null
+            }
             lifecycleActions={getAccountLifecycleActions('user', status, ALL_USER_LIFECYCLE_FLOWS)}
             onLifecycleAction={
               bool(args, 'lifecycleActions')
@@ -592,7 +639,13 @@ const STORIES: ComponentDef[] = [
     },
     stories: [
       {id: 'base', name: 'Sample user'},
-      {args: {deletable: false, editable: false, lifecycleActions: false}, id: 'readonly', name: 'Read only'},
+      {
+        args: {attributeVerification: false, deletable: false, editable: false, lifecycleActions: false},
+        id: 'readonly',
+        name: 'Read only',
+      },
+      {args: {linkSent: true}, id: 'verification-sent', name: 'Verification link sent'},
+      {args: {emailVerified: true}, id: 'email-verified', name: 'Email verified'},
       {args: {status: 'SUSPENDED'}, id: 'suspended', name: 'Suspended'},
       {args: {isLoading: true}, id: 'loading', name: 'Loading'},
       {args: {source: 'live'}, id: 'live', name: 'Live (needs userId)'},
