@@ -15,8 +15,11 @@ import BaseVerifyAttribute, {
   type BaseVerifyAttributeRenderProps,
 } from '../../../components/account/verify-attribute/BaseVerifyAttribute';
 import VerifyAttribute from '../../../components/account/verify-attribute/VerifyAttribute';
+import OtpField from '../../../components/primitives/OtpField';
 import {FLOW_META_KEY, I18N_KEY, THUNDERID_KEY, USER_KEY} from '../../../keys';
 import type {I18nContextValue, ThunderIDContext, UserContextValue} from '../../../models/contexts';
+import ThemeProvider from '../../../providers/ThemeProvider';
+import injectStyles from '../../../styles/injectStyles';
 
 const mockExecute = vi.fn() as Mock;
 
@@ -379,12 +382,50 @@ describe('BaseVerifyAttribute', () => {
     expect(onError).toHaveBeenCalledWith(failure);
   });
 
+  it.each([400, 520])('spaces standard OTP boxes across a %ipx panel', async (width: number) => {
+    const host: HTMLDivElement = document.createElement('div');
+    host.style.width = `${width}px`;
+    document.body.appendChild(host);
+    injectStyles();
+    const wrapper: VueWrapper = mount(ThemeProvider, {
+      attachTo: host,
+      global: {provide: baseProviders()},
+      slots: {
+        default: () => [
+          h(BaseVerifyAttribute, {attributeDisplayName: 'Email', onInitialize, onSubmit}),
+          h('div', {'data-testid': 'standard-otp'}, [h(OtpField, {length: 6})]),
+        ],
+      },
+    }) as VueWrapper;
+    try {
+      await settle();
+
+      const verify: DOMRect = button(wrapper, 'Verify')!.element.getBoundingClientRect();
+      const digits: DOMWrapper<HTMLInputElement>[] = wrapper.findAll<HTMLInputElement>('input').slice(0, 6);
+      const standard: DOMRect = wrapper.get('[data-testid="standard-otp"] input').element.getBoundingClientRect();
+      const first: DOMRect = digits[0].element.getBoundingClientRect();
+      const last: DOMRect = digits[digits.length - 1].element.getBoundingClientRect();
+
+      expect(first.width).toBeCloseTo(standard.width);
+      expect(first.height).toBeCloseTo(standard.height);
+      expect(first.left).toBeCloseTo(verify.left);
+      expect(Math.abs(last.right - verify.right)).toBeLessThan(1);
+      expect(last.top).toBeCloseTo(first.top);
+    } finally {
+      wrapper.unmount();
+      host.remove();
+    }
+  });
+
   it('tells the user where the link went and reports Done, without polling', async () => {
     const onDone: Mock = vi.fn();
     onInitialize.mockResolvedValue(linkSent);
-    const wrapper: VueWrapper = mountBase({onDone});
+    const wrapper: VueWrapper = mountBase({onCancel: vi.fn(), onDone});
     await settle();
 
+    const cancel: HTMLButtonElement = button(wrapper, 'Cancel')!.element;
+    const done: HTMLButtonElement = button(wrapper, 'Done')!.element;
+    expect(cancel.compareDocumentPosition(done)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
     expect(wrapper.text()).toContain('We sent a verification link to a•••@example.com. Open it, then select Done.');
     await button(wrapper, 'Done')!.trigger('click');
 

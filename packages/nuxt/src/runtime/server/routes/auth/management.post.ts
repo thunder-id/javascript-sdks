@@ -1,7 +1,7 @@
 // Copyright 2026 The ThunderID Authors
 // SPDX-License-Identifier: Apache-2.0
 
-import {getManagementCollectionUrls, matchManagementUrl} from '@thunderid/node';
+import {getManagementCollectionUrls, matchAdminInitiatedFlowStart, matchManagementUrl} from '@thunderid/node';
 import {defineEventHandler, readBody} from 'h3';
 import type {H3Event} from 'h3';
 import type {ThunderIDManagementRequest, ThunderIDManagementResult} from '../../../types';
@@ -27,8 +27,8 @@ const failure = (status: number): ThunderIDManagementResult => ({
  *
  * Body: `{url, method?, body?}`, as the core API function built the request. No session ID or token
  * is accepted from the browser. The method must be one the management API uses, the body a bounded
- * string, and the URL must address a configured management collection on the configured host, so the
- * bearer token is only ever sent where the SDK would have sent it.
+ * string, and the URL must address a configured management collection or the server flow endpoint
+ * for an administrator-initiated start.
  *
  * Response: always `200` with `{body, status, statusText}`, carrying the upstream status. A failure
  * carries a message built on the server, never the text of the upstream reply.
@@ -49,7 +49,9 @@ export default defineEventHandler(async (event: H3Event): Promise<ThunderIDManag
   }
 
   const {baseUrl, endpoints} = useRuntimeConfig(event).public.thunderid;
-  const url: URL | undefined = matchManagementUrl(rawUrl, getManagementCollectionUrls({baseUrl, endpoints}));
+  const url: URL | undefined =
+    matchManagementUrl(rawUrl, getManagementCollectionUrls({baseUrl, endpoints})) ??
+    matchAdminInitiatedFlowStart(rawUrl, method, body, baseUrl);
 
   if (!url) {
     return failure(400);

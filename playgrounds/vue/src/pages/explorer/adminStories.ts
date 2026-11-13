@@ -81,9 +81,11 @@ import useApiQuery from '../../lib/useApiQuery';
 const OU = 'ou_7d1e';
 
 /**
- * Every user lifecycle flow configured, so the sample offers whatever its status allows.
+ * Every user lifecycle flow and the administrator verification flow configured, so the sample offers
+ * whatever its status allows.
  */
 const ALL_USER_LIFECYCLE_FLOWS: Record<string, string> = {
+  adminAttributeVerificationFlow: 'admin-attribute-verification',
   userSuspendFlow: 'user-suspend',
   userUnlockFlow: 'user-unlock',
   userUnsuspendFlow: 'user-unsuspend',
@@ -655,10 +657,14 @@ export const ADMIN_COMPONENTS: ComponentDef[] = [
         ? {
             imports: ['UserDetails'],
             script: handler('handleDeleted'),
-            template: tpl('UserDetails', omit(args, 'source', 'isLoading', 'error', 'userId', 'status'), {
-              defaults: {administrationMode: 'native'},
-              extra: [`user-id="${str(args, 'userId') || SAMPLE_USERS[0].id}"`, '@deleted="handleDeleted"'],
-            }),
+            template: tpl(
+              'UserDetails',
+              omit(args, 'source', 'isLoading', 'error', 'userId', 'status', 'emailVerified', 'linkSent'),
+              {
+                defaults: {administrationMode: 'native'},
+                extra: [`user-id="${str(args, 'userId') || SAMPLE_USERS[0].id}"`, '@deleted="handleDeleted"'],
+              },
+            ),
           }
         : {
             imports: [
@@ -668,6 +674,7 @@ export const ADMIN_COMPONENTS: ComponentDef[] = [
               'getUserGroups',
               'ManagedUser',
               'MembershipGroupListResponse',
+              ...(bool(args, 'attributeVerification') ? ['SendUserAttributeVerificationResult'] : []),
               'useManagementRequestConfig',
             ],
             script: [
@@ -691,6 +698,12 @@ export const ADMIN_COMPONENTS: ComponentDef[] = [
               ...(bool(args, 'lifecycleActions')
                 ? ['const handleLifecycleAction = (action: AccountLifecycleAction, operatorNote?: string): void => {};']
                 : []),
+              ...(bool(args, 'attributeVerification')
+                ? [
+                    'const sentVerification = ref<SendUserAttributeVerificationResult | null>(null);',
+                    'const handleSendVerification = (attribute: string): void => {};',
+                  ]
+                : []),
             ],
             template: tpl(
               'BaseUserDetails',
@@ -704,6 +717,9 @@ export const ADMIN_COMPONENTS: ComponentDef[] = [
                   ...(bool(args, 'deletable') ? ['@delete="handleDelete"'] : []),
                   ...(bool(args, 'lifecycleActions')
                     ? [`:lifecycle-actions="['unlock', 'suspend']"`, '@lifecycle-action="handleLifecycleAction"']
+                    : []),
+                  ...(bool(args, 'attributeVerification')
+                    ? ['@send-verification="handleSendVerification"', ':sent-verification="sentVerification"']
                     : []),
                 ],
               },
@@ -726,6 +742,24 @@ export const ADMIN_COMPONENTS: ComponentDef[] = [
         type: 'boolean',
       },
       {
+        control: 'bool',
+        description: "Offers a verification link for the user's unverified email (`@send-verification`).",
+        name: 'attributeVerification',
+        type: 'boolean',
+      },
+      {
+        control: 'bool',
+        description: "Whether the sample user's email is verified (base only).",
+        name: 'emailVerified',
+        type: 'boolean',
+      },
+      {
+        control: 'bool',
+        description: 'Shows the message for a sent verification link (`sentVerification`, base only).',
+        name: 'linkSent',
+        type: 'boolean',
+      },
+      {
         control: ['ACTIVE', 'LOCKED', 'SUSPENDED'],
         description: "The sample user's access status, which decides the lifecycle actions offered (base only).",
         name: 'status',
@@ -742,11 +776,14 @@ export const ADMIN_COMPONENTS: ComponentDef[] = [
     ],
     defaults: {
       administrationMode: 'native',
+      attributeVerification: true,
       deletable: true,
       editable: true,
+      emailVerified: false,
       error: '',
       isLoading: false,
       lifecycleActions: true,
+      linkSent: false,
       source: 'base',
       status: 'LOCKED',
       userId: '',
@@ -767,6 +804,7 @@ export const ADMIN_COMPONENTS: ComponentDef[] = [
               render: (userId: string): VNode =>
                 h(UserDetails, {
                   administrationMode: str(args, 'administrationMode') as AdministrationMode,
+                  attributeVerification: bool(args, 'attributeVerification'),
                   deletable: bool(args, 'deletable'),
                   editable: bool(args, 'editable'),
                   key: userId,
@@ -789,15 +827,31 @@ export const ADMIN_COMPONENTS: ComponentDef[] = [
                 ? (lifecycleAction: AccountLifecycleAction, operatorNote?: string): void =>
                     action('lifecycle-action', operatorNote ? `${lifecycleAction}: ${operatorNote}` : lifecycleAction)
                 : undefined,
+              onSendVerification: bool(args, 'attributeVerification')
+                ? (attribute: string): void => action('send-verification', quoted(attribute))
+                : undefined,
               onUpdate: bool(args, 'editable')
                 ? (attributes: Record<string, unknown>): void => action('update', JSON.stringify(attributes))
                 : undefined,
-              user: {...SAMPLE_USERS[0], status: {value: str(args, 'status') as AccessStatusValue}},
+              sentVerification: bool(args, 'linkSent')
+                ? {channel: 'email', emailSent: true, maskedDestination: 'l•••@acme.io'}
+                : null,
+              user: {
+                ...SAMPLE_USERS[0],
+                status: {value: str(args, 'status') as AccessStatusValue},
+                verifiedAttributes: bool(args, 'emailVerified') ? {email: {verifiedAt: '2026-11-03T10:00:00Z'}} : {},
+              },
             }),
       ),
     stories: [
       {id: 'base', name: 'Sample user'},
-      {args: {deletable: false, editable: false, lifecycleActions: false}, id: 'readonly', name: 'Read only'},
+      {
+        args: {attributeVerification: false, deletable: false, editable: false, lifecycleActions: false},
+        id: 'readonly',
+        name: 'Read only',
+      },
+      {args: {linkSent: true}, id: 'verification-sent', name: 'Verification link sent'},
+      {args: {emailVerified: true}, id: 'email-verified', name: 'Email verified'},
       {args: {status: 'SUSPENDED'}, id: 'suspended', name: 'Suspended'},
       {args: {isLoading: true}, id: 'loading', name: 'Loading'},
       {args: {source: 'live'}, id: 'live', name: 'Live (first user)'},

@@ -616,6 +616,21 @@ const BaseVerifyAttributeContent: FC<Omit<BaseVerifyAttributeProps, 'preferences
 
       {(!!onCancel || (isAwaitingLink && !!onDone)) && (
         <div className={cx(withVendorCSSClassPrefix(bem('verify-attribute', 'actions')), styles['actions'])}>
+          {onCancel && (
+            <Button
+              type="button"
+              size="small"
+              color="secondary"
+              variant="text"
+              onClick={onCancel}
+              disabled={isSubmitting}
+              data-testid="thunderid-action-verificationCancel"
+            >
+              {state === 'active' || state === 'loading'
+                ? t('user.verification.buttons.cancel.text')
+                : t('user.verification.buttons.close.text')}
+            </Button>
+          )}
           {isAwaitingLink && onDone && (
             <Button
               size="small"
@@ -625,20 +640,6 @@ const BaseVerifyAttributeContent: FC<Omit<BaseVerifyAttributeProps, 'preferences
               data-testid="thunderid-action-verificationDone"
             >
               {t('user.verification.buttons.done.text')}
-            </Button>
-          )}
-          {onCancel && (
-            <Button
-              size="small"
-              color="secondary"
-              variant="outline"
-              onClick={onCancel}
-              disabled={isSubmitting}
-              data-testid="thunderid-action-verificationCancel"
-            >
-              {state === 'active' || state === 'loading'
-                ? t('user.verification.buttons.cancel.text')
-                : t('user.verification.buttons.close.text')}
             </Button>
           )}
         </div>

@@ -47,16 +47,6 @@ const VERIFY_ATTRIBUTE_CSS = `
   gap: calc(var(--thunderid-spacing-unit) * 1.5);
 }
 
-.thunderid-verify-attribute__content .thunderid-otp-field__inputs {
-  justify-content: flex-start;
-}
-
-.thunderid-verify-attribute__content .thunderid-otp-field__digit {
-  flex: 1 1 calc(var(--thunderid-spacing-unit) * 4);
-  max-width: calc(var(--thunderid-spacing-unit) * 6);
-  min-width: 0;
-}
-
 .thunderid-verify-attribute__alert {
   width: 100%;
 }

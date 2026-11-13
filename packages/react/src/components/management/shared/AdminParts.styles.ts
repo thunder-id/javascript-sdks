@@ -59,6 +59,27 @@ const useStyles = (theme: Theme, colorScheme: string): Record<string, string> =>
         color: ${theme.vars.colors.text.primary};
         overflow-wrap: anywhere;
       `,
+      statusChip: css`
+        display: inline-flex;
+        flex-shrink: 0;
+        gap: calc(${unit} / 2);
+        align-items: center;
+        padding: 0 ${unit};
+        border-radius: 999px;
+        font-size: 0.75rem;
+        font-weight: 500;
+        line-height: 22px;
+        white-space: nowrap;
+      `,
+      statusChipSuccess: css`
+        color: ${theme.vars.colors.success.dark ?? theme.vars.colors.success.main};
+        background: color-mix(in srgb, ${theme.vars.colors.success.main} 12%, transparent);
+      `,
+      // Amber marks an action the administrator can take.
+      statusChipWarning: css`
+        color: ${theme.vars.colors.warning.contrastText};
+        background: color-mix(in srgb, ${theme.vars.colors.warning.main} 14%, transparent);
+      `,
       muted: css`
         color: ${theme.vars.colors.text.secondary};
         font-size: ${theme.vars.typography.fontSizes.sm};
@@ -82,6 +103,25 @@ const useStyles = (theme: Theme, colorScheme: string): Record<string, string> =>
         flex-wrap: wrap;
         align-items: center;
         gap: calc(${unit} * 1.5);
+      `,
+      // The value and its status on the left, the send action at the row's end.
+      verificationRow: css`
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: calc(${unit} * 1.5);
+
+        /* The action's padding must not make the row taller than its label. */
+        & > button {
+          margin-block: calc(${unit} * -0.75);
+        }
+      `,
+      verificationValue: css`
+        display: inline-flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: ${unit};
+        min-width: 0;
       `,
     };
   }, [theme, colorScheme]);

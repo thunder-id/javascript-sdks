@@ -15,6 +15,8 @@ export interface PlaygroundConfig {
   clientId: string;
   /** Management collection overrides passed to the provider's `endpoints`, or undefined for none. */
   endpoints?: ManagementEndpoints;
+  /** Resource indicator sent at sign-in and token exchange, such as the system resource for admin scopes. */
+  resource?: string;
   scopes: string[];
   storage?: StorageMode;
 }
@@ -57,6 +59,7 @@ const playgroundConfig: PlaygroundConfig = {
   baseUrl: (read('VITE_THUNDERID_BASE_URL') ?? 'https://localhost:8090').replace(/\/+$/, ''),
   clientId: read('VITE_THUNDERID_CLIENT_ID') ?? '',
   endpoints: readEndpoints(),
+  resource: read('VITE_THUNDERID_RESOURCE'),
   scopes: (read('VITE_THUNDERID_SCOPES') ?? 'openid profile email').split(/\s+/).filter(Boolean),
   storage: readStorage(read('VITE_THUNDERID_STORAGE')),
 };

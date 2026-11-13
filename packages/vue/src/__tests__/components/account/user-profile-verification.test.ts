@@ -312,7 +312,7 @@ describe('BaseUserProfile verification', () => {
   });
 
   describe('after saving', () => {
-    it('opens the panel once the profile shows a changed email as unverified, never during the save', async () => {
+    it('shows the changed email as unverified and waits for Verify', async () => {
       let finishUpdate: (profile: User) => void = () => undefined;
       const update: Mock = vi.fn(
         () =>
@@ -331,9 +331,11 @@ describe('BaseUserProfile verification', () => {
       finishUpdate(serverUpdate(storedProfile, {email: 'new@example.com'}));
       await settle();
 
-      expect(wrapper.text()).toContain('Verifying Email (email)');
+      expect(wrapper.find('[data-testid="verification-panel"]').exists()).toBe(false);
       expect(status(row(wrapper, 'Email')).text()).toBe('Unverified');
       expect(row(wrapper, 'Email').text()).toContain('new@example.com');
+      await buttonIn(row(wrapper, 'Email'), 'Verify')!.trigger('click');
+      expect(wrapper.text()).toContain('Verifying Email (email)');
     });
 
     it('shows the stored value with its own status once the save fails, never the typed one', async () => {

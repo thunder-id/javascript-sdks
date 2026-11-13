@@ -187,9 +187,6 @@ const AVATAR_GRADIENTS: string[] = [
 const isVerificationType = (type?: string): boolean =>
   !!type && AttributeVerificationConstants.VERIFIABLE_ATTRIBUTE_TYPES.includes(type.toLowerCase());
 
-const isVerifiedAfterSave = (type?: string): boolean =>
-  !!type && AttributeVerificationConstants.VERIFY_AFTER_SAVE_ATTRIBUTE_TYPES.includes(type.toLowerCase());
-
 // The stored value of an attribute: `/users/me` nests attributes and may also spread them to the top level.
 const storedValueOf = (user: User | null | undefined, name: string): unknown => {
   const attributes: Record<string, unknown> | undefined = user?.['attributes'] as Record<string, unknown> | undefined;
@@ -323,36 +320,10 @@ const BaseUserProfile: Component = defineComponent({
         focusBeforeDialog = null;
       }
     });
-    // A saved attribute to verify once the profile reflects the change.
-    const pendingVerification: Ref<{name: string; previousValue: unknown} | null> = ref(null);
-
     const storedUser = (): User | null => props.flattenedProfile ?? props.profile ?? null;
     // A server without verification support omits the field, so no status is known.
     const reportedVerifiedAttributes = (): Record<string, VerifiedAttribute> | undefined =>
       getVerifiedAttributes(props.profile ?? props.flattenedProfile);
-
-    watch(
-      () => [props.profile, props.flattenedProfile, props.error] as const,
-      () => {
-        const pending: {name: string; previousValue: unknown} | null = pendingVerification.value;
-        if (!pending) return;
-
-        if (props.error) {
-          pendingVerification.value = null;
-          return;
-        }
-
-        const storedValue: unknown = storedValueOf(storedUser(), pending.name);
-        if (storedValue === pending.previousValue) return;
-
-        const verified: Record<string, VerifiedAttribute> | undefined = reportedVerifiedAttributes();
-        // An absent verification record leaves the status unknown, so nothing opens on that basis.
-        if (verified && typeof storedValue === 'string' && storedValue.trim() !== '' && !verified[pending.name]) {
-          openVerification(pending.name);
-        }
-        pendingVerification.value = null;
-      },
-    );
 
     // ── Visibility ────────────────────────────────────────────────────────────
 
@@ -434,18 +405,6 @@ const BaseUserProfile: Component = defineComponent({
         schema.schemaId,
         schema.multiValued,
       );
-      // Offer verification once a changed, verifiable email is saved.
-      const previousValue: unknown = storedValueOf(storedUser(), fieldName);
-      pendingVerification.value =
-        slots['verification'] &&
-        isVerifiedAfterSave(schema.type) &&
-        isVerifiableAttribute(props.userSchema, fieldName) &&
-        typeof submitVal === 'string' &&
-        submitVal !== '' &&
-        submitVal !== previousValue
-          ? {name: fieldName, previousValue}
-          : null;
-
       try {
         await props.onUpdate(payload);
         editingFields.value = {...editingFields.value, [fieldName]: false};
@@ -453,7 +412,6 @@ const BaseUserProfile: Component = defineComponent({
         clearEditedValue(fieldName);
       } catch {
         // Keep field in editing mode on error so user input is preserved
-        pendingVerification.value = null;
       }
     }
 

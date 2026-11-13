@@ -9,6 +9,7 @@ export {default as EyeOff} from './EyeOff';
 export {default as Info} from './Info';
 export {default as LogOut} from './LogOut';
 export {default as Plus} from './Plus';
+export {default as Send} from './Send';
 export {default as Timer} from './Timer';
 export {default as TriangleAlert} from './TriangleAlert';
 export {default as User} from './User';
