@@ -16,9 +16,11 @@ type RequestCookies = Awaited<ReturnType<typeof cookies>>;
  * Server action for signing out a user.
  * Clears both JWT and legacy session cookies.
  *
- * @returns Promise that resolves with success status and optional after sign-out URL
+ * @returns Promise that resolves with success status and the URL to send the browser to: the server's end-session
+ * URL, which ends the single sign-on session and returns to the after sign-out URL, or the after sign-out URL itself
+ * when there is no server session to end
  */
-const signOutAction = async (): Promise<{data?: {afterSignOutUrl?: string}; error?: unknown; success: boolean}> => {
+const signOutAction = async (): Promise<{data?: {signOutUrl?: string}; error?: unknown; success: boolean}> => {
   logger.debug('[signOutAction] Initiating sign out process from the server action.');
 
   const clearSessionCookies = async (): Promise<void> => {
@@ -32,17 +34,17 @@ const signOutAction = async (): Promise<{data?: {afterSignOutUrl?: string}; erro
     const client = getClient();
     const sessionId: string | undefined = await getSessionId();
 
-    let afterSignOutUrl = '/';
+    let signOutUrl = '/';
 
     if (sessionId) {
-      logger.debug('[signOutAction] Session ID found, invoking the `signOut` to obtain the `afterSignOutUrl`.');
+      logger.debug('[signOutAction] Session ID found, invoking the `signOut` to obtain the sign-out URL.');
 
-      afterSignOutUrl = await client.signOut({}, sessionId);
+      signOutUrl = await client.signOut({}, sessionId);
     }
 
     await clearSessionCookies();
 
-    return {data: {afterSignOutUrl}, success: true};
+    return {data: {signOutUrl}, success: true};
   } catch (error) {
     logger.error('[signOutAction] Error during sign out from the server action:', error);
 
