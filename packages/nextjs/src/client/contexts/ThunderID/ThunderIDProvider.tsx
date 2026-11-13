@@ -41,6 +41,7 @@ import switchOrganizationUnitAction, {
   SwitchOrganizationUnitActionResult,
 } from '../../../server/actions/auth/switchOrganizationUnitAction';
 import getSessionId from '../../../server/actions/getSessionId';
+import isOuSwitchCallback from '../../../server/actions/isOuSwitchCallback';
 import {RefreshResult} from '../../../server/actions/refreshToken';
 import logger from '../../../utils/logger';
 import fetchFlowMetaFromServer from '../../fetchFlowMetaFromServer';
@@ -135,14 +136,18 @@ const ThunderIDClientProvider: FC<PropsWithChildren<ThunderIDClientProviderProps
 
     reRenderCheckRef.current = true;
 
-    // Don't handle callback if already signed in
-    if (isSignedIn) return;
-
     (async (): Promise<void> => {
       try {
         const code: string | null = searchParams.get('code');
         const state: string | null = searchParams.get('state');
         const error: string | null = searchParams.get('error');
+
+        // A callback that arrives while signed in is redeemed only when it completes a switch to another
+        // organization unit that this session started, which replaces the session. A stale or injected
+        // callback, or one that reports an error, leaves the session as it is.
+        if (isSignedIn && (!code || !state || !(await isOuSwitchCallback(state)))) {
+          return;
+        }
 
         // Check for OAuth errors first
         if (error) {

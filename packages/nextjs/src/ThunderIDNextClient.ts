@@ -424,6 +424,15 @@ class ThunderIDNextClient<T extends ThunderIDNextConfig = ThunderIDNextConfig> e
     return this.getSignInUrl(customParams, userId);
   }
 
+  /**
+   * Whether `state` belongs to a switch to another organization unit that the session `sessionId` started
+   * and whose callback has not been redeemed. The authorization request kept the unit with its state.
+   */
+  public async isOuSwitchCallback(state: string, sessionId: string): Promise<boolean> {
+    await this.ensureInitialized();
+    return this.isOrganizationUnitBoundRequest(state, sessionId);
+  }
+
   public override getStorageManager(): any {
     return super.getStorageManager();
   }

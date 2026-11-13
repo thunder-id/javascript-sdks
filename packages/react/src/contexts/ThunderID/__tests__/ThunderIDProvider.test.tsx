@@ -380,3 +380,55 @@ describe('ThunderIDProvider signIn errors', () => {
     await expect(signIn!({executionId: 'exec-1'})).rejects.toBeInstanceOf(ThunderIDRuntimeError);
   });
 });
+
+describe('ThunderIDProvider callback while signed in', () => {
+  afterEach(() => {
+    window.history.replaceState(null, '', '/');
+  });
+
+  it('completes a switch that returns with a code while the previous session is signed in', async () => {
+    mocks.client.signedIn = true;
+    window.history.replaceState(null, '', '/?code=code-1&state=instance_0_request-1');
+
+    renderProvider();
+
+    await waitFor(() => expect(mocks.client.signIn).toHaveBeenCalledOnce());
+    await waitFor(() => expect(mocks.getUsersMe).toHaveBeenCalled());
+  });
+
+  it('does not sign in again when the URL carries no callback', async () => {
+    mocks.client.signedIn = true;
+
+    renderProvider();
+
+    await waitFor(() => expect(mocks.getUsersMe).toHaveBeenCalled());
+    await settle();
+
+    expect(mocks.client.signIn).not.toHaveBeenCalled();
+  });
+
+  it('ignores a callback meant for another instance', async () => {
+    mocks.client.signedIn = true;
+    window.history.replaceState(null, '', '/?code=code-1&state=instance_9_request-1');
+
+    renderProvider();
+
+    await waitFor(() => expect(mocks.getUsersMe).toHaveBeenCalled());
+    await settle();
+
+    expect(mocks.client.signIn).not.toHaveBeenCalled();
+  });
+
+  it('keeps the current session when the switch cannot be completed', async () => {
+    mocks.client.signedIn = true;
+    mocks.client.signIn.mockRejectedValueOnce(new Error('state mismatch'));
+    window.history.replaceState(null, '', '/?code=code-1&state=instance_0_request-1');
+
+    renderProvider();
+
+    await waitFor(() => expect(mocks.client.signIn).toHaveBeenCalledOnce());
+    await waitFor(() => expect(mocks.getUsersMe).toHaveBeenCalled());
+
+    expect(mocks.client.clearSession).not.toHaveBeenCalled();
+  });
+});
