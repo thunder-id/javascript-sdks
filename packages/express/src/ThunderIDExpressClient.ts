@@ -9,6 +9,7 @@ import {
   ThunderIDRuntimeError,
   Storage,
   TokenResponse,
+  UpdateMeCredentialsPayload,
   User,
   CookieConfig as NodeCookieConfig,
 } from '@thunderid/node';
@@ -77,7 +78,10 @@ class ThunderIDExpressClient<T extends ExpressClientConfig = ExpressClientConfig
     return this.management(sessionId);
   }
 
-  public async updateUserCredentialsFromRequest(req: express.Request, payload: Record<string, string>): Promise<void> {
+  public async updateUserCredentialsFromRequest(
+    req: express.Request,
+    payload: UpdateMeCredentialsPayload,
+  ): Promise<void> {
     const cookies = req.cookies as Record<string, string | undefined> | undefined;
     const sessionId: string | undefined = cookies?.[this.getSessionCookieName()];
     return this.updateUserCredentials(payload, sessionId);

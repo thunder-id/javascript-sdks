@@ -35,7 +35,7 @@ describe('updateMeCredentials (vue)', () => {
 
     await expect(
       updateMeCredentials({
-        payload: {password: 'n3wP@ssword!'},
+        payload: {currentValue: '0ldP@ssword!', name: 'password', newValue: 'n3wP@ssword!'},
         url: 'https://localhost:8090/users/me/update-credentials',
       }),
     ).rejects.toMatchObject({statusCode: 400});
@@ -46,7 +46,7 @@ describe('updateMeCredentials (vue)', () => {
 
     await expect(
       updateMeCredentials({
-        payload: {password: 'n3wP@ssword!'},
+        payload: {currentValue: '0ldP@ssword!', name: 'password', newValue: 'n3wP@ssword!'},
         url: 'https://localhost:8090/users/me/update-credentials',
       }),
     ).rejects.toMatchObject({code: 'updateMeCredentials-NetworkError-001'});
@@ -62,7 +62,7 @@ describe('updateMeCredentials (vue)', () => {
 
     await expect(
       updateMeCredentials({
-        payload: {password: 'n3wP@ssword!'},
+        payload: {currentValue: '0ldP@ssword!', name: 'password', newValue: 'n3wP@ssword!'},
         url: 'https://localhost:8090/users/me/update-credentials',
       }),
     ).resolves.toBeUndefined();

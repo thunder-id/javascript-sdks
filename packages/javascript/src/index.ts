@@ -29,7 +29,7 @@ export type {GetUsersMeMetaConfig, UsersMeMetaResponse, AttributeSchema} from '.
 export {default as getAccessibleOrganizationUnits} from './api/account/getAccessibleOrganizationUnits';
 export type {GetAccessibleOrganizationUnitsConfig} from './api/account/getAccessibleOrganizationUnits';
 export {default as updateMeCredentials} from './api/account/updateMeCredentials';
-export type {UpdateMeCredentialsConfig} from './api/account/updateMeCredentials';
+export type {UpdateMeCredentialsConfig, UpdateMeCredentialsPayload} from './api/account/updateMeCredentials';
 export {default as updateMeProfile} from './api/account/updateMeProfile';
 export type {UpdateMeProfileConfig} from './api/account/updateMeProfile';
 

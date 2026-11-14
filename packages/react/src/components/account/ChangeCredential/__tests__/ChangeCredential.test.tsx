@@ -70,17 +70,18 @@ describe('ChangeCredential', () => {
     cleanup();
   });
 
-  it('renders only the two fields, with no current-value field', () => {
+  it('renders the current value, new value and confirmation fields', () => {
     renderChangeCredential();
 
+    expect(fieldByName('currentPassword')).toBeTruthy();
     expect(fieldByName('newPassword')).toBeTruthy();
     expect(fieldByName('confirmPassword')).toBeTruthy();
-    expect(document.querySelector('input[name="currentPassword"]')).toBeNull();
   });
 
-  it('marks both fields as new-password for password managers', () => {
+  it('marks the fields for password managers', () => {
     renderChangeCredential();
 
+    expect(fieldByName('currentPassword').getAttribute('autocomplete')).toBe('current-password');
     expect(fieldByName('newPassword').getAttribute('autocomplete')).toBe('new-password');
     expect(fieldByName('confirmPassword').getAttribute('autocomplete')).toBe('new-password');
   });
@@ -124,10 +125,11 @@ describe('ChangeCredential', () => {
     expect(mockUpdateMeCredentials).not.toHaveBeenCalled();
   });
 
-  it('sends only the new value, keyed by password by default', async () => {
+  it('sends the current and new values for password by default', async () => {
     mockUpdateMeCredentials.mockResolvedValueOnce(undefined);
     renderChangeCredential({policy: {regex: '^.{8,}$'}});
 
+    setField('currentPassword', '0ldP@ssword');
     setField('newPassword', 'n3wP@ssword');
     setField('confirmPassword', 'n3wP@ssword');
     fireEvent.click(submitButton());
@@ -137,12 +139,12 @@ describe('ChangeCredential', () => {
     expect(mockUpdateMeCredentials).toHaveBeenCalledWith(
       expect.objectContaining({
         baseUrl: 'https://localhost:8090',
-        payload: {password: 'n3wP@ssword'},
+        payload: {currentValue: '0ldP@ssword', name: 'password', newValue: 'n3wP@ssword'},
       }),
     );
   });
 
-  it('keys the payload by attribute when set to something other than password', async () => {
+  it('names the attribute and leaves out a blank current value', async () => {
     mockUpdateMeCredentials.mockResolvedValueOnce(undefined);
     renderChangeCredential({attribute: 'pin', policy: {regex: '^.{4,}$'}});
 
@@ -154,7 +156,7 @@ describe('ChangeCredential', () => {
 
     expect(mockUpdateMeCredentials).toHaveBeenCalledWith(
       expect.objectContaining({
-        payload: {pin: '1234'},
+        payload: {currentValue: undefined, name: 'pin', newValue: '1234'},
       }),
     );
   });
@@ -176,13 +178,37 @@ describe('ChangeCredential', () => {
     mockUpdateMeCredentials.mockResolvedValueOnce(undefined);
     renderChangeCredential({policy: {regex: '^.{8,}$'}});
 
+    setField('currentPassword', '0ldP@ssword');
     setField('newPassword', 'n3wP@ssword');
     setField('confirmPassword', 'n3wP@ssword');
     fireEvent.click(submitButton());
 
     await waitFor(() => expect(fieldByName('newPassword').value).toBe(''));
 
+    expect(fieldByName('currentPassword').value).toBe('');
     expect(fieldByName('confirmPassword').value).toBe('');
+  });
+
+  it('surfaces a wrong current value onto the current password field', async () => {
+    const {ThunderIDAPIError} = await import('@thunderid/browser');
+
+    mockUpdateMeCredentials.mockRejectedValueOnce(
+      new ThunderIDAPIError(
+        JSON.stringify({code: 'USR-1047', message: {defaultValue: 'Invalid current credential'}}),
+        'x-003',
+        'react',
+        403,
+        'Forbidden',
+      ),
+    );
+    renderChangeCredential({policy: {regex: '^.{8,}$'}});
+
+    setField('currentPassword', 'Wr0ngP@ss');
+    setField('newPassword', 'n3wP@ssword');
+    setField('confirmPassword', 'n3wP@ssword');
+    fireEvent.click(submitButton());
+
+    await waitFor(() => expect(screen.getByText(/your current password is incorrect/i)).toBeTruthy());
   });
 
   it('surfaces a 400 onto the new password field', async () => {
@@ -275,6 +301,7 @@ describe('ChangeCredential', () => {
     it('disables every control so nothing is reachable behind the overlay', () => {
       renderChangeCredential({}, buildUserContext({userSchema: schemaWithoutPassword}));
 
+      expect(fieldByName('currentPassword').disabled).toBe(true);
       expect(fieldByName('newPassword').disabled).toBe(true);
       expect(fieldByName('confirmPassword').disabled).toBe(true);
       // Queried through the DOM rather than by role: the blurred form is aria-hidden, so an

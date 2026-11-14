@@ -122,9 +122,10 @@ export class BrowserQuickstartPage extends GateLoginPage {
     await this.page.locator(`[data-cred-toggle="${attribute}"]`).click();
   }
 
-  /** Fills the currently-open credential form's new-value and confirmation fields, without
-   * submitting. */
-  async fillCredentialFields(newValue: string, confirmValue: string): Promise<void> {
+  /** Fills the currently-open credential form's current-value, new-value and confirmation fields,
+   * without submitting. */
+  async fillCredentialFields(newValue: string, confirmValue: string, currentValue = ''): Promise<void> {
+    await this.page.locator('[data-cred-field="currentValue"]').fill(currentValue);
     await this.page.locator('[data-cred-field="newValue"]').fill(newValue);
     await this.page.locator('[data-cred-field="confirmValue"]').fill(confirmValue);
   }
@@ -134,15 +135,15 @@ export class BrowserQuickstartPage extends GateLoginPage {
     return this.page.locator('[data-cred-submit]').isDisabled();
   }
 
-  /** Expands the named credential's row, fills the new value and its confirmation, and
-   * submits. Waits for the row to collapse back afterward, which is this sample's own
+  /** Expands the named credential's row, fills the current value, the new value and its
+   * confirmation, and submits. Waits for the row to collapse back afterward, which is this sample's own
    * `onDone` behavior on a successful write — proof the change actually succeeded server-side
    * rather than just that the button was clicked. Call {@link openSecurityTab} first. */
-  async changeCredential(attribute: string, newValue: string): Promise<void> {
+  async changeCredential(attribute: string, currentValue: string, newValue: string): Promise<void> {
     const toggle = this.page.locator(`[data-cred-toggle="${attribute}"]`);
     await toggle.click();
 
-    await this.fillCredentialFields(newValue, newValue);
+    await this.fillCredentialFields(newValue, newValue, currentValue);
     await this.page.locator('[data-cred-submit]').click();
 
     await expect(toggle).toHaveAttribute('aria-expanded', 'false', {timeout: Timeouts.ELEMENT_VISIBILITY});
