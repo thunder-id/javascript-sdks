@@ -96,7 +96,7 @@ export const SAMPLE_POLICIES: SharingPolicy[] = [
 ];
 
 export const SAMPLE_OVERLAY: ResolvedOverlay = {
-  isOwned: false,
+  isOwnedByOU: false,
   ouId: 'ou_sales',
   policyIds: ['pol_selected'],
   rules: {roles: {allowedValues: ['Viewer', 'Editor'], editable: true}},

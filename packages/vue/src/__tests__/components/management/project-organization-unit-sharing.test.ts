@@ -581,7 +581,7 @@ describe('project, organization unit and sharing components (vue)', () => {
           if (init.method === 'DELETE') return null;
           if (init.method === 'POST') return {id: 'sp-3', version: 1};
           if (url.pathname.endsWith('/overlay-rules')) {
-            return {isOwned: false, policyIds: ['sp-1'], rules: {roles: {allowedValues: ['admin']}}, visible: true};
+            return {isOwnedByOU: false, policyIds: ['sp-1'], rules: {roles: {allowedValues: ['admin']}}, visible: true};
           }
 
           return {...page, policies: [policies[0]], totalResults: 1};
