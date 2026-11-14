@@ -38,9 +38,10 @@ type OrganizationUnitSwitcherProps = Readonly<{
  *
  * Lists the units through `GET /api/auth/user/organization-units` (`NuxtAPIRoutes.USER_ORGANIZATION_UNITS`),
  * which reads `/users/me/ous` with the server-held session, so the access token never reaches the browser.
- * Switching goes through the context's `switchOrganizationUnit`, which sends the page to the sign-in route
- * bounded to the unit; the server reuses the SSO session, and the callback replaces the session only when it
- * succeeds. Pass `onSelect` (or `@select`) to take over the switch.
+ * Switching goes through the context's `switchOrganizationUnit`, which exchanges the session's device secret on
+ * the server and stays on the page. Without one, it sends the page to the sign-in route bounded to the unit; the
+ * server reuses the SSO session, and the callback replaces the session only when it succeeds. Pass `onSelect`
+ * (or `@select`) to take over the switch.
  *
  * Renders {@link BaseOrganizationUnitSwitcher} from `@thunderid/vue`, with the same props, events and default
  * scoped slot as the Vue SDK's `OrganizationUnitSwitcher`.
@@ -104,9 +105,11 @@ const OrganizationUnitSwitcher: Component = defineComponent({
 
       try {
         await switchOrganizationUnit(unit.id);
+        current.value = unit.id;
         emit('switch', unit);
       } catch {
         error.value = t('organization_unit.switcher.error.switch', {name: unit.name});
+      } finally {
         switchingId.value = null;
       }
     };

@@ -3,12 +3,11 @@
 
 'use server';
 
-import {IdToken} from '@thunderid/node';
 import {cookies} from 'next/headers';
 import {ThunderIDNextConfig} from '../../../models/config';
-import {setChunkedCookie} from '../../../utils/chunkedCookie';
 import logger from '../../../utils/logger';
 import SessionManager from '../../../utils/SessionManager';
+import setSessionCookie from '../../../utils/setSessionCookie';
 import getClient from '../../getClient';
 
 type RequestCookies = Awaited<ReturnType<typeof cookies>>;
@@ -92,39 +91,7 @@ const handleOAuthCallbackAction = async (
 
     if (signInResult) {
       try {
-        const idToken: IdToken = await thunderIDClient.getDecodedIdToken(
-          sessionId,
-          (signInResult['id_token'] || signInResult['idToken']) as string,
-        );
-        const accessToken: string = (signInResult['accessToken'] || signInResult['access_token']) as string;
-        const refreshToken: string = (signInResult['refreshToken'] as string | undefined) ?? '';
-        const userIdFromToken: string = (idToken.sub || signInResult['sub'] || sessionId) as string;
-        const scopes: string = signInResult['scope'] as string;
-        const organizationId: string | undefined = (idToken['user_org'] || idToken['organization_id']) as
-          | string
-          | undefined;
-        const expiresIn: number = signInResult['expiresIn'] as number;
-        const sessionCookieExpiryTime: number = SessionManager.resolveSessionCookieExpiry(
-          config.sessionCookie?.expiryTime,
-        );
-
-        const sessionToken: string = await SessionManager.createSessionToken(
-          accessToken,
-          userIdFromToken,
-          sessionId,
-          scopes,
-          expiresIn,
-          refreshToken,
-          organizationId,
-          {sid: typeof idToken['sid'] === 'string' ? idToken['sid'] : undefined},
-        );
-
-        setChunkedCookie(
-          cookieStore,
-          SessionManager.getSessionCookieName(),
-          sessionToken,
-          SessionManager.getSessionCookieOptions(sessionCookieExpiryTime),
-        );
+        await setSessionCookie(thunderIDClient, cookieStore, sessionId, signInResult, config);
 
         cookieStore.delete(SessionManager.getTempSessionCookieName());
       } catch (error) {

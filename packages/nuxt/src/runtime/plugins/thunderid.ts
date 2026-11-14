@@ -1,13 +1,19 @@
 // Copyright 2025 The ThunderID Authors
 // SPDX-License-Identifier: Apache-2.0
 
-import {getRedirectBasedSignUpUrl, getTokenPermissions} from '@thunderid/browser';
+import {
+  getRedirectBasedSignUpUrl,
+  getTokenPermissions,
+  OrganizationUnitSwitchErrorCodes,
+  ThunderIDAPIError,
+} from '@thunderid/browser';
 import {VendorConstants} from '@thunderid/node';
 import type {
   AttributeSchema,
   CurrentOrganizationUnit,
   FlowMetadataResponse,
   SwitchOrganizationUnitOptions,
+  User,
   UserProfile,
 } from '@thunderid/node';
 import {ThunderIDPlugin, THUNDERID_KEY, useCurrentProjectState} from '@thunderid/vue';
@@ -19,9 +25,10 @@ import ThunderIDRoot from '../components/ThunderIDRoot';
 import NuxtAPIRoutes from '../constants/NuxtAPIRoutes';
 import type {ThunderIDAuthState, ThunderIDNuxtConfig, ThunderIDSSRData} from '../types';
 import fetchManagementFromServer from '../utils/fetchManagementFromServer';
+import switchOrganizationUnitOnServer from '../utils/switchOrganizationUnitOnServer';
 import {getAuthStateKey, getFlowMetaStateKey, getUserProfileStateKey, getUserSchemaStateKey} from '../utils/stateKeys';
 import type {NuxtApp} from '#app';
-import {defineNuxtPlugin, useState, useRequestEvent, useRuntimeConfig, navigateTo} from '#app';
+import {defineNuxtPlugin, useState, useRequestEvent, useRuntimeConfig, navigateTo, refreshNuxtData} from '#app';
 
 /**
  * Universal Nuxt plugin (runs on both server and client) that wires up the
@@ -180,12 +187,34 @@ export default defineNuxtPlugin((nuxtApp: NuxtApp) => {
     () => authState.value.organizationUnit ?? null,
   );
 
-  // Switching signs in again through the sign-in route, bounded to the unit. The server reuses the SSO
-  // session, so normally no credentials are asked, and the callback replaces the session only on success.
+  // Switching first exchanges the session's device secret on the server, which replaces the session
+  // without leaving the page. Without one, or when the server needs the user, it signs in again through
+  // the sign-in route, bounded to the unit: the server reuses the SSO session, so normally no credentials
+  // are asked, and the callback replaces the session only on success.
   const switchOrganizationUnit = async (
     organizationUnitId: string,
     options?: SwitchOrganizationUnitOptions,
-  ): Promise<undefined> => {
+  ): Promise<User | undefined> => {
+    const switched: ThunderIDAuthState | undefined = await switchOrganizationUnitOnServer(organizationUnitId);
+
+    if (switched) {
+      authState.value = switched;
+      await refreshNuxtData();
+
+      return switched.user ?? undefined;
+    }
+
+    if (options?.redirect === false) {
+      throw new ThunderIDAPIError(
+        JSON.stringify({
+          code: 'interaction_required',
+          message: {defaultValue: 'interaction_required'},
+        }),
+        OrganizationUnitSwitchErrorCodes.InteractionRequired,
+        'nuxt',
+      );
+    }
+
     const {returnTo: requestedReturnTo} = options ?? {};
     const returnTo: string | undefined =
       typeof requestedReturnTo === 'string'

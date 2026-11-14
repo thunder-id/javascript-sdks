@@ -7,6 +7,7 @@ import {
   DeviceAuthorizationOptions,
   DeviceAuthorizationPollOptions,
   DeviceAuthorizationResponse,
+  DeviceSecretSwitchResult,
   OrganizationUnitSwitchErrorCodes,
   SwitchOrganizationUnitOptions,
   ThunderIDAPIError,
@@ -220,6 +221,36 @@ class ThunderIDNodeClient<T extends ThunderIDNodeConfig = ThunderIDNodeConfig> e
     authURLCallback(await this.getSignInUrl({...(params as Record<string, string>), organizationUnitId}, userId));
 
     return undefined;
+  }
+
+  /**
+   * Switches the session `sessionId` to the organization unit `organizationUnitId` over the back
+   * channel, with no redirect: exchanges the device secret its sign-in returned at the unit's token
+   * endpoint (`{baseUrl}/ou/{ouId}/oauth2/token`), and replaces the session's tokens with the unit's. A
+   * sign-in returns a device secret when it asks for the `device_sso` scope and the application allows
+   * the token exchange grant. The secret stays in the session store and is never handed to the caller.
+   *
+   * When the session holds no device secret, or the server answers with an error, the session stays as
+   * it was. A device secret the server refuses as unusable is dropped. Fall back to
+   * {@link switchOrganizationUnit} when the error is one of `OrganizationUnitSwitchFallbackErrors`.
+   *
+   * @returns The unit's tokens or the server's OAuth error, or `undefined` when the session holds no
+   *   device secret.
+   */
+  public override async switchOrganizationUnitWithDeviceSecret(
+    organizationUnitId: string,
+    sessionId: string,
+  ): Promise<DeviceSecretSwitchResult | undefined> {
+    const result: DeviceSecretSwitchResult | undefined = await super.switchOrganizationUnitWithDeviceSecret(
+      organizationUnitId,
+      sessionId,
+    );
+
+    if (result && 'tokenResponse' in result) {
+      await this.indexSession(sessionId, await this.getStorageManager().getSessionData(sessionId));
+    }
+
+    return result;
   }
 
   /**

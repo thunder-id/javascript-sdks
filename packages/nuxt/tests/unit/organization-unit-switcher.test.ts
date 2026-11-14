@@ -83,6 +83,26 @@ describe('OrganizationUnitSwitcher (Nuxt)', () => {
     await (render().props as any).onSwitch(units[1]);
     expect(switchOrganizationUnit).toHaveBeenCalledWith('ou-2');
     expect(emit).toHaveBeenCalledWith('switch', units[1]);
+    // A switch that stays on the page marks the new unit and ends the busy state.
+    expect(render().props).toMatchObject({current: 'ou-2', switchingId: null});
+
+    scope.stop();
+  });
+
+  it('keeps the current unit and ends the busy state when the switch fails', async () => {
+    switchOrganizationUnit.mockRejectedValueOnce(new Error('refused'));
+    const {emit, render, scope} = setup();
+    (render().props as any).onPageChange(0);
+    await flush();
+
+    await (render().props as any).onSwitch(units[1]);
+
+    expect(emit).not.toHaveBeenCalled();
+    expect(render().props).toMatchObject({
+      current: 'ou-1',
+      error: 'organization_unit.switcher.error.switch:B',
+      switchingId: null,
+    });
 
     scope.stop();
   });

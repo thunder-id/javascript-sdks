@@ -26,6 +26,7 @@ const NuxtAPIRoutes: {
   SIGN_IN: string;
   SIGN_OUT: string;
   SIGN_UP: string;
+  SWITCH: string;
   TOKEN: string;
   USER: string;
   USER_CREDENTIALS: string;
@@ -53,6 +54,8 @@ const NuxtAPIRoutes: {
   SIGN_OUT: '/api/auth/signout',
   /** Starts (embedded) or redirects to (redirect flow) sign-up. */
   SIGN_UP: '/api/auth/signup',
+  /** Switches (POST) the session to another organization unit with its device secret, without leaving the page. */
+  SWITCH: '/api/auth/switch',
   /** Returns the current access token. */
   TOKEN: '/api/auth/token',
   /** Returns the current user object. */

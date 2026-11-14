@@ -5,6 +5,7 @@
 import {OrganizationUnitSwitchErrorCodes} from '@thunderid/javascript';
 import {afterEach, describe, expect, it, vi} from 'vitest';
 import ThunderIDNodeClient from '../ThunderIDNodeClient';
+import SessionIndex from '../utils/SessionIndex';
 
 const jsonResponse = (body: unknown, ok = true, status = 200): unknown => ({
   json: () => Promise.resolve(body),
@@ -117,6 +118,75 @@ describe('ThunderIDNodeClient organization units, device authorization and intro
       await expect(client.signIn(vi.fn(), 'session-1', 'code-1', state)).rejects.toBeDefined();
 
       expect(await client.getAccessToken('session-1')).toBe('old-at');
+    });
+  });
+
+  describe('switchOrganizationUnitWithDeviceSecret()', () => {
+    const idToken = (claims: Record<string, unknown>): string =>
+      `h.${Buffer.from(JSON.stringify(claims)).toString('base64url')}.s`;
+
+    const withDeviceSecret = async (client: ThunderIDNodeClient, sessionId: string): Promise<void> => {
+      await (client as any).getStorageManager().setSessionData(
+        {
+          access_token: 'old-at',
+          created_at: Date.now(),
+          device_secret: 'ds-1',
+          expires_in: '3600',
+          id_token: idToken({sid: 'sid-1', sub: 'user-1'}),
+        },
+        sessionId,
+      );
+    };
+
+    it("exchanges the session's device secret at the unit token endpoint and replaces its tokens", async () => {
+      const client = await newClient();
+      await withDeviceSecret(client, 'switching');
+      const fetchMock = vi.fn().mockResolvedValue(
+        jsonResponse({
+          access_token: 'unit-at',
+          expires_in: 3600,
+          id_token: idToken({sid: 'sid-2', sub: 'user-1'}),
+          scope: 'openid ou',
+        }),
+      );
+      vi.stubGlobal('fetch', fetchMock);
+      const indexAdd = vi.spyOn(SessionIndex.prototype, 'add');
+
+      const result = await client.switchOrganizationUnitWithDeviceSecret('ou-1', 'switching');
+
+      expect(result).toMatchObject({tokenResponse: {accessToken: 'unit-at'}});
+      expect(fetchMock.mock.calls[0][0]).toBe('https://example.com/ou/ou-1/oauth2/token');
+      const body = new URLSearchParams(String(fetchMock.mock.calls[0][1].body));
+      expect(body.get('grant_type')).toBe('urn:ietf:params:oauth:grant-type:token-exchange');
+      expect(body.get('subject_token')).toBe('ds-1');
+      expect(fetchMock.mock.calls[0][1].headers.Authorization).toMatch(/^Basic /);
+      expect(await client.getAccessToken('switching')).toBe('unit-at');
+      expect((await (client as any).getStorageManager().getSessionData('switching')).device_secret).toBe('ds-1');
+      expect(indexAdd).toHaveBeenCalledWith('switching', {sid: 'sid-2', sub: 'user-1'}, expect.any(Number));
+    });
+
+    it('returns undefined without calling the server when the session holds no device secret', async () => {
+      const client = await newClient();
+      await signedIn(client, 'no-secret');
+      const fetchMock = vi.fn();
+      vi.stubGlobal('fetch', fetchMock);
+
+      expect(await client.switchOrganizationUnitWithDeviceSecret('ou-1', 'no-secret')).toBeUndefined();
+      expect(fetchMock).not.toHaveBeenCalled();
+    });
+
+    it('keeps the session and drops a device secret the server cannot use', async () => {
+      const client = await newClient();
+      await withDeviceSecret(client, 'refused');
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValue(jsonResponse({error: 'invalid_grant'}, false, 400)));
+      const indexAdd = vi.spyOn(SessionIndex.prototype, 'add');
+
+      expect(await client.switchOrganizationUnitWithDeviceSecret('ou-1', 'refused')).toEqual({
+        error: 'invalid_grant',
+      });
+      expect(await client.getAccessToken('refused')).toBe('old-at');
+      expect((await (client as any).getStorageManager().getSessionData('refused')).device_secret).toBeUndefined();
+      expect(indexAdd).not.toHaveBeenCalled();
     });
   });
 

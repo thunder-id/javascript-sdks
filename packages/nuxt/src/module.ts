@@ -189,6 +189,11 @@ export default defineNuxtModule<ThunderIDNuxtConfig>({
         method: 'post' as const,
         route: NuxtAPIRoutes.SIGN_OUT,
       },
+      {
+        handler: resolve('./runtime/server/routes/auth/session/switch.post'),
+        method: 'post' as const,
+        route: NuxtAPIRoutes.SWITCH,
+      },
       // ── Session / token ───────────────────────────────────────────────
       {handler: resolve('./runtime/server/routes/auth/session/session.get'), route: NuxtAPIRoutes.SESSION},
       {handler: resolve('./runtime/server/routes/auth/session/token.get'), route: NuxtAPIRoutes.TOKEN},

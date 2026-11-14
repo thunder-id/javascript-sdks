@@ -37,6 +37,7 @@ import {
   EmbeddedSignInFlowResponse,
   EmbeddedSignInFlowStatus,
   OrganizationUnitSwitchErrorCodes,
+  OrganizationUnitSwitchFallbackErrors,
   SwitchOrganizationUnitOptions,
   ThunderIDAPIError,
   executeEmbeddedSignInFlow,
@@ -60,21 +61,6 @@ import navigate from './utils/navigate';
 import SPACryptoUtils from './utils/SPACryptoUtils';
 import SPAHelper from './utils/SPAHelper';
 import SPAUtils from './utils/SPAUtils';
-
-/**
- * OAuth errors that mean the server needs the user, so a silent switch falls back to a redirect.
- */
-const INTERACTION_ERRORS: string[] = [
-  'interaction_required',
-  'login_required',
-  'consent_required',
-  'account_selection_required',
-];
-
-/**
- * OAuth errors for a device secret the server cannot use, which the SDK drops before signing in again.
- */
-const UNUSABLE_DEVICE_SECRET_ERRORS: string[] = ['invalid_request', 'invalid_grant'];
 
 /**
  * Temporary-data key that marks a switch to another organization unit left the page, so its callback is
@@ -529,7 +515,7 @@ class ThunderIDBrowserClient<T = BrowserAuthConfig> extends ThunderIDJavaScriptC
       return silentUser;
     }
 
-    if (silentError && !INTERACTION_ERRORS.includes(silentError)) {
+    if (silentError && !OrganizationUnitSwitchFallbackErrors.Interaction.includes(silentError)) {
       throw ThunderIDBrowserClient._toSwitchError(silentError);
     }
 
@@ -568,7 +554,7 @@ class ThunderIDBrowserClient<T = BrowserAuthConfig> extends ThunderIDJavaScriptC
     }
 
     if (refusal) {
-      if (!redirect || !refusal.error || !INTERACTION_ERRORS.includes(refusal.error)) {
+      if (!redirect || !refusal.error || !OrganizationUnitSwitchFallbackErrors.Interaction.includes(refusal.error)) {
         throw ThunderIDBrowserClient._toSwitchError(refusal.error);
       }
 
@@ -612,7 +598,10 @@ class ThunderIDBrowserClient<T = BrowserAuthConfig> extends ThunderIDJavaScriptC
 
     if ('error' in result) {
       // A device secret the server refused as unusable has been dropped, so the user signs in again.
-      if (INTERACTION_ERRORS.includes(result.error) || UNUSABLE_DEVICE_SECRET_ERRORS.includes(result.error)) {
+      if (
+        OrganizationUnitSwitchFallbackErrors.Interaction.includes(result.error) ||
+        OrganizationUnitSwitchFallbackErrors.UnusableDeviceSecret.includes(result.error)
+      ) {
         return false;
       }
 
@@ -641,7 +630,7 @@ class ThunderIDBrowserClient<T = BrowserAuthConfig> extends ThunderIDJavaScriptC
 
     if (oauthError === 'unauthorized_client') {
       code = OrganizationUnitSwitchErrorCodes.UnauthorizedClient;
-    } else if (oauthError && INTERACTION_ERRORS.includes(oauthError)) {
+    } else if (oauthError && OrganizationUnitSwitchFallbackErrors.Interaction.includes(oauthError)) {
       code = OrganizationUnitSwitchErrorCodes.InteractionRequired;
     }
 

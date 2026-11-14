@@ -118,3 +118,20 @@ export const OrganizationUnitSwitchErrorCodes: {
    */
   UnauthorizedClient: 'switchOrganizationUnit-UnauthorizedClient-001',
 };
+
+/**
+ * OAuth errors that send a switch on to a sign-in the user takes part in, rather than failing it.
+ */
+export const OrganizationUnitSwitchFallbackErrors: {
+  readonly Interaction: readonly string[];
+  readonly UnusableDeviceSecret: readonly string[];
+} = {
+  /**
+   * The server needs the user.
+   */
+  Interaction: ['interaction_required', 'login_required', 'consent_required', 'account_selection_required'],
+  /**
+   * The server cannot use the session's device secret, which the SDK has dropped.
+   */
+  UnusableDeviceSecret: ['invalid_request', 'invalid_grant'],
+};
