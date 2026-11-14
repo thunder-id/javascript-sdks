@@ -3,11 +3,17 @@
 
 'use server';
 
-import {EmbeddedFlowType, OrganizationUnitSwitchErrorCodes} from '@thunderid/node';
+import {
+  DeviceSecretSwitchResult,
+  EmbeddedFlowType,
+  OrganizationUnitSwitchErrorCodes,
+  OrganizationUnitSwitchFallbackErrors,
+} from '@thunderid/node';
 import {cookies} from 'next/headers';
 import signInAction from './signInAction';
 import {ThunderIDNextConfig} from '../../../models/config';
 import SessionManager from '../../../utils/SessionManager';
+import setSessionCookie from '../../../utils/setSessionCookie';
 import getClient from '../../getClient';
 import getSessionId from '../getSessionId';
 
@@ -20,10 +26,14 @@ export type SwitchOrganizationUnitActionResult =
 /**
  * Starts a switch of the signed-in session to the organization unit `organizationUnitId`.
  *
- * - Redirect mode returns the unit's authorization URL (`{baseUrl}/ou/{ouId}/oauth2/authorize`) to send
- *   the browser to, and marks the session so the OAuth callback redeems the code for it: the code is
- *   redeemed at the unit's token endpoint and replaces the session. With `redirect: false` it fails
- *   with `interaction_required` instead, since a server cannot switch silently.
+ * - Redirect mode first exchanges the session's device secret at the unit's token endpoint, when the
+ *   session holds one: the unit's tokens replace the session and its cookie, and the switch completes
+ *   with no redirect. A sign-in returns a device secret when it asks for the `device_sso` scope. When
+ *   there is none, or the server needs the user or cannot use it, the action returns the unit's
+ *   authorization URL (`{baseUrl}/ou/{ouId}/oauth2/authorize`) to send the browser to, and marks the
+ *   session so the OAuth callback redeems the code for it: the code is redeemed at the unit's token
+ *   endpoint and replaces the session. With `redirect: false` it fails with `interaction_required`
+ *   instead.
  * - Embedded mode starts an `AUTHENTICATION` flow with `ouId`. When the SSO session is reused the flow
  *   completes at once and its assertion replaces the session cookie; a flow that needs input fails
  *   with `interaction_required`.
@@ -76,6 +86,33 @@ const switchOrganizationUnitAction = async (
           : OrganizationUnitSwitchErrorCodes.Failed,
         success: false,
       };
+    }
+
+    const exchanged: DeviceSecretSwitchResult | undefined = await client.switchOrganizationUnitWithDeviceSecret(
+      organizationUnitId,
+      sessionId,
+    );
+
+    if (exchanged && 'tokenResponse' in exchanged) {
+      await setSessionCookie(
+        client,
+        await cookies(),
+        sessionId,
+        exchanged.tokenResponse as unknown as Record<string, unknown>,
+        config,
+      );
+
+      return {data: {switched: true}, success: true};
+    }
+
+    if (
+      exchanged &&
+      !OrganizationUnitSwitchFallbackErrors.Interaction.includes(exchanged.error) &&
+      !OrganizationUnitSwitchFallbackErrors.UnusableDeviceSecret.includes(exchanged.error)
+    ) {
+      return exchanged.error === 'unauthorized_client'
+        ? {code: OrganizationUnitSwitchErrorCodes.UnauthorizedClient, statusCode: 400, success: false}
+        : {code: OrganizationUnitSwitchErrorCodes.Failed, success: false};
     }
 
     if (options.redirect === false) {

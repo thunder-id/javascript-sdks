@@ -559,7 +559,10 @@ export type {
   DeviceAuthorizationPollOptions,
   DeviceAuthorizationResponse,
 } from './models/device-authorization';
-export {OrganizationUnitSwitchErrorCodes} from './models/accessible-organization-unit';
+export {
+  OrganizationUnitSwitchErrorCodes,
+  OrganizationUnitSwitchFallbackErrors,
+} from './models/accessible-organization-unit';
 export type {
   AccessibleOrganizationUnit,
   AccessibleOrganizationUnitList,
