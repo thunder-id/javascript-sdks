@@ -3,7 +3,7 @@
 
 'use client';
 
-import {hasPermission} from '@thunderid/node';
+import {type PermissionMatching, hasPermission} from '@thunderid/node';
 import type {GrantedPermissions} from '@thunderid/react';
 import {useCallback, useEffect, useMemo, useState} from 'react';
 import getGrantedPermissionsAction from '../../../server/actions/management/getGrantedPermissionsAction';
@@ -49,8 +49,8 @@ const useGrantedPermissions = (): GrantedPermissions => {
   const permissions: string[] = useMemo(() => (isSignedIn ? (granted ?? []) : []), [granted, isSignedIn]);
   const isLoading: boolean = !!isSignedIn && granted === null;
 
-  const can: (required: string) => boolean = useCallback(
-    (required: string): boolean => hasPermission(permissions, required),
+  const can: (required: string, matching?: PermissionMatching) => boolean = useCallback(
+    (required: string, matching?: PermissionMatching): boolean => hasPermission(permissions, required, matching),
     [permissions],
   );
 

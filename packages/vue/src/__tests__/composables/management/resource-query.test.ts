@@ -266,6 +266,16 @@ describe('useGrantedPermissions (vue)', () => {
     expect(result.can('system:role:view')).toBe(false);
   });
 
+  it('matches by the resource server passed to can', async () => {
+    const context = createManagementContext({grantedPermissions: ['orders']});
+    const {result} = withSetup(() => useGrantedPermissions(), context);
+
+    await vi.waitFor(() => expect(result.isLoading.value).toBe(false));
+    expect(result.can('orders:create')).toBe(true);
+    expect(result.can('orders:create', {hierarchical: false})).toBe(false);
+    expect(result.can('orders.create', {delimiter: '.'})).toBe(true);
+  });
+
   it('grants nothing while signed out', async () => {
     const context = createManagementContext({isSignedIn: false});
     const {result} = withSetup(() => useGrantedPermissions(), context);

@@ -1,7 +1,7 @@
 // Copyright 2026 The ThunderID Authors
 // SPDX-License-Identifier: Apache-2.0
 
-import {render} from '@testing-library/react';
+import {fireEvent, render} from '@testing-library/react';
 import {createTheme} from '@thunderid/browser';
 import {describe, expect, it, vi} from 'vitest';
 import ThemeContext, {type ThemeContextValue} from '../../../../contexts/Theme/ThemeContext';
@@ -123,5 +123,69 @@ describe('Consent authorization details', () => {
     );
 
     expect(onInputChange).toHaveBeenCalledWith('__consent_opt__authorization_details:app-1__d-1', 'true');
+  });
+});
+
+describe('Consent hierarchical permissions', () => {
+  const hierarchicalPurpose = {
+    displayElements: [
+      {name: 'reservations'},
+      {name: 'reservations:create', parent: 'reservations'},
+      {name: 'reservations:online', parent: 'reservations'},
+      {name: 'reservations:online:view', parent: 'reservations:online'},
+    ],
+    essential: [],
+    optional: [{name: 'reservations'}, {name: 'reservations:create', parent: 'reservations'}],
+    permissionDelimiter: ':',
+    purposeId: 'permissions:app-1',
+    purposeName: 'permissions:app-1',
+    type: 'permissions',
+  };
+
+  const renderHierarchical = (onInputChange = vi.fn()): HTMLElement =>
+    render(
+      <ThemeContext.Provider value={themeContextValue}>
+        <Consent consentData={[hierarchicalPurpose as never]} formValues={{}} onInputChange={onInputChange} />
+      </ThemeContext.Provider>,
+    ).container;
+
+  it('shows one switch per branch with what its approval covers listed beneath it', () => {
+    const container: HTMLElement = renderHierarchical();
+
+    expect(container.querySelector('#consent_opt_permissions\\:app-1_reservations')).not.toBeNull();
+    expect(container.querySelector('#consent_opt_permissions\\:app-1_reservations\\:create')).toBeNull();
+    expect(container.textContent).toContain('reservations:online:view');
+    expect(container.textContent).toContain(
+      'Approving a permission also approves the permissions beneath it, including any added later.',
+    );
+  });
+
+  it('sets the decision of every prompted permission in the branch from its switch', () => {
+    const onInputChange = vi.fn();
+    const container: HTMLElement = renderHierarchical(onInputChange);
+
+    fireEvent.click(container.querySelector('#consent_opt_permissions\\:app-1_reservations')!);
+
+    expect(onInputChange).toHaveBeenCalledWith('__consent_opt__permissions:app-1__reservations', 'true');
+    expect(onInputChange).toHaveBeenCalledWith('__consent_opt__permissions:app-1__reservations:create', 'true');
+    expect(onInputChange).not.toHaveBeenCalledWith(
+      '__consent_opt__permissions:app-1__reservations:online:view',
+      expect.anything(),
+    );
+  });
+
+  it('keeps one switch per permission when the purpose has no delimiter', () => {
+    const container: HTMLElement = render(
+      <ThemeContext.Provider value={themeContextValue}>
+        <Consent
+          consentData={[{...hierarchicalPurpose, displayElements: undefined, permissionDelimiter: undefined} as never]}
+          formValues={{}}
+          onInputChange={vi.fn()}
+        />
+      </ThemeContext.Provider>,
+    ).container;
+
+    expect(container.querySelector('#consent_opt_permissions\\:app-1_reservations\\:create')).not.toBeNull();
+    expect(container.textContent).not.toContain('reservations:online:view');
   });
 });

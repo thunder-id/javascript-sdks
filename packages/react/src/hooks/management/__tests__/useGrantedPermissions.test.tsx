@@ -35,6 +35,19 @@ describe('useGrantedPermissions', () => {
     expect(result.current.can('system:user:view')).toBe(false);
   });
 
+  it('matches by the resource server passed to can', async () => {
+    const getGrantedPermissions = vi.fn().mockResolvedValue(['orders']);
+
+    const {result} = renderHook(() => useGrantedPermissions(), {
+      wrapper: wrapperWith({getGrantedPermissions, isSignedIn: true}),
+    });
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    expect(result.current.can('orders:create')).toBe(true);
+    expect(result.current.can('orders:create', {hierarchical: false})).toBe(false);
+    expect(result.current.can('orders.create', {delimiter: '.'})).toBe(true);
+  });
+
   it('grants nothing when signed out, without asking the client', () => {
     const getGrantedPermissions = vi.fn();
 

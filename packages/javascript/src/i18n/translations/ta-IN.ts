@@ -242,6 +242,8 @@ const translations: I18nTranslations = {
   'consent.authorization_details.new_item': '{label}, சேர்',
   'consent.essential_scope.info': 'சேவை சரியாக செயல்பட இந்த அனுமதிகள் தேவை.',
   'consent.optional_scope.info': 'இந்த அனுமதிகள் விருப்பமானவை; உங்கள் விருப்பப்படி வழங்கலாம்.',
+  'consent.permissions.subtree_notice':
+    'ஒரு அனுமதியை அங்கீகரிப்பது அதன் கீழுள்ள அனுமதிகளையும், பின்னர் சேர்க்கப்படுபவை உட்பட, அங்கீகரிக்கிறது.',
 
   /* |---------------------------------------------------------------| */
   /* |                        Errors                                 | */

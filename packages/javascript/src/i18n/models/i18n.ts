@@ -246,6 +246,7 @@ export interface I18nTranslations {
   'consent.authorization_details.new_item': string;
   'consent.essential_scope.info': string;
   'consent.optional_scope.info': string;
+  'consent.permissions.subtree_notice': string;
 
   /* |---------------------------------------------------------------| */
   /* |                        Errors                                 | */

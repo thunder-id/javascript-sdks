@@ -1071,6 +1071,7 @@ export {default as resolveManagedIdentityName} from './utils/resolveManagedIdent
 export {default as getAgentName} from './utils/getAgentName';
 export {default as getAccountLifecycleActions} from './utils/getAccountLifecycleActions';
 export {default as hasPermission} from './utils/hasPermission';
+export type {PermissionMatching} from './utils/hasPermission';
 export {default as arrayBufferToBase64url} from './utils/arrayBufferToBase64url';
 export {default as base64urlToArrayBuffer} from './utils/base64urlToArrayBuffer';
 export {default as bem} from './utils/bem';
@@ -1093,6 +1094,8 @@ export {default as getConsentModifiedValues} from './utils/getConsentModifiedVal
 export {default as getConsentElementDecision} from './utils/getConsentElementDecision';
 export {default as compileConsentDecisions} from './utils/compileConsentDecisions';
 export type {ConsentDecisionOptions} from './utils/compileConsentDecisions';
+export {default as getConsentPermissionBranches} from './utils/getConsentPermissionBranches';
+export type {ConsentPermissionBranch, ConsentPermissionBranchItem} from './utils/getConsentPermissionBranches';
 export {default as getConsentInvalidKey, CONSENT_INVALID_KEY_PREFIX} from './utils/getConsentInvalidKey';
 export {default as isEmpty} from './utils/isEmpty';
 export {default as isEmojiUri, EMOJI_URI_SCHEME} from './utils/isEmojiUri';

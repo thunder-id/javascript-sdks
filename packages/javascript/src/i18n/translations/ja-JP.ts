@@ -240,6 +240,8 @@ const translations: I18nTranslations = {
   'consent.authorization_details.new_item': '{label}、追加',
   'consent.essential_scope.info': 'これらの権限は、サービスが正常に機能するために必要です。',
   'consent.optional_scope.info': 'これらの権限は任意であり、お客様の判断で付与できます。',
+  'consent.permissions.subtree_notice':
+    '権限を承認すると、その下にある権限 (後から追加されるものを含む) も承認されます。',
 
   /* |---------------------------------------------------------------| */
   /* |                        Errors                                 | */

@@ -775,6 +775,10 @@ export interface ConsentPurposeData {
    * carry rollup parent linkage).
    */
   optional: PromptElement[];
+  /** Permission delimiter, set only when the resource server grants permissions hierarchically */
+  permissionDelimiter?: string;
+  /** Display-only permission tree for a hierarchical purpose; only `optional` elements are decided */
+  displayElements?: PromptElement[];
   /** Unique identifier for the purpose */
   purposeId: string;
   /** Human-readable purpose name */
