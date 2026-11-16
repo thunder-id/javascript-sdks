@@ -156,12 +156,10 @@ export interface OverlayRule {
  */
 export interface ResolvedOverlay {
   /**
-   * Whether the organization unit owns the resource. The server spells this flag `isOwned`,
-   * `isOwnedByOU` (roles, users) or `owned` (flows) depending on the resource; read whichever is set.
+   * Whether the organization unit owns the resource. The server names this flag `isOwnedByOU`
+   * for every resource, flows included.
    */
-  isOwned?: boolean;
   isOwnedByOU?: boolean;
-  owned?: boolean;
   ouId?: string;
   policyIds?: string[];
   rules?: Record<string, OverlayRule>;

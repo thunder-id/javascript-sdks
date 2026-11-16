@@ -106,7 +106,7 @@ interface Draft {
 
 const cls = (element: string): string => withVendorCSSClassPrefix(`admin__${element}`);
 
-const isOwned = (overlay: ResolvedOverlay): boolean => Boolean(overlay.isOwned ?? overlay.isOwnedByOU ?? overlay.owned);
+const isOwned = (overlay: ResolvedOverlay): boolean => Boolean(overlay.isOwnedByOU);
 
 /**
  * Props of `BaseSharingPolicies`, shared with `SharingPolicies` where they apply.

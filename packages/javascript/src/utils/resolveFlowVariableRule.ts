@@ -70,7 +70,7 @@ const resolveFlowVariableRule = (
 
   const rule: OverlayRule | undefined = overlay.rules?.[`variables.${definition.identifier}`];
   const pinned: string | undefined = rule?.value?.[0];
-  const owned: boolean = overlay.owned ?? overlay.isOwned ?? false;
+  const owned: boolean = overlay.isOwnedByOU ?? false;
 
   return {
     allowedValues: owned ? undefined : rule?.allowedValues,

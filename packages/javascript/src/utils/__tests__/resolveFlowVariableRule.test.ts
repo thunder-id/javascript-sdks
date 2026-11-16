@@ -22,7 +22,7 @@ describe('resolveFlowVariableRule', () => {
 
   it('lets the owner edit everything and ignores any rule', () => {
     const rule = resolveFlowVariableRule(email, {
-      owned: true,
+      isOwnedByOU: true,
       rules: {'variables.supportEmail': {allowedValues: ['x'], editable: false, value: ['y']}},
     });
 
@@ -35,11 +35,11 @@ describe('resolveFlowVariableRule', () => {
   });
 
   it('also reads the owner flag the other overlays use', () => {
-    expect(resolveFlowVariableRule(email, {isOwned: true, rules: {}}).editable).toBe(true);
+    expect(resolveFlowVariableRule(email, {isOwnedByOU: true, rules: {}}).editable).toBe(true);
   });
 
   it('locks a variable no policy names, at the owner default', () => {
-    expect(resolveFlowVariableRule(email, {owned: false, rules: {}})).toMatchObject({
+    expect(resolveFlowVariableRule(email, {isOwnedByOU: false, rules: {}})).toMatchObject({
       defaultValue: 'a@b.co',
       editable: false,
     });
@@ -47,13 +47,14 @@ describe('resolveFlowVariableRule', () => {
 
   it('opens a variable a policy makes editable', () => {
     expect(
-      resolveFlowVariableRule(email, {owned: false, rules: {'variables.supportEmail': {editable: true}}}).editable,
+      resolveFlowVariableRule(email, {isOwnedByOU: false, rules: {'variables.supportEmail': {editable: true}}})
+        .editable,
     ).toBe(true);
   });
 
   it('pins a locked variable to the value the policy fixes, in the variable type', () => {
     const overlay = (variable: string, value: string) => ({
-      owned: false,
+      isOwnedByOU: false,
       rules: {[`variables.${variable}`]: {editable: false, value: [value]}},
     });
 
@@ -66,7 +67,7 @@ describe('resolveFlowVariableRule', () => {
   it('carries the values the unit may choose from and the ones taken away', () => {
     expect(
       resolveFlowVariableRule(mfa, {
-        owned: false,
+        isOwnedByOU: false,
         rules: {
           'variables.mfa': {allowedValues: ['SMS_OTP', 'EMAIL_OTP'], editable: true, excludedValues: ['EMAIL_OTP']},
         },
