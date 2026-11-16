@@ -1,7 +1,9 @@
 # Entrypoint workflow for releasing JavaScript SDKs.
-# Jobs are arranged as a DAG matching the SDK dependency graph.
-# SDKs at the same dependency level run concurrently; push conflicts are
-# handled by a retry-with-rebase loop in the publish step.
+# Tick the SDKs you changed. The plan job adds every SDK that depends on them (read from the
+# packages' package.json files, see scripts/release-plan.js), so a change to `browser` also
+# releases `react`, `vue` and the rest. Selected SDKs take `bump_type`; added dependents take a
+# patch. One job then bumps, builds and commits them together and publishes them in dependency
+# order.
 
 name: 🚀 Release
 
@@ -9,7 +11,7 @@ on:
   workflow_dispatch:
     inputs:
       bump_type:
-        description: 'Version bump type'
+        description: 'Version bump for the SDKs you tick (SDKs that depend on them are added with a patch)'
         required: true
         type: choice
         options:
@@ -121,10 +123,14 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           artifact-name: playwright-report-release
 
-  validate:
-    name: ✅ Validate Inputs
+  plan:
+    name: 📋 Plan Release
     needs: [test-e2e]
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      plan: ${{ steps.plan.outputs.plan }}
     steps:
       - name: Guard against accidental major bump
         if: github.event.inputs.bump_type == 'major' && github.event.inputs.confirm_major != 'true'
@@ -132,17 +138,41 @@ jobs:
           echo "❌ bump_type is 'major' but confirm_major is not checked. Enable confirm_major to proceed."
           exit 1
 
-  # ── Level 0 ────────────────────────────────────────────────────────────────
-  release-javascript:
-    name: 📜 Release @thunderid/javascript
-    needs: [validate]
-    if: needs.validate.result == 'success' && github.event.inputs.sdk_javascript == 'true'
+      - name: 📥 Checkout Code
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          persist-credentials: false
+
+      # Adds every SDK that depends on a selected one, and orders the list so dependencies publish
+      # first. The plan is written to the job summary.
+      - name: 📋 Work out the SDKs to release
+        id: plan
+        env:
+          INPUTS: ${{ toJSON(github.event.inputs) }}
+          BUMP_TYPE: ${{ github.event.inputs.bump_type }}
+        run: |
+          selected=$(node -e '
+            const inputs = JSON.parse(process.env.INPUTS);
+            console.log(Object.keys(inputs)
+              .filter((key) => key.startsWith("sdk_") && String(inputs[key]) === "true")
+              .map((key) => key.slice(4).replace(/_/g, "-"))
+              .join(" "));
+          ')
+          node scripts/release-plan.js --bump "$BUMP_TYPE" $selected
+
+  release:
+    name: 🚀 Release SDKs
+    needs: [plan]
     runs-on: ubuntu-latest
+    env:
+      PLAN: ${{ needs.plan.outputs.plan }}
     steps:
       - name: 📥 Checkout Code
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
           token: ${{ secrets.THUNDERID_AUTOMATION_BOT }}
+          # Full history and tags, so the release notes can find each SDK's previous tag.
+          fetch-depth: 0
 
       - name: 📦 Set up pnpm
         uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4.3.0
@@ -159,694 +189,81 @@ jobs:
       - name: 📦 Install Dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: 🏷️ Bump Version
-        id: bump
+      # Bumps every SDK in the plan before anything is built or published, so `workspace:^` ranges
+      # resolve to the new versions: an SDK released alongside its dependency depends on the
+      # version released with it.
+      - name: 🏷️ Bump Versions
         run: |
-          cd packages/javascript
-          pnpm version ${{ github.event.inputs.bump_type }} --no-git-tag-version
-          echo "version=$(node -p "require('./package.json').version")" >> $GITHUB_OUTPUT
+          echo "$PLAN" | jq -c '.[]' | while read -r entry; do
+            dir=$(jq -r '.dir' <<< "$entry")
+            bump=$(jq -r '.bump' <<< "$entry")
+            (cd "packages/$dir" && pnpm version "$bump" --no-git-tag-version --no-git-checks > /dev/null)
+          done
+          node -e '
+            const { readFileSync, writeFileSync } = require("node:fs");
+            const plan = JSON.parse(process.env.PLAN).map((entry) => ({
+              ...entry,
+              version: JSON.parse(readFileSync(`packages/${entry.dir}/package.json`, "utf8")).version,
+            }));
+            writeFileSync(`${process.env.RUNNER_TEMP}/release.json`, JSON.stringify(plan));
+            for (const { name, currentVersion, version } of plan) console.log(`${name}: ${currentVersion} → ${version}`);
+          '
 
       - name: 🔨 Build
-        run: pnpm turbo run build --filter=@thunderid/javascript
+        run: |
+          filters=$(jq -r '.[] | "--filter=\(.name)"' "$RUNNER_TEMP/release.json")
+          pnpm turbo run build $filters
+
+      # Each SDK's notes list the pull requests that changed it since its previous tag, grouped by
+      # their `Type/*` label (.github/release.yml, enforced by pr-label-check.yml), in the same
+      # format as the thunder-id/thunderid releases. The same notes go to the top of the SDK's
+      # CHANGELOG.md, which the release commit carries. See scripts/release-notes.js.
+      - name: 📝 Generate Release Notes & CHANGELOGs
+        env:
+          GH_TOKEN: ${{ secrets.THUNDERID_AUTOMATION_BOT }}
+        run: node scripts/release-notes.js "$RUNNER_TEMP/release.json" "$RUNNER_TEMP/notes"
 
       - name: 📤 Commit, Tag & Push
         run: |
           git config user.name "${{ env.RELEASE_GIT_USER_NAME }}"
           git config user.email "${{ env.RELEASE_GIT_USER_EMAIL }}"
-          git add packages/javascript/package.json
-          git diff --cached --quiet || git commit -m "[Release] @thunderid/javascript@${{ steps.bump.outputs.version }}"
+          release="$RUNNER_TEMP/release.json"
+
+          jq -r '.[] | "packages/\(.dir)/package.json packages/\(.dir)/CHANGELOG.md"' "$release" | xargs git add
+          selected=$(jq -r '[.[] | select(.selected) | "\(.name)@\(.version)"] | join(", ")' "$release")
+          added=$(jq '[.[] | select(.selected | not)] | length' "$release")
+          subject="[Release] $selected"
+          [ "$added" -gt 0 ] && subject="$subject and $added dependent SDK(s)"
+          body=$(jq -r '.[] | "- \(.name)@\(.version) (\(.reason))"' "$release")
+          git diff --cached --quiet || git commit -m "$subject" -m "$body"
+
           for i in $(seq 1 5); do
             git pull --rebase origin ${{ github.ref_name }}
             git push origin HEAD:${{ github.ref_name }} && break
             [ "$i" -eq 5 ] && exit 1
             sleep $((i * 3))
           done
-          git tag "sdk/javascript/v${{ steps.bump.outputs.version }}"
-          git push origin "sdk/javascript/v${{ steps.bump.outputs.version }}"
 
+          tags=$(jq -r '.[] | "sdk/\(.dir)/v\(.version)"' "$release")
+          for tag in $tags; do git tag "$tag"; done
+          git push origin $tags
+
+      # Publishes in plan order, which puts every SDK after the SDKs it depends on.
       - name: 📦 Publish to npm
-        run: pnpm publish --no-git-checks --access public --provenance
-        working-directory: packages/javascript
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-
-      - name: 🚀 Create GitHub Release
-        env:
-          GH_TOKEN: ${{ secrets.THUNDERID_AUTOMATION_BOT }}
         run: |
-          gh release create "sdk/javascript/v${{ steps.bump.outputs.version }}" \
-            --title "ThunderID JavaScript SDK v${{ steps.bump.outputs.version }}" \
-            --generate-notes
-
-  release-better-auth:
-    name: 🔑 Release @thunderid/better-auth
-    needs: [validate]
-    if: needs.validate.result == 'success' && github.event.inputs.sdk_better_auth == 'true'
-    runs-on: ubuntu-latest
-    steps:
-      - name: 📥 Checkout Code
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
-        with:
-          token: ${{ secrets.THUNDERID_AUTOMATION_BOT }}
-
-      - name: 📦 Set up pnpm
-        uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4.3.0
-        with:
-          version: latest
-
-      - name: ⚙️ Set up Node.js
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          registry-url: 'https://registry.npmjs.org'
-          cache: 'pnpm'
-
-      - name: 📦 Install Dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: 🏷️ Bump Version
-        id: bump
-        run: |
-          cd packages/better-auth
-          pnpm version ${{ github.event.inputs.bump_type }} --no-git-tag-version
-          echo "version=$(node -p "require('./package.json').version")" >> $GITHUB_OUTPUT
-
-      - name: 🔨 Build
-        run: pnpm turbo run build --filter=@thunderid/better-auth
-
-      - name: 📤 Commit, Tag & Push
-        run: |
-          git config user.name "${{ env.RELEASE_GIT_USER_NAME }}"
-          git config user.email "${{ env.RELEASE_GIT_USER_EMAIL }}"
-          git add packages/better-auth/package.json
-          git diff --cached --quiet || git commit -m "[Release] @thunderid/better-auth@${{ steps.bump.outputs.version }}"
-          for i in $(seq 1 5); do
-            git pull --rebase origin ${{ github.ref_name }}
-            git push origin HEAD:${{ github.ref_name }} && break
-            [ "$i" -eq 5 ] && exit 1
-            sleep $((i * 3))
+          for dir in $(jq -r '.[].dir' "$RUNNER_TEMP/release.json"); do
+            (cd "packages/$dir" && pnpm publish --no-git-checks --access public --provenance)
           done
-          git tag "sdk/better-auth/v${{ steps.bump.outputs.version }}"
-          git push origin "sdk/better-auth/v${{ steps.bump.outputs.version }}"
 
-      - name: 📦 Publish to npm
-        run: pnpm publish --no-git-checks --access public --provenance
-        working-directory: packages/better-auth
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-
-      - name: 🚀 Create GitHub Release
+      - name: 🚀 Create GitHub Releases
         env:
           GH_TOKEN: ${{ secrets.THUNDERID_AUTOMATION_BOT }}
         run: |
-          gh release create "sdk/better-auth/v${{ steps.bump.outputs.version }}" \
-            --title "ThunderID Better Auth SDK v${{ steps.bump.outputs.version }}" \
-            --generate-notes
-
-  # ── Level 1: depends on javascript ─────────────────────────────────────────
-  release-browser:
-    name: 🌐 Release @thunderid/browser
-    needs: [validate, release-javascript]
-    if: ${{ always() && needs.validate.result == 'success' && (needs.release-javascript.result == 'success' || needs.release-javascript.result == 'skipped') && github.event.inputs.sdk_browser == 'true' }}
-    runs-on: ubuntu-latest
-    steps:
-      - name: 📥 Checkout Code
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
-        with:
-          token: ${{ secrets.THUNDERID_AUTOMATION_BOT }}
-
-      - name: 📦 Set up pnpm
-        uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4.3.0
-        with:
-          version: latest
-
-      - name: ⚙️ Set up Node.js
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          registry-url: 'https://registry.npmjs.org'
-          cache: 'pnpm'
-
-      - name: 📦 Install Dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: 🏷️ Bump Version
-        id: bump
-        run: |
-          cd packages/browser
-          pnpm version ${{ github.event.inputs.bump_type }} --no-git-tag-version
-          echo "version=$(node -p "require('./package.json').version")" >> $GITHUB_OUTPUT
-
-      - name: 🔨 Build
-        run: pnpm turbo run build --filter=@thunderid/browser
-
-      - name: 📤 Commit, Tag & Push
-        run: |
-          git config user.name "${{ env.RELEASE_GIT_USER_NAME }}"
-          git config user.email "${{ env.RELEASE_GIT_USER_EMAIL }}"
-          git add packages/browser/package.json
-          git diff --cached --quiet || git commit -m "[Release] @thunderid/browser@${{ steps.bump.outputs.version }}"
-          for i in $(seq 1 5); do
-            git pull --rebase origin ${{ github.ref_name }}
-            git push origin HEAD:${{ github.ref_name }} && break
-            [ "$i" -eq 5 ] && exit 1
-            sleep $((i * 3))
+          jq -c '.[]' "$RUNNER_TEMP/release.json" | while read -r entry; do
+            dir=$(jq -r '.dir' <<< "$entry")
+            tag=$(jq -r '"sdk/\(.dir)/v\(.version)"' <<< "$entry")
+            title=$(jq -r '"\(.title) v\(.version)"' <<< "$entry")
+            gh release create "$tag" --title "$title" --notes-file "$RUNNER_TEMP/notes/$dir.md"
           done
-          git tag "sdk/browser/v${{ steps.bump.outputs.version }}"
-          git push origin "sdk/browser/v${{ steps.bump.outputs.version }}"
-
-      - name: 📦 Publish to npm
-        run: pnpm publish --no-git-checks --access public --provenance
-        working-directory: packages/browser
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-
-      - name: 🚀 Create GitHub Release
-        env:
-          GH_TOKEN: ${{ secrets.THUNDERID_AUTOMATION_BOT }}
-        run: |
-          gh release create "sdk/browser/v${{ steps.bump.outputs.version }}" \
-            --title "ThunderID Browser SDK v${{ steps.bump.outputs.version }}" \
-            --generate-notes
-
-  release-node:
-    name: 🟢 Release @thunderid/node
-    needs: [validate, release-javascript]
-    if: ${{ always() && needs.validate.result == 'success' && (needs.release-javascript.result == 'success' || needs.release-javascript.result == 'skipped') && github.event.inputs.sdk_node == 'true' }}
-    runs-on: ubuntu-latest
-    steps:
-      - name: 📥 Checkout Code
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
-        with:
-          token: ${{ secrets.THUNDERID_AUTOMATION_BOT }}
-
-      - name: 📦 Set up pnpm
-        uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4.3.0
-        with:
-          version: latest
-
-      - name: ⚙️ Set up Node.js
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          registry-url: 'https://registry.npmjs.org'
-          cache: 'pnpm'
-
-      - name: 📦 Install Dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: 🏷️ Bump Version
-        id: bump
-        run: |
-          cd packages/node
-          pnpm version ${{ github.event.inputs.bump_type }} --no-git-tag-version
-          echo "version=$(node -p "require('./package.json').version")" >> $GITHUB_OUTPUT
-
-      - name: 🔨 Build
-        run: pnpm turbo run build --filter=@thunderid/node
-
-      - name: 📤 Commit, Tag & Push
-        run: |
-          git config user.name "${{ env.RELEASE_GIT_USER_NAME }}"
-          git config user.email "${{ env.RELEASE_GIT_USER_EMAIL }}"
-          git add packages/node/package.json
-          git diff --cached --quiet || git commit -m "[Release] @thunderid/node@${{ steps.bump.outputs.version }}"
-          for i in $(seq 1 5); do
-            git pull --rebase origin ${{ github.ref_name }}
-            git push origin HEAD:${{ github.ref_name }} && break
-            [ "$i" -eq 5 ] && exit 1
-            sleep $((i * 3))
-          done
-          git tag "sdk/node/v${{ steps.bump.outputs.version }}"
-          git push origin "sdk/node/v${{ steps.bump.outputs.version }}"
-
-      - name: 📦 Publish to npm
-        run: pnpm publish --no-git-checks --access public --provenance
-        working-directory: packages/node
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-
-      - name: 🚀 Create GitHub Release
-        env:
-          GH_TOKEN: ${{ secrets.THUNDERID_AUTOMATION_BOT }}
-        run: |
-          gh release create "sdk/node/v${{ steps.bump.outputs.version }}" \
-            --title "ThunderID Node SDK v${{ steps.bump.outputs.version }}" \
-            --generate-notes
-
-  # ── Level 2: depends on browser / node ─────────────────────────────────────
-  release-express:
-    name: 🚂 Release @thunderid/express
-    needs: [validate, release-node]
-    if: ${{ always() && needs.validate.result == 'success' && (needs.release-node.result == 'success' || needs.release-node.result == 'skipped') && github.event.inputs.sdk_express == 'true' }}
-    runs-on: ubuntu-latest
-    steps:
-      - name: 📥 Checkout Code
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
-        with:
-          token: ${{ secrets.THUNDERID_AUTOMATION_BOT }}
-
-      - name: 📦 Set up pnpm
-        uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4.3.0
-        with:
-          version: latest
-
-      - name: ⚙️ Set up Node.js
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          registry-url: 'https://registry.npmjs.org'
-          cache: 'pnpm'
-
-      - name: 📦 Install Dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: 🏷️ Bump Version
-        id: bump
-        run: |
-          cd packages/express
-          pnpm version ${{ github.event.inputs.bump_type }} --no-git-tag-version
-          echo "version=$(node -p "require('./package.json').version")" >> $GITHUB_OUTPUT
-
-      - name: 🔨 Build
-        run: pnpm turbo run build --filter=@thunderid/express
-
-      - name: 📤 Commit, Tag & Push
-        run: |
-          git config user.name "${{ env.RELEASE_GIT_USER_NAME }}"
-          git config user.email "${{ env.RELEASE_GIT_USER_EMAIL }}"
-          git add packages/express/package.json
-          git diff --cached --quiet || git commit -m "[Release] @thunderid/express@${{ steps.bump.outputs.version }}"
-          for i in $(seq 1 5); do
-            git pull --rebase origin ${{ github.ref_name }}
-            git push origin HEAD:${{ github.ref_name }} && break
-            [ "$i" -eq 5 ] && exit 1
-            sleep $((i * 3))
-          done
-          git tag "sdk/express/v${{ steps.bump.outputs.version }}"
-          git push origin "sdk/express/v${{ steps.bump.outputs.version }}"
-
-      - name: 📦 Publish to npm
-        run: pnpm publish --no-git-checks --access public --provenance
-        working-directory: packages/express
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-
-      - name: 🚀 Create GitHub Release
-        env:
-          GH_TOKEN: ${{ secrets.THUNDERID_AUTOMATION_BOT }}
-        run: |
-          gh release create "sdk/express/v${{ steps.bump.outputs.version }}" \
-            --title "ThunderID Express SDK v${{ steps.bump.outputs.version }}" \
-            --generate-notes
-
-  release-react:
-    name: ⚛️ Release @thunderid/react
-    needs: [validate, release-browser]
-    if: ${{ always() && needs.validate.result == 'success' && (needs.release-browser.result == 'success' || needs.release-browser.result == 'skipped') && github.event.inputs.sdk_react == 'true' }}
-    runs-on: ubuntu-latest
-    steps:
-      - name: 📥 Checkout Code
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
-        with:
-          token: ${{ secrets.THUNDERID_AUTOMATION_BOT }}
-
-      - name: 📦 Set up pnpm
-        uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4.3.0
-        with:
-          version: latest
-
-      - name: ⚙️ Set up Node.js
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          registry-url: 'https://registry.npmjs.org'
-          cache: 'pnpm'
-
-      - name: 📦 Install Dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: 🏷️ Bump Version
-        id: bump
-        run: |
-          cd packages/react
-          pnpm version ${{ github.event.inputs.bump_type }} --no-git-tag-version
-          echo "version=$(node -p "require('./package.json').version")" >> $GITHUB_OUTPUT
-
-      - name: 🔨 Build
-        run: pnpm turbo run build --filter=@thunderid/react
-
-      - name: 📤 Commit, Tag & Push
-        run: |
-          git config user.name "${{ env.RELEASE_GIT_USER_NAME }}"
-          git config user.email "${{ env.RELEASE_GIT_USER_EMAIL }}"
-          git add packages/react/package.json
-          git diff --cached --quiet || git commit -m "[Release] @thunderid/react@${{ steps.bump.outputs.version }}"
-          for i in $(seq 1 5); do
-            git pull --rebase origin ${{ github.ref_name }}
-            git push origin HEAD:${{ github.ref_name }} && break
-            [ "$i" -eq 5 ] && exit 1
-            sleep $((i * 3))
-          done
-          git tag "sdk/react/v${{ steps.bump.outputs.version }}"
-          git push origin "sdk/react/v${{ steps.bump.outputs.version }}"
-
-      - name: 📦 Publish to npm
-        run: pnpm publish --no-git-checks --access public --provenance
-        working-directory: packages/react
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-
-      - name: 🚀 Create GitHub Release
-        env:
-          GH_TOKEN: ${{ secrets.THUNDERID_AUTOMATION_BOT }}
-        run: |
-          gh release create "sdk/react/v${{ steps.bump.outputs.version }}" \
-            --title "ThunderID React SDK v${{ steps.bump.outputs.version }}" \
-            --generate-notes
-
-  release-vue:
-    name: 🟩 Release @thunderid/vue
-    needs: [validate, release-browser]
-    if: ${{ always() && needs.validate.result == 'success' && (needs.release-browser.result == 'success' || needs.release-browser.result == 'skipped') && github.event.inputs.sdk_vue == 'true' }}
-    runs-on: ubuntu-latest
-    steps:
-      - name: 📥 Checkout Code
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
-        with:
-          token: ${{ secrets.THUNDERID_AUTOMATION_BOT }}
-
-      - name: 📦 Set up pnpm
-        uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4.3.0
-        with:
-          version: latest
-
-      - name: ⚙️ Set up Node.js
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          registry-url: 'https://registry.npmjs.org'
-          cache: 'pnpm'
-
-      - name: 📦 Install Dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: 🏷️ Bump Version
-        id: bump
-        run: |
-          cd packages/vue
-          pnpm version ${{ github.event.inputs.bump_type }} --no-git-tag-version
-          echo "version=$(node -p "require('./package.json').version")" >> $GITHUB_OUTPUT
-
-      - name: 🔨 Build
-        run: pnpm turbo run build --filter=@thunderid/vue
-
-      - name: 📤 Commit, Tag & Push
-        run: |
-          git config user.name "${{ env.RELEASE_GIT_USER_NAME }}"
-          git config user.email "${{ env.RELEASE_GIT_USER_EMAIL }}"
-          git add packages/vue/package.json
-          git diff --cached --quiet || git commit -m "[Release] @thunderid/vue@${{ steps.bump.outputs.version }}"
-          for i in $(seq 1 5); do
-            git pull --rebase origin ${{ github.ref_name }}
-            git push origin HEAD:${{ github.ref_name }} && break
-            [ "$i" -eq 5 ] && exit 1
-            sleep $((i * 3))
-          done
-          git tag "sdk/vue/v${{ steps.bump.outputs.version }}"
-          git push origin "sdk/vue/v${{ steps.bump.outputs.version }}"
-
-      - name: 📦 Publish to npm
-        run: pnpm publish --no-git-checks --access public --provenance
-        working-directory: packages/vue
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-
-      - name: 🚀 Create GitHub Release
-        env:
-          GH_TOKEN: ${{ secrets.THUNDERID_AUTOMATION_BOT }}
-        run: |
-          gh release create "sdk/vue/v${{ steps.bump.outputs.version }}" \
-            --title "ThunderID Vue SDK v${{ steps.bump.outputs.version }}" \
-            --generate-notes
-
-  # ── Level 3: depends on react / node+react / browser+node+vue ──────────────
-  release-react-router:
-    name: 🔀 Release @thunderid/react-router
-    needs: [validate, release-react]
-    if: ${{ always() && needs.validate.result == 'success' && (needs.release-react.result == 'success' || needs.release-react.result == 'skipped') && github.event.inputs.sdk_react_router == 'true' }}
-    runs-on: ubuntu-latest
-    steps:
-      - name: 📥 Checkout Code
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
-        with:
-          token: ${{ secrets.THUNDERID_AUTOMATION_BOT }}
-
-      - name: 📦 Set up pnpm
-        uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4.3.0
-        with:
-          version: latest
-
-      - name: ⚙️ Set up Node.js
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          registry-url: 'https://registry.npmjs.org'
-          cache: 'pnpm'
-
-      - name: 📦 Install Dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: 🏷️ Bump Version
-        id: bump
-        run: |
-          cd packages/react-router
-          pnpm version ${{ github.event.inputs.bump_type }} --no-git-tag-version
-          echo "version=$(node -p "require('./package.json').version")" >> $GITHUB_OUTPUT
-
-      - name: 🔨 Build
-        run: pnpm turbo run build --filter=@thunderid/react-router
-
-      - name: 📤 Commit, Tag & Push
-        run: |
-          git config user.name "${{ env.RELEASE_GIT_USER_NAME }}"
-          git config user.email "${{ env.RELEASE_GIT_USER_EMAIL }}"
-          git add packages/react-router/package.json
-          git diff --cached --quiet || git commit -m "[Release] @thunderid/react-router@${{ steps.bump.outputs.version }}"
-          for i in $(seq 1 5); do
-            git pull --rebase origin ${{ github.ref_name }}
-            git push origin HEAD:${{ github.ref_name }} && break
-            [ "$i" -eq 5 ] && exit 1
-            sleep $((i * 3))
-          done
-          git tag "sdk/react-router/v${{ steps.bump.outputs.version }}"
-          git push origin "sdk/react-router/v${{ steps.bump.outputs.version }}"
-
-      - name: 📦 Publish to npm
-        run: pnpm publish --no-git-checks --access public --provenance
-        working-directory: packages/react-router
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-
-      - name: 🚀 Create GitHub Release
-        env:
-          GH_TOKEN: ${{ secrets.THUNDERID_AUTOMATION_BOT }}
-        run: |
-          gh release create "sdk/react-router/v${{ steps.bump.outputs.version }}" \
-            --title "ThunderID React Router SDK v${{ steps.bump.outputs.version }}" \
-            --generate-notes
-
-  release-tanstack-router:
-    name: 🔱 Release @thunderid/tanstack-router
-    needs: [validate, release-react]
-    if: ${{ always() && needs.validate.result == 'success' && (needs.release-react.result == 'success' || needs.release-react.result == 'skipped') && github.event.inputs.sdk_tanstack_router == 'true' }}
-    runs-on: ubuntu-latest
-    steps:
-      - name: 📥 Checkout Code
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
-        with:
-          token: ${{ secrets.THUNDERID_AUTOMATION_BOT }}
-
-      - name: 📦 Set up pnpm
-        uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4.3.0
-        with:
-          version: latest
-
-      - name: ⚙️ Set up Node.js
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          registry-url: 'https://registry.npmjs.org'
-          cache: 'pnpm'
-
-      - name: 📦 Install Dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: 🏷️ Bump Version
-        id: bump
-        run: |
-          cd packages/tanstack-router
-          pnpm version ${{ github.event.inputs.bump_type }} --no-git-tag-version
-          echo "version=$(node -p "require('./package.json').version")" >> $GITHUB_OUTPUT
-
-      - name: 🔨 Build
-        run: pnpm turbo run build --filter=@thunderid/tanstack-router
-
-      - name: 📤 Commit, Tag & Push
-        run: |
-          git config user.name "${{ env.RELEASE_GIT_USER_NAME }}"
-          git config user.email "${{ env.RELEASE_GIT_USER_EMAIL }}"
-          git add packages/tanstack-router/package.json
-          git diff --cached --quiet || git commit -m "[Release] @thunderid/tanstack-router@${{ steps.bump.outputs.version }}"
-          for i in $(seq 1 5); do
-            git pull --rebase origin ${{ github.ref_name }}
-            git push origin HEAD:${{ github.ref_name }} && break
-            [ "$i" -eq 5 ] && exit 1
-            sleep $((i * 3))
-          done
-          git tag "sdk/tanstack-router/v${{ steps.bump.outputs.version }}"
-          git push origin "sdk/tanstack-router/v${{ steps.bump.outputs.version }}"
-
-      - name: 📦 Publish to npm
-        run: pnpm publish --no-git-checks --access public --provenance
-        working-directory: packages/tanstack-router
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-
-      - name: 🚀 Create GitHub Release
-        env:
-          GH_TOKEN: ${{ secrets.THUNDERID_AUTOMATION_BOT }}
-        run: |
-          gh release create "sdk/tanstack-router/v${{ steps.bump.outputs.version }}" \
-            --title "ThunderID TanStack Router SDK v${{ steps.bump.outputs.version }}" \
-            --generate-notes
-
-  release-nextjs:
-    name: ▲ Release @thunderid/nextjs
-    needs: [validate, release-node, release-react]
-    if: ${{ always() && needs.validate.result == 'success' && (needs.release-node.result == 'success' || needs.release-node.result == 'skipped') && (needs.release-react.result == 'success' || needs.release-react.result == 'skipped') && github.event.inputs.sdk_nextjs == 'true' }}
-    runs-on: ubuntu-latest
-    steps:
-      - name: 📥 Checkout Code
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
-        with:
-          token: ${{ secrets.THUNDERID_AUTOMATION_BOT }}
-
-      - name: 📦 Set up pnpm
-        uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4.3.0
-        with:
-          version: latest
-
-      - name: ⚙️ Set up Node.js
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          registry-url: 'https://registry.npmjs.org'
-          cache: 'pnpm'
-
-      - name: 📦 Install Dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: 🏷️ Bump Version
-        id: bump
-        run: |
-          cd packages/nextjs
-          pnpm version ${{ github.event.inputs.bump_type }} --no-git-tag-version
-          echo "version=$(node -p "require('./package.json').version")" >> $GITHUB_OUTPUT
-
-      - name: 🔨 Build
-        run: pnpm turbo run build --filter=@thunderid/nextjs
-
-      - name: 📤 Commit, Tag & Push
-        run: |
-          git config user.name "${{ env.RELEASE_GIT_USER_NAME }}"
-          git config user.email "${{ env.RELEASE_GIT_USER_EMAIL }}"
-          git add packages/nextjs/package.json
-          git diff --cached --quiet || git commit -m "[Release] @thunderid/nextjs@${{ steps.bump.outputs.version }}"
-          for i in $(seq 1 5); do
-            git pull --rebase origin ${{ github.ref_name }}
-            git push origin HEAD:${{ github.ref_name }} && break
-            [ "$i" -eq 5 ] && exit 1
-            sleep $((i * 3))
-          done
-          git tag "sdk/nextjs/v${{ steps.bump.outputs.version }}"
-          git push origin "sdk/nextjs/v${{ steps.bump.outputs.version }}"
-
-      - name: 📦 Publish to npm
-        run: pnpm publish --no-git-checks --access public --provenance
-        working-directory: packages/nextjs
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-
-      - name: 🚀 Create GitHub Release
-        env:
-          GH_TOKEN: ${{ secrets.THUNDERID_AUTOMATION_BOT }}
-        run: |
-          gh release create "sdk/nextjs/v${{ steps.bump.outputs.version }}" \
-            --title "ThunderID Next.js SDK v${{ steps.bump.outputs.version }}" \
-            --generate-notes
-
-  release-nuxt:
-    name: 💚 Release @thunderid/nuxt
-    needs: [validate, release-browser, release-node, release-vue]
-    if: ${{ always() && needs.validate.result == 'success' && (needs.release-browser.result == 'success' || needs.release-browser.result == 'skipped') && (needs.release-node.result == 'success' || needs.release-node.result == 'skipped') && (needs.release-vue.result == 'success' || needs.release-vue.result == 'skipped') && github.event.inputs.sdk_nuxt == 'true' }}
-    runs-on: ubuntu-latest
-    steps:
-      - name: 📥 Checkout Code
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
-        with:
-          token: ${{ secrets.THUNDERID_AUTOMATION_BOT }}
-
-      - name: 📦 Set up pnpm
-        uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4.3.0
-        with:
-          version: latest
-
-      - name: ⚙️ Set up Node.js
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          registry-url: 'https://registry.npmjs.org'
-          cache: 'pnpm'
-
-      - name: 📦 Install Dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: 🏷️ Bump Version
-        id: bump
-        run: |
-          cd packages/nuxt
-          pnpm version ${{ github.event.inputs.bump_type }} --no-git-tag-version
-          echo "version=$(node -p "require('./package.json').version")" >> $GITHUB_OUTPUT
-
-      - name: 🔨 Build
-        run: pnpm turbo run build --filter=@thunderid/nuxt
-
-      - name: 📤 Commit, Tag & Push
-        run: |
-          git config user.name "${{ env.RELEASE_GIT_USER_NAME }}"
-          git config user.email "${{ env.RELEASE_GIT_USER_EMAIL }}"
-          git add packages/nuxt/package.json
-          git diff --cached --quiet || git commit -m "[Release] @thunderid/nuxt@${{ steps.bump.outputs.version }}"
-          for i in $(seq 1 5); do
-            git pull --rebase origin ${{ github.ref_name }}
-            git push origin HEAD:${{ github.ref_name }} && break
-            [ "$i" -eq 5 ] && exit 1
-            sleep $((i * 3))
-          done
-          git tag "sdk/nuxt/v${{ steps.bump.outputs.version }}"
-          git push origin "sdk/nuxt/v${{ steps.bump.outputs.version }}"
-
-      - name: 📦 Publish to npm
-        run: pnpm publish --no-git-checks --access public --provenance
-        working-directory: packages/nuxt
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-
-      - name: 🚀 Create GitHub Release
-        env:
-          GH_TOKEN: ${{ secrets.THUNDERID_AUTOMATION_BOT }}
-        run: |
-          gh release create "sdk/nuxt/v${{ steps.bump.outputs.version }}" \
-            --title "ThunderID Nuxt SDK v${{ steps.bump.outputs.version }}" \
-            --generate-notes

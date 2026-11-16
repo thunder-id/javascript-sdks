@@ -1,0 +1,53 @@
+# Requires every pull request to carry a label that says how it goes into the release notes.
+# The `Type/*` labels pick the section of the generated changelog (.github/release.yml), and
+# `skip-changelog` leaves the pull request out of it. Mirrors the check in thunder-id/thunderid.
+#
+# Uses:
+#   OS: ubuntu-latest
+
+name: "🔎 PR Check"
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize, labeled, unlabeled, ready_for_review]
+  merge_group:
+
+permissions:
+  contents: read
+
+jobs:
+  check-labels:
+    name: "🏷️ Check PR Labels"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Skip label check for merge queue
+        if: github.event_name == 'merge_group'
+        run: echo "Skipping label check for merge queue."
+
+      - name: Check for required PR labels
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          script: |
+            const requiredLabels = [
+              'Type/New Feature',
+              'Type/Improvement',
+              'Type/Bug',
+              'skip-changelog',
+            ];
+
+            const pr = context.payload.pull_request;
+            if (!pr) {
+              core.setFailed('Could not find the pull request in the event payload.');
+              return;
+            }
+
+            const prLabels = pr.labels.map((l) => l.name);
+            if (!prLabels.some((label) => requiredLabels.includes(label))) {
+              core.setFailed(
+                `PR must have at least one of the following labels: ${requiredLabels.join(', ')}. ` +
+                  'The Type/* label picks its section in the release notes; skip-changelog leaves it out.',
+              );
+            } else {
+              core.info('PR has the required labels.');
+            }
