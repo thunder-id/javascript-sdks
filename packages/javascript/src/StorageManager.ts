@@ -1,7 +1,8 @@
-// Copyright 2020 The ThunderID Authors
+// Copyright 2020-2026 The ThunderID Authors
 // SPDX-License-Identifier: Apache-2.0
 
 import {AuthClientConfig} from './models/config';
+import {HeldFlowSession} from './models/embedded-flow';
 import {OIDCDiscoveryApiResponse} from './models/oidc-discovery';
 import {SessionData} from './models/session';
 import {Stores, Storage, TemporaryStore, HybridStore, TemporaryStoreValue} from './models/store';
@@ -372,6 +373,37 @@ class StorageManager<T> {
 
   private static flowAuthIdKey(executionId: string): string {
     return `authId-${executionId}`;
+  }
+
+  /**
+   * The SSO sessions a flow's steps returned, held in the temporary store until its callback posts them. Each
+   * flow has an entry of its own, so flows of other tabs or other users never share one.
+   */
+  public async getFlowSessions(flowKey: string): Promise<HeldFlowSession[]> {
+    const held: TemporaryStoreValue = await this.getTemporaryDataParameter(
+      StorageManager.flowSessionsKey,
+      StorageManager.flowScope(flowKey),
+    );
+
+    return typeof held === 'string' ? (JSON.parse(held) as HeldFlowSession[]) : [];
+  }
+
+  public async setFlowSessions(flowKey: string, sessions: HeldFlowSession[]): Promise<void> {
+    await this.setTemporaryDataParameter(
+      StorageManager.flowSessionsKey,
+      JSON.stringify(sessions),
+      StorageManager.flowScope(flowKey),
+    );
+  }
+
+  public async removeFlowSessions(flowKey: string): Promise<void> {
+    await this.removeTemporaryData(StorageManager.flowScope(flowKey));
+  }
+
+  private static readonly flowSessionsKey: string = 'flowSessions';
+
+  private static flowScope(flowKey: string): string {
+    return `flow-${flowKey}`;
   }
 
   public async removeSessionDataParameter(key: keyof SessionData, userId?: string): Promise<void> {

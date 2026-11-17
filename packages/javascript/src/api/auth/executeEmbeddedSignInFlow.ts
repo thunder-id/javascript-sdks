@@ -1,9 +1,9 @@
 // Copyright 2025-2026 The ThunderID Authors
 // SPDX-License-Identifier: Apache-2.0
 
-import {collectFlowSessions, takeFlowSessions} from './flowSessions';
+import {collectFlowSessions, createCallFlowSessionStore, takeFlowSessions} from './flowSessions';
 import ThunderIDAPIError from '../../errors/ThunderIDAPIError';
-import {EmbeddedFlowExecuteRequestConfig, EmbeddedFlowSessionData} from '../../models/embedded-flow';
+import {EmbeddedFlowExecuteRequestConfig, EmbeddedFlowSessionData, FlowSessionStore} from '../../models/embedded-flow';
 import {EmbeddedSignInFlowResponse, EmbeddedSignInFlowStatus} from '../../models/embedded-signin-flow';
 import injectRequestedPermissions from '../../utils/injectRequestedPermissions';
 import logger from '../../utils/logger';
@@ -56,11 +56,12 @@ const relayFailure = async (
   baseUrl: string | undefined,
   authId: string,
   errorAssertion: string,
+  sessionStore: FlowSessionStore,
   headers?: HeadersInit,
   flowResponse?: EmbeddedSignInFlowResponse,
 ): Promise<EmbeddedSignInFlowResponse> => {
   // A failed sign-in issues no code, so the sessions it collected are not posted.
-  takeFlowSessions(authId);
+  await takeFlowSessions(sessionStore, authId);
 
   const oauth2Result: Record<string, unknown> = await postAuthCallback(
     baseUrl,
@@ -81,6 +82,7 @@ const executeEmbeddedSignInFlow = async ({
   payload,
   authId,
   flowSecret,
+  sessionStore = createCallFlowSessionStore(),
   ...requestConfig
 }: EmbeddedFlowExecuteRequestConfig): Promise<EmbeddedSignInFlowResponse> => {
   if (!payload) {
@@ -155,7 +157,7 @@ const executeEmbeddedSignInFlow = async ({
     const errorAssertion: string | undefined = readErrorAssertion(errorText);
 
     if (authId && errorAssertion) {
-      return await relayFailure(baseUrl, authId, errorAssertion, requestConfig.headers);
+      return await relayFailure(baseUrl, authId, errorAssertion, sessionStore, requestConfig.headers);
     }
 
     throw new ThunderIDAPIError(
@@ -171,7 +173,7 @@ const executeEmbeddedSignInFlow = async ({
   const flowResponse: EmbeddedSignInFlowResponse = await response.json();
 
   if (authId) {
-    collectFlowSessions(authId, flowResponse);
+    await collectFlowSessions(sessionStore, authId, flowResponse);
   }
 
   // IMPORTANT: Only applicable for ThunderID V2 platform.
@@ -180,7 +182,7 @@ const executeEmbeddedSignInFlow = async ({
     try {
       // When the application asked for the device_sso scope, the server keeps the posted sessions with
       // the code, so the code exchange can return them as the device secret.
-      const sessionData: EmbeddedFlowSessionData[] = takeFlowSessions(authId);
+      const sessionData: EmbeddedFlowSessionData[] = await takeFlowSessions(sessionStore, authId);
       const oauth2Result: Record<string, unknown> = await postAuthCallback(
         baseUrl,
         {assertion: flowResponse.assertion, authId, ...(sessionData.length > 0 ? {sessionData} : {})},
@@ -208,7 +210,14 @@ const executeEmbeddedSignInFlow = async ({
   }
 
   if (flowResponse.flowStatus === EmbeddedSignInFlowStatus.Error && flowResponse.errorAssertion && authId) {
-    return relayFailure(baseUrl, authId, flowResponse.errorAssertion, requestConfig.headers, flowResponse);
+    return relayFailure(
+      baseUrl,
+      authId,
+      flowResponse.errorAssertion,
+      sessionStore,
+      requestConfig.headers,
+      flowResponse,
+    );
   }
 
   return flowResponse;

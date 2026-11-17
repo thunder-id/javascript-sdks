@@ -1,7 +1,7 @@
 // Copyright 2025-2026 The ThunderID Authors
 // SPDX-License-Identifier: Apache-2.0
 
-import {collectFlowSessions, takeFlowSessions} from './flowSessions';
+import {collectFlowSessions, createCallFlowSessionStore, takeFlowSessions} from './flowSessions';
 import ThunderIDAPIError from '../../errors/ThunderIDAPIError';
 import {
   EmbeddedFlowExecuteRequestConfig as EmbeddedFlowExecuteRequestConfig,
@@ -15,6 +15,7 @@ const executeEmbeddedSignUpFlow = async ({
   baseUrl,
   payload,
   authId,
+  sessionStore = createCallFlowSessionStore(),
   ...requestConfig
 }: EmbeddedFlowExecuteRequestConfig): Promise<EmbeddedSignUpFlowResponse> => {
   if (!payload) {
@@ -88,7 +89,7 @@ const executeEmbeddedSignUpFlow = async ({
   const flowResponse: EmbeddedSignUpFlowResponse = await response.json();
 
   if (authId) {
-    collectFlowSessions(authId, flowResponse);
+    await collectFlowSessions(sessionStore, authId, flowResponse);
   }
 
   // IMPORTANT: Only applicable for ThunderID V2 platform.
@@ -97,7 +98,7 @@ const executeEmbeddedSignUpFlow = async ({
     try {
       // When the application asked for the device_sso scope, the server keeps the posted sessions with
       // the code, so the code exchange can return them as the device secret.
-      const sessionData: EmbeddedFlowSessionData[] = takeFlowSessions(authId);
+      const sessionData: EmbeddedFlowSessionData[] = await takeFlowSessions(sessionStore, authId);
       const oauth2Response: Response = await fetch(`${baseUrl}/oauth2/auth/callback`, {
         body: JSON.stringify({
           assertion: (flowResponse as any).assertion,

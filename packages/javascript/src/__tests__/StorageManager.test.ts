@@ -111,4 +111,39 @@ describe('StorageManager', () => {
       expect(await manager.getFlowAuthId('execution-b')).toBe('auth-b');
     });
   });
+
+  describe('flow sessions', () => {
+    const first = {endsAt: 1700000600000, flowIdentifier: 'flow-a', sessionHandle: 'handle-1'};
+    const second = {flowIdentifier: 'flow-a', sessionHandle: 'handle-2'};
+
+    it('keeps each flow in a temporary store entry of its own', async () => {
+      const store: MemoryStore = new MemoryStore();
+      const manager: StorageManager<unknown> = new StorageManager<unknown>('instance_0', store);
+
+      await manager.setFlowSessions('auth-1', [first]);
+      await manager.setFlowSessions('auth-2', [second]);
+
+      expect(await manager.getFlowSessions('auth-1')).toEqual([first]);
+      expect(await manager.getFlowSessions('auth-2')).toEqual([second]);
+      expect(await store.getData('temporary_data-instance_0-flow-auth-1')).not.toBeNull();
+      expect(await store.getData('temporary_data-instance_0')).toBeNull();
+    });
+
+    it('removes only that flow', async () => {
+      const manager: StorageManager<unknown> = new StorageManager<unknown>('instance_0', new MemoryStore());
+
+      await manager.setFlowSessions('auth-1', [first]);
+      await manager.setFlowSessions('auth-2', [second]);
+      await manager.removeFlowSessions('auth-1');
+
+      expect(await manager.getFlowSessions('auth-1')).toEqual([]);
+      expect(await manager.getFlowSessions('auth-2')).toEqual([second]);
+    });
+
+    it('holds nothing for a flow it has not seen', async () => {
+      const manager: StorageManager<unknown> = new StorageManager<unknown>('instance_0', new MemoryStore());
+
+      expect(await manager.getFlowSessions('auth-unknown')).toEqual([]);
+    });
+  });
 });

@@ -4,6 +4,7 @@
 import {beforeEach, describe, expect, it, vi} from 'vitest';
 import {EmbeddedSignUpFlowResponse, EmbeddedSignUpFlowStatus} from '../../../models/embedded-signup-flow';
 import executeEmbeddedSignUpFlow from '../executeEmbeddedSignUpFlow';
+import {createCallFlowSessionStore} from '../flowSessions';
 
 const URL = 'https://localhost:8090/flow/execute';
 
@@ -139,17 +140,24 @@ describe('executeEmbeddedSignUpFlow', (): void => {
         .mockResolvedValueOnce(respond({assertion: 'signed-assertion', flowStatus: EmbeddedSignUpFlowStatus.Complete}))
         .mockResolvedValueOnce(respond({redirect_uri: 'https://client.example.com/cb?code=xyz'}));
 
-      await executeEmbeddedSignUpFlow({authId: 'auth-signup', baseUrl: BASE_URL, payload: {executionId: 'e-1'}});
+      const sessionStore = createCallFlowSessionStore();
+      await executeEmbeddedSignUpFlow({
+        authId: 'auth-signup',
+        baseUrl: BASE_URL,
+        payload: {executionId: 'e-1'},
+        sessionStore,
+      });
       await executeEmbeddedSignUpFlow({
         authId: 'auth-signup',
         baseUrl: BASE_URL,
         payload: {action: 'submit', executionId: 'e-1'},
+        sessionStore,
       });
 
       expect(captureRequestBody()).toEqual({
         assertion: 'signed-assertion',
         authId: 'auth-signup',
-        sessionData: [{flowIdentifier: 'flow-a', sessionHandle: 'handle-a'}],
+        sessionData: [{expiresIn: 28800, flowIdentifier: 'flow-a', sessionHandle: 'handle-a'}],
       });
     });
 

@@ -1,8 +1,9 @@
 // Copyright 2025-2026 The ThunderID Authors
 // SPDX-License-Identifier: Apache-2.0
 
+import {collectFlowSessions, createCallFlowSessionStore, takeFlowSessions} from './flowSessions';
 import ThunderIDAPIError from '../../errors/ThunderIDAPIError';
-import {EmbeddedFlowExecuteRequestConfig, EmbeddedFlowType} from '../../models/embedded-flow';
+import {EmbeddedFlowExecuteRequestConfig, EmbeddedFlowSessionData, EmbeddedFlowType} from '../../models/embedded-flow';
 import {EmbeddedSignInFlowResponse, EmbeddedSignInFlowStatus} from '../../models/embedded-signin-flow';
 
 export interface EmbeddedDeviceGrantFlowStartPayload {
@@ -33,6 +34,7 @@ export interface EmbeddedDeviceGrantFlowRequestConfig
 interface DeviceGrantCallbackData {
   assertion: string;
   authId: string;
+  sessionData?: EmbeddedFlowSessionData[];
   type: string;
 }
 
@@ -102,12 +104,14 @@ const postAuthCallback = async (
  * The request starts at the existing flow execution endpoint. When the terminal flow response
  * carries the server-issued authorization request ID and assertion, this function relays them
  * to the existing OAuth callback endpoint. A start request requires its application ID; an optional
- * user code is submitted as flow input.
+ * user code is submitted as flow input. A completed flow also posts the SSO sessions its steps started,
+ * so the server can issue the device a device secret.
  */
 export const verifyDeviceCode = async ({
   baseUrl,
   payload,
   url,
+  sessionStore = createCallFlowSessionStore(),
   ...requestConfig
 }: EmbeddedDeviceGrantFlowRequestConfig): Promise<EmbeddedDeviceGrantFlowResponse> => {
   if (!payload) {
@@ -157,6 +161,11 @@ export const verifyDeviceCode = async ({
 
   const endpoint: string = url ?? `${baseUrl}/flow/execute`;
   const callbackUrl: string = resolveCallbackUrl(endpoint, baseUrl);
+
+  // The authorization request is known only when the flow ends, so sessions are held under the execution.
+  const requestExecutionId: string | undefined = isContinuation
+    ? (payload as EmbeddedDeviceGrantFlowContinuationPayload).executionId
+    : undefined;
 
   // Strip any caller-provided `verbose` value. The SDK controls when component
   // metadata is requested, matching the other embedded-flow executors.
@@ -224,6 +233,9 @@ export const verifyDeviceCode = async ({
       typeof callbackType === 'string' &&
       errorResponse
     ) {
+      // A failed flow issues no device secret, so the sessions it collected are not posted.
+      if (requestExecutionId) await takeFlowSessions(sessionStore, requestExecutionId);
+
       const callbackResponse: Record<string, unknown> = await postAuthCallback(
         callbackUrl,
         {assertion: errorAssertion, authId, type: callbackType},
@@ -249,6 +261,11 @@ export const verifyDeviceCode = async ({
   }
 
   const flowResponse = (await response.json()) as EmbeddedDeviceGrantFlowResponse;
+  const executionId: string | undefined = requestExecutionId ?? flowResponse.executionId;
+  if (executionId) {
+    await collectFlowSessions(sessionStore, executionId, flowResponse);
+  }
+
   const additionalData: Record<string, unknown> | undefined = flowResponse.data?.additionalData;
   const authId: unknown = additionalData?.['authId'];
   const callbackType: unknown = additionalData?.['callbackType'];
@@ -261,6 +278,14 @@ export const verifyDeviceCode = async ({
     flowResponse.flowStatus === EmbeddedSignInFlowStatus.Error;
 
   if (isTerminal) {
+    // The execution has ended, so its sessions are forgotten whether or not they are posted.
+    const heldSessions: EmbeddedFlowSessionData[] = executionId
+      ? await takeFlowSessions(sessionStore, executionId)
+      : [];
+    // Only a completed flow posts them; a failed one issues no device secret.
+    const sessionData: EmbeddedFlowSessionData[] =
+      flowResponse.flowStatus === EmbeddedSignInFlowStatus.Complete ? heldSessions : [];
+
     if (typeof authId !== 'string' || typeof callbackType !== 'string' || typeof assertion !== 'string') {
       throw new ThunderIDAPIError(
         'The completed Device Grant flow did not include its callback data.',
@@ -271,7 +296,7 @@ export const verifyDeviceCode = async ({
 
     const callbackResponse: Record<string, unknown> = await postAuthCallback(
       callbackUrl,
-      {assertion, authId, type: callbackType},
+      {assertion, authId, ...(sessionData.length > 0 ? {sessionData} : {}), type: callbackType},
       requestConfig.headers,
       flowResponse.flowStatus === EmbeddedSignInFlowStatus.Error,
     );

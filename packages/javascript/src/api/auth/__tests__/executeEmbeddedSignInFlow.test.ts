@@ -2,9 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import {beforeEach, describe, expect, it, vi} from 'vitest';
+import {FlowSessionStore} from '../../../models/embedded-flow';
 import {EmbeddedSignInFlowResponse, EmbeddedSignInFlowStatus} from '../../../models/embedded-signin-flow';
 import logger from '../../../utils/logger';
 import executeEmbeddedSignInFlow from '../executeEmbeddedSignInFlow';
+import {createCallFlowSessionStore} from '../flowSessions';
 
 const URL = 'https://localhost:8090/flow/execute';
 
@@ -439,6 +441,11 @@ describe('executeEmbeddedSignInFlow', (): void => {
 
   describe('session data posted with the callback', (): void => {
     const BASE_URL = 'https://localhost:8090';
+    let sessionStore: FlowSessionStore;
+
+    beforeEach((): void => {
+      sessionStore = createCallFlowSessionStore();
+    });
 
     const respond = (body: Record<string, unknown>): {json: () => Promise<unknown>; ok: boolean} => ({
       json: () => Promise.resolve(body),
@@ -463,10 +470,16 @@ describe('executeEmbeddedSignInFlow', (): void => {
         )
         .mockResolvedValueOnce(respond({redirect_uri: 'https://client.example.com/cb?code=xyz'}));
 
-      await executeEmbeddedSignInFlow({authId: 'auth-sessions', baseUrl: BASE_URL, payload: {executionId: 'e-1'}});
       await executeEmbeddedSignInFlow({
         authId: 'auth-sessions',
         baseUrl: BASE_URL,
+        sessionStore,
+        payload: {executionId: 'e-1'},
+      });
+      await executeEmbeddedSignInFlow({
+        authId: 'auth-sessions',
+        baseUrl: BASE_URL,
+        sessionStore,
         payload: {action: 'submit', executionId: 'e-1'},
       });
 
@@ -474,8 +487,8 @@ describe('executeEmbeddedSignInFlow', (): void => {
         assertion: 'signed-assertion',
         authId: 'auth-sessions',
         sessionData: [
-          {flowIdentifier: 'flow-a', sessionHandle: 'handle-a'},
-          {flowIdentifier: 'flow-b', sessionHandle: 'handle-b'},
+          {expiresIn: 28800, flowIdentifier: 'flow-a', sessionHandle: 'handle-a'},
+          {expiresIn: 28800, flowIdentifier: 'flow-b', sessionHandle: 'handle-b'},
         ],
       });
     });
@@ -498,10 +511,16 @@ describe('executeEmbeddedSignInFlow', (): void => {
         )
         .mockResolvedValueOnce(respond({redirect_uri: 'https://client.example.com/cb?code=xyz'}));
 
-      await executeEmbeddedSignInFlow({authId: 'auth-cleared', baseUrl: BASE_URL, payload: {executionId: 'e-2'}});
       await executeEmbeddedSignInFlow({
         authId: 'auth-cleared',
         baseUrl: BASE_URL,
+        sessionStore,
+        payload: {executionId: 'e-2'},
+      });
+      await executeEmbeddedSignInFlow({
+        authId: 'auth-cleared',
+        baseUrl: BASE_URL,
+        sessionStore,
         payload: {action: 'submit', executionId: 'e-2'},
       });
 
@@ -520,10 +539,16 @@ describe('executeEmbeddedSignInFlow', (): void => {
         .mockResolvedValueOnce(respond({assertion: 'signed-assertion', flowStatus: EmbeddedSignInFlowStatus.Complete}))
         .mockResolvedValueOnce(respond({redirect_uri: 'https://client.example.com/cb?code=xyz'}));
 
-      await executeEmbeddedSignInFlow({authId: 'auth-one', baseUrl: BASE_URL, payload: {executionId: 'e-3'}});
+      await executeEmbeddedSignInFlow({
+        authId: 'auth-one',
+        baseUrl: BASE_URL,
+        sessionStore,
+        payload: {executionId: 'e-3'},
+      });
       await executeEmbeddedSignInFlow({
         authId: 'auth-other',
         baseUrl: BASE_URL,
+        sessionStore,
         payload: {action: 'submit', executionId: 'e-4'},
       });
 
@@ -544,14 +569,52 @@ describe('executeEmbeddedSignInFlow', (): void => {
         )
         .mockResolvedValueOnce(respond({redirect_uri: 'https://client.example.com/cb?error=access_denied'}));
 
-      await executeEmbeddedSignInFlow({authId: 'auth-failed', baseUrl: BASE_URL, payload: {executionId: 'e-5'}});
       await executeEmbeddedSignInFlow({
         authId: 'auth-failed',
         baseUrl: BASE_URL,
+        sessionStore,
+        payload: {executionId: 'e-5'},
+      });
+      await executeEmbeddedSignInFlow({
+        authId: 'auth-failed',
+        baseUrl: BASE_URL,
+        sessionStore,
         payload: {action: 'submit', executionId: 'e-5'},
       });
 
       expect(captureRequestBody()).toEqual({assertion: 'signed-error-assertion', authId: 'auth-failed'});
+    });
+
+    it('without a store, posts only the sessions of the step that completes the flow', async (): Promise<void> => {
+      global.fetch = vi
+        .fn()
+        .mockResolvedValueOnce(
+          respond({
+            flowStatus: EmbeddedSignInFlowStatus.Incomplete,
+            sessionData: [{flowIdentifier: 'flow-a', sessionHandle: 'handle-a'}],
+          }),
+        )
+        .mockResolvedValueOnce(
+          respond({
+            assertion: 'signed-assertion',
+            flowStatus: EmbeddedSignInFlowStatus.Complete,
+            sessionData: [{flowIdentifier: 'flow-b', sessionHandle: 'handle-b'}],
+          }),
+        )
+        .mockResolvedValueOnce(respond({redirect_uri: 'https://client.example.com/cb?code=xyz'}));
+
+      await executeEmbeddedSignInFlow({authId: 'auth-no-store', baseUrl: BASE_URL, payload: {executionId: 'e-6'}});
+      await executeEmbeddedSignInFlow({
+        authId: 'auth-no-store',
+        baseUrl: BASE_URL,
+        payload: {action: 'submit', executionId: 'e-6'},
+      });
+
+      expect(captureRequestBody()).toEqual({
+        assertion: 'signed-assertion',
+        authId: 'auth-no-store',
+        sessionData: [{flowIdentifier: 'flow-b', sessionHandle: 'handle-b'}],
+      });
     });
   });
 

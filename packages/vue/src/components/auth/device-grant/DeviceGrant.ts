@@ -244,6 +244,7 @@ const DeviceGrant: Component = defineComponent({
             payload: resumeId
               ? {executionId: resumeId, ...(challengeFromStorage ? {challengeToken: challengeFromStorage} : {})}
               : {applicationId: appId, flowType: EmbeddedFlowType.DeviceGrant, inputs: {}},
+            sessionStore: getStorageManager?.(),
           });
         } catch (resumeError: unknown) {
           if (resumeId && resumeError instanceof ThunderIDAPIError && resumeError.statusCode === 400) {
@@ -285,6 +286,7 @@ const DeviceGrant: Component = defineComponent({
             executionId: executionId.value,
             inputs,
           },
+          sessionStore: getStorageManager?.(),
         });
         await applyResponse(response);
       } catch (cause: unknown) {
@@ -381,6 +383,7 @@ const DeviceGrant: Component = defineComponent({
               executionId: payload.flowId,
               inputs: payload.inputs,
             },
+            sessionStore: getStorageManager?.(),
           });
         } finally {
           isLoading.value = false;

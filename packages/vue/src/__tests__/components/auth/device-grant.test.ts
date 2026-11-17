@@ -23,14 +23,16 @@ vi.mock('@thunderid/browser', async (importOriginal) => ({
 
 vi.mock('../../../utils/oauth', () => ({initiateOAuthRedirect: vi.fn()}));
 
+const storageManager = {
+  getTemporaryData: () => Promise.resolve({challengeToken: 'challenge-restored'}),
+  removeTemporaryDataParameter: vi.fn(),
+  setTemporaryDataParameter: vi.fn(),
+};
+
 const createThunderIDContext = () => ({
   applicationId: undefined,
   baseUrl: 'https://id.example.com',
-  getStorageManager: () => ({
-    getTemporaryData: () => Promise.resolve({challengeToken: 'challenge-restored'}),
-    removeTemporaryDataParameter: vi.fn(),
-    setTemporaryDataParameter: vi.fn(),
-  }),
+  getStorageManager: () => storageManager,
   isInitialized: ref(true),
   isLoading: ref(false),
   vendor: 'test-vendor',
@@ -409,6 +411,7 @@ describe('DeviceGrant', () => {
     expect(executeEmbeddedDeviceGrantFlow).toHaveBeenCalledWith({
       baseUrl: 'https://id.example.com',
       payload: {challengeToken: 'challenge-restored', executionId: 'execution-resume'},
+      sessionStore: storageManager,
     });
     wrapper.unmount();
   });
@@ -480,6 +483,7 @@ describe('DeviceGrant', () => {
         executionId: 'execution-callback',
         inputs: {code: 'provider-code', nonce: 'provider-nonce'},
       },
+      sessionStore: storageManager,
     });
     wrapper.unmount();
   });
@@ -526,6 +530,7 @@ describe('DeviceGrant', () => {
         flowType: EmbeddedFlowType.DeviceGrant,
         inputs: {},
       },
+      sessionStore: storageManager,
     });
     expect((wrapper.find('input[name="user_code"]').element as HTMLInputElement).value).toBe('BCDF-GHJK');
     expect(window.location.search).toBe('');
@@ -539,6 +544,7 @@ describe('DeviceGrant', () => {
         executionId: 'execution-1',
         inputs: {user_code: 'BCDF-GHJK'},
       },
+      sessionStore: storageManager,
     });
     wrapper.unmount();
   });
@@ -590,6 +596,7 @@ describe('DeviceGrant', () => {
         flowType: EmbeddedFlowType.DeviceGrant,
         inputs: {},
       },
+      sessionStore: storageManager,
     });
     expect(wrapper.find('input[name="user_code"]').exists()).toBe(true);
     wrapper.unmount();
@@ -669,6 +676,7 @@ describe('DeviceGrant', () => {
         flowType: EmbeddedFlowType.DeviceGrant,
         inputs: {},
       },
+      sessionStore: storageManager,
     });
     expect(executeEmbeddedDeviceGrantFlow).toHaveBeenLastCalledWith({
       baseUrl: 'https://id.example.com',
@@ -678,6 +686,7 @@ describe('DeviceGrant', () => {
         executionId: 'execution-1',
         inputs: {},
       },
+      sessionStore: storageManager,
     });
     wrapper.unmount();
   });

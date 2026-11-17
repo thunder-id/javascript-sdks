@@ -184,6 +184,7 @@ class ThunderIDVueClient<T extends ThunderIDVueConfig = ThunderIDVueConfig> exte
           authId,
           baseUrl,
           payload: arg1,
+          sessionStore: this.getStorageManager(),
           url: resolveResourceEndpoint('flowExecute', configData, arg2?.url),
         });
 
@@ -248,6 +249,7 @@ class ThunderIDVueClient<T extends ThunderIDVueConfig = ThunderIDVueConfig> exte
       authId,
       baseUrl,
       payload: typeof firstArg === 'object' && 'flowType' in firstArg ? {...firstArg, verbose: true} : firstArg,
+      sessionStore: this.getStorageManager(),
       url: resolveResourceEndpoint('flowExecute', configData),
     });
 
