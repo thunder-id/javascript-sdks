@@ -19,6 +19,12 @@ const storageState = vi.hoisted(() => ({
   temporaryData: undefined as Record<string, unknown> | undefined,
 }));
 
+const storageManager = vi.hoisted(() => ({
+  getTemporaryData: () => Promise.resolve(storageState.temporaryData),
+  removeTemporaryDataParameter: vi.fn(),
+  setTemporaryDataParameter: vi.fn(),
+}));
+
 vi.mock('@thunderid/browser', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@thunderid/browser')>()),
   executeEmbeddedDeviceGrantFlow: vi.fn(),
@@ -28,12 +34,7 @@ vi.mock('../../../../contexts/ThunderID/useThunderID', () => ({
   default: () => ({
     applicationId: undefined,
     baseUrl: 'https://id.example.com',
-    getStorageManager: () =>
-      Promise.resolve({
-        getTemporaryData: () => Promise.resolve(storageState.temporaryData),
-        removeTemporaryDataParameter: vi.fn(),
-        setTemporaryDataParameter: vi.fn(),
-      }),
+    getStorageManager: () => Promise.resolve(storageManager),
     isInitialized: storageState.isInitialized,
     isLoading: false,
     meta: {application: {name: 'Example App'}},
@@ -198,6 +199,7 @@ describe('DeviceGrant', () => {
           flowType: EmbeddedFlowType.DeviceGrant,
           inputs: {},
         },
+        sessionStore: storageManager,
       });
     });
     expect(screen.getByTestId('code-value')).toHaveTextContent('BCDF-GHJK');
@@ -214,6 +216,7 @@ describe('DeviceGrant', () => {
         executionId: 'execution-1',
         inputs: {user_code: 'BCDF-GHJK'},
       },
+      sessionStore: storageManager,
     });
   });
 
@@ -229,6 +232,7 @@ describe('DeviceGrant', () => {
           flowType: EmbeddedFlowType.DeviceGrant,
           inputs: {},
         },
+        sessionStore: storageManager,
       });
     });
     expect(screen.getByTestId('component-count')).toHaveTextContent('1');
@@ -262,6 +266,7 @@ describe('DeviceGrant', () => {
         executionId: 'execution-1',
         inputs: {user_code: undefined},
       },
+      sessionStore: storageManager,
     });
   });
 
@@ -293,6 +298,7 @@ describe('DeviceGrant', () => {
       expect(mockedExecute).toHaveBeenCalledWith({
         baseUrl: 'https://id.example.com',
         payload: {executionId: 'execution-resume'},
+        sessionStore: storageManager,
       }),
     );
     expect(mockedExecute).toHaveBeenCalledTimes(1);
@@ -333,6 +339,7 @@ describe('DeviceGrant', () => {
           executionId: 'execution-callback',
           inputs: {code: 'provider-code', nonce: 'provider-nonce'},
         },
+        sessionStore: storageManager,
       }),
     );
     expect(mockedExecute).toHaveBeenCalledTimes(1);
@@ -360,6 +367,7 @@ describe('DeviceGrant', () => {
         executionId: 'execution-1',
         inputs: {consent_decisions: {profile: {email: true}}, user_code: undefined},
       },
+      sessionStore: storageManager,
     });
   });
 

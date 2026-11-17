@@ -1,10 +1,11 @@
 // Copyright 2026 The ThunderID Authors
 // SPDX-License-Identifier: Apache-2.0
 
-import {logger} from '@thunderid/node';
+import {Storage, logger} from '@thunderid/node';
 import express from 'express';
 import {afterEach, describe, expect, it, vi} from 'vitest';
 import {handleSignIn} from '../middleware/authentication';
+import handleFlow from '../middleware/flow';
 import protect from '../middleware/protect';
 import ThunderIDExpressClient from '../ThunderIDExpressClient';
 
@@ -101,5 +102,81 @@ describe('protect', () => {
     await protect()(req, fakeResponse(), next);
 
     expect(next).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('handleFlow', () => {
+  const originalFetch: typeof fetch = global.fetch;
+
+  afterEach(() => {
+    global.fetch = originalFetch;
+    vi.restoreAllMocks();
+  });
+
+  const sharedStorage = (): Storage => {
+    const data: Map<string, string> = new Map<string, string>();
+
+    return {
+      getData: (key: string): Promise<string> => Promise.resolve(data.get(key) ?? null!),
+      removeData: (key: string): Promise<void> => {
+        data.delete(key);
+
+        return Promise.resolve();
+      },
+      setData: (key: string, value: string): Promise<void> => {
+        data.set(key, value);
+
+        return Promise.resolve();
+      },
+    };
+  };
+
+  const flowResponse = (): express.Response =>
+    ({json: vi.fn(), status: vi.fn().mockReturnThis()}) as unknown as express.Response;
+
+  it('posts a session an earlier step returned, through the store its instances share', async () => {
+    const storage: Storage = sharedStorage();
+    const config = {baseUrl: 'https://auth.example.com', clientId: 'test-client'};
+    const first: ThunderIDExpressClient = new ThunderIDExpressClient();
+    const second: ThunderIDExpressClient = new ThunderIDExpressClient();
+    await first.initialize(config, storage);
+    await second.initialize(config, storage);
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            challengeToken: 'challenge-1',
+            executionId: 'execution-1',
+            flowStatus: 'INCOMPLETE',
+            sessionData: [{flowIdentifier: 'flow-a', sessionHandle: 'handle-a'}],
+          }),
+        ),
+      )
+      .mockResolvedValueOnce(new Response(JSON.stringify({assertion: 'signed-assertion', flowStatus: 'COMPLETE'})))
+      .mockResolvedValueOnce(new Response(JSON.stringify({redirect_uri: 'https://app.example.com/login?code=c'})));
+    global.fetch = fetchMock;
+
+    await handleFlow()(
+      {body: {applicationId: 'app-1', authId: 'auth-1'}, thunderIDAuth: first} as unknown as express.Request,
+      flowResponse(),
+      vi.fn(),
+    );
+    await handleFlow()(
+      {
+        body: {authId: 'auth-1', challengeToken: 'challenge-1', executionId: 'execution-1', inputs: {}},
+        thunderIDAuth: second,
+      } as unknown as express.Request,
+      flowResponse(),
+      vi.fn(),
+    );
+
+    const [, callback] = fetchMock.mock.calls[2] as [string, RequestInit];
+    expect(JSON.parse(callback.body as string)).toEqual({
+      assertion: 'signed-assertion',
+      authId: 'auth-1',
+      sessionData: [{flowIdentifier: 'flow-a', sessionHandle: 'handle-a'}],
+    });
+    expect(await first.flowSessionStore.getFlowSessions('auth-1')).toEqual([]);
   });
 });

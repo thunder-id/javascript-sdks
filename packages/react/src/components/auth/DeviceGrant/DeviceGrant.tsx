@@ -328,6 +328,7 @@ const DeviceGrant: FC<DeviceGrantProps> = ({
             payload: resumeId
               ? {executionId: resumeId, ...(challengeFromStorage ? {challengeToken: challengeFromStorage} : {})}
               : {applicationId: appId, flowType: EmbeddedFlowType.DeviceGrant, inputs: {}},
+            sessionStore: (await getStorageManager()) ?? undefined,
           });
         } catch (resumeError) {
           if (resumeId && resumeError instanceof ThunderIDAPIError && resumeError.statusCode === 400) {
@@ -345,7 +346,7 @@ const DeviceGrant: FC<DeviceGrantProps> = ({
         setIsLoading(false);
       }
     },
-    [applyResponse, baseUrl, handleError, persistChallengeToken, persistExecutionId, t],
+    [applyResponse, baseUrl, getStorageManager, handleError, persistChallengeToken, persistExecutionId, t],
   );
 
   useEffect(() => {
@@ -392,6 +393,7 @@ const DeviceGrant: FC<DeviceGrantProps> = ({
           executionId,
           inputs,
         },
+        sessionStore: (await getStorageManager()) ?? undefined,
       });
       await applyResponse(response);
     } catch (flowError) {
@@ -460,6 +462,7 @@ const DeviceGrant: FC<DeviceGrantProps> = ({
             executionId: callbackExecutionId,
             inputs,
           },
+          sessionStore: (await getStorageManager()) ?? undefined,
         });
       } finally {
         setIsLoading(false);

@@ -1,10 +1,11 @@
-// Copyright 2025 The ThunderID Authors
+// Copyright 2025-2026 The ThunderID Authors
 // SPDX-License-Identifier: Apache-2.0
 
 import {
   ThunderIDNodeClient,
   ThunderIDAuthException,
   ExtendedAuthorizeRequestUrlParams,
+  FlowSessionStore,
   ThunderIDNodeManagementClient,
   ThunderIDRuntimeError,
   Storage,
@@ -32,6 +33,14 @@ class ThunderIDExpressClient<T extends ExpressClientConfig = ExpressClientConfig
 
   public get expressConfig(): ExpressClientConfig | undefined {
     return this._expressConfig;
+  }
+
+  /**
+   * Where an embedded flow's SSO sessions wait between its steps: the client's storage, one entry per flow, so
+   * flows of different users never share one, and instances sharing a store share them too.
+   */
+  public get flowSessionStore(): FlowSessionStore {
+    return this.getStorageManager();
   }
 
   /**

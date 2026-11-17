@@ -580,6 +580,8 @@ export {
 } from './models/embedded-flow';
 export type {
   EmbeddedFlowSessionData,
+  FlowSessionStore,
+  HeldFlowSession,
   EmbeddedFlowComponent,
   EmbeddedFlowComponentAction,
   EmbeddedFlowResponseData,

@@ -1,12 +1,13 @@
 // Copyright 2025-2026 The ThunderID Authors
 // SPDX-License-Identifier: Apache-2.0
 
-import {afterEach, describe, expect, it, vi} from 'vitest';
-import {EmbeddedFlowType} from '../../../models/embedded-flow';
+import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
+import {EmbeddedFlowType, FlowSessionStore} from '../../../models/embedded-flow';
 import executeEmbeddedDeviceGrantFlow, {
   type EmbeddedDeviceGrantFlowPayload,
   verifyDeviceCode,
 } from '../executeEmbeddedDeviceGrantFlow';
+import {createCallFlowSessionStore, takeFlowSessions} from '../flowSessions';
 
 const URL = 'https://localhost:8090/flow/execute';
 
@@ -380,5 +381,266 @@ describe('executeEmbeddedDeviceGrantFlow', () => {
 
   it('is the deprecated alias of verifyDeviceCode', (): void => {
     expect(executeEmbeddedDeviceGrantFlow).toBe(verifyDeviceCode);
+  });
+
+  describe('session data posted with the callback', (): void => {
+    const CALLBACK_URL = 'https://localhost:8090/oauth2/auth/callback';
+    const DEVICE_CODE = 'urn:ietf:params:oauth:grant-type:device_code';
+    const CALLBACK_DATA = {additionalData: {authId: 'request-1', callbackType: DEVICE_CODE}};
+
+    let sessionStore: FlowSessionStore;
+
+    beforeEach((): void => {
+      sessionStore = createCallFlowSessionStore();
+    });
+
+    const respond = (body: Record<string, unknown>, status = 200): Response =>
+      new Response(JSON.stringify(body), {status});
+
+    const start = (): ReturnType<typeof verifyDeviceCode> =>
+      verifyDeviceCode({
+        url: URL,
+        payload: {applicationId: 'app-1', flowType: EmbeddedFlowType.DeviceGrant, inputs: {}},
+        sessionStore,
+      });
+
+    const submit = (executionId: string): ReturnType<typeof verifyDeviceCode> =>
+      verifyDeviceCode({url: URL, payload: {action: 'submit', executionId, inputs: {}}, sessionStore});
+
+    it('posts the sessions every step returned with the completed assertion', async (): Promise<void> => {
+      const fetchMock = vi
+        .spyOn(globalThis, 'fetch')
+        .mockResolvedValueOnce(
+          respond({
+            data: {},
+            executionId: 'execution-sessions',
+            flowStatus: 'INCOMPLETE',
+            sessionData: [{expiresIn: 28800, flowIdentifier: 'flow-a', sessionHandle: 'handle-a'}],
+          }),
+        )
+        .mockResolvedValueOnce(respond({data: {}, executionId: 'execution-sessions', flowStatus: 'INCOMPLETE'}))
+        .mockResolvedValueOnce(
+          respond({
+            assertion: 'signed-assertion',
+            data: CALLBACK_DATA,
+            executionId: 'execution-sessions',
+            flowStatus: 'COMPLETE',
+            sessionData: [{expiresIn: 28800, flowIdentifier: 'flow-b', sessionHandle: 'handle-b'}],
+          }),
+        )
+        .mockResolvedValueOnce(respond({}));
+
+      await start();
+      await submit('execution-sessions');
+      await submit('execution-sessions');
+
+      expect(fetchMock).toHaveBeenCalledTimes(4);
+      expect(fetchMock).toHaveBeenNthCalledWith(
+        4,
+        CALLBACK_URL,
+        expect.objectContaining({
+          body: JSON.stringify({
+            assertion: 'signed-assertion',
+            authId: 'request-1',
+            sessionData: [
+              {expiresIn: 28800, flowIdentifier: 'flow-a', sessionHandle: 'handle-a'},
+              {expiresIn: 28800, flowIdentifier: 'flow-b', sessionHandle: 'handle-b'},
+            ],
+            type: DEVICE_CODE,
+          }),
+        }),
+      );
+      expect(await takeFlowSessions(sessionStore, 'execution-sessions')).toEqual([]);
+    });
+
+    it('posts no session data when no step returned any', async (): Promise<void> => {
+      const fetchMock = vi
+        .spyOn(globalThis, 'fetch')
+        .mockResolvedValueOnce(respond({data: {}, executionId: 'execution-none', flowStatus: 'INCOMPLETE'}))
+        .mockResolvedValueOnce(
+          respond({
+            assertion: 'signed-assertion',
+            data: CALLBACK_DATA,
+            executionId: 'execution-none',
+            flowStatus: 'COMPLETE',
+          }),
+        )
+        .mockResolvedValueOnce(respond({}));
+
+      await start();
+      await submit('execution-none');
+
+      expect(fetchMock).toHaveBeenNthCalledWith(
+        3,
+        CALLBACK_URL,
+        expect.objectContaining({
+          body: JSON.stringify({assertion: 'signed-assertion', authId: 'request-1', type: DEVICE_CODE}),
+        }),
+      );
+    });
+
+    it('does not post a session a later step cleared', async (): Promise<void> => {
+      const fetchMock = vi
+        .spyOn(globalThis, 'fetch')
+        .mockResolvedValueOnce(
+          respond({
+            data: {},
+            executionId: 'execution-cleared',
+            flowStatus: 'INCOMPLETE',
+            sessionData: [
+              {flowIdentifier: 'flow-a', sessionHandle: 'handle-a'},
+              {flowIdentifier: 'flow-b', sessionHandle: 'handle-b'},
+            ],
+          }),
+        )
+        .mockResolvedValueOnce(
+          respond({
+            assertion: 'signed-assertion',
+            clearedSessions: ['flow-a'],
+            data: CALLBACK_DATA,
+            executionId: 'execution-cleared',
+            flowStatus: 'COMPLETE',
+          }),
+        )
+        .mockResolvedValueOnce(respond({}));
+
+      await start();
+      await submit('execution-cleared');
+
+      expect(fetchMock).toHaveBeenNthCalledWith(
+        3,
+        CALLBACK_URL,
+        expect.objectContaining({
+          body: JSON.stringify({
+            assertion: 'signed-assertion',
+            authId: 'request-1',
+            sessionData: [{flowIdentifier: 'flow-b', sessionHandle: 'handle-b'}],
+            type: DEVICE_CODE,
+          }),
+        }),
+      );
+    });
+
+    it('keeps the sessions of one execution out of another', async (): Promise<void> => {
+      const fetchMock = vi
+        .spyOn(globalThis, 'fetch')
+        .mockResolvedValueOnce(
+          respond({
+            data: {},
+            executionId: 'execution-one',
+            flowStatus: 'INCOMPLETE',
+            sessionData: [{flowIdentifier: 'flow-a', sessionHandle: 'handle-a'}],
+          }),
+        )
+        .mockResolvedValueOnce(
+          respond({
+            assertion: 'signed-assertion',
+            data: CALLBACK_DATA,
+            executionId: 'execution-other',
+            flowStatus: 'COMPLETE',
+          }),
+        )
+        .mockResolvedValueOnce(respond({}));
+
+      await start();
+      await submit('execution-other');
+
+      expect(fetchMock).toHaveBeenNthCalledWith(
+        3,
+        CALLBACK_URL,
+        expect.objectContaining({
+          body: JSON.stringify({assertion: 'signed-assertion', authId: 'request-1', type: DEVICE_CODE}),
+        }),
+      );
+      expect(await takeFlowSessions(sessionStore, 'execution-one')).toEqual([
+        {flowIdentifier: 'flow-a', sessionHandle: 'handle-a'},
+      ]);
+    });
+
+    it('does not post the collected sessions with a failed flow, and forgets them', async (): Promise<void> => {
+      const fetchMock = vi
+        .spyOn(globalThis, 'fetch')
+        .mockResolvedValueOnce(
+          respond({
+            data: {},
+            executionId: 'execution-failed',
+            flowStatus: 'INCOMPLETE',
+            sessionData: [{flowIdentifier: 'flow-a', sessionHandle: 'handle-a'}],
+          }),
+        )
+        .mockResolvedValueOnce(
+          respond({
+            data: CALLBACK_DATA,
+            errorAssertion: 'signed-error-assertion',
+            executionId: 'execution-failed',
+            flowStatus: 'ERROR',
+            sessionData: [{flowIdentifier: 'flow-b', sessionHandle: 'handle-b'}],
+          }),
+        )
+        .mockResolvedValueOnce(respond({}));
+
+      await start();
+      await submit('execution-failed');
+
+      expect(fetchMock).toHaveBeenNthCalledWith(
+        3,
+        CALLBACK_URL,
+        expect.objectContaining({
+          body: JSON.stringify({assertion: 'signed-error-assertion', authId: 'request-1', type: DEVICE_CODE}),
+        }),
+      );
+      expect(await takeFlowSessions(sessionStore, 'execution-failed')).toEqual([]);
+    });
+
+    it('does not post the collected sessions with a failed flow HTTP response, and forgets them', async (): Promise<void> => {
+      const fetchMock = vi
+        .spyOn(globalThis, 'fetch')
+        .mockResolvedValueOnce(
+          respond({
+            data: {},
+            executionId: 'execution-http-failed',
+            flowStatus: 'INCOMPLETE',
+            sessionData: [{flowIdentifier: 'flow-a', sessionHandle: 'handle-a'}],
+          }),
+        )
+        .mockResolvedValueOnce(
+          respond({data: CALLBACK_DATA, error: 'server_error', errorAssertion: 'signed-error-assertion'}, 500),
+        )
+        .mockResolvedValueOnce(respond({}));
+
+      await start();
+      await submit('execution-http-failed');
+
+      expect(fetchMock).toHaveBeenNthCalledWith(
+        3,
+        CALLBACK_URL,
+        expect.objectContaining({
+          body: JSON.stringify({assertion: 'signed-error-assertion', authId: 'request-1', type: DEVICE_CODE}),
+        }),
+      );
+      expect(await takeFlowSessions(sessionStore, 'execution-http-failed')).toEqual([]);
+    });
+
+    it('forgets the sessions of a terminal response that lacks its callback data', async (): Promise<void> => {
+      vi.spyOn(globalThis, 'fetch')
+        .mockResolvedValueOnce(
+          respond({
+            data: {},
+            executionId: 'execution-no-callback',
+            flowStatus: 'INCOMPLETE',
+            sessionData: [{flowIdentifier: 'flow-a', sessionHandle: 'handle-a'}],
+          }),
+        )
+        .mockResolvedValueOnce(
+          respond({assertion: 'signed-assertion', executionId: 'execution-no-callback', flowStatus: 'COMPLETE'}),
+        );
+
+      await start();
+      await expect(submit('execution-no-callback')).rejects.toMatchObject({
+        code: 'executeEmbeddedDeviceGrantFlow-CallbackError-002',
+      });
+
+      expect(await takeFlowSessions(sessionStore, 'execution-no-callback')).toEqual([]);
+    });
   });
 });

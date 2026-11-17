@@ -22,6 +22,7 @@ import {
   EmbeddedSignInFlowStatus,
   EmbeddedSignUpFlowResponse,
   EmbeddedSignUpFlowStatus,
+  FlowSessionStore,
   resolveResourceEndpoint,
 } from '@thunderid/browser';
 import {ThunderIDReactConfig} from './models/config';
@@ -175,6 +176,7 @@ class ThunderIDReactClient<T extends ThunderIDReactConfig = ThunderIDReactConfig
           authId,
           baseUrl,
           payload: arg1,
+          sessionStore: this.getStorageManager() as FlowSessionStore,
           url: resolveResourceEndpoint('flowExecute', config, arg2?.url),
         });
 
@@ -245,6 +247,7 @@ class ThunderIDReactClient<T extends ThunderIDReactConfig = ThunderIDReactConfig
       authId,
       baseUrl,
       payload: typeof firstArg === 'object' && 'flowType' in firstArg ? {...firstArg, verbose: true} : firstArg,
+      sessionStore: this.getStorageManager() as FlowSessionStore,
       url: resolveResourceEndpoint('flowExecute', config),
     });
 

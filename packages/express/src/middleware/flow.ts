@@ -1,4 +1,4 @@
-// Copyright 2025 The ThunderID Authors
+// Copyright 2025-2026 The ThunderID Authors
 // SPDX-License-Identifier: Apache-2.0
 
 import {executeEmbeddedSignInFlow, resolveResourceEndpoint, logger as Logger} from '@thunderid/node';
@@ -72,6 +72,7 @@ const handleFlow = (): express.RequestHandler => {
         baseUrl: baseUrl,
         flowSecret: config?.flowSecret ?? process.env['THUNDERID_FLOW_SECRET'],
         payload,
+        sessionStore: client.flowSessionStore,
         url: resolveResourceEndpoint('flowExecute', config),
       });
 
