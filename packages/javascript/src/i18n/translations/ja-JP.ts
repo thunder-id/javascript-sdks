@@ -242,6 +242,17 @@ const translations: I18nTranslations = {
   'consent.optional_scope.info': 'これらの権限は任意であり、お客様の判断で付与できます。',
   'consent.permissions.subtree_notice':
     '権限を承認すると、その下にある権限 (後から追加されるものを含む) も承認されます。',
+  'consent.validity_period.label': '再確認のタイミング',
+  'consent.validity_period.remember': '選択を記憶する',
+  'consent.validity_period.option_never': '期限なし',
+  'consent.validity_period.option_custom': 'カスタム',
+  'consent.validity_period.custom_label': 'カスタムの有効期間',
+  'consent.validity_period.custom_unit_label': '単位',
+  'consent.validity_period.hint_once': '次回サインインするときに、もう一度確認します。',
+  'consent.validity_period.hint_expires': '同意は{duration}後に期限切れになります。',
+  'consent.validity_period.hint_never': 'このアプリケーションが追加のアクセスを求めない限り、再確認しません。',
+  'consent.validity_period.hint_custom': '整数を入力してください。',
+  'consent.validity_period.hint_custom_max': '{max}までの整数を入力してください。',
 
   /* |---------------------------------------------------------------| */
   /* |                        Errors                                 | */

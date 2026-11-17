@@ -776,6 +776,13 @@ export interface ConsentDecisions {
   purposes: ConsentPurposeDecision[];
   /** Why the decision was made, when it was not a direct user choice, e.g. the prompt expired */
   reason?: string;
+  /** The number of seconds the user chose their consent to last, when the consent prompt asked for it */
+  validityPeriod?: number;
+  /**
+   * Whether the user chose not to remember the decision, when the consent prompt asked for it. The server then
+   * decides how long the consent lasts, so no `validityPeriod` is sent with it.
+   */
+  oneTime?: boolean;
 }
 
 /**

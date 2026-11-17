@@ -244,6 +244,17 @@ const translations: I18nTranslations = {
   'consent.optional_scope.info': 'இந்த அனுமதிகள் விருப்பமானவை; உங்கள் விருப்பப்படி வழங்கலாம்.',
   'consent.permissions.subtree_notice':
     'ஒரு அனுமதியை அங்கீகரிப்பது அதன் கீழுள்ள அனுமதிகளையும், பின்னர் சேர்க்கப்படுபவை உட்பட, அங்கீகரிக்கிறது.',
+  'consent.validity_period.label': 'மீண்டும் என்னிடம் கேளுங்கள்',
+  'consent.validity_period.remember': 'என் முடிவை நினைவில் வைத்துக்கொள்',
+  'consent.validity_period.option_never': 'காலாவதி இல்லை',
+  'consent.validity_period.option_custom': 'தனிப்பயன்',
+  'consent.validity_period.custom_label': 'தனிப்பயன் செல்லுபடி காலம்',
+  'consent.validity_period.custom_unit_label': 'அலகு',
+  'consent.validity_period.hint_once': 'அடுத்த முறை நீங்கள் உள்நுழையும்போது மீண்டும் கேட்கப்படும்.',
+  'consent.validity_period.hint_expires': 'உங்கள் ஒப்புதல் {duration} இல் காலாவதியாகும்.',
+  'consent.validity_period.hint_never': 'இந்தப் பயன்பாடு கூடுதல் அணுகலைக் கேட்காத வரை மீண்டும் கேட்கப்பட மாட்டாது.',
+  'consent.validity_period.hint_custom': 'முழு எண்ணை உள்ளிடவும்.',
+  'consent.validity_period.hint_custom_max': '{max} வரை முழு எண்ணை உள்ளிடவும்.',
 
   /* |---------------------------------------------------------------| */
   /* |                        Errors                                 | */

@@ -241,6 +241,17 @@ const translations: I18nTranslations = {
   'consent.optional_scope.info': 'ये अनुमतियाँ वैकल्पिक हैं और आपके विवेकानुसार दी जा सकती हैं।',
   'consent.permissions.subtree_notice':
     'किसी अनुमति को स्वीकृत करने से उसके अंतर्गत आने वाली अनुमतियाँ भी स्वीकृत हो जाती हैं, जिनमें बाद में जोड़ी गई अनुमतियाँ भी शामिल हैं।',
+  'consent.validity_period.label': 'मुझसे दोबारा पूछें',
+  'consent.validity_period.remember': 'मेरा निर्णय याद रखें',
+  'consent.validity_period.option_never': 'कोई समाप्ति नहीं',
+  'consent.validity_period.option_custom': 'कस्टम',
+  'consent.validity_period.custom_label': 'कस्टम वैधता',
+  'consent.validity_period.custom_unit_label': 'इकाई',
+  'consent.validity_period.hint_once': 'अगली बार साइन इन करने पर आपसे दोबारा पूछा जाएगा।',
+  'consent.validity_period.hint_expires': 'आपकी सहमति {duration} में समाप्त हो जाएगी।',
+  'consent.validity_period.hint_never': 'जब तक यह एप्लिकेशन अधिक पहुँच नहीं माँगता, आपसे दोबारा नहीं पूछा जाएगा।',
+  'consent.validity_period.hint_custom': 'पूर्ण संख्या दर्ज करें।',
+  'consent.validity_period.hint_custom_max': '{max} तक की पूर्ण संख्या दर्ज करें।',
 
   /* |---------------------------------------------------------------| */
   /* |                        Errors                                 | */
