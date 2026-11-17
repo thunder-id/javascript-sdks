@@ -145,6 +145,8 @@ export * from './components/auth/flow/FlowTimer';
 
 export {default as ConsentCheckboxList} from './components/auth/flow/ConsentCheckboxList';
 export * from './components/auth/flow/ConsentCheckboxList';
+export {default as ConsentPermissionBranchList} from './components/auth/flow/ConsentPermissionBranchList';
+export * from './components/auth/flow/ConsentPermissionBranchList';
 
 export {default as ConsentAuthorizationDetail} from './components/auth/flow/ConsentAuthorizationDetail';
 export type {
@@ -611,6 +613,9 @@ export {
   getConsentInvalidKey,
   CONSENT_INVALID_KEY_PREFIX,
   getConsentElementDecision,
+  getConsentPermissionBranches,
+  type ConsentPermissionBranch,
+  type ConsentPermissionBranchItem,
 } from '@thunderid/browser';
 
 export {
@@ -639,6 +644,7 @@ export {
   addRoleAssignments,
   getTokenPermissions,
   hasPermission,
+  type PermissionMatching,
   createGroup,
   createRole,
   deleteGroup,

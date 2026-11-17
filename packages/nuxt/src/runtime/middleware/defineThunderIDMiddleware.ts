@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import {defineNuxtRouteMiddleware, navigateTo, useRuntimeConfig, useState} from '#app';
+import {type PermissionMatching, hasPermission} from '@thunderid/browser';
 import type {Ref} from 'vue';
 import type {RouteLocationNormalized} from 'vue-router';
 import NuxtAPIRoutes from '../constants/NuxtAPIRoutes';
@@ -24,6 +25,11 @@ export interface ThunderIDMiddlewareOptions {
    * is present in the session before allowing access.
    */
   requireScopes?: string[];
+  /**
+   * How `requireScopes` are matched. Defaults to an exact match. For a hierarchical resource server,
+   * pass `{delimiter: ':'}` so a granted parent satisfies a required child.
+   */
+  scopeMatching?: PermissionMatching;
 }
 
 const DEFAULT_REDIRECT_TO = NuxtAPIRoutes.SIGN_IN;
@@ -48,7 +54,12 @@ const DEFAULT_REDIRECT_TO = NuxtAPIRoutes.SIGN_IN;
 export function defineThunderIDMiddleware(
   options: ThunderIDMiddlewareOptions = {},
 ): ReturnType<typeof defineNuxtRouteMiddleware> {
-  const {redirectTo = DEFAULT_REDIRECT_TO, requireOrganization = false, requireScopes = []} = options;
+  const {
+    redirectTo = DEFAULT_REDIRECT_TO,
+    requireOrganization = false,
+    requireScopes = [],
+    scopeMatching = {hierarchical: false},
+  } = options;
 
   return defineNuxtRouteMiddleware((to: RouteLocationNormalized) => {
     // Must resolve the same `vendor` as `runtime/plugins/thunderid.ts` and
@@ -68,7 +79,7 @@ export function defineThunderIDMiddleware(
 
     if (requireScopes.length > 0) {
       const sessionScopes: string[] = (authState.value.scopes ?? '').split(' ');
-      const hasAllScopes: boolean = requireScopes.every((s: string) => sessionScopes.includes(s));
+      const hasAllScopes: boolean = requireScopes.every((s: string) => hasPermission(sessionScopes, s, scopeMatching));
       if (!hasAllScopes) {
         return navigateTo(redirectTo, {external: true});
       }

@@ -56,4 +56,19 @@ describe('hasPermission', () => {
   it('always covers an empty requirement', () => {
     expect(hasPermission([], '')).toBe(true);
   });
+
+  it('matches only exactly on a resource server without hierarchical permissions', () => {
+    expect(hasPermission(['orders'], 'orders:create', {hierarchical: false})).toBe(false);
+    expect(hasPermission(['orders:create'], 'orders:create', {hierarchical: false})).toBe(true);
+  });
+
+  it('uses the resource server delimiter', () => {
+    expect(hasPermission(['orders'], 'orders.create', {delimiter: '.'})).toBe(true);
+    expect(hasPermission(['orders'], 'orders:create', {delimiter: '.'})).toBe(false);
+    expect(hasPermission(['orders'], 'orders.create')).toBe(false);
+  });
+
+  it('does not let an empty granted permission cover anything', () => {
+    expect(hasPermission([''], ':orders')).toBe(false);
+  });
 });

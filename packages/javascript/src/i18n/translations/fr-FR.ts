@@ -230,6 +230,8 @@ const translations: I18nTranslations = {
     "Ces autorisations permettent au service d'accéder à des fonctionnalités supplémentaires.",
   'consent.essential_scope.info': 'Ces autorisations sont nécessaires au bon fonctionnement du service.',
   'consent.optional_scope.info': 'Ces autorisations sont facultatives et peuvent être accordées à votre discrétion.',
+  'consent.permissions.subtree_notice':
+    'Approuver une autorisation approuve aussi les autorisations qui en dépendent, y compris celles ajoutées plus tard.',
 
   /* |---------------------------------------------------------------| */
   /* |                        Errors                                 | */

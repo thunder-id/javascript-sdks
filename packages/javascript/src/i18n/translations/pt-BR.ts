@@ -240,6 +240,8 @@ const translations: I18nTranslations = {
   'consent.authorization_details.new_item': '{label}, adicionar',
   'consent.essential_scope.info': 'Essas permissões são necessárias para o funcionamento adequado do serviço.',
   'consent.optional_scope.info': 'Essas permissões são opcionais e podem ser concedidas a seu critério.',
+  'consent.permissions.subtree_notice':
+    'Aprovar uma permissão também aprova as permissões abaixo dela, incluindo as adicionadas depois.',
 
   /* |---------------------------------------------------------------| */
   /* |                        Errors                                 | */

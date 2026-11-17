@@ -241,6 +241,7 @@ const translations: I18nTranslations = {
   'consent.authorization_details.new_item': '{label}, එක් කරන්න',
   'consent.essential_scope.info': 'සේවාව නිසි ලෙස ක්‍රියාත්මක වීම සඳහා මෙම අවසර අවශ්‍ය වේ.',
   'consent.optional_scope.info': 'මෙම අවසර විකල්ප වන අතර ඔබේ අභිමතය පරිදි ලබා දිය හැක.',
+  'consent.permissions.subtree_notice': 'අවසරයක් අනුමත කිරීමෙන් එයට යටත් අවසර ද, පසුව එක් කරන ඒවා ඇතුළුව, අනුමත වේ.',
 
   /* |---------------------------------------------------------------| */
   /* |                        Errors                                 | */
