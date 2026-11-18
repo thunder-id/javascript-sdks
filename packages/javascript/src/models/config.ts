@@ -514,6 +514,12 @@ export interface BaseConfig<T = unknown> extends WithPreferences, WithExtensions
      */
     usersMe?: string;
     /**
+     * The collection URL of the agents the signed-in user owns, used by the personal agent self-service
+     * operations. A single agent is addressed as `{usersMeAgents}/{id}`.
+     * If not provided, defaults to `{baseUrl}/users/me/agents`.
+     */
+    usersMeAgents?: string;
+    /**
      * The self-service credential update endpoint URL used to change one of the signed-in
      * user's own credentials (for example `password` or `pin`).
      * If not provided, defaults to `{baseUrl}/users/me/update-credentials`.

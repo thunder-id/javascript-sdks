@@ -269,6 +269,63 @@ describe('BaseAgentDetails', () => {
 
     expect(screen.getByText('No owner')).toBeTruthy();
   });
+
+  it('marks a personal agent and names every party holding it suspended', () => {
+    renderWithProviders(
+      <BaseAgentDetails
+        agent={{
+          id: 'a-1',
+          kind: 'personal-assistant',
+          ouId: 'ou-1',
+          owner: {id: 'u-1'},
+          status: {details: {appliedBy: ['owner', 'cascade']}, value: 'SUSPENDED'},
+          type: 'x',
+        }}
+      />,
+    );
+
+    expect(screen.getByText('Personal')).toBeTruthy();
+    expect(screen.getByText("Owner, Owner's account suspension")).toBeTruthy();
+  });
+
+  it('names the organization for a suspension that names no party', () => {
+    renderWithProviders(
+      <BaseAgentDetails
+        agent={{id: 'a-1', ouId: 'ou-1', status: {details: {appliedBy: []}, value: 'SUSPENDED'}, type: 'x'}}
+      />,
+    );
+
+    expect(screen.getByText('Suspended by')).toBeTruthy();
+    expect(screen.getByText('Organization')).toBeTruthy();
+  });
+
+  it('names no suspending party for an agent that is not suspended', () => {
+    renderWithProviders(<BaseAgentDetails agent={{id: 'a-1', ouId: 'ou-1', status: {value: 'ACTIVE'}, type: 'x'}} />);
+
+    expect(screen.queryByText('Suspended by')).toBeNull();
+    expect(screen.queryByText('Personal')).toBeNull();
+  });
+});
+
+describe('BaseAgentList', () => {
+  it('marks only the personal agents', () => {
+    renderWithProviders(
+      <BaseAgentList
+        agents={[
+          {attributes: {name: 'Spending assistant'}, id: 'ag-1', kind: 'personal-assistant', ouId: 'ou-1', type: 'x'},
+          {attributes: {name: 'Billing bot'}, id: 'ag-2', ouId: 'ou-1', type: 'x'},
+        ]}
+      />,
+    );
+
+    const rows: HTMLElement[] = within(screen.getByRole('table', {name: 'Agents'})).getAllByRole('row');
+    expect(
+      within(rows.find((row: HTMLElement) => row.textContent?.includes('Spending assistant'))!).getByText('Personal'),
+    ).toBeTruthy();
+    expect(
+      within(rows.find((row: HTMLElement) => row.textContent?.includes('Billing bot'))!).queryByText('Personal'),
+    ).toBeNull();
+  });
 });
 
 describe('BaseUserDetails', () => {
@@ -1894,6 +1951,32 @@ describe('administration flows', () => {
     await waitFor(() =>
       expect(executions(fetcher)).toEqual([{flowId: 'id-unsuspend-agent', inputs: {subject: 'a-1'}}]),
     );
+  });
+
+  it("offers the organization's own suspension, not an unsuspend, for an agent only its owner suspended", async () => {
+    const fetcher: FetcherMock = createFlowServer({
+      configured: {agentSuspendFlow: 'suspend-agent', agentUnsuspendFlow: 'unsuspend-agent'},
+      resources: {
+        '/agents/a-1': {
+          attributes: {name: 'Spending assistant'},
+          id: 'a-1',
+          kind: 'personal-assistant',
+          ouId: 'ou-1',
+          status: {details: {appliedBy: ['owner'], reason: 'OWNER_SUSPENSION'}, value: 'SUSPENDED'},
+          type: 'bot',
+        },
+      },
+    });
+
+    renderWithProviders(<AgentDetails agentId="a-1" lifecycleActions />, {fetcher});
+
+    fireEvent.click(await screen.findByRole('button', {name: 'Suspend'}));
+    expect(screen.queryByRole('button', {name: 'Unsuspend'})).toBeNull();
+    fireEvent.click(
+      within(screen.getByRole('group', {name: /^Suspend Spending assistant\?/})).getByRole('button', {name: 'Suspend'}),
+    );
+
+    await waitFor(() => expect(executions(fetcher)).toEqual([{flowId: 'id-suspend-agent', inputs: {subject: 'a-1'}}]));
   });
 
   it('suspends an application without asking for an operator note', async () => {

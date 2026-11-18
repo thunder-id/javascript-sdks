@@ -32,6 +32,20 @@ export {default as updateMeCredentials} from './api/account/updateMeCredentials'
 export type {UpdateMeCredentialsConfig} from './api/account/updateMeCredentials';
 export {default as updateMeProfile} from './api/account/updateMeProfile';
 export type {UpdateMeProfileConfig} from './api/account/updateMeProfile';
+export {default as getMeAgents} from './api/account/getMeAgents';
+export type {GetMeAgentsConfig} from './api/account/getMeAgents';
+export {default as getMeAgent} from './api/account/getMeAgent';
+export type {GetMeAgentConfig} from './api/account/getMeAgent';
+export {default as updateMeAgent} from './api/account/updateMeAgent';
+export type {UpdateMeAgentConfig} from './api/account/updateMeAgent';
+export {default as deleteMeAgent} from './api/account/deleteMeAgent';
+export type {DeleteMeAgentConfig} from './api/account/deleteMeAgent';
+export {default as suspendMeAgent} from './api/account/suspendMeAgent';
+export type {SuspendMeAgentConfig} from './api/account/suspendMeAgent';
+export {default as unsuspendMeAgent} from './api/account/unsuspendMeAgent';
+export type {UnsuspendMeAgentConfig} from './api/account/unsuspendMeAgent';
+export {default as suspendAllMeAgents} from './api/account/suspendAllMeAgents';
+export type {SuspendAllMeAgentsConfig} from './api/account/suspendAllMeAgents';
 
 export {default as getApplications} from './api/management/applications/getApplications';
 export type {GetApplicationsConfig} from './api/management/applications/getApplications';
@@ -751,6 +765,7 @@ export type {
   AccessStatus,
   AccessStatusDetails,
   AccessStatusValue,
+  SuspensionAppliedBy,
 } from './models/access-status';
 export type {
   CreateManagedUserRequest,
@@ -975,6 +990,7 @@ export type {ManagedUserType, ManagedUserTypeListResponse} from './models/manage
 export type {
   Agent,
   AgentInboundAuthConfig,
+  AgentKind,
   AgentListResponse,
   AgentLoginConsentConfig,
   AgentOwner,
@@ -984,7 +1000,14 @@ export type {
   AgentTypeListResponse,
   BasicAgent,
   CreateAgentRequest,
+  SuspendAllMeAgentsResponse,
   UpdateAgentRequest,
+  UpdateMeAgentRequest,
+} from './models/agent-resource';
+export {
+  PERSONAL_AGENT_GRANT_TYPE_LABEL_KEYS,
+  PERSONAL_AGENT_GRANT_TYPES,
+  PERSONAL_AGENT_KIND,
 } from './models/agent-resource';
 export type {
   CreateRoleRequest,
@@ -1074,7 +1097,16 @@ export {
 export type {SharingPolicyFormValues, SharingPolicyOperations, SharingResourceType} from './utils/sharingPolicies';
 export {default as resolveManagedIdentityName} from './utils/resolveManagedIdentityName';
 export {default as getAgentName} from './utils/getAgentName';
+export {default as isPersonalAgent} from './utils/isPersonalAgent';
 export {default as getAccountLifecycleActions} from './utils/getAccountLifecycleActions';
+export {default as getMeAgentSuspensionAction} from './utils/getMeAgentSuspensionAction';
+export {
+  getPersonalAgentOAuthConfig,
+  isPersonalAgentFormValid,
+  toPersonalAgentFormValues,
+  toUpdateMeAgentRequest,
+} from './utils/personalAgentForm';
+export type {PersonalAgentFormValues} from './utils/personalAgentForm';
 export {default as hasPermission} from './utils/hasPermission';
 export type {PermissionMatching} from './utils/hasPermission';
 export {default as arrayBufferToBase64url} from './utils/arrayBufferToBase64url';

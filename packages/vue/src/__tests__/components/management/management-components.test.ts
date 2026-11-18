@@ -1221,6 +1221,55 @@ describe('admin components (vue)', () => {
       const {wrapper: unowned} = mountWith(BaseAgentDetails, {agent: {id: 'ag-3', ouId: 'ou-1', type: 'bot'}});
       expect(unowned.text()).toContain(translate('admin.agents.details.no_owner'));
     });
+
+    it('marks a personal agent and names every party holding it suspended', () => {
+      const {wrapper} = mountWith(BaseAgentDetails, {
+        agent: {
+          id: 'a-1',
+          kind: 'personal-assistant',
+          ouId: 'ou-1',
+          owner: {id: 'u-1'},
+          status: {details: {appliedBy: ['owner', 'cascade']}, value: 'SUSPENDED'},
+          type: 'x',
+        },
+      });
+
+      expect(wrapper.text()).toContain(translate('admin.agents.kind.personal'));
+      expect(wrapper.text()).toContain(
+        `${translate('admin.agents.details.suspension.owner')}, ${translate('admin.agents.details.suspension.cascade')}`,
+      );
+    });
+
+    it('names the organization for a suspension that names no party', () => {
+      const {wrapper} = mountWith(BaseAgentDetails, {
+        agent: {id: 'a-1', ouId: 'ou-1', status: {value: 'SUSPENDED'}, type: 'x'},
+      });
+
+      expect(wrapper.text()).toContain(translate('admin.agents.details.suspension.title'));
+      expect(wrapper.text()).toContain(translate('admin.agents.details.suspension.organization'));
+    });
+
+    it('names no suspending party for an agent that is not suspended', () => {
+      const {wrapper} = mountWith(BaseAgentDetails, {
+        agent: {id: 'a-1', ouId: 'ou-1', status: {value: 'ACTIVE'}, type: 'x'},
+      });
+
+      expect(wrapper.text()).not.toContain(translate('admin.agents.details.suspension.title'));
+      expect(wrapper.text()).not.toContain(translate('admin.agents.kind.personal'));
+    });
+
+    it('marks only the personal agents in the list', () => {
+      const {wrapper} = mountWith(BaseAgentList, {
+        agents: [
+          {attributes: {name: 'Spending assistant'}, id: 'ag-1', kind: 'personal-assistant', ouId: 'ou-1', type: 'x'},
+          {attributes: {name: 'Billing bot'}, id: 'ag-2', ouId: 'ou-1', type: 'x'},
+        ],
+      });
+
+      const rows: DOMWrapper<Element>[] = wrapper.findAll('tbody tr');
+      expect(rows[0].text()).toContain(translate('admin.agents.kind.personal'));
+      expect(rows[1].text()).not.toContain(translate('admin.agents.kind.personal'));
+    });
   });
 
   describe('search and filters', () => {
@@ -1891,6 +1940,36 @@ describe('admin components (vue)', () => {
 
       await vi.waitFor(() => expect(executions(context)).toHaveLength(1));
       expect(context.fetcher.mock.calls.some(([url]) => url.endsWith('/members/remove'))).toBe(false);
+    });
+
+    it("offers the organization's own suspension, not an unsuspend, for an agent only its owner suspended", async () => {
+      const context = createFlowContext({
+        configured: {agentSuspendFlow: 'suspend-agent', agentUnsuspendFlow: 'unsuspend-agent'},
+        resources: {
+          '/agents/a-1': {
+            attributes: {name: 'Spending assistant'},
+            id: 'a-1',
+            kind: 'personal-assistant',
+            ouId: 'ou-1',
+            status: {details: {appliedBy: ['owner'], reason: 'OWNER_SUSPENSION'}, value: 'SUSPENDED'},
+            type: 'bot',
+          },
+        },
+      });
+      const {wrapper} = mountWith(AgentDetails, {agentId: 'a-1', lifecycleActions: true}, context);
+
+      await vi.waitFor(() =>
+        expect(lifecycleButton(wrapper, translate('admin.common.lifecycle.suspend'))).toBeDefined(),
+      );
+      expect(lifecycleButton(wrapper, translate('admin.common.lifecycle.unsuspend'))).toBeUndefined();
+      await lifecycleButton(wrapper, translate('admin.common.lifecycle.suspend'))!.trigger('click');
+      await lifecycleButton(wrapper.find('[role="group"]'), translate('admin.common.lifecycle.suspend'))!.trigger(
+        'click',
+      );
+
+      await vi.waitFor(() =>
+        expect(executions(context)).toEqual([{flowId: 'id-suspend-agent', inputs: {subject: 'a-1'}}]),
+      );
     });
 
     it('unsuspends an agent through its flow', async () => {

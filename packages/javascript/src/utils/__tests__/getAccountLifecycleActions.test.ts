@@ -46,4 +46,28 @@ describe('getAccountLifecycleActions', () => {
   it('offers nothing for a status it does not know', () => {
     expect(getAccountLifecycleActions('user', 'ARCHIVED' as never, allUserFlows)).toEqual([]);
   });
+
+  describe('a suspension other parties hold', () => {
+    const agentFlows: Record<string, string> = {agentSuspendFlow: 'a', agentUnsuspendFlow: 'b'};
+
+    it('offers the unsuspend while the organization holds a suspension', () => {
+      expect(getAccountLifecycleActions('agent', 'SUSPENDED', agentFlows, ['organization', 'owner'])).toEqual([
+        'unsuspend',
+      ]);
+    });
+
+    it("offers the organization's own suspension when only the owner or the cascade holds one", () => {
+      expect(getAccountLifecycleActions('agent', 'SUSPENDED', agentFlows, ['owner'])).toEqual(['suspend']);
+      expect(getAccountLifecycleActions('agent', 'SUSPENDED', agentFlows, ['owner', 'cascade'])).toEqual(['suspend']);
+    });
+
+    it("reads a suspension that names no party as the organization's", () => {
+      expect(getAccountLifecycleActions('agent', 'SUSPENDED', agentFlows, [])).toEqual(['unsuspend']);
+      expect(getAccountLifecycleActions('agent', 'SUSPENDED', agentFlows)).toEqual(['unsuspend']);
+    });
+
+    it('ignores the parties for a status that is not a suspension', () => {
+      expect(getAccountLifecycleActions('agent', 'ACTIVE', agentFlows, ['owner'])).toEqual(['suspend']);
+    });
+  });
 });
