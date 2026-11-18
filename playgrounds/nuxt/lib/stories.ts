@@ -26,6 +26,7 @@ import {ADMIN_COMPONENTS} from './adminStories';
 import {CUSTOM_RENDER_COMPONENTS, SAMPLE_VERIFICATION_STEP, submitSampleVerification} from './customRenderStories';
 import {ORGANIZATION_UNIT_ADMIN_STORIES, PROJECT_STORIES, SHARING_STORIES} from './managementAreaStories';
 import {SampleOrganizationUnitSwitcher} from './organizationUnitSamples';
+import {PERSONAL_AGENT_COMPONENTS} from './personalAgentStories';
 import {tag} from './storyCode';
 import type {Action, Args, ArgValue, ComponentDef, PropControl} from './storyTypes';
 import {CheckboxStory, narrow, OtpFieldStory, PasswordFieldStory, SelectStory, TextFieldStory} from './storyWidgets';
@@ -995,6 +996,7 @@ export const COMPONENTS: ComponentDef[] = [
     'GET /api/auth/user-types',
     'userTypes',
   ),
+  ...PERSONAL_AGENT_COMPONENTS,
   ...ADMIN_COMPONENTS,
   ...PROJECT_STORIES,
   ...ORGANIZATION_UNIT_ADMIN_STORIES,

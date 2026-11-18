@@ -38,7 +38,7 @@ const defu: ReturnType<typeof createDefu> = createDefu(
 
 interface ServerRoute {
   handler: string;
-  method?: 'patch' | 'post';
+  method?: 'delete' | 'get' | 'patch' | 'post' | 'put';
   route: string;
 }
 
@@ -220,6 +220,41 @@ export default defineNuxtModule<ThunderIDNuxtConfig>({
         handler: resolve('./runtime/server/routes/auth/user/organization-units.get'),
         route: NuxtAPIRoutes.USER_ORGANIZATION_UNITS,
       },
+      {
+        handler: resolve('./runtime/server/routes/auth/user/agents/agents.get'),
+        method: 'get' as const,
+        route: NuxtAPIRoutes.USER_AGENTS,
+      },
+      {
+        handler: resolve('./runtime/server/routes/auth/user/agents/agents-suspend.post'),
+        method: 'post' as const,
+        route: `${NuxtAPIRoutes.USER_AGENTS}/suspend`,
+      },
+      {
+        handler: resolve('./runtime/server/routes/auth/user/agents/agent.get'),
+        method: 'get' as const,
+        route: `${NuxtAPIRoutes.USER_AGENTS}/:id`,
+      },
+      {
+        handler: resolve('./runtime/server/routes/auth/user/agents/agent.put'),
+        method: 'put' as const,
+        route: `${NuxtAPIRoutes.USER_AGENTS}/:id`,
+      },
+      {
+        handler: resolve('./runtime/server/routes/auth/user/agents/agent.delete'),
+        method: 'delete' as const,
+        route: `${NuxtAPIRoutes.USER_AGENTS}/:id`,
+      },
+      {
+        handler: resolve('./runtime/server/routes/auth/user/agents/agent-suspend.post'),
+        method: 'post' as const,
+        route: `${NuxtAPIRoutes.USER_AGENTS}/:id/suspend`,
+      },
+      {
+        handler: resolve('./runtime/server/routes/auth/user/agents/agent-unsuspend.post'),
+        method: 'post' as const,
+        route: `${NuxtAPIRoutes.USER_AGENTS}/:id/unsuspend`,
+      },
     ];
 
     // Opt-in: the route accepts unauthenticated requests, so it is served only when asked for.
@@ -314,6 +349,13 @@ export default defineNuxtModule<ThunderIDNuxtConfig>({
       name: 'BaseOrganizationUnitSwitcher',
     });
     addComponent({filePath: resolve('./runtime/components/account/VerifyAttribute'), name: 'VerifyAttribute'});
+    addComponent({filePath: resolve('./runtime/components/account/PersonalAgentList'), name: 'PersonalAgentList'});
+    addComponent({export: 'BasePersonalAgentList', filePath: '@thunderid/vue', name: 'BasePersonalAgentList'});
+    addComponent({
+      filePath: resolve('./runtime/components/account/PersonalAgentDetails'),
+      name: 'PersonalAgentDetails',
+    });
+    addComponent({export: 'BasePersonalAgentDetails', filePath: '@thunderid/vue', name: 'BasePersonalAgentDetails'});
 
     // ── Management pickers ──────────────────────────────────────────────────
     // Opt-in: each picker's route lists a management resource with the signed-in user's session, so the route and its
