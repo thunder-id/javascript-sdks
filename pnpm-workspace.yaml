@@ -149,6 +149,13 @@ auditConfig:
     - GHSA-g4wm-2vf7-vfgr
     - GHSA-858h-whjf-mvg5
     - GHSA-v5rq-49vh-5v5c
+    # JUSTIFICATION: GHSA-fc5q-39xc-vjpf: picomatch ReDoS through single-branch repeated extglobs.
+    # No patched release exists (4.0.7 and below are affected). Transitive via build tooling only:
+    # `vue-router` > `vite` / `unplugin`, `@nuxt/kit` > `tinyglobby` > `fdir`, and the eslint and
+    # vitest toolchain. It matches glob patterns from the project's own config and filesystem at
+    # build or lint time; no untrusted input reaches it at runtime. Added 2026-11-18; revisit once
+    # picomatch publishes a fix.
+    - GHSA-fc5q-39xc-vjpf
 
 catalog:
   '@emotion/css': 11.13.5

@@ -19,6 +19,12 @@ export enum FlowMetaType {
   /** Retrieve metadata scoped to a specific application */
   App = 'APP',
 
+  /**
+   * Retrieve metadata by the opaque `ref` query parameter the authorize endpoint adds to the sign-in
+   * page URL. The value is passed as `id` unchanged.
+   */
+  Ref = 'REF',
+
   /** Retrieve metadata scoped to a specific organization unit */
   Ou = 'OU',
 }
@@ -277,6 +283,12 @@ export interface FlowMetadataResponse {
    * Only present when `type=APP`.
    */
   application?: ApplicationMetadata;
+
+  /**
+   * Where a sign-in page sends the user when it has no flow to continue and no application URL to
+   * return to. Omitted when the server does not set one.
+   */
+  defaultReturnUrl?: string;
 
   /** Resolved design configuration */
   design: DesignMetadata;

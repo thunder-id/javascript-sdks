@@ -13,12 +13,16 @@ import {
   EmbeddedSignInFlowType,
   FieldError,
   FlowMetadataResponse,
+  FlowMetaType,
   Preferences,
   logger,
   compileConsentDecisions,
+  getFlowMeta,
   isFlowExpiredError,
+  replaceLocation,
+  resolveResourceEndpoint,
 } from '@thunderid/browser';
-import {FC, ReactElement, useState, useEffect, useMemo, useRef, ReactNode} from 'react';
+import {FC, ReactElement, useCallback, useState, useEffect, useMemo, useRef, ReactNode} from 'react';
 // eslint-disable-next-line import/no-named-as-default
 import BaseSignIn, {BaseSignInProps} from './BaseSignIn';
 import useThunderID from '../../../contexts/ThunderID/useThunderID';
@@ -123,9 +127,11 @@ export interface SignInRenderProps {
  */
 export interface SignInProps {
   /**
-   * Where to send the user once the flow expires, e.g. the application's URL. With it, an expired flow counts
-   * down and redirects there. Without it, the flow is started again in place. Set it when the sign-in runs
-   * on a page of its own, such as a login portal, rather than inside the application.
+   * Where to send the user back to, e.g. the application's URL. With it, an expired flow counts down and redirects
+   * there, and a page with no flow to continue, such as a bookmarked URL, goes there straight away. Without it, the
+   * flow is started again in place when the application is known. Otherwise the URL comes from the page's `ref`
+   * parameter, else the server's default return URL. Set it when the sign-in runs on a page of its own, such as a
+   * login portal, rather than inside the application.
    */
   afterFlowExpiredUrl?: string;
 
@@ -294,8 +300,19 @@ const SignIn: FC<SignInProps> = ({
   organizationUnitId,
   afterFlowExpiredUrl = undefined,
 }: SignInProps): ReactElement => {
-  const {applicationId, afterSignInUrl, signIn, isInitialized, isLoading, meta, getStorageManager, scopes, vendor} =
-    useThunderID();
+  const {
+    applicationId,
+    afterSignInUrl,
+    baseUrl,
+    endpoints,
+    signIn,
+    isInitialized,
+    isLoading,
+    meta,
+    getStorageManager,
+    scopes,
+    vendor,
+  } = useThunderID();
   const {t} = useTranslation(preferences?.i18n);
 
   // State management for the flow
@@ -323,6 +340,19 @@ const SignIn: FC<SignInProps> = ({
   // A flow an authorize request started cannot be started again here: the server refuses to start a sign-in
   // directly for such an application, so the user has to go back to it.
   const [isStartedByAuthorizeRequest, setIsStartedByAuthorizeRequest] = useState<boolean>(false);
+  // The `ref` the page URL carried when it loaded. It names the application to go back to.
+  const [initialRef] = useState<string | null>(() =>
+    typeof window === 'undefined' ? null : new URL(window.location.href).searchParams.get('ref'),
+  );
+  // Why the page has no flow to continue, with no application to start one: nothing to resume, as a bookmarked URL
+  // opened in a new tab, or an execution left in this tab that the server no longer accepts.
+  const [noFlowReason, setNoFlowReason] = useState<'missing' | 'stale' | null>(null);
+  const canRestart: boolean = Boolean(applicationId || startedApplicationId) && !isStartedByAuthorizeRequest;
+  const fetchFlowMeta: (query: {id?: string; type?: FlowMetaType}) => Promise<FlowMetadataResponse> = useCallback(
+    (query: {id?: string; type?: FlowMetaType}): Promise<FlowMetadataResponse> =>
+      getFlowMeta({baseUrl, url: resolveResourceEndpoint('flowMeta', {endpoints}), ...query}),
+    [baseUrl, endpoints],
+  );
   const {
     clearFlowRestarted,
     expireFlow,
@@ -331,9 +361,11 @@ const SignIn: FC<SignInProps> = ({
     isFlowRestarted,
     restartFlow,
     restartsInPlace,
+    returnTarget,
   } = useFlowExpiryHandling({
     afterFlowExpiredUrl,
-    canRestart: Boolean(applicationId || startedApplicationId) && !isStartedByAuthorizeRequest,
+    canRestart,
+    returnUrlLookup: {enabled: isInitialized, fetchMeta: fetchFlowMeta, meta, ref: initialRef},
     // Deferred, since the restart is defined further down.
     restart: (): void => {
       void startFlowAgain();
@@ -544,6 +576,29 @@ const SignIn: FC<SignInProps> = ({
     }
   }, [isFlowExpired, restartsInPlace]);
 
+  // A page with no flow, such as a bookmarked or shared URL, goes back straight away once the return URL is known.
+  // Nothing expired from the user's side, so there is no expired notice or countdown. With nowhere to go, a left
+  // over execution reads as an expired session, and a page that never had one reports why it can't sign in.
+  useEffect(() => {
+    if (!noFlowReason) {
+      return;
+    }
+    const returnUrl: string | undefined = afterFlowExpiredUrl ?? returnTarget?.url;
+    if (returnUrl) {
+      replaceLocation(returnUrl);
+    } else if (returnTarget && noFlowReason === 'stale') {
+      handleFlowExpired();
+    } else if (returnTarget) {
+      setError(
+        new ThunderIDRuntimeError(
+          'Either executionId or applicationId is required for authentication',
+          'SIGN_IN_ERROR',
+          'react',
+        ),
+      );
+    }
+  }, [noFlowReason, afterFlowExpiredUrl, returnTarget]);
+
   /**
    * Handle OAuth error from URL parameters.
    * Clears flow state, creates error, and cleans up URL.
@@ -679,13 +734,9 @@ const SignIn: FC<SignInProps> = ({
     const storedExecutionId: any = !urlParams.executionId ? sessionStorage.getItem(`${vendor}_execution_id`) : null;
     const resumeExecutionId: any = urlParams.executionId || storedExecutionId;
 
+    // Nothing to resume and nothing to start: the effect below sends the user back, or reports the error.
     if (!resumeExecutionId && !effectiveApplicationId) {
-      const error: any = new ThunderIDRuntimeError(
-        'Either executionId or applicationId is required for authentication',
-        'SIGN_IN_ERROR',
-        'react',
-      );
-      setError(error);
+      setNoFlowReason('missing');
 
       return;
     }
@@ -702,10 +753,6 @@ const SignIn: FC<SignInProps> = ({
             ...(challengeTokenRef.current ? {challengeToken: challengeTokenRef.current} : {}),
           })) as EmbeddedSignInFlowResponse;
         } catch (resumeError) {
-          // An execution the server refused as expired takes the same path as any other expiry.
-          if (isFlowExpiredError(resumeError)) {
-            throw resumeError;
-          }
           // Only treat a stale/expired session (HTTP 400 from the server, meaning the stored
           // executionId is no longer valid) as a recoverable condition. Transient failures
           // such as 5xx server errors or network errors are rethrown so they surface correctly.
@@ -715,13 +762,22 @@ const SignIn: FC<SignInProps> = ({
             resumeError instanceof ThunderIDAPIError &&
             resumeError.statusCode === 400;
 
+          // An execution left in this tab that the server no longer accepts is not this page's flow. With no
+          // application to start one, the page has no flow, as a bookmarked URL opened in a new tab does.
+          if (isStaleSession && !effectiveApplicationId) {
+            setExecutionId(null);
+            await clearAuthId(resumeExecutionId);
+            setNoFlowReason('stale');
+            return;
+          }
+          // An execution the server refused as expired takes the same path as any other expiry.
+          if (isFlowExpiredError(resumeError)) {
+            throw resumeError;
+          }
+
           if (isStaleSession) {
             setExecutionId(null);
             await clearAuthId(resumeExecutionId);
-            if (!effectiveApplicationId) {
-              handleFlowExpired();
-              return;
-            }
             response = (await signIn({
               applicationId: effectiveApplicationId,
               flowType: EmbeddedFlowType.Authentication,

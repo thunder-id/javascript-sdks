@@ -10,6 +10,8 @@ export {default as ThunderIDProvider} from './providers/ThunderIDProvider';
 
 // ── Providers ──
 export {default as FlowMetaProvider} from './providers/FlowMetaProvider';
+export {FlowMetaType, getFlowMeta, resolveFlowReturnUrl} from '@thunderid/browser';
+export type {ApplicationMetadata, FlowMetadataResponse, FlowReturnTarget} from '@thunderid/browser';
 export {default as FlowProvider} from './providers/FlowProvider';
 export {default as I18nProvider} from './providers/I18nProvider';
 export {default as ThemeProvider} from './providers/ThemeProvider';

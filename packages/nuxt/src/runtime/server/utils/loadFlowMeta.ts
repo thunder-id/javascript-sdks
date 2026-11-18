@@ -1,7 +1,13 @@
 // Copyright 2026 The ThunderID Authors
 // SPDX-License-Identifier: Apache-2.0
 
-import {FlowMetaType, getFlowMeta, isFlowMetaUnavailableError, resolveResourceEndpoint} from '@thunderid/node';
+import {
+  FlowMetaType,
+  getFlowMeta,
+  isFlowMetaUnavailableError,
+  resolveResourceEndpoint,
+  ThunderIDAPIError,
+} from '@thunderid/node';
 import type {FlowMetadataResponse, ResourceEndpointConfig} from '@thunderid/node';
 import {createLogger} from '../../utils/log';
 
@@ -23,7 +29,27 @@ let hasWarnedUnavailable = false;
 const loadFlowMeta = async (
   config: (ResourceEndpointConfig & {applicationId?: string; baseUrl?: string}) | undefined,
   language?: string,
+  ref?: string,
 ): Promise<FlowMetadataResponse | null> => {
+  // A `ref` from a sign-in page URL names the application in place of the configured one. A 404, which ThunderID
+  // answers for a ref that names no application, resolves to null without the warning below. Other failures reject.
+  if (ref) {
+    try {
+      return await getFlowMeta({
+        baseUrl: config?.baseUrl,
+        id: ref,
+        type: FlowMetaType.Ref,
+        url: resolveResourceEndpoint('flowMeta', config),
+        ...(language ? {language} : {}),
+      });
+    } catch (error) {
+      if (isFlowMetaUnavailableError(error) || (error instanceof ThunderIDAPIError && error.statusCode === 404)) {
+        return null;
+      }
+      throw error;
+    }
+  }
+
   try {
     return await getFlowMeta({
       baseUrl: config?.baseUrl,

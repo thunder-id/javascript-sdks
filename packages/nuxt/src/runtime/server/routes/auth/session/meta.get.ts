@@ -1,6 +1,7 @@
 // Copyright 2026 The ThunderID Authors
 // SPDX-License-Identifier: Apache-2.0
 
+import {FlowMetaType} from '@thunderid/node';
 import type {AuthClientConfig, FlowMetadataResponse} from '@thunderid/node';
 import {createError, defineEventHandler, getQuery} from 'h3';
 import type {H3Event} from 'h3';
@@ -32,9 +33,12 @@ export default defineEventHandler(async (event: H3Event): Promise<FlowMetadataRe
 
   const query: Record<string, unknown> = getQuery(event);
   const language: string | undefined = typeof query.language === 'string' ? query.language : undefined;
+  // Only a `REF` lookup is passed through: the sign-in page asks which application its URL names.
+  const ref: string | undefined =
+    query.type === FlowMetaType.Ref && typeof query.id === 'string' ? query.id : undefined;
 
   try {
-    return await loadFlowMeta(configData, language);
+    return await loadFlowMeta(configData, language, ref);
   } catch (error) {
     log.error('Failed to fetch flow metadata:', error instanceof Error ? error.message : String(error));
 
