@@ -19,6 +19,14 @@ import Consent from '../../flow/Consent';
 import SignIn, {type SignInRenderProps} from '../SignIn';
 
 const mockSignIn = vi.fn() as Mock;
+const mockGetFlowMeta = vi.fn() as Mock;
+const mockReplaceLocation = vi.fn() as Mock;
+
+vi.mock('@thunderid/browser', async (importOriginal: () => Promise<Record<string, unknown>>) => ({
+  ...(await importOriginal()),
+  getFlowMeta: (...args: unknown[]): unknown => mockGetFlowMeta(...args),
+  replaceLocation: (...args: unknown[]): unknown => mockReplaceLocation(...args),
+}));
 
 const thunderIDContext: ThunderIDContextProps = {
   applicationId: undefined,
@@ -36,6 +44,12 @@ const thunderIDContext: ThunderIDContextProps = {
   signIn: mockSignIn,
   vendor: 'thunderid',
 } as unknown as ThunderIDContextProps;
+
+// Without a stubbed answer, a return URL lookup fails as it would against a server with no metadata.
+beforeEach(() => {
+  mockGetFlowMeta.mockReset().mockRejectedValue(new Error('no metadata'));
+  mockReplaceLocation.mockReset();
+});
 
 describe('SignIn without an application', () => {
   const unhandled: unknown[] = [];
@@ -104,6 +118,90 @@ describe('SignIn without an application', () => {
     expect(error).toBeInstanceOf(ThunderIDRuntimeError);
     expect((error as ThunderIDRuntimeError).code).toBe('SIGN_IN_ERROR');
     expect(error).toBe(onError.mock.calls[0][0]);
+  });
+
+  const renderWithoutApplication = (renderChild: Mock<(props: SignInRenderProps) => ReactNode>): void => {
+    render(
+      <ThunderIDContext.Provider value={thunderIDContext}>
+        <I18nProvider>
+          <ThemeProvider>
+            <SignIn>{renderChild}</SignIn>
+          </ThemeProvider>
+        </I18nProvider>
+      </ThunderIDContext.Provider>,
+    );
+  };
+
+  it('goes straight back to the application the ref parameter names', async () => {
+    window.history.replaceState({}, '', '/signin?ref=AZqMXi9Bez2p5lwNH3s-KA');
+    mockGetFlowMeta.mockResolvedValue({application: {name: 'Acme', url: 'https://acme.example.com'}});
+    const renderChild: Mock<(props: SignInRenderProps) => null> = vi.fn(() => null);
+
+    renderWithoutApplication(renderChild);
+
+    await waitFor(() => {
+      expect(mockReplaceLocation).toHaveBeenCalledWith('https://acme.example.com');
+    });
+    expect(renderChild.mock.lastCall?.[0].isFlowExpired).toBe(false);
+    expect(renderChild.mock.lastCall?.[0].error).toBeNull();
+    expect(mockGetFlowMeta).toHaveBeenCalledWith(expect.objectContaining({id: 'AZqMXi9Bez2p5lwNH3s-KA', type: 'REF'}));
+    expect(mockSignIn).not.toHaveBeenCalled();
+  });
+
+  it('goes straight back when an execution left in the tab is refused as expired', async () => {
+    window.history.replaceState({}, '', '/signin?ref=AZqMXi9Bez2p5lwNH3s-KA');
+    sessionStorage.setItem('thunderid_execution_id', 'old-exec');
+    mockSignIn.mockRejectedValueOnce(
+      new ThunderIDAPIError(
+        JSON.stringify({code: 'FES-1004', message: {defaultValue: 'Invalid request', key: 'error.invalid_request'}}),
+        'executeEmbeddedSignInFlow-ResponseError-100',
+        'javascript',
+        400,
+        'Bad Request',
+      ),
+    );
+    mockGetFlowMeta.mockResolvedValue({application: {name: 'Acme', url: 'https://acme.example.com'}});
+    const renderChild: Mock<(props: SignInRenderProps) => null> = vi.fn(() => null);
+
+    renderWithoutApplication(renderChild);
+
+    await waitFor(() => {
+      expect(mockReplaceLocation).toHaveBeenCalledWith('https://acme.example.com');
+    });
+    expect(mockSignIn).toHaveBeenCalledWith(expect.objectContaining({executionId: 'old-exec'}));
+    expect(renderChild.mock.lastCall?.[0].isFlowExpired).toBe(false);
+    expect(sessionStorage.getItem('thunderid_execution_id')).toBeNull();
+  });
+
+  it('goes straight to afterFlowExpiredUrl without a lookup when the page has no flow', async () => {
+    window.history.replaceState({}, '', '/signin?ref=AZqMXi9Bez2p5lwNH3s-KA');
+
+    render(
+      <ThunderIDContext.Provider value={thunderIDContext}>
+        <I18nProvider>
+          <ThemeProvider>
+            <SignIn afterFlowExpiredUrl="https://app.example.com">{vi.fn(() => null)}</SignIn>
+          </ThemeProvider>
+        </I18nProvider>
+      </ThunderIDContext.Provider>,
+    );
+
+    await waitFor(() => {
+      expect(mockReplaceLocation).toHaveBeenCalledWith('https://app.example.com');
+    });
+    expect(mockGetFlowMeta).not.toHaveBeenCalled();
+  });
+
+  it('goes straight to the default return URL when the URL has no parameters', async () => {
+    mockGetFlowMeta.mockResolvedValue({defaultReturnUrl: 'https://home.example.com'});
+    const renderChild: Mock<(props: SignInRenderProps) => null> = vi.fn(() => null);
+
+    renderWithoutApplication(renderChild);
+
+    await waitFor(() => {
+      expect(mockReplaceLocation).toHaveBeenCalledWith('https://home.example.com');
+    });
+    expect(renderChild.mock.lastCall?.[0].isFlowExpired).toBe(false);
   });
 });
 
@@ -335,6 +433,22 @@ describe('SignIn flow expiry', () => {
     });
     expect(lastProps(renderChild)?.isFlowExpired).toBe(false);
     expect(onError).not.toHaveBeenCalled();
+    expect(mockGetFlowMeta).not.toHaveBeenCalled();
+  });
+
+  it('counts down to the default return URL when an authorize request started the expired flow', async () => {
+    setUserPresent(false);
+    window.history.replaceState({}, '', '/signin?executionId=exec-1&authId=auth-1&applicationId=app-1');
+    mockGetFlowMeta.mockResolvedValue({defaultReturnUrl: 'https://home.example.com'});
+    mockSignIn.mockResolvedValueOnce(step(0.1));
+    const renderChild: Mock<(props: SignInRenderProps) => ReactNode> = vi.fn(() => null);
+    renderSignIn(renderChild, {}, {applicationId: undefined});
+
+    await waitFor(() => {
+      expect(lastProps(renderChild)?.flowExpiryRedirect?.url).toBe('https://home.example.com');
+    });
+    expect(lastProps(renderChild)?.isFlowExpired).toBe(true);
+    expect(mockSignIn).toHaveBeenCalledTimes(1);
   });
 
   it('waits for the user before starting an expired flow again', async () => {

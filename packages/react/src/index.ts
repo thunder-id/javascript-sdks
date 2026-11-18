@@ -28,6 +28,14 @@ export type {FlowProviderProps} from './contexts/Flow/FlowProvider';
 
 export {default as FlowMetaProvider} from './contexts/FlowMeta/FlowMetaProvider';
 export type {FlowMetaProviderProps} from './contexts/FlowMeta/FlowMetaProvider';
+export {
+  FlowMetaType,
+  getFlowMeta,
+  resolveFlowReturnUrl,
+  type ApplicationMetadata,
+  type FlowMetadataResponse,
+  type FlowReturnTarget,
+} from '@thunderid/browser';
 
 export {default as useFlow} from './contexts/Flow/useFlow';
 

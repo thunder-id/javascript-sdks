@@ -21,6 +21,7 @@ import {
   EmbeddedSignInFlowType,
   type FlowMetadataResponse,
   isFlowExpiredError,
+  replaceLocation,
 } from '@thunderid/browser';
 import {
   BaseSignIn,
@@ -52,6 +53,7 @@ import {
   shallowRef,
   watch,
 } from 'vue';
+import NuxtAPIRoutes from '../../constants/NuxtAPIRoutes';
 import {useThunderID} from '#imports';
 
 /** Builds an SDK-raised error with the current translator, so it follows a language change. */
@@ -132,9 +134,11 @@ const SignIn: Component = defineComponent({
   name: 'SignIn',
   props: {
     /**
-     * Where to send the user once the flow expires, e.g. the application's URL. With it, an expired flow counts
-     * down and redirects there. Without it, the flow is started again in place. Set it when the sign-in runs on
-     * a page of its own, such as a login portal, rather than inside the application.
+     * Where to send the user back to, e.g. the application's URL. With it, an expired flow counts down and redirects
+     * there, and a page with no flow to continue, such as a bookmarked URL, goes there straight away. Without it, the
+     * flow is started again in place when the application is known. Otherwise the URL comes from the page's `ref`
+     * parameter, else the server's default return URL. Set it when the sign-in runs on a page of its own, such as a
+     * login portal, rather than inside the application.
      */
     afterFlowExpiredUrl: {default: undefined, type: String},
     className: {default: '', type: String},
@@ -206,6 +210,13 @@ const SignIn: Component = defineComponent({
     // A flow an authorize request started cannot be started again here: the server refuses to start a sign-in
     // directly for such an application, so the user has to go back to it.
     const isStartedByAuthorizeRequest: Ref<boolean> = ref(false);
+    // The `ref` the page URL carried when it loaded. It names the application to go back to.
+    const initialRef: string | null =
+      typeof window === 'undefined' ? null : new URLSearchParams(window.location.search).get('ref');
+    // Set when the page loaded with no flow to resume and no application to start one, as a bookmarked URL does.
+    const hasNoFlow: Ref<boolean> = ref(false);
+    const canRestart = (): boolean =>
+      Boolean(applicationId || startedApplicationId.value) && !isStartedByAuthorizeRequest.value;
     const {
       clearFlowRestarted,
       expireFlow,
@@ -214,9 +225,18 @@ const SignIn: Component = defineComponent({
       isFlowRestarted,
       restartFlow,
       restartsInPlace,
+      returnTarget,
     } = useFlowExpiryHandling({
       afterFlowExpiredUrl: () => props.afterFlowExpiredUrl,
-      canRestart: () => Boolean(applicationId || startedApplicationId.value) && !isStartedByAuthorizeRequest.value,
+      canRestart,
+      // Metadata goes through the same-origin route, as everywhere in this module.
+      returnUrlLookup: {
+        enabled: isInitialized,
+        fetchMeta: async (query: {id?: string; type?: string}): Promise<FlowMetadataResponse | null> =>
+          (await $fetch<FlowMetadataResponse | null>(NuxtAPIRoutes.META, {query})) ?? null,
+        meta: flowMeta,
+        ref: initialRef,
+      },
       // Deferred, since the restart is defined further down.
       restart: (): void => {
         void startFlowAgain();
@@ -341,6 +361,27 @@ const SignIn: Component = defineComponent({
       },
     );
 
+    // A page with no flow, such as a bookmarked or shared URL, goes back straight away once the return URL is
+    // known. Nothing expired from the user's side, so there is no expired notice or countdown. With nowhere to go it
+    // reports why through `error` (state, event and render props) only, since a thrown error would go unhandled.
+    watch([hasNoFlow, returnTarget], () => {
+      if (!hasNoFlow.value) {
+        return;
+      }
+      const returnUrl: string | undefined = props.afterFlowExpiredUrl ?? returnTarget.value?.url;
+      if (returnUrl) {
+        replaceLocation(returnUrl);
+      } else if (returnTarget.value) {
+        setError(
+          new ThunderIDRuntimeError(
+            'Either executionId or applicationId is required for authentication',
+            'SIGN_IN_ERROR',
+            'nuxt',
+          ),
+        );
+      }
+    });
+
     /**
      * Updates challengeTokenRef immediately and persists via the provider's
      * StorageManager so the token survives OAuth redirects.
@@ -424,16 +465,9 @@ const SignIn: Component = defineComponent({
         isStartedByAuthorizeRequest.value = true;
       }
 
-      // Reported through `error` (state, event and render props) only: the flow is started from a watcher, where a
-      // thrown error would go unhandled.
+      // Nothing to resume and nothing to start: the watcher below sends the user back, or reports the error.
       if (!urlParams.executionId && !effectiveApplicationId) {
-        setError(
-          new ThunderIDRuntimeError(
-            'Either executionId or applicationId is required for authentication',
-            'SIGN_IN_ERROR',
-            'nuxt',
-          ),
-        );
+        hasNoFlow.value = true;
         return;
       }
 

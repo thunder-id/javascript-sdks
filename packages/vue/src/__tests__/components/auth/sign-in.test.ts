@@ -10,6 +10,13 @@ import BaseSignIn from '../../../components/auth/sign-in/BaseSignIn';
 import SignIn, {type SignInRenderProps} from '../../../components/auth/sign-in/SignIn';
 import {FLOW_KEY, FLOW_META_KEY, I18N_KEY, THUNDERID_KEY} from '../../../keys';
 
+const mockGetFlowMeta: Mock = vi.fn(() => Promise.reject(new Error('no metadata')));
+
+vi.mock('@thunderid/browser', async (importOriginal: () => Promise<Record<string, unknown>>) => ({
+  ...(await importOriginal()),
+  getFlowMeta: (...args: unknown[]): unknown => mockGetFlowMeta(...args),
+}));
+
 describe('BaseSignIn', () => {
   it('clears only the edited field server error so corrected fields can be submitted', async () => {
     const wrapper = mount(BaseSignIn, {

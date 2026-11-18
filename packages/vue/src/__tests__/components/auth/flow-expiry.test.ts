@@ -13,6 +13,15 @@ import useFlowExpiry, {type FlowExpiry, type FlowExpiryStep} from '../../../comp
 import useFlowExpiryRedirect from '../../../composables/auth/useFlowExpiryRedirect';
 import {FLOW_KEY, FLOW_META_KEY, I18N_KEY, THUNDERID_KEY} from '../../../keys';
 
+const mockGetFlowMeta: Mock = vi.fn();
+const mockReplaceLocation: Mock = vi.fn();
+
+vi.mock('@thunderid/browser', async (importOriginal: () => Promise<Record<string, unknown>>) => ({
+  ...(await importOriginal()),
+  getFlowMeta: (...args: unknown[]): unknown => mockGetFlowMeta(...args),
+  replaceLocation: (...args: unknown[]): unknown => mockReplaceLocation(...args),
+}));
+
 const translations: Record<string, string> = {
   'flow.expired.application': 'the application',
   'flow.expired.redirect.now': 'Back to {application} now',
@@ -58,6 +67,9 @@ describe('flow expiry', () => {
   beforeEach(() => {
     scope = effectScope();
     vi.spyOn(document, 'hasFocus').mockReturnValue(true);
+    mockGetFlowMeta.mockReset().mockRejectedValue(new Error('no metadata'));
+    mockReplaceLocation.mockReset();
+    window.history.replaceState({}, '', '/signin');
   });
 
   afterEach(() => {
@@ -193,6 +205,87 @@ describe('flow expiry', () => {
       expect(signIn).toHaveBeenCalledTimes(2);
       expect(slot.mock.lastCall![0].isFlowExpired).toBe(true);
       expect(slot.mock.lastCall![0].flowExpiryRedirect).toMatchObject({url: 'https://app.example.com'});
+    });
+
+    it('goes straight back to the application the ref parameter names when there is no flow', async () => {
+      window.history.replaceState({}, '', '/signin?ref=AZqMXi9Bez2p5lwNH3s-KA');
+      mockGetFlowMeta.mockResolvedValue({application: {name: 'Acme', url: 'https://acme.example.com'}});
+      const signIn: Mock = vi.fn();
+      const slot: Mock<(props: SignInRenderProps) => never[]> = vi.fn(() => []);
+      const isInitialized: Ref<boolean> = ref(false);
+      mount(SignIn, {
+        global: {provide: provide({applicationId: undefined, isInitialized, signIn})},
+        slots: {default: slot},
+      });
+      isInitialized.value = true;
+      await vi.waitFor(() => {
+        expect(mockReplaceLocation).toHaveBeenCalledWith('https://acme.example.com');
+      });
+
+      expect(slot.mock.lastCall![0].isFlowExpired).toBe(false);
+      expect(mockGetFlowMeta).toHaveBeenCalledWith(
+        expect.objectContaining({id: 'AZqMXi9Bez2p5lwNH3s-KA', type: 'REF'}),
+      );
+      expect(signIn).not.toHaveBeenCalled();
+    });
+
+    it('goes straight to afterFlowExpiredUrl without a lookup when there is no flow', async () => {
+      window.history.replaceState({}, '', '/signin?ref=AZqMXi9Bez2p5lwNH3s-KA');
+      const isInitialized: Ref<boolean> = ref(false);
+      mount(SignIn, {
+        global: {provide: provide({applicationId: undefined, isInitialized, signIn: vi.fn()})},
+        props: {afterFlowExpiredUrl: 'https://app.example.com'},
+        slots: {default: vi.fn(() => [])},
+      });
+      isInitialized.value = true;
+      await vi.waitFor(() => {
+        expect(mockReplaceLocation).toHaveBeenCalledWith('https://app.example.com');
+      });
+
+      expect(mockGetFlowMeta).not.toHaveBeenCalled();
+    });
+
+    it('goes back to the default return URL when an authorize request started the expired flow', async () => {
+      window.history.replaceState({}, '', '/signin?executionId=e-1&authId=a-1');
+      mockGetFlowMeta.mockResolvedValue({defaultReturnUrl: 'https://home.example.com'});
+      const signIn: Mock = vi.fn().mockResolvedValueOnce(step()).mockRejectedValueOnce(expiredError());
+      const slot: Mock<(props: SignInRenderProps) => never[]> = vi.fn(() => []);
+      const isInitialized: Ref<boolean> = ref(false);
+      mount(SignIn, {
+        global: {
+          provide: {
+            ...provide({applicationId: undefined, isInitialized, signIn}),
+            [FLOW_META_KEY as symbol]: {meta: ref(null)},
+          },
+        },
+        slots: {default: slot},
+      });
+      isInitialized.value = true;
+      await flushPromises();
+
+      await slot.mock.lastCall![0].onSubmit({executionId: 'e-1', inputs: {}});
+      await vi.waitFor(() => {
+        expect(slot.mock.lastCall![0].flowExpiryRedirect).toMatchObject({url: 'https://home.example.com'});
+      });
+      expect(slot.mock.lastCall![0].isFlowExpired).toBe(true);
+    });
+
+    it('starts again in place without looking up a return URL when the app has an application ID', async () => {
+      const signIn: Mock = vi
+        .fn()
+        .mockResolvedValueOnce(step())
+        .mockRejectedValueOnce(expiredError())
+        .mockResolvedValue(step());
+      const slot: Mock<(props: SignInRenderProps) => never[]> = vi.fn(() => []);
+      const isInitialized: Ref<boolean> = ref(false);
+      mount(SignIn, {global: {provide: provide({isInitialized, signIn})}, slots: {default: slot}});
+      isInitialized.value = true;
+      await flushPromises();
+
+      await slot.mock.lastCall![0].onSubmit({executionId: 'e-1', inputs: {}});
+      await flushPromises();
+
+      expect(mockGetFlowMeta).not.toHaveBeenCalled();
     });
   });
 

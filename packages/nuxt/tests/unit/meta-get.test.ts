@@ -111,4 +111,56 @@ describe('GET /api/auth/meta', () => {
     await expect((metaHandler as any)(mockEvent)).rejects.toMatchObject({statusCode: 502});
     expect(mocks.log.error).toHaveBeenCalledWith('Failed to fetch flow metadata:', 'fetch failed');
   });
+
+  it('looks the application up by the ref a sign-in page passes', async () => {
+    const meta = {application: {url: 'https://acme.example.com'}, design: {}, i18n: {}};
+    vi.mocked(getQuery).mockReturnValue({id: 'AZqMXi9Bez2p5lwNH3s-KA', type: 'REF'});
+    vi.mocked(getFlowMeta).mockResolvedValue(meta as any);
+
+    await expect((metaHandler as any)(mockEvent)).resolves.toBe(meta);
+    expect(getFlowMeta).toHaveBeenCalledWith({
+      baseUrl: 'https://localhost:8090',
+      id: 'AZqMXi9Bez2p5lwNH3s-KA',
+      type: 'REF',
+      url: undefined,
+    });
+  });
+
+  it('returns null without a warning when the ref names no application', async () => {
+    vi.mocked(getQuery).mockReturnValue({id: 'unknown', type: 'REF'});
+    vi.mocked(getFlowMeta).mockRejectedValue(notFound());
+
+    await expect((metaHandler as any)(mockEvent)).resolves.toBeNull();
+    expect(mocks.log.warn).not.toHaveBeenCalled();
+  });
+
+  it('returns null when ThunderID answers that the ref names no application', async () => {
+    vi.mocked(getQuery).mockReturnValue({id: 'AZqMXi9Bez2p5lwNH3s-KA', type: 'REF'});
+    vi.mocked(getFlowMeta).mockRejectedValue(
+      new ThunderIDAPIError(
+        JSON.stringify({code: 'FM-1002', message: 'Application not found'}),
+        'getFlowMeta-ResponseError-001',
+        'javascript',
+        404,
+      ),
+    );
+
+    await expect((metaHandler as any)(mockEvent)).resolves.toBeNull();
+    expect(mocks.log.warn).not.toHaveBeenCalled();
+  });
+
+  it('answers 502 when a ref lookup fails for another reason', async () => {
+    vi.mocked(getQuery).mockReturnValue({id: 'AZqMXi9Bez2p5lwNH3s-KA', type: 'REF'});
+    vi.mocked(getFlowMeta).mockRejectedValue(new TypeError('fetch failed'));
+
+    await expect((metaHandler as any)(mockEvent)).rejects.toMatchObject({statusCode: 502});
+  });
+
+  it('ignores a lookup other than REF and uses the configured application', async () => {
+    vi.mocked(getQuery).mockReturnValue({id: 'other-app', type: 'APP'});
+    vi.mocked(getFlowMeta).mockResolvedValue({design: {}, i18n: {}} as any);
+
+    await (metaHandler as any)(mockEvent);
+    expect(getFlowMeta).toHaveBeenCalledWith(expect.objectContaining({id: 'app-1', type: 'APP'}));
+  });
 });

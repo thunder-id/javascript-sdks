@@ -3,6 +3,7 @@
 
 import {afterEach, describe, expect, it, vi} from 'vitest';
 import ThunderIDAPIError from '../../../errors/ThunderIDAPIError';
+import {FlowMetaType} from '../../../models/flow-meta';
 import isFlowMetaUnavailableError from '../../../utils/isFlowMetaUnavailableError';
 import getFlowMeta from '../getFlowMeta';
 
@@ -20,6 +21,17 @@ describe('getFlowMeta', () => {
     await expect(getFlowMeta({baseUrl: 'https://localhost:8090', language: 'en'})).resolves.toEqual(meta);
     expect(global.fetch).toHaveBeenCalledWith(
       'https://localhost:8090/flow/meta?language=en',
+      expect.objectContaining({method: 'GET'}),
+    );
+  });
+
+  it('passes a reference as the id of a REF request', async () => {
+    global.fetch = vi.fn().mockResolvedValue(new Response(JSON.stringify({}), {status: 200}));
+
+    await getFlowMeta({baseUrl: 'https://localhost:8090', id: '~bXktYXBw', type: FlowMetaType.Ref});
+
+    expect(global.fetch).toHaveBeenCalledWith(
+      'https://localhost:8090/flow/meta?id=%7EbXktYXBw&type=REF',
       expect.objectContaining({method: 'GET'}),
     );
   });

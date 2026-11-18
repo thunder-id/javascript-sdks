@@ -19,6 +19,8 @@ export type {EmbeddedUserOnboardingFlowResponse} from './api/auth/executeEmbedde
 export {default as executeEmbeddedSelfFlow} from './api/auth/executeEmbeddedSelfFlow';
 export type {ExecuteEmbeddedSelfFlowConfig} from './api/auth/executeEmbeddedSelfFlow';
 export {default as getFlowMeta} from './api/auth/getFlowMeta';
+export {default as resolveFlowReturnUrl} from './api/auth/resolveFlowReturnUrl';
+export type {FlowReturnTarget, ResolveFlowReturnUrlConfig} from './api/auth/resolveFlowReturnUrl';
 export {default as getOrganizationUnitChildren} from './api/management/organization-units/getOrganizationUnitChildren';
 export type {GetOrganizationUnitChildrenConfig} from './api/management/organization-units/getOrganizationUnitChildren';
 export {default as getUserInfo} from './api/auth/getUserInfo';
