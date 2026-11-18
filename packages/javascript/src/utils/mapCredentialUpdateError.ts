@@ -8,7 +8,7 @@ import ThunderIDError from '../errors/ThunderIDError';
  * The form field a credential-update failure belongs to, or `null` when the failure has
  * no single field to blame and belongs at form level.
  */
-export type CredentialUpdateErrorField = 'newPassword' | null;
+export type CredentialUpdateErrorField = 'currentPassword' | 'newPassword' | null;
 
 /**
  * Where a credential-update failure should be shown, and what it should say.
@@ -37,9 +37,9 @@ export interface CredentialUpdateErrorResult {
 /**
  * Maps a failure from the credential write path onto the field that caused it.
  *
- * `400` is the new password failing a server-side check. Everything else, including a
- * `403`, has no single field to blame here: this form collects no current-value field for
- * a `403` to attach to, since the server does not verify one on this path today.
+ * A `403` for a missing or wrong current value belongs to the current-value field. A `400` is
+ * the new value failing a server-side check, unless the server refused to set a credential the
+ * user doesn't hold yet, which has no single field to blame. Everything else is form level.
  *
  * @param error - The value thrown by the credential update call.
  * @returns Where to show the failure and what to show.
@@ -56,11 +56,26 @@ export interface CredentialUpdateErrorResult {
  * ```
  */
 const GENERIC_MESSAGE_KEY = 'user.change_password.generic.error';
+const CURRENT_VALUE_MESSAGE_KEY = 'user.change_password.current.error';
+
+/**
+ * The server's code for a current value that is missing or doesn't match.
+ */
+const INVALID_CURRENT_CREDENTIAL_CODE = 'USR-1047';
+/**
+ * The server's code for a credential the user doesn't hold yet, refused because they hold another.
+ */
+const CREDENTIAL_SET_NOT_ALLOWED_CODE = 'USR-1048';
 
 const mapCredentialUpdateError = (error: unknown): CredentialUpdateErrorResult => {
   const status: number | undefined = error instanceof ThunderIDAPIError ? error.statusCode : undefined;
+  const serverCode: string | undefined = error instanceof ThunderIDAPIError ? error.serverError?.code : undefined;
 
-  if (status === 400 && error instanceof ThunderIDError) {
+  if (status === 403 && serverCode === INVALID_CURRENT_CREDENTIAL_CODE) {
+    return {field: 'currentPassword', messageKey: CURRENT_VALUE_MESSAGE_KEY};
+  }
+
+  if (status === 400 && serverCode !== CREDENTIAL_SET_NOT_ALLOWED_CODE && error instanceof ThunderIDError) {
     return {field: 'newPassword', message: error.message, messageKey: GENERIC_MESSAGE_KEY};
   }
 

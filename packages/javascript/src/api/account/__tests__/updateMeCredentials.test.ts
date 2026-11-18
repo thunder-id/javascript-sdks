@@ -10,7 +10,7 @@ describe('updateMeCredentials', (): void => {
     vi.resetAllMocks();
   });
 
-  it('should wrap the payload under attributes and resolve with no value on 204', async (): Promise<void> => {
+  it('should send the payload as the body and resolve with no value on 204', async (): Promise<void> => {
     global.fetch = vi.fn().mockResolvedValue({
       ok: true,
       status: 204,
@@ -20,7 +20,7 @@ describe('updateMeCredentials', (): void => {
     const url = 'https://localhost:8090/users/me/update-credentials';
 
     const result: void = await updateMeCredentials({
-      payload: {password: 'n3wP@ssword!'},
+      payload: {currentValue: '0ldP@ssword!', name: 'password', newValue: 'n3wP@ssword!'},
       url,
     });
 
@@ -35,10 +35,10 @@ describe('updateMeCredentials', (): void => {
     expect((init.headers as Record<string, string>)['Accept']).toBe('application/json');
 
     const parsed = JSON.parse(init.body as string) as Record<string, unknown>;
-    expect(parsed).toEqual({attributes: {password: 'n3wP@ssword!'}});
+    expect(parsed).toEqual({currentValue: '0ldP@ssword!', name: 'password', newValue: 'n3wP@ssword!'});
   });
 
-  it('should support updating more than one credential in a single call', async (): Promise<void> => {
+  it('should leave out the current value when setting a first credential', async (): Promise<void> => {
     global.fetch = vi.fn().mockResolvedValue({
       ok: true,
       status: 204,
@@ -46,22 +46,14 @@ describe('updateMeCredentials', (): void => {
     });
 
     await updateMeCredentials({
-      payload: {
-        password: 'n3wP@ss!',
-        pin: '1234',
-      },
+      payload: {name: 'pin', newValue: '1234'},
       url: 'https://localhost:8090/users/me/update-credentials',
     });
 
     const [, init] = (fetch as unknown as Mock).mock.calls[0] as [string, RequestInit];
     const parsed = JSON.parse(init.body as string) as Record<string, unknown>;
 
-    expect(parsed).toEqual({
-      attributes: {
-        password: 'n3wP@ss!',
-        pin: '1234',
-      },
-    });
+    expect(parsed).toEqual({name: 'pin', newValue: '1234'});
   });
 
   it('should never read the response body on success', async (): Promise<void> => {
@@ -75,7 +67,7 @@ describe('updateMeCredentials', (): void => {
     });
 
     await updateMeCredentials({
-      payload: {password: 'n3wP@ssword!'},
+      payload: {currentValue: '0ldP@ssword!', name: 'password', newValue: 'n3wP@ssword!'},
       url: 'https://localhost:8090/users/me/update-credentials',
     });
 
@@ -89,7 +81,10 @@ describe('updateMeCredentials', (): void => {
       text: () => Promise.resolve(''),
     });
 
-    await updateMeCredentials({baseUrl: 'https://localhost:8090', payload: {password: 'n3wP@ssword!'}});
+    await updateMeCredentials({
+      baseUrl: 'https://localhost:8090',
+      payload: {currentValue: '0ldP@ssword!', name: 'password', newValue: 'n3wP@ssword!'},
+    });
 
     const [calledUrl] = (fetch as unknown as Mock).mock.calls[0] as [string, RequestInit];
 
@@ -103,7 +98,10 @@ describe('updateMeCredentials', (): void => {
       text: () => Promise.resolve(''),
     });
 
-    await updateMeCredentials({baseUrl: 'https://localhost:8090/', payload: {password: 'n3wP@ssword!'}});
+    await updateMeCredentials({
+      baseUrl: 'https://localhost:8090/',
+      payload: {currentValue: '0ldP@ssword!', name: 'password', newValue: 'n3wP@ssword!'},
+    });
 
     const [calledUrl] = (fetch as unknown as Mock).mock.calls[0] as [string, RequestInit];
 
@@ -121,7 +119,7 @@ describe('updateMeCredentials', (): void => {
 
     await updateMeCredentials({
       fetcher,
-      payload: {password: 'n3wP@ssword!'},
+      payload: {currentValue: '0ldP@ssword!', name: 'password', newValue: 'n3wP@ssword!'},
       url: 'https://localhost:8090/users/me/update-credentials',
     });
 
@@ -132,10 +130,14 @@ describe('updateMeCredentials', (): void => {
   it('should throw a validation error for a malformed URL', async (): Promise<void> => {
     global.fetch = vi.fn();
 
-    await expect(updateMeCredentials({payload: {password: 'x'}, url: 'not-a-url'})).rejects.toThrow(ThunderIDAPIError);
+    await expect(updateMeCredentials({payload: {name: 'password', newValue: 'x'}, url: 'not-a-url'})).rejects.toThrow(
+      ThunderIDAPIError,
+    );
     expect(fetch).not.toHaveBeenCalled();
 
-    await expect(updateMeCredentials({payload: {password: 'x'}, url: 'not-a-url'})).rejects.toMatchObject({
+    await expect(
+      updateMeCredentials({payload: {name: 'password', newValue: 'x'}, url: 'not-a-url'}),
+    ).rejects.toMatchObject({
       code: 'updateMeCredentials-ValidationError-001',
     });
   });
@@ -156,7 +158,7 @@ describe('updateMeCredentials', (): void => {
 
     await expect(
       updateMeCredentials({
-        payload: {password: 'n3wP@ssword!'},
+        payload: {currentValue: '0ldP@ssword!', name: 'password', newValue: 'n3wP@ssword!'},
         url: 'https://localhost:8090/users/me/update-credentials',
       }),
     ).rejects.toMatchObject({
@@ -170,7 +172,7 @@ describe('updateMeCredentials', (): void => {
 
     await expect(
       updateMeCredentials({
-        payload: {password: 'n3wP@ssword!'},
+        payload: {currentValue: '0ldP@ssword!', name: 'password', newValue: 'n3wP@ssword!'},
         url: 'https://localhost:8090/users/me/update-credentials',
       }),
     ).rejects.toMatchObject({

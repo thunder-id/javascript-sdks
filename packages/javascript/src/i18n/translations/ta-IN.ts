@@ -149,6 +149,10 @@ const translations: I18nTranslations = {
   /* |---------------------------------------------------------------| */
 
   'user.change_password.heading': '{credential} மாற்றவும்',
+
+  'user.change_password.current.label': 'தற்போதைய {credential}',
+
+  'user.change_password.current.placeholder': 'உங்கள் தற்போதைய {credentialLower}-ஐ உள்ளிடவும்',
   'user.change_password.new.label': 'புதிய {credential}',
   'user.change_password.new.placeholder': 'உங்கள் புதிய {credentialLower}-ஐ உள்ளிடவும்',
   'user.change_password.confirm.label': 'புதிய {credential}-ஐ உறுதிப்படுத்தவும்',
@@ -157,6 +161,8 @@ const translations: I18nTranslations = {
   'user.change_password.submit': '{credential}-ஐ புதுப்பிக்கவும்',
   'user.change_password.success': 'உங்கள் {credentialLower} புதுப்பிக்கப்பட்டது.',
   'user.change_password.mismatch.error': '{credentialLower} பொருந்தவில்லை.',
+
+  'user.change_password.current.error': 'உங்கள் தற்போதைய {credentialLower} தவறானது.',
   'user.change_password.generic.error':
     'உங்கள் {credentialLower}-ஐ புதுப்பிக்கும் போது பிழை ஏற்பட்டது. மீண்டும் முயற்சிக்கவும்.',
   'user.change_password.unavailable.heading': '{credential} மாற்றங்கள் கிடைக்கவில்லை',

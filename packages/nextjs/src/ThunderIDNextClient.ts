@@ -27,6 +27,7 @@ import {
   getUsersMe,
   getUsersMeMeta,
   updateMeCredentials,
+  UpdateMeCredentialsPayload,
   updateMeProfile,
   resolveResourceEndpoint,
 } from '@thunderid/node';
@@ -209,8 +210,9 @@ class ThunderIDNextClient<T extends ThunderIDNextConfig = ThunderIDNextConfig> e
   }
 
   /**
-   * Updates one or more of the signed-in user's credentials (e.g. `password`, or any other
-   * attribute the user type schema declares `credential: true`).
+   * Updates one of the signed-in user's credentials (e.g. `password`, or any other attribute the
+   * user type schema declares `credential: true`). Changing a credential the user already holds
+   * needs its current value in `payload.currentValue`.
    *
    * Not part of {@link ThunderIDJavaScriptClient}'s base surface — unlike `updateUserProfile`,
    * no other SDK routes credential updates through a client method (React/Vue's
@@ -223,7 +225,7 @@ class ThunderIDNextClient<T extends ThunderIDNextConfig = ThunderIDNextConfig> e
    * included, to map a failure onto the right form field before it crosses the server action
    * boundary back to the client.
    */
-  override async updateUserCredentials(payload: Record<string, string>, userId?: string): Promise<void> {
+  override async updateUserCredentials(payload: UpdateMeCredentialsPayload, userId?: string): Promise<void> {
     await this.ensureInitialized();
 
     const configData: AuthClientConfig<T> = await this.getStorageManager().getConfigData();

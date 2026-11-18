@@ -99,14 +99,14 @@ const ChangeCredential: FC<ChangeCredentialProps> = ({
     [userSchema, attribute, policy],
   );
 
-  const handleSubmit = async ({newPassword}: ChangePasswordValues): Promise<void> => {
+  const handleSubmit = async ({currentPassword, newPassword}: ChangePasswordValues): Promise<void> => {
     setError(null);
     setFieldErrors({});
     setSuccess(false);
     setLoading(true);
 
     const result: UpdateUserCredentialsActionResult = await updateUserCredentialsAction(
-      {[attribute]: newPassword},
+      {currentValue: currentPassword || undefined, name: attribute, newValue: newPassword},
       await getSessionId(),
     );
 

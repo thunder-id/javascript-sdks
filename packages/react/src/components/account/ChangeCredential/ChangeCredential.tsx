@@ -109,7 +109,7 @@ const ChangeCredential: FC<ChangeCredentialProps> = ({
     [userSchema, attribute, policy],
   );
 
-  const handleSubmit = async ({newPassword}: ChangePasswordValues): Promise<void> => {
+  const handleSubmit = async ({currentPassword, newPassword}: ChangePasswordValues): Promise<void> => {
     setError(null);
     setFieldErrors({});
     setSuccess(false);
@@ -119,7 +119,7 @@ const ChangeCredential: FC<ChangeCredentialProps> = ({
       await updateMeCredentials({
         baseUrl,
         instanceId,
-        payload: {[attribute]: newPassword},
+        payload: {currentValue: currentPassword || undefined, name: attribute, newValue: newPassword},
         url: resolveResourceEndpoint('usersMeCredentials', {endpoints}),
       });
 

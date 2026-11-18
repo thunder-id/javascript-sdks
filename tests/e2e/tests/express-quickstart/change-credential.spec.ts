@@ -27,9 +27,14 @@ const {username, password} = credentialTestUser('EXPRESS');
 // policy the schema's password attribute is configured with in a given environment.
 const tempPassword = `${password}-Tmp1!`;
 
-function updateCredentials(request: APIRequestContext, accessToken: string, newPassword: string) {
+function updateCredentials(
+  request: APIRequestContext,
+  accessToken: string,
+  currentPassword: string,
+  newPassword: string,
+) {
   return request.patch(`${appUrl}/api/me/credentials`, {
-    data: {password: newPassword},
+    data: {currentValue: currentPassword, name: 'password', newValue: newPassword},
     headers: {Authorization: `Bearer ${accessToken}`},
   });
 }
@@ -53,7 +58,7 @@ test.describe('express/quickstart - Change credential', () => {
       await expressQuickstartPage.verifyTokenDebugLoaded();
       const accessToken = await expressQuickstartPage.getDisplayedAccessToken();
 
-      const changeResponse = await updateCredentials(request, accessToken, tempPassword);
+      const changeResponse = await updateCredentials(request, accessToken, password, tempPassword);
       expect(changeResponse.status()).toBe(204);
 
       // Prove the change landed server-side, not just that the route returned 204: sign out
@@ -74,7 +79,7 @@ test.describe('express/quickstart - Change credential', () => {
       await expressQuickstartPage.verifyTokenDebugLoaded();
       const revertToken = await expressQuickstartPage.getDisplayedAccessToken();
 
-      const revertResponse = await updateCredentials(request, revertToken, password);
+      const revertResponse = await updateCredentials(request, revertToken, tempPassword, password);
       expect(revertResponse.status()).toBe(204);
     }
 

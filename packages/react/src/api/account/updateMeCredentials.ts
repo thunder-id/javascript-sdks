@@ -23,7 +23,7 @@ export interface UpdateMeCredentialsConfig extends Omit<BaseUpdateMeCredentialsC
 }
 
 /**
- * Updates one or more of the signed-in user's credentials at the /users/me/update-credentials
+ * Updates one of the signed-in user's credentials at the /users/me/update-credentials
  * endpoint. Uses the ThunderID SPA client's httpClient by default, which attaches the access
  * token, but allows a custom fetcher.
  *
@@ -33,7 +33,7 @@ export interface UpdateMeCredentialsConfig extends Omit<BaseUpdateMeCredentialsC
  * ```typescript
  * await updateMeCredentials({
  *   url: "https://localhost:8090/users/me/update-credentials",
- *   payload: {password: "n3wP@ssword!"}
+ *   payload: {name: "password", currentValue: "0ldP@ssword!", newValue: "n3wP@ssword!"}
  * });
  * ```
  */

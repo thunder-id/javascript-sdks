@@ -3,7 +3,7 @@
 
 'use server';
 
-import {CredentialUpdateErrorResult, mapCredentialUpdateError} from '@thunderid/node';
+import {CredentialUpdateErrorResult, mapCredentialUpdateError, UpdateMeCredentialsPayload} from '@thunderid/node';
 import getClient from '../../getClient';
 
 export interface UpdateUserCredentialsActionResult extends CredentialUpdateErrorResult {
@@ -20,7 +20,7 @@ export interface UpdateUserCredentialsActionResult extends CredentialUpdateError
  * the plain, serializable result crosses back.
  */
 const updateUserCredentialsAction = async (
-  payload: Record<string, string>,
+  payload: UpdateMeCredentialsPayload,
   sessionId?: string,
 ): Promise<UpdateUserCredentialsActionResult> => {
   try {

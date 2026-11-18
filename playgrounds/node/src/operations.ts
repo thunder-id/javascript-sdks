@@ -15,6 +15,7 @@ import {
   type RoleAssigneeType,
   type ThunderIDNodeClient,
   type TokenExchangeRequestConfig,
+  type UpdateMeCredentialsPayload,
 } from '@thunderid/node';
 import resolveEndpoints from './endpoints.ts';
 
@@ -200,7 +201,7 @@ const executeEmbeddedSelfFlow: Runner = ({args, client, sessionId}) =>
 
 // #region updateUserCredentials
 const updateUserCredentials: Runner = async ({args, client, sessionId}) => {
-  await client.updateUserCredentials(args as Record<string, string>, sessionId);
+  await client.updateUserCredentials(args as UpdateMeCredentialsPayload, sessionId);
   return {updated: Object.keys(args as Record<string, string>)};
 };
 // #endregion

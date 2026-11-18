@@ -148,6 +148,10 @@ const translations: I18nTranslations = {
   /* |---------------------------------------------------------------| */
 
   'user.change_password.heading': '{credential} වෙනස් කරන්න',
+
+  'user.change_password.current.label': 'වත්මන් {credential}',
+
+  'user.change_password.current.placeholder': 'ඔබේ වත්මන් {credentialLower} ඇතුළත් කරන්න',
   'user.change_password.new.label': 'නව {credential}',
   'user.change_password.new.placeholder': 'ඔබේ නව {credentialLower} ඇතුළත් කරන්න',
   'user.change_password.confirm.label': 'නව {credential} තහවුරු කරන්න',
@@ -156,6 +160,8 @@ const translations: I18nTranslations = {
   'user.change_password.submit': '{credential} යාවත්කාලීන කරන්න',
   'user.change_password.success': 'ඔබේ {credentialLower} යාවත්කාලීන කර ඇත.',
   'user.change_password.mismatch.error': '{credentialLower} නොගැලපේ.',
+
+  'user.change_password.current.error': 'ඔබේ වත්මන් {credentialLower} වැරදියි.',
   'user.change_password.generic.error':
     'ඔබේ {credentialLower} යාවත්කාලීන කිරීමේදී දෝෂයක් ඇතිවිය. කරුණාකර නැවත උත්සාහ කරන්න.',
   'user.change_password.unavailable.heading': '{credential} වෙනස් කිරීම් ලබා ගත නොහැක',

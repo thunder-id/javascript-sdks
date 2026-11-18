@@ -17,11 +17,30 @@ describe('mapCredentialUpdateError', (): void => {
     expect(result.message).toContain('Password is too common');
   });
 
-  it('should report a 403 at form level, since this form collects no current-value field', (): void => {
+  it('should blame the current password on a 403 for a missing or wrong current value', (): void => {
+    const result = mapCredentialUpdateError(
+      apiError(403, JSON.stringify({code: 'USR-1047', message: {defaultValue: 'Invalid current credential'}})),
+    );
+
+    expect(result.field).toBe('currentPassword');
+    expect(result.message).toBeUndefined();
+    expect(result.messageKey).toBe('user.change_password.current.error');
+  });
+
+  it('should report any other 403 at form level', (): void => {
     const result = mapCredentialUpdateError(apiError(403, 'Not allowed'));
 
     expect(result.field).toBeNull();
     expect(result.message).toContain('Not allowed');
+  });
+
+  it('should report a refused first-time set at form level', (): void => {
+    const result = mapCredentialUpdateError(
+      apiError(400, JSON.stringify({code: 'USR-1048', message: {defaultValue: 'Credential cannot be set'}})),
+    );
+
+    expect(result.field).toBeNull();
+    expect(result.message).toContain('Credential cannot be set');
   });
 
   it('should report other API errors at form level with the server message', (): void => {

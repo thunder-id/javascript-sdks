@@ -112,7 +112,7 @@ const ChangeCredential: Component = defineComponent({
       resolveChangeCredentialPolicy(userSchema?.value, props.attribute, props.policy),
     );
 
-    async function handleSubmit({newPassword}: ChangePasswordValues): Promise<void> {
+    async function handleSubmit({currentPassword, newPassword}: ChangePasswordValues): Promise<void> {
       error.value = null;
       fieldErrors.value = {};
       success.value = false;
@@ -123,7 +123,9 @@ const ChangeCredential: Component = defineComponent({
           baseUrl,
           instanceId,
           payload: {
-            [props.attribute]: newPassword,
+            currentValue: currentPassword || undefined,
+            name: props.attribute,
+            newValue: newPassword,
           },
           url: resolveResourceEndpoint('usersMeCredentials', {endpoints}),
         });

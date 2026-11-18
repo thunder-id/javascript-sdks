@@ -42,7 +42,7 @@ test.describe('browser/quickstart - Change credential', () => {
     await browserQuickstartPage.openSecurityTab();
 
     try {
-      await browserQuickstartPage.changeCredential('password', tempPassword);
+      await browserQuickstartPage.changeCredential('password', password, tempPassword);
 
       // Prove the change landed server-side, not just that the UI collapsed the form: sign
       // out and back in using the new password.
@@ -58,7 +58,7 @@ test.describe('browser/quickstart - Change credential', () => {
     } finally {
       // Always attempt to restore the shared test user's original password, even if an
       // assertion above failed.
-      await browserQuickstartPage.changeCredential('password', password);
+      await browserQuickstartPage.changeCredential('password', tempPassword, password);
     }
 
     // The restore itself also has to have actually worked, or the next test to sign in with

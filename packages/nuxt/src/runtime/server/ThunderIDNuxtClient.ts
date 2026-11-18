@@ -13,6 +13,7 @@ import {
   isEmpty,
   resolveResourceEndpoint,
   updateMeCredentials,
+  UpdateMeCredentialsPayload,
   updateMeProfile,
   type AccessibleOrganizationUnitList,
   type AccessibleOrganizationUnitsOptions,
@@ -284,14 +285,15 @@ class ThunderIDNuxtClient extends ThunderIDNodeClient<ThunderIDNuxtClientConfig>
   }
 
   /**
-   * Updates one or more of the signed-in user's credentials (e.g. `password`, or any other
-   * attribute the user type schema declares `credential: true`).
+   * Updates one of the signed-in user's credentials (e.g. `password`, or any other attribute the
+   * user type schema declares `credential: true`). Changing a credential the user already holds
+   * needs its current value in `payload.currentValue`.
    *
    * Deliberately does not catch and rewrap errors the way `updateUserProfile` does: the caller
    * (the `PATCH /api/auth/user/credentials` Nitro route) needs the real `ThunderIDAPIError`
    * instance, status code included, to map a failure onto the right form field.
    */
-  override async updateUserCredentials(payload: Record<string, string>, sessionId?: string): Promise<void> {
+  override async updateUserCredentials(payload: UpdateMeCredentialsPayload, sessionId?: string): Promise<void> {
     const configData: AuthClientConfig<ThunderIDNuxtConfig> = await this.getStorageManager().getConfigData();
     const baseUrl: string | undefined = configData?.baseUrl;
 

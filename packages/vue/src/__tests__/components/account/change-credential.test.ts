@@ -88,17 +88,18 @@ describe('ChangeCredential', () => {
     vi.clearAllMocks();
   });
 
-  it('renders only the two fields, with no current-value field', () => {
+  it('renders the current value, new value and confirmation fields', () => {
     const wrapper = mountChangeCredential();
 
+    expect(inputByName(wrapper, 'currentPassword').exists()).toBe(true);
     expect(inputByName(wrapper, 'newPassword').exists()).toBe(true);
     expect(inputByName(wrapper, 'confirmPassword').exists()).toBe(true);
-    expect(wrapper.find('input[name="currentPassword"]').exists()).toBe(false);
   });
 
-  it('marks both fields as new-password for password managers', () => {
+  it('marks the fields for password managers', () => {
     const wrapper = mountChangeCredential();
 
+    expect(inputByName(wrapper, 'currentPassword').attributes('autocomplete')).toBe('current-password');
     expect(inputByName(wrapper, 'newPassword').attributes('autocomplete')).toBe('new-password');
     expect(inputByName(wrapper, 'confirmPassword').attributes('autocomplete')).toBe('new-password');
   });
@@ -130,11 +131,11 @@ describe('ChangeCredential', () => {
     expect(submit().attributes('disabled')).toBeUndefined();
   });
 
-  it('sends only the new value, keyed by password by default, and emits success', async () => {
+  it('sends the current and new values for password by default, and emits success', async () => {
     mockUpdateMeCredentials.mockResolvedValueOnce(undefined);
     const wrapper = mountChangeCredential({policy: {regex: '^.{8,}$'}});
 
-    await fill(wrapper, {confirmPassword: 'n3wP@ssword', newPassword: 'n3wP@ssword'});
+    await fill(wrapper, {confirmPassword: 'n3wP@ssword', currentPassword: '0ldP@ssword', newPassword: 'n3wP@ssword'});
     await wrapper.find('form').trigger('submit');
     await nextTick();
 
@@ -142,13 +143,13 @@ describe('ChangeCredential', () => {
     expect(mockUpdateMeCredentials).toHaveBeenCalledWith(
       expect.objectContaining({
         baseUrl: 'https://localhost:8090',
-        payload: {password: 'n3wP@ssword'},
+        payload: {currentValue: '0ldP@ssword', name: 'password', newValue: 'n3wP@ssword'},
       }),
     );
     expect(wrapper.emitted('success')).toBeTruthy();
   });
 
-  it('keys the payload by attribute when set to something other than password', async () => {
+  it('names the attribute and leaves out a blank current value', async () => {
     mockUpdateMeCredentials.mockResolvedValueOnce(undefined);
     const wrapper = mountChangeCredential({attribute: 'pin', policy: {regex: '^.{4,}$'}});
 
@@ -158,7 +159,7 @@ describe('ChangeCredential', () => {
 
     expect(mockUpdateMeCredentials).toHaveBeenCalledWith(
       expect.objectContaining({
-        payload: {pin: '1234'},
+        payload: {currentValue: undefined, name: 'pin', newValue: '1234'},
       }),
     );
   });
@@ -167,13 +168,36 @@ describe('ChangeCredential', () => {
     mockUpdateMeCredentials.mockResolvedValueOnce(undefined);
     const wrapper = mountChangeCredential({policy: {regex: '^.{8,}$'}});
 
-    await fill(wrapper, {confirmPassword: 'n3wP@ssword', newPassword: 'n3wP@ssword'});
+    await fill(wrapper, {confirmPassword: 'n3wP@ssword', currentPassword: '0ldP@ssword', newPassword: 'n3wP@ssword'});
     await wrapper.find('form').trigger('submit');
     await nextTick();
     await nextTick();
 
+    expect(inputByName(wrapper, 'currentPassword').element.value).toBe('');
     expect(inputByName(wrapper, 'newPassword').element.value).toBe('');
     expect(inputByName(wrapper, 'confirmPassword').element.value).toBe('');
+  });
+
+  it('surfaces a wrong current value onto the current password field', async () => {
+    const {ThunderIDAPIError} = await import('@thunderid/browser');
+
+    mockUpdateMeCredentials.mockRejectedValueOnce(
+      new ThunderIDAPIError(
+        JSON.stringify({code: 'USR-1047', message: {defaultValue: 'Invalid current credential'}}),
+        'x-003',
+        'vue',
+        403,
+        'Forbidden',
+      ),
+    );
+    const wrapper = mountChangeCredential({policy: {regex: '^.{8,}$'}});
+
+    await fill(wrapper, {confirmPassword: 'n3wP@ssword', currentPassword: 'Wr0ngP@ss', newPassword: 'n3wP@ssword'});
+    await wrapper.find('form').trigger('submit');
+    await nextTick();
+    await nextTick();
+
+    expect(wrapper.text()).toMatch(/your current password is incorrect/i);
   });
 
   it('surfaces a 400 onto the new password field', async () => {
@@ -241,6 +265,7 @@ describe('ChangeCredential', () => {
     it('disables every control so nothing is reachable behind the overlay', () => {
       const wrapper = mountChangeCredential({}, schemaWithoutPassword);
 
+      expect(inputByName(wrapper, 'currentPassword').attributes('disabled')).toBeDefined();
       expect(inputByName(wrapper, 'newPassword').attributes('disabled')).toBeDefined();
       expect(inputByName(wrapper, 'confirmPassword').attributes('disabled')).toBeDefined();
       expect(wrapper.find('button[type="submit"]').attributes('disabled')).toBeDefined();

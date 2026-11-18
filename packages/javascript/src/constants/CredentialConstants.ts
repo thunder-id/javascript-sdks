@@ -13,7 +13,7 @@
  * @example
  * ```typescript
  * await updateMeCredentials({
- *   payload: {[CredentialConstants.PASSWORD]: newPassword},
+ *   payload: {currentValue: currentPassword, name: CredentialConstants.PASSWORD, newValue: newPassword},
  *   url,
  * });
  * ```
