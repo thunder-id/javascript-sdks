@@ -73,6 +73,7 @@ export {
   type ManagementCollectionKey,
 } from './utils/managementCollections';
 export {default as getSessionCookieOptions} from './utils/getSessionCookieOptions';
+export {default as parseUpdateMeAgentRequest} from './utils/parseUpdateMeAgentRequest';
 
 // Re-export everything from the JavaScript SDK
 export * from '@thunderid/javascript';
