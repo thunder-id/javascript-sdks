@@ -84,6 +84,67 @@ export interface SilentSignInConfig {
   timeout?: number;
 }
 
+/**
+ * The organization unit a switch moved the session to. See {@link OrganizationUnitSwitchConfig.onSwitch}.
+ */
+export interface SwitchedOrganizationUnit {
+  /** The organization unit's identifier. */
+  id: string;
+}
+
+/**
+ * Where an organization unit switch was made. See {@link OrganizationUnitSwitchConfig.onSwitch}.
+ */
+export interface OrganizationUnitSwitchContext {
+  /**
+   * `true` in the tab that switched; `false` in another tab on the same backend session, which the
+   * switch moved without it asking (backend mode only).
+   */
+  initiatedHere: boolean;
+}
+
+/**
+ * What the app does after an organization unit switch. See {@link OrganizationUnitsConfig.switch}.
+ */
+export interface OrganizationUnitSwitchConfig {
+  /**
+   * The page to load after a switch, when `onSwitch` is not set: a path starts at the page's origin.
+   * Every tab the switch moved loads it, the one that switched included. Unset, the tab that switched
+   * stays where it is and the other tabs load their page again. Set it when a page may belong to the
+   * previous unit, such as to the app's home.
+   */
+  afterSwitchUrl?: string;
+
+  /**
+   * Called after the session moves to another organization unit, in every tab it moved. The session
+   * is read again first, so the signed-in user is the unit's when it runs. Setting it replaces the
+   * default, so the app decides what each tab does.
+   *
+   * - In the tab that switched (`initiatedHere: true`): after `switchOrganizationUnit()` completes on
+   *   the page. A switch that leaves the page to sign in again does not call it.
+   * - In the app's other tabs (`initiatedHere: false`), in backend mode: a switch made in place keeps
+   *   the backend session and changes its unit, so the other tabs on that session (those sharing its
+   *   `ouSwitch` endpoint) are told. Without `onSwitch`, they load the page again (or
+   *   `afterSwitchUrl`), so nothing of the previous unit stays on screen.
+   *
+   * @example
+   * onSwitch: (unit, {initiatedHere}) => {
+   *   if (!initiatedHere) showNotice(`Switched to another organization in another tab.`);
+   *   queryClient.clear();
+   *   navigate('/');
+   * }
+   */
+  onSwitch?: (unit: SwitchedOrganizationUnit, context: OrganizationUnitSwitchContext) => void | Promise<void>;
+}
+
+/**
+ * Organization unit behavior. See {@link BaseConfig.organizationUnits}.
+ */
+export interface OrganizationUnitsConfig {
+  /** What happens after a switch to another organization unit (`switchOrganizationUnit()`). */
+  switch?: OrganizationUnitSwitchConfig;
+}
+
 export interface BaseConfig<T = unknown> extends WithPreferences, WithExtensions {
   /**
    * Optional RFC 9396 authorization details to request, sent as the JSON-encoded `authorization_details`
@@ -655,6 +716,13 @@ export interface BaseConfig<T = unknown> extends WithPreferences, WithExtensions
    * The values should be defined at the framework layer.
    */
   storage?: T;
+
+  /**
+   * Organization unit behavior, such as what happens after a switch to another unit.
+   * @example
+   * organizationUnits: {switch: {afterSwitchUrl: '/'}}
+   */
+  organizationUnits?: OrganizationUnitsConfig;
 
   /**
    * Behaviour around the ThunderID server's SSO session.
