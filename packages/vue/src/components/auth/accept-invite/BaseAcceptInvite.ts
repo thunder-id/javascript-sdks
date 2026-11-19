@@ -1,7 +1,14 @@
 // Copyright 2025-2026 The ThunderID Authors
 // SPDX-License-Identifier: Apache-2.0
 
-import {FlowMetadataResponse, withVendorCSSClassPrefix, getVendorPrefix} from '@thunderid/browser';
+import {
+  EmbeddedFlowComponent,
+  FlowMetadataResponse,
+  getFlowStepComponents,
+  getVendorPrefix,
+  resolveFlowTemplateLiterals,
+  withVendorCSSClassPrefix,
+} from '@thunderid/browser';
 import {
   type Component,
   type PropType,
@@ -14,13 +21,14 @@ import {
   ref,
   watch,
 } from 'vue';
-import {useOAuthCallback} from '../../../composables/auth/useOAuthCallback';
+import {type OAuthCallbackPayload, useOAuthCallback} from '../../../composables/auth/useOAuthCallback';
 import useFlowMeta from '../../../composables/useFlowMeta';
 import useI18n from '../../../composables/useI18n';
 import {THUNDERID_KEY} from '../../../keys';
 import type {ThunderIDContext} from '../../../models/contexts';
 import {extractErrorMessage, normalizeFlowResponse} from '../../../utils/flowTransformer';
 import {initiateOAuthRedirect} from '../../../utils/oauth';
+import withFlowTestIds, {type FlowIds, collectFlowIds} from '../../../utils/withFlowTestIds';
 import Alert from '../../primitives/Alert';
 import Button from '../../primitives/Button';
 import Card from '../../primitives/Card';
@@ -32,6 +40,7 @@ import {renderInviteUserComponents} from '../flow/AuthOptionFactory';
  * Flow response from the accept-invite backend.
  */
 export interface AcceptInviteFlowResponse {
+  challengeToken?: string;
   data?: {
     additionalData?: Record<string, string>;
     components?: any[];
@@ -45,7 +54,9 @@ export interface AcceptInviteFlowResponse {
     description: {key: string; default?: string; defaultValue?: string};
     message: {key: string; default?: string; defaultValue?: string};
   };
-  flowId: string;
+  executionId: string;
+  /** @deprecated The server identifies the execution by `executionId`. */
+  flowId?: string;
   flowStatus: 'INCOMPLETE' | 'COMPLETE' | 'ERROR';
   type?: 'VIEW' | 'REDIRECTION';
 }
@@ -58,7 +69,9 @@ export interface BaseAcceptInviteRenderProps {
   completionTitle?: string;
   components: any[];
   error?: Error | null;
+  executionId?: string;
   fieldErrors: Record<string, string>;
+  /** @deprecated Use `executionId`. */
   flowId?: string;
   goToSignIn?: () => void;
   handleInputBlur: (name: string) => void;
@@ -79,6 +92,8 @@ export interface BaseAcceptInviteRenderProps {
 
 export interface BaseAcceptInviteProps {
   className?: string;
+  executionId?: string;
+  /** @deprecated Use `executionId`. */
   flowId?: string;
   inviteToken?: string;
   onComplete?: () => void;
@@ -101,6 +116,8 @@ const BaseAcceptInvite: Component = defineComponent({
   name: 'BaseAcceptInvite',
   props: {
     className: {default: '', type: String},
+    executionId: {default: undefined, type: String},
+    /** @deprecated Use `executionId`. */
     flowId: {default: undefined, type: String},
     inviteToken: {default: undefined, type: String},
     onComplete: {default: undefined, type: Function as PropType<() => void>},
@@ -127,13 +144,49 @@ const BaseAcceptInvite: Component = defineComponent({
     // so read the vendor prefix via optional injection rather than the throwing useThunderID composable.
     const thunderIDContext: ThunderIDContext | null = inject(THUNDERID_KEY, null);
     const vendor: string = getVendorPrefix(thunderIDContext?.vendor);
+    // The execution a redirect leaves from, for its callback to continue. Kept only while a redirect is under way.
     const flowIdStorageKey = `${vendor}_flow_id`;
+    const clearStoredExecutionId = (): void => sessionStorage.removeItem(flowIdStorageKey);
+    const executionId = (): string | undefined => props.executionId ?? props.flowId;
+
+    // The latest challenge token, also kept with the provider's storage so a redirect's callback can continue.
+    let challengeToken: string | null = null;
+    const storageReady: Ref<boolean> = ref(false);
+    const storageManager = (): ReturnType<ThunderIDContext['getStorageManager']> | undefined => {
+      try {
+        return thunderIDContext?.getStorageManager?.();
+      } catch {
+        return undefined;
+      }
+    };
+    const setChallengeToken = async (token: string | null): Promise<void> => {
+      challengeToken = token;
+      try {
+        const sm: ReturnType<ThunderIDContext['getStorageManager']> | undefined = storageManager();
+        if (token) await sm?.setTemporaryDataParameter('challengeToken', token);
+        else await sm?.removeTemporaryDataParameter('challengeToken');
+      } catch {
+        // The in-memory value still holds.
+      }
+    };
+    (async (): Promise<void> => {
+      try {
+        const stored: unknown = (await storageManager()?.getTemporaryData())?.['challengeToken'];
+        if (typeof stored === 'string') challengeToken = stored;
+      } catch {
+        // The next response brings a fresh challenge token.
+      } finally {
+        storageReady.value = true;
+      }
+    })();
 
     // ── State ──
     const isLoading: Ref<boolean> = ref(false);
     const isValidatingToken: Ref<boolean> = ref(true);
     const isTokenInvalid: Ref<boolean> = ref(false);
     const isComplete: Ref<boolean> = ref(false);
+    // Whether the flow ended on a step of its own, shown in place of the generic completion card.
+    const completedOnStep: Ref<boolean> = ref(false);
     const currentFlow: Ref<AcceptInviteFlowResponse | null> = ref(null);
     const apiError: Ref<Error | null> = ref(null);
     const completionTitle: Ref<string | undefined> = ref(undefined);
@@ -144,7 +197,8 @@ const BaseAcceptInvite: Component = defineComponent({
     const touchedFields: Ref<Record<string, boolean>> = ref({});
     const isFormValid: Ref<boolean> = ref(true);
 
-    let tokenValidationAttempted = false;
+    // Shared with the redirect callback, which validates the invite in place of the link's check.
+    const tokenValidation: {value: boolean} = {value: false};
 
     // ── Helpers ──
 
@@ -172,9 +226,9 @@ const BaseAcceptInvite: Component = defineComponent({
     // ── OAuth callback ──
 
     useOAuthCallback({
-      currentFlowId: ref(props.flowId ?? null),
+      currentFlowId: ref(executionId() ?? null),
       flowIdStorageKey,
-      isInitialized: ref(true),
+      isInitialized: storageReady,
       onComplete: () => {
         isComplete.value = true;
         isValidatingToken.value = false;
@@ -185,9 +239,15 @@ const BaseAcceptInvite: Component = defineComponent({
         isValidatingToken.value = false;
         handleError(error);
       },
-      onFlowChange: (response: any) => {
+      onFlowChange: (response: AcceptInviteFlowResponse) => {
         props.onFlowChange?.(response);
-        if (response.flowStatus !== 'COMPLETE') {
+        if (response.flowStatus === 'COMPLETE' || response.flowStatus === 'ERROR') {
+          clearStoredExecutionId();
+        }
+        if (response.flowStatus === 'COMPLETE' && response.data?.components?.length) {
+          completedOnStep.value = true;
+        }
+        if (response.flowStatus !== 'COMPLETE' || completedOnStep.value) {
           currentFlow.value = response;
           formValues.value = {};
           formErrors.value = {};
@@ -197,11 +257,19 @@ const BaseAcceptInvite: Component = defineComponent({
       onProcessingStart: () => {
         isValidatingToken.value = true;
       },
-      onSubmit: async (payload: any) => {
-        const rawResponse: any = await props.onSubmit(payload);
-        return normalizeFlowResponseLocal(rawResponse);
+      onSubmit: async (payload: OAuthCallbackPayload) => {
+        // The shared callback names the execution `flowId`.
+        const rawResponse: AcceptInviteFlowResponse = await props.onSubmit({
+          executionId: payload.flowId,
+          inputs: payload.inputs,
+          verbose: true,
+          ...(challengeToken ? {challengeToken} : {}),
+        });
+        const response: AcceptInviteFlowResponse = normalizeFlowResponseLocal(rawResponse);
+        await setChallengeToken(response.challengeToken ?? null);
+        return response;
       },
-      tokenValidationAttemptedFlag: {value: tokenValidationAttempted},
+      tokenValidationAttemptedFlag: tokenValidation,
     });
 
     // ── Input handlers ──
@@ -281,21 +349,25 @@ const BaseAcceptInvite: Component = defineComponent({
 
       try {
         const inputs: Record<string, any> = data || formValues.value;
+        const stepExecutionId: string | undefined = currentFlow.value.executionId ?? executionId();
         const payload: Record<string, any> = {
-          flowId: currentFlow.value.flowId,
+          executionId: stepExecutionId,
           inputs,
           verbose: true,
+          ...(challengeToken ? {challengeToken} : {}),
         };
         if (component?.id) payload['action'] = component.id;
 
         const rawResponse: AcceptInviteFlowResponse = await props.onSubmit(payload);
         const response: AcceptInviteFlowResponse = normalizeFlowResponseLocal(rawResponse);
         props.onFlowChange?.(response);
+        await setChallengeToken(response.challengeToken ?? null);
 
         // Handle OAuth redirect
         if (response.type === 'REDIRECTION') {
           const redirectURL: string | undefined = response.data?.redirectURL || (response as any)?.redirectURL;
           if (redirectURL) {
+            if (stepExecutionId) sessionStorage.setItem(flowIdStorageKey, stepExecutionId);
             initiateOAuthRedirect(redirectURL, vendor);
             return;
           }
@@ -308,16 +380,23 @@ const BaseAcceptInvite: Component = defineComponent({
           const heading: any = currentComponents.find(
             (comp: any) => comp.type === 'TEXT' && comp.variant === 'HEADING_1',
           );
-          if (heading?.label) completionTitle.value = heading.label;
+          if (heading?.label) completionTitle.value = resolve(heading.label);
         }
 
         if (response.flowStatus === 'COMPLETE') {
+          clearStoredExecutionId();
+          // A flow that ends on a step of its own shows it in place of the generic completion card.
+          if (response.data?.components?.length) {
+            completedOnStep.value = true;
+            currentFlow.value = response;
+          }
           isComplete.value = true;
           props.onComplete?.();
           return;
         }
 
         if (response.flowStatus === 'ERROR') {
+          clearStoredExecutionId();
           handleError(response);
           return;
         }
@@ -341,32 +420,35 @@ const BaseAcceptInvite: Component = defineComponent({
     // ── Token validation on mount ──
 
     watch(
-      () => [props.flowId, props.inviteToken] as [string | undefined, string | undefined],
-      ([flowId, inviteToken]: [string | undefined, string | undefined]) => {
-        if (tokenValidationAttempted) return;
+      () => [executionId(), props.inviteToken] as [string | undefined, string | undefined],
+      ([linkExecutionId, inviteToken]: [string | undefined, string | undefined]) => {
+        if (tokenValidation.value) return;
 
-        if (!flowId || !inviteToken) {
+        // A return from a redirect carries a code, which the redirect callback continues the flow with.
+        if (typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('code')) return;
+
+        if (!linkExecutionId || !inviteToken) {
           isValidatingToken.value = false;
           isTokenInvalid.value = true;
-          handleError(new Error('Invalid invite link. Missing flowId or inviteToken.'));
+          handleError(new Error('Invalid invite link. Missing executionId or inviteToken.'));
           return;
         }
 
-        tokenValidationAttempted = true;
+        tokenValidation.value = true;
 
         (async (): Promise<void> => {
           isValidatingToken.value = true;
           apiError.value = null;
 
           try {
-            if (flowId) sessionStorage.setItem(flowIdStorageKey, flowId);
-
-            const payload: any = {flowId, inputs: {inviteToken}, verbose: true};
+            const payload: any = {executionId: linkExecutionId, inputs: {inviteToken}, verbose: true};
             const rawResponse: AcceptInviteFlowResponse = await props.onSubmit(payload);
             const response: AcceptInviteFlowResponse = normalizeFlowResponseLocal(rawResponse);
             props.onFlowChange?.(response);
+            await setChallengeToken(response.challengeToken ?? null);
 
             if (response.flowStatus === 'ERROR') {
+              clearStoredExecutionId();
               isTokenInvalid.value = true;
               handleError(response);
               return;
@@ -386,13 +468,19 @@ const BaseAcceptInvite: Component = defineComponent({
 
     // ── Heading extraction ──
 
+    // The flow writes its texts as translation templates, so resolve them here as the field labels are.
+    const resolve = (text: string): string =>
+      resolveFlowTemplateLiterals(text, {meta: (metaRef as Ref<FlowMetadataResponse | null>).value, t});
+
     const extractHeadings = (components: any[]): {subtitle?: string; title?: string} => {
       let title: string | undefined;
       let subtitle: string | undefined;
-      components.forEach((comp: any) => {
+      components.forEach((comp: {label?: string; type?: string; variant?: string}) => {
         if (comp.type === 'TEXT') {
-          if (comp.variant === 'HEADING_1' && !title) title = comp.label;
-          else if ((comp.variant === 'HEADING_2' || comp.variant === 'SUBTITLE_1') && !subtitle) subtitle = comp.label;
+          if (comp.variant === 'HEADING_1' && !title) title = comp.label && resolve(comp.label);
+          else if ((comp.variant === 'HEADING_2' || comp.variant === 'SUBTITLE_1') && !subtitle) {
+            subtitle = comp.label && resolve(comp.label);
+          }
         }
       });
       return {subtitle, title};
@@ -423,8 +511,9 @@ const BaseAcceptInvite: Component = defineComponent({
           completionTitle: completionTitle.value,
           components,
           error: apiError.value,
+          executionId: executionId(),
           fieldErrors: formErrors.value,
-          flowId: props.flowId,
+          flowId: executionId(),
           goToSignIn: props.onGoToSignIn,
           handleInputBlur,
           handleInputChange,
@@ -475,8 +564,8 @@ const BaseAcceptInvite: Component = defineComponent({
         ]);
       }
 
-      // Completion
-      if (isComplete.value) {
+      // Completion, when the flow ends without a step of its own to show
+      if (isComplete.value && !completedOnStep.value) {
         return h(Card, {class: containerClass, variant: props.variant}, () => [
           h('div', {style: 'padding:1rem'}, [
             h(Typography, {variant: 'h5'}, () => 'Account Setup Complete!'),
@@ -495,6 +584,9 @@ const BaseAcceptInvite: Component = defineComponent({
       }
 
       // Render form components
+      const flowIds: FlowIds = collectFlowIds(
+        getFlowStepComponents(componentsWithoutHeadings as EmbeddedFlowComponent[]),
+      );
       const renderedComponents: VNode[] =
         componentsWithoutHeadings.length > 0
           ? renderInviteUserComponents(
@@ -516,7 +608,7 @@ const BaseAcceptInvite: Component = defineComponent({
                 t,
                 variant: props.variant,
               },
-            )
+            ).map((node: VNode) => withFlowTestIds(node, flowIds))
           : [];
 
       return h(Card, {class: containerClass, variant: props.variant}, () => [

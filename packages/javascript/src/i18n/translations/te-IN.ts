@@ -51,6 +51,8 @@ const translations: I18nTranslations = {
   /* Select */
   'elements.fields.auth_flow_select.aria_label': 'లాగిన్ ప్రవాహాన్ని ఎంచుకోండి',
   'elements.fields.auth_flow_select.empty': 'లాగిన్ ప్రవాహాలు కనుగొనబడలేదు.',
+  'elements.fields.role_select.aria_label': 'పాత్రలను ఎంచుకోండి',
+  'elements.fields.role_select.empty': 'కేటాయించడానికి పాత్రలు లేవు.',
   'elements.fields.select.load_more': 'మరిన్ని లోడ్ చేయండి',
   'elements.fields.select.loading': 'లోడ్ అవుతోంది…',
   'elements.fields.select.loading_more': 'మరిన్ని లోడ్ అవుతోంది…',
@@ -279,6 +281,9 @@ const translations: I18nTranslations = {
   'errors.signin.timeout': 'దశను పూర్తి చేయడానికి అనుమతించబడిన సమయం ముగిసింది.',
   'errors.signin.session.expired':
     'మీ సెషన్ గడువు ముగిసింది. దయచేసి అప్లికేషన్‌కు తిరిగి వెళ్లి మళ్లీ సైన్ ఇన్ చేయండి.',
+  'errors.invite.flow.failure': 'ఆహ్వానం సమయంలో లోపం సంభవించింది. దయచేసి తర్వాత మళ్లీ ప్రయత్నించండి.',
+  'errors.invite.components.not.available':
+    'ఆహ్వాన ఫారమ్ ప్రస్తుతం అందుబాటులో లేదు. దయచేసి తర్వాత మళ్లీ ప్రయత్నించండి.',
 
   /* |---------------------------------------------------------------| */
   /* |                        Flow Expiry                            | */

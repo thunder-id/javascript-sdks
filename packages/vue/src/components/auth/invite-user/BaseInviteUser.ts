@@ -6,75 +6,35 @@ import {
   FetchAuthFlows,
   FetchUsers,
   FetchUserTypes,
-  FlowMetadataResponse,
   withVendorCSSClassPrefix,
 } from '@thunderid/browser';
-import {
-  type Component,
-  type PropType,
-  type Ref,
-  type SetupContext,
-  type VNode,
-  defineComponent,
-  h,
-  ref,
-  watch,
-} from 'vue';
-import useFlowMeta from '../../../composables/useFlowMeta';
-import useI18n from '../../../composables/useI18n';
-import {extractErrorMessage, normalizeFlowResponse} from '../../../utils/flowTransformer';
+import {type Component, type PropType, type Ref, type SetupContext, type VNode, defineComponent, h, ref} from 'vue';
+import useInviteFlow, {
+  type InviteFlow,
+  type InviteFlowRenderProps,
+  type InviteUserFlowResponse,
+} from '../../../composables/auth/useInviteFlow';
 import Alert from '../../primitives/Alert';
 import Button from '../../primitives/Button';
 import Card from '../../primitives/Card';
-import Spinner from '../../primitives/Spinner';
 import Typography from '../../primitives/Typography';
-import {renderInviteUserComponents} from '../flow/AuthOptionFactory';
+import renderInviteFlowCard from '../flow/renderInviteFlowCard';
 
-/**
- * Flow response from the invite-user backend.
- */
-export interface InviteUserFlowResponse {
-  data?: {
-    additionalData?: Record<string, string>;
-    components?: any[];
-    meta?: {
-      components?: any[];
-    };
-  };
-  error?: {
-    code: string;
-    description: {key: string; default?: string; defaultValue?: string};
-    message: {key: string; default?: string; defaultValue?: string};
-  };
-  flowId: string;
-  flowStatus: 'INCOMPLETE' | 'COMPLETE' | 'ERROR';
-  type?: 'VIEW' | 'REDIRECTION';
-}
+export type {InviteUserFlowResponse};
 
 /**
  * Render props passed to the default scoped slot.
  */
-export interface BaseInviteUserRenderProps {
-  components: any[];
+export interface BaseInviteUserRenderProps extends InviteFlowRenderProps {
   copyInviteLink: () => Promise<void>;
-  error?: Error | null;
-  fieldErrors: Record<string, string>;
+  /**
+   * @deprecated Use `executionId`.
+   */
   flowId?: string;
-  handleInputBlur: (name: string) => void;
-  handleInputChange: (name: string, value: string) => void;
-  handleSubmit: (component: any, data?: Record<string, any>) => Promise<void>;
   inviteLink?: string;
   inviteLinkCopied: boolean;
   isEmailSent: boolean;
   isInviteGenerated: boolean;
-  isLoading: boolean;
-  isValid: boolean;
-  meta: FlowMetadataResponse | null;
-  resetFlow: () => void;
-  subtitle?: string;
-  title?: string;
-  touched: Record<string, boolean>;
-  values: Record<string, string>;
 }
 
 export interface BaseInviteUserProps {
@@ -90,6 +50,8 @@ export interface BaseInviteUserProps {
   size?: 'small' | 'medium' | 'large';
   variant?: 'outlined' | 'elevated';
 }
+
+const START: Record<string, unknown> = {flowType: EmbeddedFlowType.UserOnboarding};
 
 /**
  * BaseInviteUser — handles the admin invite-user flow lifecycle.
@@ -139,163 +101,33 @@ const BaseInviteUser: Component = defineComponent({
     variant: {default: 'outlined', type: String as PropType<'outlined' | 'elevated'>},
   },
   setup(props: any, {slots}: SetupContext): () => VNode | null {
-    const {meta: metaRef} = useFlowMeta();
-    const {t} = useI18n();
-
-    // ── State ──
-    const isLoading: Ref<boolean> = ref(false);
-    const isFlowInitialized: Ref<boolean> = ref(false);
-    const currentFlow: Ref<InviteUserFlowResponse | null> = ref(null);
-    const apiError: Ref<Error | null> = ref(null);
-
-    // Form state
-    const formValues: Ref<Record<string, string>> = ref({});
-    const formErrors: Ref<Record<string, string>> = ref({});
-    const touchedFields: Ref<Record<string, boolean>> = ref({});
-    const isFormValid: Ref<boolean> = ref(true);
-
     // Invite state
     const inviteLink: Ref<string | undefined> = ref(undefined);
     const inviteLinkCopied: Ref<boolean> = ref(false);
     const emailSent: Ref<boolean> = ref(false);
 
-    let initializationAttempted = false;
-
-    // ── Helpers ──
-
-    const handleError = (error: any): void => {
-      const errorMessage: string = extractErrorMessage(error, t, 'components.inviteUser.errors.generic');
-      apiError.value = error instanceof Error ? error : new Error(errorMessage);
-      props.onError?.(apiError.value);
-    };
-
-    const normalizeFlowResponseLocal = (response: InviteUserFlowResponse): InviteUserFlowResponse => {
-      if (!response?.data?.meta?.components) return response;
-      try {
-        const {components} = normalizeFlowResponse(
-          response,
-          t,
-          {defaultErrorKey: 'components.inviteUser.errors.generic', resolveTranslations: false},
-          (metaRef as Ref<FlowMetadataResponse | null>).value,
-        );
-        return {...response, data: {...response.data, components: components as any}};
-      } catch {
-        return response;
-      }
-    };
-
-    // ── Input handlers ──
-
-    const handleInputChange = (name: string, value: string): void => {
-      formValues.value = {...formValues.value, [name]: value};
-      const newErrors: Record<string, string> = {...formErrors.value};
-      delete newErrors[name];
-      formErrors.value = newErrors;
-    };
-
-    const handleInputBlur = (name: string): void => {
-      touchedFields.value = {...touchedFields.value, [name]: true};
-    };
-
-    // ── Validation ──
-
-    const validateForm = (components: any[]): {errors: Record<string, string>; isValid: boolean} => {
-      const errors: Record<string, string> = {};
-      const validateComponents = (comps: any[]): void => {
-        comps.forEach((comp: any) => {
-          if (
-            (comp.type === 'TEXT_INPUT' ||
-              comp.type === 'EMAIL_INPUT' ||
-              comp.type === 'SELECT' ||
-              comp.type === 'USER_SELECT' ||
-              comp.type === 'AUTH_FLOW_SELECT' ||
-              comp.type === 'USER_TYPE_SELECT') &&
-            comp.required &&
-            comp.ref
-          ) {
-            const value: string = formValues.value[comp.ref] || '';
-            if (!value || value.trim() === '') {
-              errors[comp.ref] = `${comp.label || comp.ref} is required`;
-            }
-            if (comp.type === 'EMAIL_INPUT' && value && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
-              errors[comp.ref] = 'Please enter a valid email address';
-            }
-          }
-          if (comp.components && Array.isArray(comp.components)) {
-            validateComponents(comp.components);
-          }
-        });
-      };
-      validateComponents(components);
-      return {errors, isValid: Object.keys(errors).length === 0};
-    };
-
-    // ── Submit handler ──
-
-    const handleSubmit = async (component: any, data?: Record<string, any>): Promise<void> => {
-      if (!currentFlow.value) return;
-
-      const components: any[] = currentFlow.value.data?.components || [];
-      const validation: {errors: Record<string, string>; isValid: boolean} = validateForm(components);
-      if (!validation.isValid) {
-        formErrors.value = validation.errors;
-        isFormValid.value = false;
-        const touched: Record<string, boolean> = {};
-        Object.keys(validation.errors).forEach((key: string) => {
-          touched[key] = true;
-        });
-        touchedFields.value = {...touchedFields.value, ...touched};
-        return;
-      }
-
-      isLoading.value = true;
-      apiError.value = null;
-      isFormValid.value = true;
-
-      try {
-        const inputs: Record<string, any> = data || formValues.value;
-        const payload: Record<string, any> = {
-          flowId: currentFlow.value.flowId,
-          inputs,
-          verbose: true,
-        };
-        if (component?.id) payload['action'] = component.id;
-
-        const rawResponse: InviteUserFlowResponse = await props.onSubmit(payload);
-        const response: InviteUserFlowResponse = normalizeFlowResponseLocal(rawResponse);
-        props.onFlowChange?.(response);
-
-        // Check for invite link
+    const flow: InviteFlow = useInviteFlow({
+      errorKey: 'components.inviteUser.errors.generic',
+      onReset: (): void => {
+        inviteLink.value = undefined;
+        inviteLinkCopied.value = false;
+        emailSent.value = false;
+      },
+      onStepResponse: (response: InviteUserFlowResponse): void => {
         if (response.data?.additionalData?.['inviteLink']) {
           const linkValue: string = response.data.additionalData['inviteLink'];
           inviteLink.value = linkValue;
-          props.onInviteLinkGenerated?.(linkValue, response.flowId);
+          props.onInviteLinkGenerated?.(linkValue, response.executionId ?? '');
         }
 
         if (response.data?.additionalData?.['emailSent'] === 'true') {
           emailSent.value = true;
         }
-
-        if (response.flowStatus === 'ERROR') {
-          handleError(response);
-          return;
-        }
-
-        currentFlow.value = response;
-        formValues.value = {};
-        formErrors.value = {};
-        touchedFields.value = {};
-
-        // Display error from INCOMPLETE response
-        if (response?.error) {
-          handleError(response);
-        }
-      } catch (err) {
-        handleError(err);
-      } finally {
-        isLoading.value = false;
-      }
-    };
+      },
+      props,
+      start: () => START,
+    });
+    const {resetFlow} = flow;
 
     // ── Copy invite link ──
 
@@ -321,86 +153,6 @@ const BaseInviteUser: Component = defineComponent({
       }
     };
 
-    // ── Reset flow ──
-
-    const resetFlow = (): void => {
-      isFlowInitialized.value = false;
-      currentFlow.value = null;
-      apiError.value = null;
-      formValues.value = {};
-      formErrors.value = {};
-      touchedFields.value = {};
-      inviteLink.value = undefined;
-      inviteLinkCopied.value = false;
-      emailSent.value = false;
-      initializationAttempted = false;
-    };
-
-    /**
-     *
-     * Reset the formvalues
-     */
-    const resetForm = (): void => {
-      formValues.value = {};
-      formErrors.value = {};
-      touchedFields.value = {};
-      apiError.value = null;
-      isFormValid.value = true;
-    };
-
-    // ── Flow initialization ──
-
-    watch(
-      () => [props.isInitialized, isFlowInitialized.value] as [boolean, boolean],
-      ([initialized, flowInit]: [boolean, boolean]) => {
-        if (initialized && !flowInit && !initializationAttempted) {
-          initializationAttempted = true;
-
-          (async (): Promise<void> => {
-            isLoading.value = true;
-            apiError.value = null;
-
-            try {
-              const payload: any = {flowType: EmbeddedFlowType.UserOnboarding, verbose: true};
-              const rawResponse: InviteUserFlowResponse = await props.onInitialize(payload);
-              const response: InviteUserFlowResponse = normalizeFlowResponseLocal(rawResponse);
-              currentFlow.value = response;
-              isFlowInitialized.value = true;
-              props.onFlowChange?.(response);
-
-              if (response.flowStatus === 'ERROR') {
-                handleError(response);
-              }
-            } catch (err) {
-              handleError(err);
-            } finally {
-              isLoading.value = false;
-            }
-          })();
-        }
-      },
-      {immediate: true},
-    );
-
-    // ── Heading extraction ──
-
-    const extractHeadings = (components: any[]): {subtitle?: string; title?: string} => {
-      let title: string | undefined;
-      let subtitle: string | undefined;
-      components.forEach((comp: any) => {
-        if (comp.type === 'TEXT') {
-          if (comp.variant === 'HEADING_1' && !title) title = comp.label;
-          else if ((comp.variant === 'HEADING_2' || comp.variant === 'SUBTITLE_1') && !subtitle) subtitle = comp.label;
-        }
-      });
-      return {subtitle, title};
-    };
-
-    const filterHeadings = (components: any[]): any[] =>
-      components.filter(
-        (comp: any) => !(comp.type === 'TEXT' && (comp.variant === 'HEADING_1' || comp.variant === 'HEADING_2')),
-      );
-
     // ── Render ──
 
     return (): VNode | null => {
@@ -408,57 +160,26 @@ const BaseInviteUser: Component = defineComponent({
         .filter(Boolean)
         .join(' ');
 
-      const components: any[] = currentFlow.value?.data?.components || currentFlow.value?.data?.meta?.components || [];
-      const {title, subtitle} = extractHeadings(components);
-      const componentsWithoutHeadings: any[] = filterHeadings(components);
       const isInviteGenerated = !!inviteLink.value;
       const isEmailSent: boolean = emailSent.value;
 
-      const meta: FlowMetadataResponse | null = (metaRef as Ref<FlowMetadataResponse | null>).value;
-
       // Scoped slot
       if (slots['default']) {
+        const step: InviteFlowRenderProps = flow.renderProps();
         const renderProps: BaseInviteUserRenderProps = {
-          components,
+          ...step,
           copyInviteLink,
-          error: apiError.value,
-          fieldErrors: formErrors.value,
-          flowId: currentFlow.value?.flowId,
-          handleInputBlur,
-          handleInputChange,
-          handleSubmit,
+          flowId: step.executionId,
           inviteLink: inviteLink.value,
           inviteLinkCopied: inviteLinkCopied.value,
           isEmailSent,
           isInviteGenerated,
-          isLoading: isLoading.value,
-          isValid: isFormValid.value,
-          meta,
-          resetFlow,
-          subtitle,
-          title,
-          touched: touchedFields.value,
-          values: formValues.value,
         };
         return h('div', {class: containerClass}, slots['default'](renderProps));
       }
 
-      // Waiting for SDK initialization
-      if (!props.isInitialized || (!isFlowInitialized.value && isLoading.value)) {
-        return h(Card, {class: containerClass, variant: props.variant}, () =>
-          h('div', {style: 'display:flex;justify-content:center;padding:2rem'}, h(Spinner)),
-        );
-      }
-
-      // Error state during initialization
-      if (!currentFlow.value && apiError.value) {
-        return h(Card, {class: containerClass, variant: props.variant}, () =>
-          h(Alert, {variant: 'error'}, () => apiError.value!.message),
-        );
-      }
-
       // Email sent confirmation
-      if (isInviteGenerated && isEmailSent) {
+      if (props.isInitialized && isInviteGenerated && isEmailSent) {
         return h(Card, {class: containerClass, variant: props.variant}, () => [
           h('div', {style: 'padding:1rem'}, [
             h(Typography, {variant: 'h5'}, () => 'Invite Email Sent!'),
@@ -476,7 +197,7 @@ const BaseInviteUser: Component = defineComponent({
       }
 
       // Invite link generated — show copy link
-      if (isInviteGenerated && inviteLink.value) {
+      if (props.isInitialized && isInviteGenerated && inviteLink.value) {
         return h(Card, {class: containerClass, variant: props.variant}, () => [
           h('div', {style: 'padding:1rem'}, [
             h(Typography, {variant: 'h5'}, () => 'Invite Link Generated!'),
@@ -508,71 +229,18 @@ const BaseInviteUser: Component = defineComponent({
         ]);
       }
 
-      // Render form components
-      const renderedComponents: VNode[] =
-        componentsWithoutHeadings.length > 0
-          ? renderInviteUserComponents(
-              componentsWithoutHeadings,
-              formValues.value,
-              touchedFields.value,
-              formErrors.value,
-              isLoading.value,
-              isFormValid.value,
-              resetForm,
-              handleInputChange,
-              {
-                additionalData: currentFlow.value?.data?.additionalData,
-                fetchAuthFlows: props.fetchAuthFlows,
-                fetchUsers: props.fetchUsers,
-                fetchUserTypes: props.fetchUserTypes,
-                isFormComplete: validateForm(componentsWithoutHeadings).isValid,
-                meta,
-                onInputBlur: handleInputBlur,
-                onPickerError: props.onError,
-                onSubmit: handleSubmit,
-                size: props.size,
-                t,
-                variant: props.variant,
-              },
-            )
-          : [];
-
-      return h(Card, {class: containerClass, variant: props.variant}, () => [
-        (props.showTitle || props.showSubtitle) && (title || subtitle)
-          ? h('div', {style: 'padding:1rem 1rem 0'}, [
-              props.showTitle && title ? h(Typography, {variant: 'h5'}, () => title) : null,
-              props.showSubtitle && subtitle
-                ? h(Typography, {style: 'margin-top:0.25rem', variant: 'body1'}, () => subtitle)
-                : null,
-            ])
-          : null,
-        apiError.value
-          ? h(
-              'div',
-              {style: 'padding:0 1rem;margin-bottom:1rem'},
-              h(Alert, {variant: 'error'}, () => apiError.value!.message),
-            )
-          : null,
-        h(
-          'div',
-          {style: 'padding:1rem'},
-          ((): (VNode | VNode[] | null)[] => {
-            const formContent: (VNode | VNode[] | null)[] = [];
-
-            if (renderedComponents.length > 0) {
-              formContent.push(renderedComponents);
-            } else if (!isLoading.value) {
-              formContent.push(h(Alert, {variant: 'warning'}, () => 'No form components available'));
-            }
-
-            if (isLoading.value) {
-              formContent.push(h('div', {style: 'display:flex;justify-content:center;padding:1rem'}, h(Spinner)));
-            }
-
-            return formContent;
-          })(),
-        ),
-      ]);
+      return renderInviteFlowCard(flow, {
+        className: containerClass,
+        fetchAuthFlows: props.fetchAuthFlows,
+        fetchUsers: props.fetchUsers,
+        fetchUserTypes: props.fetchUserTypes,
+        isInitialized: props.isInitialized,
+        onPickerError: props.onError,
+        showSubtitle: props.showSubtitle,
+        showTitle: props.showTitle,
+        size: props.size,
+        variant: props.variant,
+      });
     };
   },
 });

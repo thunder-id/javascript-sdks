@@ -9,6 +9,7 @@ import {
   BaseSignOutButton,
   BaseSignUpButton,
   BaseUserDropdown,
+  BaseInviteToOrganizationUnit,
   BaseUserProfile,
   BaseVerifyAttribute,
   Button,
@@ -22,6 +23,7 @@ import {
   FacebookButton,
   GitHubButton,
   GoogleButton,
+  InviteToOrganizationUnit,
   KeyValueList,
   LanguageSwitcher,
   Loading,
@@ -49,12 +51,19 @@ import {
 } from '@thunderid/vue';
 import {Component, h} from 'vue';
 import {ADMIN_COMPONENTS} from './adminStories';
-import {CUSTOM_RENDER_COMPONENTS, SAMPLE_VERIFICATION_STEP, submitSampleVerification} from './customRenderStories';
+import {
+  CUSTOM_RENDER_COMPONENTS,
+  SAMPLE_INVITATION_STEP,
+  SAMPLE_VERIFICATION_STEP,
+  submitSampleInvitation,
+  submitSampleVerification,
+} from './customRenderStories';
 import {ORGANIZATION_UNIT_ADMIN_STORIES, PROJECT_STORIES, SHARING_STORIES} from './managementAreaStories';
 import {SampleOrganizationUnitSwitcher} from './organizationUnitSamples';
 import {bool, CARD_VARIANT, handler, num, omit, quoted, SIZE, slot, SOURCE_CONTROL, str, tpl} from './storyKit';
 import type {Action, Args, ComponentDef} from './types';
 import {narrow, VModel} from './widgets';
+import playgroundConfig from '../../config';
 import {getDisplayName} from '../../lib/user';
 
 const SAMPLE_USER: Record<string, string> = {
@@ -850,6 +859,72 @@ export const COMPONENTS: ComponentDef[] = [
     stories: [
       {id: 'default', name: 'Default'},
       {args: {size: 'small', variant: 'elevated'}, id: 'compact', name: 'Compact'},
+    ],
+  },
+  {
+    code: (args: Args) =>
+      str(args, 'source') === 'live'
+        ? {
+            imports: ['InviteToOrganizationUnit'],
+            script: handler('handleError'),
+            template: tpl('InviteToOrganizationUnit', omit(args, 'source', 'flowId'), {
+              extra: [':flow-id="invitationFlowId"', '@error="handleError"'],
+            }),
+          }
+        : {
+            imports: ['BaseInviteToOrganizationUnit'],
+            template: tpl(
+              'BaseInviteToOrganizationUnit',
+              {},
+              {extra: ['flow-id="sample"', ':on-initialize="startFlow"', ':on-submit="submitStep"']},
+            ),
+          },
+    controls: [
+      SOURCE_CONTROL,
+      {
+        control: 'text',
+        description:
+          "Live only: ID of an INVITATION flow that the signed-in user's organization unit owns or was shared. " +
+          'Defaults to VITE_THUNDERID_INVITATION_FLOW_ID.',
+        name: 'flowId',
+        type: 'string',
+      },
+    ],
+    defaults: {flowId: playgroundConfig.invitationFlowId ?? '', source: 'base'},
+    group: 'Auth flows',
+    id: 'invitetoorganizationunit',
+    live: true,
+    name: 'InviteToOrganizationUnit',
+    render: (args: Args, action: Action) => {
+      if (str(args, 'source') !== 'live') {
+        return narrow(
+          440,
+          h(BaseInviteToOrganizationUnit, {
+            flowId: 'sample',
+            onInitialize: () => Promise.resolve(SAMPLE_INVITATION_STEP),
+            onSubmit: (payload: Record<string, unknown>) => {
+              action('submit', JSON.stringify(payload));
+
+              return submitSampleInvitation(payload);
+            },
+          }),
+        );
+      }
+
+      return narrow(
+        440,
+        str(args, 'flowId')
+          ? h(InviteToOrganizationUnit, {
+              flowId: str(args, 'flowId'),
+              key: str(args, 'flowId'),
+              onError: (error: Error) => action('error', error.message),
+            })
+          : h(Alert, {variant: 'info'}, () => 'Set flowId to the ID of an INVITATION flow to run it.'),
+      );
+    },
+    stories: [
+      {id: 'base', name: 'Sample flow'},
+      {args: {source: 'live'}, id: 'live', name: 'Signed-in user (sends an invitation)'},
     ],
   },
   {

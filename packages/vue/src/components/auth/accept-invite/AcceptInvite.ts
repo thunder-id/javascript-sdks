@@ -1,21 +1,24 @@
-// Copyright 2025 The ThunderID Authors
+// Copyright 2025-2026 The ThunderID Authors
 // SPDX-License-Identifier: Apache-2.0
 
-import {ThunderIDAPIError} from '@thunderid/browser';
-import {type Component, type PropType, type SetupContext, type VNode, defineComponent, h} from 'vue';
+import {ThunderIDAPIError, resolveResourceEndpoint} from '@thunderid/browser';
+import {type Component, type PropType, type SetupContext, type VNode, defineComponent, h, inject} from 'vue';
 import BaseAcceptInvite from './BaseAcceptInvite';
 import type {AcceptInviteFlowResponse, BaseAcceptInviteRenderProps} from './BaseAcceptInvite';
+import {THUNDERID_KEY} from '../../../keys';
+import type {ThunderIDContext} from '../../../models/contexts';
 
 export type AcceptInviteRenderProps = BaseAcceptInviteRenderProps;
 
 /**
  * Helper to extract query parameters from URL.
  */
-const getUrlParams = (): {flowId?: string; inviteToken?: string} => {
+const getUrlParams = (): {executionId?: string; inviteToken?: string} => {
   if (typeof window === 'undefined') return {};
   const params: URLSearchParams = new URLSearchParams(window.location.search);
   return {
-    flowId: params.get('flowId') || undefined,
+    // `flowId` is what links carried before the execution ID replaced it.
+    executionId: params.get('executionId') || params.get('flowId') || undefined,
     inviteToken: params.get('inviteToken') || undefined,
   };
 };
@@ -23,7 +26,7 @@ const getUrlParams = (): {flowId?: string; inviteToken?: string} => {
 /**
  * AcceptInvite — end-user component for accepting an invite and setting a password.
  *
- * Automatically extracts flowId and inviteToken from URL, validates the token,
+ * Automatically extracts executionId and inviteToken from URL, validates the token,
  * and delegates rendering to BaseAcceptInvite.
  */
 const AcceptInvite: Component = defineComponent({
@@ -31,6 +34,8 @@ const AcceptInvite: Component = defineComponent({
   props: {
     baseUrl: {default: undefined, type: String},
     className: {default: '', type: String},
+    executionId: {default: undefined, type: String},
+    /** @deprecated Use `executionId`. */
     flowId: {default: undefined, type: String},
     inviteToken: {default: undefined, type: String},
     onComplete: {default: undefined, type: Function as PropType<() => void>},
@@ -46,14 +51,21 @@ const AcceptInvite: Component = defineComponent({
     variant: {default: 'outlined', type: String as PropType<'outlined' | 'elevated'>},
   },
   setup(props: any, {slots}: SetupContext): () => VNode | null {
-    const urlParams: {flowId?: string; inviteToken?: string} = getUrlParams();
-    const flowId: string | undefined = props.flowId || urlParams.flowId;
+    const urlParams: {executionId?: string; inviteToken?: string} = getUrlParams();
+    const link: {baseUrl?: string; executionId?: string; flowId?: string} = props;
+    const executionId: string | undefined = link.executionId ?? link.flowId ?? urlParams.executionId;
     const inviteToken: string | undefined = props.inviteToken || urlParams.inviteToken;
 
-    const apiBaseUrl: string = props.baseUrl || (typeof window !== 'undefined' ? window.location.origin : '');
+    // The steps go to the provider's flow endpoint unless `baseUrl` names another server. Outside a provider, they go
+    // to this page's origin.
+    const thunderIDContext: ThunderIDContext | null = inject(THUNDERID_KEY, null);
+    const flowExecuteUrl: string = link.baseUrl
+      ? `${link.baseUrl}/flow/execute`
+      : (resolveResourceEndpoint('flowExecute', {endpoints: thunderIDContext?.endpoints}) ??
+        `${thunderIDContext?.baseUrl ?? (typeof window !== 'undefined' ? window.location.origin : '')}/flow/execute`);
 
     const handleSubmit = async (payload: Record<string, any>): Promise<AcceptInviteFlowResponse> => {
-      const response: Response = await fetch(`${apiBaseUrl}/flow/execute`, {
+      const response: Response = await fetch(flowExecuteUrl, {
         body: JSON.stringify({...payload, verbose: true}),
         headers: {
           Accept: 'application/json',
@@ -82,7 +94,7 @@ const AcceptInvite: Component = defineComponent({
         BaseAcceptInvite,
         {
           className: props.className,
-          flowId,
+          executionId,
           inviteToken,
           onComplete: props.onComplete,
           onError: props.onError,

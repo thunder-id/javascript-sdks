@@ -1,4 +1,4 @@
-// Copyright 2025 The ThunderID Authors
+// Copyright 2025-2026 The ThunderID Authors
 // SPDX-License-Identifier: Apache-2.0
 
 import {Theme} from '@thunderid/browser';
@@ -6,7 +6,7 @@ import {useMemo} from 'react';
 import {css} from '../../../styles/emotion';
 
 /**
- * Creates styles for the BaseInviteUser component
+ * Creates styles for the invite components' default card
  * @param theme - The theme object containing design tokens
  * @param colorScheme - The current color scheme (used for memoization)
  * @returns Object containing CSS class names for component styling

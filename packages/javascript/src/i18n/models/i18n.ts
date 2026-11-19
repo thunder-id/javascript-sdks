@@ -51,6 +51,8 @@ export interface I18nTranslations {
   /* Select */
   'elements.fields.auth_flow_select.aria_label': string;
   'elements.fields.auth_flow_select.empty': string;
+  'elements.fields.role_select.aria_label': string;
+  'elements.fields.role_select.empty': string;
   'elements.fields.select.load_more': string;
   'elements.fields.select.loading': string;
   'elements.fields.select.loading_more': string;
@@ -277,6 +279,8 @@ export interface I18nTranslations {
   'errors.signin.components.not.available': string;
   'errors.signin.timeout': string;
   'errors.signin.session.expired': string;
+  'errors.invite.flow.failure': string;
+  'errors.invite.components.not.available': string;
 
   /* |---------------------------------------------------------------| */
   /* |                        Flow Expiry                            | */

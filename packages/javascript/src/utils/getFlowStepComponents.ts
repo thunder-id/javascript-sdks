@@ -12,6 +12,7 @@ const INPUT_TYPES: string[] = [
   EmbeddedFlowComponentType.OtpInput,
   EmbeddedFlowComponentType.Select,
   EmbeddedFlowComponentType.DateInput,
+  EmbeddedFlowComponentType.RoleSelect,
 ];
 
 // Component types that submit a step.
