@@ -28,6 +28,7 @@ import {
   type BaseApplicationDetailsRenderProps,
   type BaseGroupCreateRenderProps,
   type BaseGroupDetailsRenderProps,
+  type BaseInviteToOrganizationUnitRenderProps,
   type BaseRoleDetailsRenderProps,
   type BaseRolePermissionsRenderProps,
   type BaseUserCreateRenderProps,
@@ -36,6 +37,8 @@ import {
   type DataTableColumn,
   type EmbeddedFlowComponent,
   getAgentName,
+  parseRoleOptions,
+  type RoleOption,
   useTheme,
 } from '@thunderid/react';
 import {ReactElement, ReactNode, useMemo, useState} from 'react';
@@ -902,6 +905,93 @@ export const VerifyForm = (step: BaseVerifyAttributeRenderProps): ReactElement =
               {String(action.label ?? action.id)}
             </Button>
           ))}
+      </CardActions>
+    </Card>
+  );
+};
+
+const isHeading = (component: EmbeddedFlowComponent): boolean =>
+  component.type === 'TEXT' && (component.variant === 'HEADING_1' || component.variant === 'HEADING_2');
+
+/** An invitation step's render props drawn with MUI: its text, inputs, a role picker and its actions. */
+export const InviteForm = (step: BaseInviteToOrganizationUnitRenderProps): ReactElement => {
+  const components: EmbeddedFlowComponent[] = step.components as EmbeddedFlowComponent[];
+  const roles: RoleOption[] = parseRoleOptions(step.additionalData?.['roleOptions']);
+
+  return (
+    <Card variant="outlined">
+      <CardHeader title={step.title} subheader={step.subtitle} />
+      <CardContent>
+        <Stack spacing={2}>
+          {step.error && <MuiAlert severity="error">{step.error.message}</MuiAlert>}
+          {flowComponents(components, ['TEXT'])
+            .filter((text: EmbeddedFlowComponent) => !isHeading(text))
+            .map((text: EmbeddedFlowComponent) => (
+              <Typography key={text.id} variant="body2">
+                {String(text.label ?? '')}
+              </Typography>
+            ))}
+          {flowComponents(components, INPUT_TYPES).map((input: EmbeddedFlowComponent) => {
+            const name: string = input.ref ?? input.id;
+
+            return (
+              <TextField
+                key={name}
+                label={String(input.label ?? name)}
+                size="small"
+                value={step.values[name] ?? ''}
+                error={!!(step.touched[name] && step.fieldErrors[name])}
+                helperText={step.touched[name] ? step.fieldErrors[name] : undefined}
+                onChange={(event) => step.handleInputChange(name, event.target.value)}
+              />
+            );
+          })}
+          {flowComponents(components, ['ROLE_SELECT']).map((input: EmbeddedFlowComponent) => {
+            const name: string = input.ref ?? input.id;
+            const picked: string[] = (step.values[name] ?? '').split(' ').filter(Boolean);
+
+            return (
+              <Stack key={name}>
+                <Typography variant="subtitle2">{String(input.label ?? name)}</Typography>
+                {roles.map((role: RoleOption) => (
+                  <FormControlLabel
+                    key={role.id}
+                    label={role.name}
+                    control={
+                      <MuiCheckbox
+                        checked={picked.includes(role.id)}
+                        onChange={(event) =>
+                          step.handleInputChange(
+                            name,
+                            roles
+                              .filter((option: RoleOption) =>
+                                option.id === role.id ? event.target.checked : picked.includes(option.id),
+                              )
+                              .map((option: RoleOption) => option.id)
+                              .join(' '),
+                          )
+                        }
+                      />
+                    }
+                  />
+                ))}
+              </Stack>
+            );
+          })}
+        </Stack>
+      </CardContent>
+      <CardActions sx={{justifyContent: 'flex-end'}}>
+        {flowComponents(components, ['ACTION']).map((action: EmbeddedFlowComponent) => (
+          <Button
+            key={action.id}
+            variant={action.variant === 'PRIMARY' ? 'contained' : 'text'}
+            disabled={step.isLoading}
+            loading={step.isLoading}
+            onClick={() => void step.handleSubmit(action, step.values)}
+          >
+            {String(action.label ?? action.id)}
+          </Button>
+        ))}
       </CardActions>
     </Card>
   );

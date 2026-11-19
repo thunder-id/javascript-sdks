@@ -25,12 +25,14 @@ import {
   getConsentOneTime,
   getConsentValidityInput,
   getConsentValidityPeriod,
+  parseRoleOptions,
 } from '@thunderid/browser';
 import type {FetchAuthFlows, FetchUsers, FetchUserTypes} from '@thunderid/browser';
 import DOMPurify from 'dompurify';
 import {h, type VNode} from 'vue';
 import Consent, {getConsentOptionalKey} from './Consent';
 import {createField} from './FieldFactory';
+import RoleSelectField from './RoleSelectField';
 import {createVueLogger} from '../../../utils/logger';
 import BaseAuthFlowSelect from '../../primitives/AuthFlowSelect/BaseAuthFlowSelect';
 import Button from '../../primitives/Button';
@@ -504,6 +506,26 @@ const createAuthComponentFromFlow = (
       return options.fetchUserTypes
         ? h(BaseUserTypeSelect, {...resourceSelectProps(), fetchUserTypes: options.fetchUserTypes})
         : skipUnsupported('USER_TYPE_SELECT');
+
+    case EmbeddedFlowComponentType.RoleSelect: {
+      const identifier: string = component.ref ?? '';
+      const translate: TranslationFn = options.t ?? ((k: string): string => k);
+
+      return h(RoleSelectField, {
+        ariaLabel: translate('elements.fields.role_select.aria_label'),
+        class: options.inputClassName,
+        emptyText: translate('elements.fields.role_select.empty'),
+        error: touchedFields[identifier] ? formErrors[identifier] : undefined,
+        key,
+        label: resolve(component.label) || undefined,
+        modelValue: formValues[identifier] || '',
+        name: identifier,
+        onBlur: () => options.onInputBlur?.(identifier),
+        'onUpdate:modelValue': (val: string) => onInputChange(identifier, val),
+        required: component.required,
+        roles: parseRoleOptions(options.additionalData?.['roleOptions']),
+      });
+    }
 
     case EmbeddedFlowComponentType.Block: {
       if (component.components && component.components.length > 0) {

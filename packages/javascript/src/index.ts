@@ -1207,6 +1207,8 @@ export {default as resolveLocaleEmoji} from './utils/resolveLocaleEmoji';
 export {default as getBaseLanguage} from './utils/getBaseLanguage';
 export {default as normalizeLocaleTag} from './utils/normalizeLocaleTag';
 export {default as buildValidatorFromRules} from './utils/buildValidatorFromRules';
+export {default as parseRoleOptions} from './utils/parseRoleOptions';
+export type {RoleOption} from './utils/parseRoleOptions';
 export {default as evaluateValidationRule, DEFAULT_VALIDATION_MESSAGE_KEYS} from './utils/evaluateValidationRule';
 export {default as processOpenIDScopes} from './utils/processOpenIDScopes';
 export {default as withVendorCSSClassPrefix} from './utils/withVendorCSSClassPrefix';

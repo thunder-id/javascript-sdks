@@ -24,6 +24,16 @@ describe('getFlowStepComponents', () => {
     expect(step.resend).toBe(resend);
   });
 
+  it('counts a role selection as an input', () => {
+    const roles: EmbeddedFlowComponent = component('roles_input', EmbeddedFlowComponentType.RoleSelect);
+    const submit: EmbeddedFlowComponent = component('action_roles', EmbeddedFlowComponentType.Action);
+
+    expect(getFlowStepComponents([component('block', EmbeddedFlowComponentType.Block, [roles, submit])])).toEqual({
+      actions: [submit],
+      inputs: [roles],
+    });
+  });
+
   it('finds nothing in a step that only displays text', () => {
     expect(getFlowStepComponents([component('heading', EmbeddedFlowComponentType.Text)])).toEqual({
       actions: [],

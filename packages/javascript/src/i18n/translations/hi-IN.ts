@@ -51,6 +51,8 @@ const translations: I18nTranslations = {
   /* Select */
   'elements.fields.auth_flow_select.aria_label': 'लॉगिन फ़्लो चुनें',
   'elements.fields.auth_flow_select.empty': 'कोई लॉगिन फ़्लो नहीं मिला।',
+  'elements.fields.role_select.aria_label': 'भूमिकाएँ चुनें',
+  'elements.fields.role_select.empty': 'असाइन करने के लिए कोई भूमिका नहीं है।',
   'elements.fields.select.load_more': 'और लोड करें',
   'elements.fields.select.loading': 'लोड हो रहा है…',
   'elements.fields.select.loading_more': 'और लोड हो रहा है…',
@@ -272,6 +274,8 @@ const translations: I18nTranslations = {
   'errors.signin.components.not.available': 'साइन-इन फॉर्म फिलहाल उपलब्ध नहीं है। कृपया बाद में पुनः प्रयास करें।',
   'errors.signin.timeout': 'स्टेप पूरा करने के लिए दिया गया समय खत्म हो गया है।',
   'errors.signin.session.expired': 'आपका सत्र समाप्त हो गया है। कृपया एप्लिकेशन पर वापस जाएँ और फिर से साइन इन करें।',
+  'errors.invite.flow.failure': 'आमंत्रण के दौरान एक त्रुटि हुई। कृपया बाद में पुनः प्रयास करें।',
+  'errors.invite.components.not.available': 'आमंत्रण फ़ॉर्म अभी उपलब्ध नहीं है। कृपया बाद में पुनः प्रयास करें।',
 
   /* |---------------------------------------------------------------| */
   /* |                        Flow Expiry                            | */

@@ -7,11 +7,14 @@ import {
   type BaseApplicationCreateRenderProps,
   type BaseApplicationDetailsRenderProps,
   type BaseGroupCreateRenderProps,
+  type BaseInviteToOrganizationUnitRenderProps,
   type BaseRolePermissionsRenderProps,
   type BaseUserDetailsRenderProps,
   type BaseVerifyAttributeRenderProps,
   type DataTableColumn,
   type OrganizationUnitSwitcherRenderProps,
+  parseRoleOptions,
+  type RoleOption,
   useTheme,
 } from '@thunderid/vue';
 import Avatar from 'primevue/avatar';
@@ -401,6 +404,89 @@ export const verifyForm = (state: BaseVerifyAttributeRenderProps): VNode => {
             : []),
         ]),
       subtitle: () => [state.subtitle, state.destinationText].filter(Boolean).join(' '),
+      title: () => state.title,
+    },
+  );
+};
+
+const isHeading = (component: EmbeddedFlowComponent): boolean =>
+  component.type === 'TEXT' && (component.variant === 'HEADING_1' || component.variant === 'HEADING_2');
+
+/** An invitation step's default scoped slot drawn as a PrimeVue card: its text, inputs, role picker and actions. */
+export const inviteForm = (state: BaseInviteToOrganizationUnitRenderProps): VNode => {
+  const components: EmbeddedFlowComponent[] = state.components as EmbeddedFlowComponent[];
+  const roles: RoleOption[] = parseRoleOptions(state.additionalData?.['roleOptions']);
+
+  return h(
+    Card,
+    {},
+    {
+      content: () =>
+        h('div', {class: 'pg-prime-stack'}, [
+          state.error ? h(Message, {severity: 'error'}, {default: () => state.error?.message}) : null,
+          ...flowComponents(components, ['TEXT'])
+            .filter((text: EmbeddedFlowComponent) => !isHeading(text))
+            .map((text: EmbeddedFlowComponent) => h('p', {key: text.id}, String(text.label ?? ''))),
+          ...flowComponents(components, INPUT_TYPES).map((input: EmbeddedFlowComponent) => {
+            const name: string = input.ref ?? input.id;
+            return h('label', {class: 'pg-prime-field', key: name}, [
+              h('span', String(input.label ?? name)),
+              h(InputText, {
+                modelValue: state.values[name],
+                'onUpdate:modelValue': (value: string | undefined) => state.handleInputChange(name, value ?? ''),
+              }),
+              state.touched[name] && state.fieldErrors[name]
+                ? h(
+                    Message,
+                    {severity: 'error', size: 'small', variant: 'simple'},
+                    {default: () => state.fieldErrors[name]},
+                  )
+                : null,
+            ]);
+          }),
+          ...flowComponents(components, ['ROLE_SELECT']).map((input: EmbeddedFlowComponent) => {
+            const name: string = input.ref ?? input.id;
+            const picked: string[] = (state.values[name] ?? '').split(' ').filter(Boolean);
+            return h('fieldset', {class: 'pg-prime-field', key: name}, [
+              h('legend', String(input.label ?? name)),
+              ...roles.map((role: RoleOption) =>
+                h('label', {class: 'pg-prime-title', key: role.id}, [
+                  h(Checkbox, {
+                    binary: true,
+                    modelValue: picked.includes(role.id),
+                    'onUpdate:modelValue': (checked: boolean) =>
+                      state.handleInputChange(
+                        name,
+                        roles
+                          .filter((option: RoleOption) =>
+                            option.id === role.id ? checked : picked.includes(option.id),
+                          )
+                          .map((option: RoleOption) => option.id)
+                          .join(' '),
+                      ),
+                  }),
+                  h('span', role.name),
+                ]),
+              ),
+            ]);
+          }),
+        ]),
+      footer: () =>
+        h(
+          'div',
+          {class: 'pg-prime-actions'},
+          flowComponents(components, ['ACTION']).map((action: EmbeddedFlowComponent) =>
+            h(Button, {
+              disabled: state.isLoading,
+              key: action.id,
+              label: String(action.label ?? action.id),
+              loading: state.isLoading,
+              onClick: () => void state.handleSubmit(action, state.values),
+              severity: action.variant === 'PRIMARY' ? undefined : 'secondary',
+            }),
+          ),
+        ),
+      subtitle: () => state.subtitle,
       title: () => state.title,
     },
   );

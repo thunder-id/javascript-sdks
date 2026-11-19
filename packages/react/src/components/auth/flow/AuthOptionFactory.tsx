@@ -30,6 +30,7 @@ import {
   getConsentOneTime,
   getConsentValidityInput,
   getConsentValidityPeriod,
+  parseRoleOptions,
 } from '@thunderid/browser';
 import DOMPurify from 'dompurify';
 import {ChangeEvent, cloneElement, CSSProperties, FormEvent, MouseEvent, ReactElement} from 'react';
@@ -38,6 +39,7 @@ import {getConsentOptionalKey} from './ConsentCheckboxList';
 import {createField} from './FieldFactory';
 import FlowTimer from './FlowTimer';
 import ImageComponent from './ImageComponent';
+import RoleSelectField from './RoleSelectField';
 import {
   ComponentRenderer,
   ComponentRenderContext,
@@ -739,6 +741,30 @@ const createAuthComponentFromFlow = (
       ) : (
         skipUnsupported('USER_TYPE_SELECT')
       );
+
+    // The roles come with the step, in additionalData; the step takes back the IDs picked, space-separated.
+    case EmbeddedFlowComponentType.RoleSelect: {
+      const identifier: string = component.ref!;
+      const translate: (key: string) => string = options.t ?? ((k: string): string => k);
+
+      return (
+        <RoleSelectField
+          key={key}
+          id={component.id}
+          name={identifier}
+          label={resolve(component.label)}
+          ariaLabel={translate('elements.fields.role_select.aria_label')}
+          emptyText={translate('elements.fields.role_select.empty')}
+          roles={parseRoleOptions(options.additionalData?.['roleOptions'])}
+          value={formValues[identifier] || ''}
+          required={component.required}
+          error={touchedFields[identifier] ? formErrors[identifier] : undefined}
+          onChange={(value: string): void => onInputChange(identifier, value)}
+          onBlur={(): void => options.onInputBlur?.(identifier)}
+          className={cx(options.inputClassName, component.classes)}
+        />
+      );
+    }
 
     case EmbeddedFlowComponentType.Block: {
       if (component.components && component.components.length > 0) {

@@ -1,9 +1,10 @@
-// Copyright 2025 The ThunderID Authors
+// Copyright 2025-2026 The ThunderID Authors
 // SPDX-License-Identifier: Apache-2.0
 
-import {ThunderIDAPIError} from '@thunderid/browser';
+import {ThunderIDAPIError, resolveResourceEndpoint} from '@thunderid/browser';
 import {FC, ReactElement, ReactNode, useMemo} from 'react';
 import BaseAcceptInvite, {BaseAcceptInviteRenderProps, AcceptInviteFlowResponse} from './BaseAcceptInvite';
+import useThunderID from '../../../contexts/ThunderID/useThunderID';
 
 /**
  * Render props for AcceptInvite (re-exported for convenience).
@@ -15,8 +16,8 @@ export type AcceptInviteRenderProps = BaseAcceptInviteRenderProps;
  */
 export interface AcceptInviteProps {
   /**
-   * Base URL for the Thunder API server.
-   * If not provided, will try to read from window location.
+   * Base URL of the server that runs the flow, when it is not the provider's. Defaults to the provider's
+   * `flowExecute` endpoint, else its `baseUrl`.
    */
   baseUrl?: string;
 
@@ -158,24 +159,21 @@ const AcceptInvite: FC<AcceptInviteProps> = ({
   const executionId: any = executionIdProp || urlExecutionId;
   const inviteToken: any = inviteTokenProp || urlInviteToken;
 
-  // Determine base URL
-  const apiBaseUrl: any = useMemo(() => {
+  const {baseUrl: sdkBaseUrl, endpoints} = useThunderID();
+  const flowExecuteUrl: string = useMemo(() => {
     if (baseUrl) {
-      return baseUrl;
+      return `${baseUrl}/flow/execute`;
     }
-    // Try to construct from current location (assuming same origin)
-    if (typeof window !== 'undefined') {
-      return window.location.origin;
-    }
-    return '';
-  }, [baseUrl]);
+
+    return resolveResourceEndpoint('flowExecute', {endpoints}) ?? `${sdkBaseUrl}/flow/execute`;
+  }, [baseUrl, endpoints, sdkBaseUrl]);
 
   /**
    * Submit flow step data.
    * Makes an unauthenticated request to /flow/execute endpoint.
    */
   const handleSubmit = async (payload: Record<string, any>): Promise<AcceptInviteFlowResponse> => {
-    const response: Response = await fetch(`${apiBaseUrl}/flow/execute`, {
+    const response: Response = await fetch(flowExecuteUrl, {
       body: JSON.stringify({
         ...payload,
         verbose: true,

@@ -131,6 +131,8 @@ export * from './components/auth/Recovery/Recovery';
 
 export * from './components/auth/InviteUser';
 
+export * from './components/auth/InviteToOrganizationUnit';
+
 export {BaseAcceptInvite, AcceptInvite} from './components/auth/AcceptInvite';
 export type {AcceptInviteFlowResponse} from './components/auth/AcceptInvite';
 
@@ -1370,6 +1372,9 @@ export {
   getCurrentOrganizationUnitFromClaims,
   verifyDeviceCode,
 } from '@thunderid/browser';
+
+export {parseRoleOptions} from '@thunderid/browser';
+export type {RoleOption} from '@thunderid/browser';
 export type {
   AccessibleOrganizationUnit,
   AccessibleOrganizationUnitList,
