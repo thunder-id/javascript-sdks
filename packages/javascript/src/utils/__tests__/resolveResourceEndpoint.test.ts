@@ -83,6 +83,7 @@ describe('resolveResourceEndpoint', (): void => {
       'userTypes',
       'users',
       'usersMe',
+      'usersMeAgents',
       'usersMeCredentials',
       'usersMeMeta',
       'usersMeOrganizationUnits',

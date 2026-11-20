@@ -8,6 +8,7 @@ import {
   type AccountLifecycleResult,
   type AccountLifecycleSubjectKind,
   type ResourceQueryKey,
+  type SuspensionAppliedBy,
   getAccountLifecycleActions,
   resolveAdministrationFlows,
   runAccountLifecycleAction,
@@ -24,6 +25,10 @@ interface AccountLifecycleVariables {
 }
 
 export interface AccountLifecycleOptions {
+  /**
+   * Who holds a suspension, from the read's `status.details.appliedBy`. The organization lifts only its own.
+   */
+  appliedBy?: () => SuspensionAppliedBy[] | undefined;
   /**
    * Whether to offer the actions at all. The configured flows are read only when it is on.
    */
@@ -77,6 +82,7 @@ export interface AccountLifecycleState {
  * ```
  */
 const useAccountLifecycle = ({
+  appliedBy,
   enabled,
   invalidatedKeys,
   kind,
@@ -97,7 +103,7 @@ const useAccountLifecycle = ({
 
   return {
     actions: computed((): AccountLifecycleAction[] =>
-      enabled() && flows.data.value ? getAccountLifecycleActions(kind, status(), flows.data.value) : [],
+      enabled() && flows.data.value ? getAccountLifecycleActions(kind, status(), flows.data.value, appliedBy?.()) : [],
     ),
     error: computed((): Error | null => execution.error.value),
     isRunning: computed((): boolean => execution.isLoading.value),

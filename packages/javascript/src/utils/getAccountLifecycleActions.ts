@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import {AccountLifecycleFlowConfigKey} from '../constants/AdministrationConstants';
-import {AccessStatusValue} from '../models/access-status';
+import {AccessStatusValue, SuspensionAppliedBy} from '../models/access-status';
 import {AccountLifecycleAction, AccountLifecycleSubjectKind} from '../models/administration';
 
 /**
@@ -24,6 +24,9 @@ const ACTIONS_BY_STATUS: Record<AccessStatusValue, AccountLifecycleAction[]> = {
  * @param status - Its effective access status. An identity with none reads as `ACTIVE`.
  * @param configuredFlows - The flows the server configures, keyed by `flow` server-config key, as
  * `resolveAdministrationFlows` returns them.
+ * @param appliedBy - Who holds a suspension, from `status.details.appliedBy`. The organization lifts only its
+ * own suspension: a suspension held only by others, such as an agent's owner, offers the organization's
+ * own suspension instead of an unsuspend. Absent or empty reads as the organization's.
  * @returns The actions to offer, most expected first.
  *
  * @example
@@ -36,10 +39,16 @@ const getAccountLifecycleActions = (
   kind: AccountLifecycleSubjectKind,
   status: AccessStatusValue | undefined,
   configuredFlows: Record<string, string>,
+  appliedBy?: SuspensionAppliedBy[],
 ): AccountLifecycleAction[] => {
   const configKeys: Partial<Record<AccountLifecycleAction, string>> = AccountLifecycleFlowConfigKey[kind];
+  const heldByOthersOnly: boolean =
+    status === 'SUSPENDED' && Boolean(appliedBy?.length) && !appliedBy?.includes('organization');
+  const candidates: AccountLifecycleAction[] = heldByOthersOnly
+    ? ['suspend']
+    : (ACTIONS_BY_STATUS[status ?? 'ACTIVE'] ?? []);
 
-  return (ACTIONS_BY_STATUS[status ?? 'ACTIVE'] ?? []).filter((action: AccountLifecycleAction) => {
+  return candidates.filter((action: AccountLifecycleAction) => {
     const configKey: string | undefined = configKeys[action];
 
     return configKey !== undefined && Boolean(configuredFlows[configKey]);

@@ -40,6 +40,7 @@ export type ResourceEndpointKey =
   | 'serverConfig'
   | 'users'
   | 'usersMe'
+  | 'usersMeAgents'
   | 'usersMeCredentials'
   | 'usersMeMeta'
   | 'usersMeOrganizationUnits'
@@ -78,6 +79,7 @@ export const RESOURCE_ENDPOINT_KEYS: readonly ResourceEndpointKey[] = [
   'serverConfig',
   'users',
   'usersMe',
+  'usersMeAgents',
   'usersMeCredentials',
   'usersMeMeta',
   'usersMeOrganizationUnits',

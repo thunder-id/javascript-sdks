@@ -83,6 +83,7 @@ const AgentDetails: Component = defineComponent({
       {onSuccess: (): void => emit('deleted')},
     );
     const lifecycle: AccountLifecycleState = useAccountLifecycle({
+      appliedBy: () => agent.data.value?.status?.details?.appliedBy,
       enabled: (): boolean => props.lifecycleActions,
       invalidatedKeys: () => [[AgentQueryKeys.AGENT, props.agentId], [AgentQueryKeys.AGENTS]],
       kind: 'agent',

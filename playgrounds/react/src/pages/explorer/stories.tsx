@@ -48,6 +48,7 @@ import {ADMIN_COMPONENTS} from './adminStories';
 import {SAMPLE_VERIFICATION_STEP, submitSampleVerification, withCustomStory} from './customRenderStories';
 import {ORGANIZATION_UNIT_ADMIN_STORIES} from './organizationUnitAdminStories';
 import {ORGANIZATION_UNIT_SWITCHER_STORY} from './organizationUnitStories';
+import {PERSONAL_AGENT_DETAILS_STORY, PERSONAL_AGENT_LIST_STORY} from './personalAgentStories';
 import {PROJECT_STORIES} from './projectStories';
 import {SHARING_STORIES} from './sharingStories';
 import {bool, jsx, num, omit, SOURCE_CONTROL, str} from './storyHelpers';
@@ -1134,6 +1135,8 @@ export const COMPONENTS: ComponentDef[] = [
     ],
   },
   ORGANIZATION_UNIT_SWITCHER_STORY,
+  PERSONAL_AGENT_LIST_STORY,
+  PERSONAL_AGENT_DETAILS_STORY,
   ...ADMIN_COMPONENTS,
   ...PROJECT_STORIES,
   ...ORGANIZATION_UNIT_ADMIN_STORIES,
