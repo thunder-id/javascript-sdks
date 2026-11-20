@@ -222,6 +222,24 @@ class ThunderIDNuxtClient extends ThunderIDNodeClient<ThunderIDNuxtClientConfig>
     });
   }
 
+  /**
+   * Where the session user's `/users/me/agents` requests go, with the session's access token. The token stays on
+   * the server.
+   */
+  public async getMeAgentRequestConfig(
+    sessionId: string,
+  ): Promise<{baseUrl: string | undefined; headers: Record<string, string>; url: string | undefined}> {
+    const configData: ThunderIDNuxtClientConfig = await this.getConfiguration();
+
+    return {
+      baseUrl: configData?.baseUrl,
+      headers: {
+        Authorization: `Bearer ${await this.getAccessToken(sessionId)}`,
+      },
+      url: resolveResourceEndpoint('usersMeAgents', configData),
+    };
+  }
+
   override getDecodedIdToken(sessionId?: string, idToken?: string): Promise<IdToken> {
     return super.getDecodedIdToken(sessionId, idToken);
   }

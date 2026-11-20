@@ -326,7 +326,7 @@ export const AgentForm = (form: BaseAgentCreateRenderProps): ReactElement => (
   </FormCard>
 );
 
-const ChipRow = ({
+export const ChipRow = ({
   items,
   color = undefined,
 }: {
@@ -341,7 +341,8 @@ const ChipRow = ({
   </Stack>
 );
 
-const DetailsCard = ({
+export const DetailsCard = ({
+  actions = undefined,
   children,
   isDeleting,
   isLoading,
@@ -349,11 +350,12 @@ const DetailsCard = ({
   subheader = undefined,
   title = undefined,
 }: {
+  actions?: ReactNode;
   children: ReactNode;
   isDeleting: boolean;
   isLoading: boolean;
   onDelete?: () => void;
-  subheader?: string;
+  subheader?: ReactNode;
   title?: string;
 }): ReactElement => (
   <Card variant="outlined">
@@ -365,11 +367,14 @@ const DetailsCard = ({
         <CardContent>
           <Stack spacing={1.5}>{children}</Stack>
         </CardContent>
-        {onDelete && (
+        {(actions !== undefined || onDelete !== undefined) && (
           <CardActions sx={{justifyContent: 'flex-end'}}>
-            <Button color="error" loading={isDeleting} onClick={onDelete}>
-              Delete
-            </Button>
+            {actions}
+            {onDelete && (
+              <Button color="error" loading={isDeleting} onClick={onDelete}>
+                Delete
+              </Button>
+            )}
           </CardActions>
         )}
       </>

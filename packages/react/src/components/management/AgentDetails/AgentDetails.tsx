@@ -95,6 +95,7 @@ const AgentDetails: FC<AgentDetailsProps> = ({
   );
 
   const lifecycle: AccountLifecycleState = useAccountLifecycle({
+    appliedBy: agent.data?.status?.details?.appliedBy,
     enabled: lifecycleActions,
     invalidatedKeys: [[AgentQueryKeys.AGENT, agentId], [AgentQueryKeys.AGENTS]],
     kind: 'agent',

@@ -47,6 +47,7 @@ const useStyles = (theme: Theme, colorScheme: string): Record<string, string> =>
       detail: css`
         display: grid;
         grid-template-columns: fit-content(200px) minmax(0, 1fr);
+        align-items: baseline;
         gap: ${unit} calc(${unit} * 2);
         margin: 0;
         font-size: ${theme.vars.typography.fontSizes.sm};

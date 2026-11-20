@@ -1,10 +1,12 @@
 // Copyright 2026 The ThunderID Authors
 // SPDX-License-Identifier: Apache-2.0
 
-import {type BasicAgent, getAgentName} from '@thunderid/browser';
+import {type BasicAgent, getAgentName, isPersonalAgent, withVendorCSSClassPrefix} from '@thunderid/browser';
 import {type Component, type VNodeChild, h} from 'vue';
 import createAdminList from '../shared/createAdminList';
 import type {AdminTranslate} from '../shared/useAdminTranslation';
+
+const cls = (element: string): string => withVendorCSSClassPrefix(`admin__${element}`);
 
 /**
  * Lists agents with their type, client identifier and organization unit. Holds no data of its own:
@@ -21,7 +23,13 @@ const BaseAgentList: Component = createAdminList<BasicAgent>({
     {
       header: t('admin.agents.list.columns.name'),
       id: 'name',
-      render: (agent: BasicAgent): VNodeChild => getAgentName(agent),
+      render: (agent: BasicAgent): VNodeChild =>
+        isPersonalAgent(agent)
+          ? h('span', {class: cls('row')}, [
+              getAgentName(agent),
+              h('span', {class: cls('chip')}, t('admin.agents.kind.personal')),
+            ])
+          : getAgentName(agent),
     },
     {header: t('admin.agents.list.columns.type'), id: 'type', render: (agent: BasicAgent): VNodeChild => agent.type},
     {

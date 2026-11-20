@@ -40,6 +40,10 @@ export {default as useFetchUserTypes} from './composables/management/useFetchUse
 export {default as useManagementEndpoint} from './composables/management/useManagementEndpoint';
 export type {ManagementEndpoint, ManagementEndpointKey} from './composables/management/useManagementEndpoint';
 export {default as useManagementRequestConfig} from './composables/management/useManagementRequestConfig';
+export {default as useResourceQuery} from './composables/management/useResourceQuery';
+export type {ResourceQueryOptions, ResourceQueryResult} from './composables/management/useResourceQuery';
+export {default as useResourceMutation} from './composables/management/useResourceMutation';
+export type {ResourceMutationOptions, ResourceMutationResult} from './composables/management/useResourceMutation';
 export {default as useGrantedPermissions} from './composables/management/useGrantedPermissions';
 export type {GrantedPermissions} from './composables/management/useGrantedPermissions';
 export {createResourceInvalidator} from '@thunderid/browser';
@@ -172,6 +176,12 @@ export {default as BaseChangeCredential} from './components/account/change-crede
 export type {ChangePasswordValues} from './components/account/change-credential/BaseChangeCredential';
 export {default as OrganizationUnitSwitcher} from './components/account/organization-unit-switcher/OrganizationUnitSwitcher';
 export {default as BaseOrganizationUnitSwitcher} from './components/account/organization-unit-switcher/BaseOrganizationUnitSwitcher';
+export {default as PersonalAgentList} from './components/account/personal-agent-list/PersonalAgentList';
+export {default as BasePersonalAgentList} from './components/account/personal-agent-list/BasePersonalAgentList';
+export type {BasePersonalAgentListRenderProps} from './components/account/personal-agent-list/BasePersonalAgentList';
+export {default as PersonalAgentDetails} from './components/account/personal-agent-details/PersonalAgentDetails';
+export {default as BasePersonalAgentDetails} from './components/account/personal-agent-details/BasePersonalAgentDetails';
+export type {BasePersonalAgentDetailsRenderProps} from './components/account/personal-agent-details/BasePersonalAgentDetails';
 export type {
   BaseOrganizationUnitSwitcherProps,
   OrganizationUnitSwitcherRenderProps,
@@ -350,6 +360,20 @@ export {default as executeEmbeddedSelfFlow} from './api/auth/executeEmbeddedSelf
 export type {ExecuteEmbeddedSelfFlowConfig} from './api/auth/executeEmbeddedSelfFlow';
 export {default as getAccessibleOrganizationUnits} from './api/account/getAccessibleOrganizationUnits';
 export type {GetAccessibleOrganizationUnitsConfig} from './api/account/getAccessibleOrganizationUnits';
+export {default as getMeAgents} from './api/account/getMeAgents';
+export type {GetMeAgentsConfig} from './api/account/getMeAgents';
+export {default as getMeAgent} from './api/account/getMeAgent';
+export type {GetMeAgentConfig} from './api/account/getMeAgent';
+export {default as updateMeAgent} from './api/account/updateMeAgent';
+export type {UpdateMeAgentConfig} from './api/account/updateMeAgent';
+export {default as deleteMeAgent} from './api/account/deleteMeAgent';
+export type {DeleteMeAgentConfig} from './api/account/deleteMeAgent';
+export {default as suspendMeAgent} from './api/account/suspendMeAgent';
+export type {SuspendMeAgentConfig} from './api/account/suspendMeAgent';
+export {default as unsuspendMeAgent} from './api/account/unsuspendMeAgent';
+export type {UnsuspendMeAgentConfig} from './api/account/unsuspendMeAgent';
+export {default as suspendAllMeAgents} from './api/account/suspendAllMeAgents';
+export type {SuspendAllMeAgentsConfig} from './api/account/suspendAllMeAgents';
 export {
   OrganizationUnitSwitchErrorCodes,
   type AccessibleOrganizationUnit,
@@ -509,6 +533,19 @@ export {
   getAccountLifecycleActions,
   getAgentName,
   getAgentType,
+  getMeAgentSuspensionAction,
+  getPersonalAgentOAuthConfig,
+  isPersonalAgent,
+  isPersonalAgentFormValid,
+  toPersonalAgentFormValues,
+  toUpdateMeAgentRequest,
+  PERSONAL_AGENT_GRANT_TYPES,
+  PERSONAL_AGENT_KIND,
+  type AgentKind,
+  type PersonalAgentFormValues,
+  type SuspendAllMeAgentsResponse,
+  type SuspensionAppliedBy,
+  type UpdateMeAgentRequest,
   getUserType,
   getUserTypes,
   getUserUsages,

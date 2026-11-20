@@ -44,6 +44,12 @@ export type {ChangeCredentialProps} from './components/account/ChangeCredential/
 
 export {default as OrganizationUnitSwitcher} from './components/account/OrganizationUnitSwitcher/OrganizationUnitSwitcher';
 export type {OrganizationUnitSwitcherProps} from './components/account/OrganizationUnitSwitcher/OrganizationUnitSwitcher';
+
+export {default as PersonalAgentList} from './components/account/PersonalAgentList/PersonalAgentList';
+export type {PersonalAgentListProps} from './components/account/PersonalAgentList/PersonalAgentList';
+
+export {default as PersonalAgentDetails} from './components/account/PersonalAgentDetails/PersonalAgentDetails';
+export type {PersonalAgentDetailsProps} from './components/account/PersonalAgentDetails/PersonalAgentDetails';
 export {default as VerifyAttribute} from './components/account/VerifyAttribute/VerifyAttribute';
 export type {VerifyAttributeProps} from './components/account/VerifyAttribute/VerifyAttribute';
 
