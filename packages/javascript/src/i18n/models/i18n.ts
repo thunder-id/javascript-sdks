@@ -237,6 +237,9 @@ export interface I18nTranslations {
   'consent.authorization_details.invalid_number': string;
   'consent.authorization_details.number_max': string;
   'consent.authorization_details.number_min': string;
+  'consent.authorization_details.number_above': string;
+  'consent.authorization_details.number_below': string;
+  'consent.authorization_details.number_multiple': string;
   'consent.authorization_details.invalid_date': string;
   'consent.authorization_details.date_max': string;
   'consent.authorization_details.date_min': string;

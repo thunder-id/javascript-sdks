@@ -849,11 +849,27 @@ export interface ConsentDetailRow {
    * with `modification`.
    */
   as?: ConsentDetailValueType;
+  /** Description the type declares for the field, shown with it as a hint. */
+  description?: string;
+  /** Exclusive upper limit of a number the user may change. */
+  exclusiveMaximum?: number;
+  /** Exclusive lower limit of a number the user may change. */
+  exclusiveMinimum?: number;
+  /** Most items a list whose rule is `addItems` may hold. */
+  maxItems?: number;
+  /** Inclusive upper limit of a number, or of a date in `YYYY-MM-DD` form, the user may change. */
+  maximum?: number | string;
+  /** Fewest items the user may keep in a list whose rule is `removeItems`. */
+  minItems?: number;
+  /** Inclusive lower limit of a number, or of a date in `YYYY-MM-DD` form, the user may change. */
+  minimum?: number | string;
   /**
    * Change the user may make to the field before approving: `decrease` or `increase` for an ordered
    * value, `removeItems` or `addItems` for a list. Absent when the field is read-only.
    */
   modification?: ConsentDetailModification;
+  /** Step a number the user may change must be a multiple of. */
+  multipleOf?: number;
   /** Set to `server` when the value was supplied by the server rather than the client. */
   origin?: string;
   /**

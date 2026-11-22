@@ -1,7 +1,13 @@
 // Copyright 2026 The ThunderID Authors
 // SPDX-License-Identifier: Apache-2.0
 
-import {bem, type ConsentDetailRow, type PromptElement, withVendorCSSClassPrefix} from '@thunderid/browser';
+import {
+  bem,
+  type ConsentDetailRow,
+  getConsentDetailDescriptionId,
+  type PromptElement,
+  withVendorCSSClassPrefix,
+} from '@thunderid/browser';
 import {type ChangeEvent, FC, ReactNode, useEffect} from 'react';
 import useStyles from './ConsentAuthorizationDetail.styles';
 import {getConsentOptionalKey} from './ConsentCheckboxList';
@@ -136,15 +142,30 @@ const ConsentAuthorizationDetail: FC<ConsentAuthorizationDetailProps> = ({
                   stacked ? styles['stackedRow'] : styles['row'],
                 )}
               >
-                <Typography
-                  variant="body2"
-                  className={cx(
-                    withVendorCSSClassPrefix(bem('consent-authorization-detail', 'label')),
-                    styles['label'],
+                <div className={styles['labelGroup']}>
+                  <Typography
+                    variant="body2"
+                    className={cx(
+                      withVendorCSSClassPrefix(bem('consent-authorization-detail', 'label')),
+                      styles['label'],
+                    )}
+                  >
+                    {row.label || row.path}
+                  </Typography>
+                  {row.description && (
+                    <Typography
+                      id={getConsentDetailDescriptionId(purposeId, element.name, row.path)}
+                      variant="caption"
+                      color="textSecondary"
+                      className={cx(
+                        withVendorCSSClassPrefix(bem('consent-authorization-detail', 'description')),
+                        styles['description'],
+                      )}
+                    >
+                      {row.description}
+                    </Typography>
                   )}
-                >
-                  {row.label || row.path}
-                </Typography>
+                </div>
                 <div
                   className={cx(
                     withVendorCSSClassPrefix(bem('consent-authorization-detail', 'value')),

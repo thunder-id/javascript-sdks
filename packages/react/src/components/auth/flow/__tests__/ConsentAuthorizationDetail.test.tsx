@@ -140,4 +140,29 @@ describe('ConsentAuthorizationDetail', () => {
     expect(container.querySelectorAll('.thunderid-consent-authorization-detail__row')).toHaveLength(2);
     expect(container.querySelectorAll('.thunderid-consent-authorization-detail__label')).toHaveLength(2);
   });
+  it('shows the description the type declares for a field below its label', () => {
+    const described: PromptElement = {
+      ...payment,
+      rows: [
+        {
+          as: 'number',
+          description: 'Highest amount per payment',
+          label: 'Amount',
+          modification: 'decrease',
+          path: 'amount',
+          value: 35,
+        },
+        {label: 'Pay to', path: 'creditorName', value: 'Merchant A'},
+      ],
+    };
+    const {container} = renderDetail(described, {});
+    const descriptions = container.querySelectorAll('.thunderid-consent-authorization-detail__description');
+
+    expect(descriptions).toHaveLength(1);
+    expect(descriptions[0].textContent).toBe('Highest amount per payment');
+    // The field's input points to its description, so a screen reader announces it with the field.
+    const input = container.querySelector('#consent_modify_authorization_details\\:app-1_d-1_amount')!;
+    expect(input.getAttribute('aria-describedby')?.split(' ')).toContain(descriptions[0].id);
+    expect(descriptions[0].id).toBe('consent_modify_authorization_details:app-1_d-1_amount_description');
+  });
 });
