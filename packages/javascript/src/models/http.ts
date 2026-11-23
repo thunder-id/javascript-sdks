@@ -25,6 +25,11 @@ export interface HttpRequestConfig extends Omit<RequestInit, 'body' | 'headers' 
   data?: any;
   headers?: Record<string, string>;
   method?: string;
+  /**
+   * Whether the request observer sees this request. Defaults to `true`; the SDK sets `false` on its
+   * own sign-in and flow requests so they are never reported as the app's API calls.
+   */
+  observe?: boolean;
   params?: Record<string, any>;
   shouldAttachIDPAccessToken?: boolean;
   shouldEncodeToFormData?: boolean;

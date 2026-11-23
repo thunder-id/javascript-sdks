@@ -16,6 +16,8 @@ import FetchHttpClient from '../FetchHttpClient';
  * attached) still propagates.
  *
  * @param instanceId - Which `FetchHttpClient` instance to use, for multi-instance apps. Defaults to `0`.
+ * @param options - `observe: false` keeps the requests from the request observer, for the SDK's own
+ *   sign-in and flow requests.
  * @returns A function matching the `(url, config) => Promise<Response>` shape core API functions expect.
  * @example
  * ```typescript
@@ -25,7 +27,10 @@ import FetchHttpClient from '../FetchHttpClient';
  * });
  * ```
  */
-const createHttpClientFetcher = (instanceId = 0): ((url: string, config: RequestInit) => Promise<Response>) => {
+const createHttpClientFetcher = (
+  instanceId = 0,
+  options: {observe?: boolean} = {},
+): ((url: string, config: RequestInit) => Promise<Response>) => {
   return async (url: string, config: RequestInit): Promise<Response> => {
     const httpClient: FetchHttpClient = FetchHttpClient.getInstance(instanceId);
 
@@ -43,6 +48,7 @@ const createHttpClientFetcher = (instanceId = 0): ((url: string, config: Request
         data: config.body ? JSON.parse(config.body as string) : undefined,
         headers: config.headers as Record<string, string>,
         method: config.method || 'POST',
+        observe: options.observe,
         signal: config.signal,
         url,
       } as HttpRequestConfig);

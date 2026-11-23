@@ -280,6 +280,18 @@ class BackendClient {
   }
 
   /**
+   * The base URLs the app's API calls are made under: the proxy, and the app's own origin, since a
+   * path such as `/users` goes under the proxy.
+   */
+  getApiBases(): string[] {
+    const origin: string = typeof window !== 'undefined' ? window.location.origin : '';
+    const {proxy} = this.endpoints;
+    const absoluteProxy: string = proxy.startsWith('/') && !proxy.startsWith('//') ? `${origin}${proxy}` : proxy;
+
+    return [absoluteProxy, origin];
+  }
+
+  /**
    * Whether a request to this URL skips the proxy and goes straight from the browser.
    */
   isBypassed(url: string): boolean {

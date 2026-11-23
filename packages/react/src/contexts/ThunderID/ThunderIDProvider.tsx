@@ -503,6 +503,14 @@ const ThunderIDProvider: FC<PropsWithChildren<ThunderIDProviderProps>> = ({
     );
   };
 
+  const telemetry: ThunderIDContextProps['telemetry'] = useMemo(
+    () => ({
+      track: (name: string, data?: Record<string, string>): void => client.track(name, data),
+      trackPageView: (pattern: string): void => client.trackPageView(pattern),
+    }),
+    [client],
+  );
+
   const getDecodedIdToken: () => Promise<IdToken> = useCallback(
     async (): Promise<IdToken> => client.getDecodedIdToken(),
     [client],
@@ -627,6 +635,7 @@ const ThunderIDProvider: FC<PropsWithChildren<ThunderIDProviderProps>> = ({
       signOut,
       signUp,
       signUpUrl,
+      telemetry,
       user,
       userSchema,
       vendor: getVendorPrefix(config.vendor),
@@ -675,6 +684,7 @@ const ThunderIDProvider: FC<PropsWithChildren<ThunderIDProviderProps>> = ({
       getCurrentOrganizationUnit,
       setCurrentProject,
       switchOrganizationUnit,
+      telemetry,
     ],
   );
 

@@ -155,6 +155,23 @@ export type ThunderIDContextProps = {
    */
   invalidator?: ResourceInvalidator;
   /**
+   * Telemetry, when `telemetry.endpoint` is configured; otherwise these do nothing. Page views, API
+   * events, auth events and links that leave the app are reported without these.
+   */
+  telemetry: {
+    /**
+     * Reports an event the app names, for what is neither a page, an API call nor a link.
+     * @param name - `<type>.<action>`; the configured prefix is added.
+     * @param data - Codes about it. Never a name or anything a user typed.
+     */
+    track: (name: string, data?: Record<string, string>) => void;
+    /**
+     * Reports a page view from its matched route pattern. Router integrations call it.
+     * @param pattern - The route pattern, such as `/applications/:id`, never the URL.
+     */
+    trackPageView: (pattern: string) => void;
+  };
+  /**
    * Instance ID for multi-instance support.
    */
   instanceId: number;
@@ -305,6 +322,10 @@ const ThunderIDContext: Context<ThunderIDContextProps | null> = createContext<nu
   },
   instanceId: 0,
   invalidator: fallbackResourceInvalidator,
+  telemetry: {
+    track: () => undefined,
+    trackPageView: () => undefined,
+  },
   isInitialized: false,
   isLoading: true,
   isMetaLoading: false,

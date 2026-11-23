@@ -41,6 +41,10 @@ import {
   SwitchOrganizationUnitOptions,
   ThunderIDAPIError,
   executeEmbeddedSignInFlow,
+  Telemetry,
+  TelemetryConfig,
+  HttpRequestOutcome,
+  TELEMETRY_EVENT_HEADER,
 } from '@thunderid/javascript';
 import BackendClient from './BackendClient';
 import BackendHttpClient from './BackendHttpClient';
@@ -55,6 +59,7 @@ import {SPATokenExchangeConfig} from './models/TokenExchangeConfig';
 import LocalStore from './stores/LocalStore';
 import MemoryStore from './stores/MemoryStore';
 import SessionStore from './stores/SessionStore';
+import BrowserTelemetry from './telemetry/BrowserTelemetry';
 import AuthenticationHelper from './utils/AuthenticationHelper';
 import createHttpClientFetcher from './utils/createHttpClientFetcher';
 import navigate from './utils/navigate';
@@ -67,6 +72,11 @@ import SPAUtils from './utils/SPAUtils';
  * redeemed although the previous session is still signed in.
  */
 const ORGANIZATION_UNIT_SWITCH_KEY = 'organization_unit_switch';
+
+/**
+ * How long a sign-out waits for its telemetry to be sent before it goes on.
+ */
+const SIGN_OUT_TELEMETRY_WAIT_MS = 1000;
 
 const logger = createPackageComponentLogger('@thunderid/browser', 'ThunderIDBrowserClient');
 
@@ -104,6 +114,9 @@ class ThunderIDBrowserClient<T = BrowserAuthConfig> extends ThunderIDJavaScriptC
   private _backend: BackendClient | undefined;
   private _stopBackendWatch: (() => void) | undefined;
   private _backendTokenRequest: Promise<string> | undefined;
+  private _telemetry: BrowserTelemetry | undefined;
+  private _telemetrySignIn: HookCallback | undefined;
+  private _signOutReported = false;
 
   public constructor(instanceId = 0) {
     super(undefined, new SPACryptoUtils());
@@ -148,6 +161,7 @@ class ThunderIDBrowserClient<T = BrowserAuthConfig> extends ThunderIDJavaScriptC
         this._backend = new BackendClient(backendEndpoints);
         // A session that ends elsewhere, such as a sign-out in another app, signs the app out too.
         this._backend.onSignedOut(() => {
+          this._telemetry?.auth('session-expired');
           void this.getStorageManager().removeSessionData();
           void this._emitHook(Hooks.SignOut);
         });
@@ -177,6 +191,9 @@ class ThunderIDBrowserClient<T = BrowserAuthConfig> extends ThunderIDJavaScriptC
       void this._emitHook(Hooks.HttpRequestSuccess, response);
     });
 
+    const {baseUrl, telemetry, vendor} = merged as {baseUrl?: string; telemetry?: TelemetryConfig; vendor?: string};
+    this._startTelemetry(telemetry, baseUrl, vendor);
+
     this._authHelper = new AuthenticationHelper<T>(sm, this._spaHelper, this._browserInstanceId, {
       exchangeToken: (cfg: SPATokenExchangeConfig) => super.exchangeToken(cfg as any),
       getAccessToken: (sessionId?: string) => this.getAccessToken(sessionId),
@@ -201,6 +218,8 @@ class ThunderIDBrowserClient<T = BrowserAuthConfig> extends ThunderIDJavaScriptC
 
     window.addEventListener('message', (event) => {
       if (event?.data?.type === REFRESH_ACCESS_TOKEN_ERR0R) {
+        this._telemetry?.auth('session-expired');
+        this._signOutReported = true;
         this.signOut();
       }
     });
@@ -302,7 +321,24 @@ class ThunderIDBrowserClient<T = BrowserAuthConfig> extends ThunderIDJavaScriptC
 
     delete config?.callOnlyOnRedirect;
 
-    const user = await this._signInInternal(config, authorizationCode, state, tokenRequestConfig);
+    // Read before the sign-in consumes it: the return from an organization switch is not a sign-in, so
+    // its failure is not a failed sign-in.
+    const returnParams: URLSearchParams = new URL(window.location.href).searchParams;
+    const switching = Boolean(
+      this._telemetry &&
+        (returnParams.has(OIDCRequestConstants.Params.AUTHORIZATION_CODE) || returnParams.has('error')) &&
+        (await this.getStorageManager().getTemporaryDataParameter(ORGANIZATION_UNIT_SWITCH_KEY)),
+    );
+    let user: User | undefined;
+    try {
+      user = await this._signInInternal(config, authorizationCode, state, tokenRequestConfig);
+    } catch (error) {
+      if (!switching) {
+        const code: unknown = (error as {code?: unknown} | undefined)?.code;
+        this._telemetry?.auth('sign-in-failed', typeof code === 'string' ? {error_code: code} : {});
+      }
+      throw error;
+    }
 
     if (user) {
       void this._emitHook(Hooks.SignIn, user);
@@ -806,6 +842,23 @@ class ThunderIDBrowserClient<T = BrowserAuthConfig> extends ThunderIDJavaScriptC
       afterSignOut = afterSignOutParam;
     }
 
+    if (this._telemetry) {
+      if (!this._signOutReported) {
+        this._telemetry.auth('sign-out');
+      }
+      this._signOutReported = false;
+      // Send it before the page leaves for the sign-out redirect, but never hold the sign-out up for
+      // long: the send goes on in the background after the wait.
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      await Promise.race([
+        this._telemetry.flush(true),
+        new Promise<void>((resolve: () => void) => {
+          timer = setTimeout(resolve, SIGN_OUT_TELEMETRY_WAIT_MS);
+        }),
+      ]);
+      clearTimeout(timer);
+    }
+
     if (this._backend) {
       await this.getStorageManager().removeSessionData();
       const backendSignOutUrl: string = await this._backend.signOut();
@@ -904,6 +957,94 @@ class ThunderIDBrowserClient<T = BrowserAuthConfig> extends ThunderIDJavaScriptC
     }
 
     return response;
+  }
+
+  /**
+   * Reports an event the app names, for what is neither a page, an API call the SDK makes nor a link.
+   * Does nothing unless telemetry is configured.
+   *
+   * @param name - The event's name, `<type>.<action>`; the configured prefix is added.
+   * @param data - Codes about it. Never a name or anything a user typed.
+   */
+  public track(name: string, data?: Record<string, string>): void {
+    this._telemetry?.track(name, data);
+  }
+
+  /**
+   * Reports a page view from its matched route pattern, such as `/applications/:id`. Router
+   * integrations call it on each navigation. Does nothing unless telemetry is configured.
+   *
+   * @param pattern - The route pattern, never the URL.
+   */
+  public trackPageView(pattern: string): void {
+    this._telemetry?.page(pattern);
+  }
+
+  private _startTelemetry(config: TelemetryConfig | undefined, baseUrl: string | undefined, vendor?: string): void {
+    const previous: BrowserTelemetry | undefined = this._telemetry;
+    this._telemetry = undefined;
+    this._httpClient?.setHttpRequestObserver(undefined);
+    if (this._telemetrySignIn) {
+      this._hookCallbacks.get(Hooks.SignIn)?.delete(this._telemetrySignIn);
+      this._telemetrySignIn = undefined;
+    }
+    void previous?.dispose();
+
+    if (!Telemetry.isEnabled(config)) {
+      return;
+    }
+
+    try {
+      this._telemetry = new BrowserTelemetry(config, {
+        // Behind a backend, the app calls the API through its proxy; otherwise at the configured base URL.
+        apiBases: this._backend ? this._backend.getApiBases() : baseUrl ? [baseUrl] : [],
+        backend: Boolean(this._backend),
+        getAccessToken: () => this.getAccessToken(),
+        getClaims: async () =>
+          (await this.isSignedIn()) ? ((await this.getDecodedIdToken()) as Record<string, unknown>) : undefined,
+        vendor,
+      });
+    } catch (error) {
+      logger.debug('Telemetry is off: its configuration could not be used.', error);
+      return;
+    }
+
+    const telemetry: BrowserTelemetry = this._telemetry;
+    this._telemetrySignIn = (): Promise<void> => telemetry.signedIn();
+    this._addHookCallback(Hooks.SignIn, this._telemetrySignIn);
+    // Behind a backend, a sign-in completes on the backend and no sign-in hook runs, so a signed-in
+    // session is reported here; `signedIn` reports each sign-in session once.
+    this._backend
+      ?.getSession()
+      .then((session: {isSignedIn: boolean}) => {
+        if (session.isSignedIn && this._telemetry === telemetry) {
+          void telemetry.signedIn();
+        }
+      })
+      .catch(() => undefined);
+    // Every call through the SDK's HTTP client, including the management hooks', ends here.
+    this._httpClient?.setHttpRequestObserver((request: HttpRequestConfig, outcome: HttpRequestOutcome) => {
+      // A client replaced by a later initialization may still finish a request; only the current
+      // telemetry reports it.
+      if (this._telemetry !== telemetry) {
+        return;
+      }
+      // Only the API's own name for the call is read from the response; never its body.
+      const headers: Record<string, string> | undefined = outcome.ok
+        ? outcome.headers
+        : outcome.error?.response?.headers;
+      const event: string | undefined = Object.entries(headers ?? {}).find(
+        ([key]: [string, string]) => key.toLowerCase() === TELEMETRY_EVENT_HEADER,
+      )?.[1];
+      telemetry.api(
+        request.method,
+        request.url,
+        request.data,
+        outcome.ok
+          ? {event, ok: true}
+          : {event, ok: false, responseBody: outcome.error?.response?.data, status: outcome.error?.response?.status},
+      );
+    });
   }
 
   public async httpRequestAll(configs: HttpRequestConfig[]): Promise<HttpResponse[] | undefined> {
@@ -1095,6 +1236,16 @@ class ThunderIDBrowserClient<T = BrowserAuthConfig> extends ThunderIDJavaScriptC
 
   protected notifySignIn(user: User): void {
     void this._emitHook(Hooks.SignIn, user);
+  }
+
+  /**
+   * Reports a sign-in that the SDK's own embedded flow ended with an error. Only a well-formed error code
+   * is sent, never the message.
+   *
+   * @param code - The flow's error code, if any.
+   */
+  protected notifySignInFailed(code: unknown): void {
+    this._telemetry?.auth('sign-in-failed', Telemetry.signInFailureData(code));
   }
 
   public async isSessionActive(): Promise<boolean | undefined> {
