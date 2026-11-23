@@ -323,4 +323,136 @@ describe('useConsentDetailField', () => {
     expect(added).toBe(true);
     expect(codes.current().formValues['__consent_modified__authorization_details:app1__d-1__codes']).toBe('[1,2]');
   });
+  describe('limits the type declares for the field', () => {
+    const quantity: ConsentDetailRow = {
+      as: 'number',
+      label: 'Quantity',
+      maximum: 100,
+      minimum: 5,
+      modification: 'decrease',
+      multipleOf: 5,
+      path: 'quantity',
+      value: 20,
+    };
+    const total: ConsentDetailRow = {
+      as: 'number',
+      exclusiveMaximum: 5000,
+      exclusiveMinimum: 0,
+      label: 'Total',
+      modification: 'decrease',
+      multipleOf: 0.01,
+      path: 'total',
+      value: 4000.5,
+    };
+
+    it('steps a number by its multiple, from the lowest multiple it accepts up to the value shown', () => {
+      const field = renderField(quantity);
+      expect(field.current()).toMatchObject({max: '20', min: '5', step: '5'});
+
+      const unaligned = renderField({...quantity, minimum: 3});
+      expect(unaligned.current().min).toBe('5');
+    });
+
+    it('steps from the lowest multiple above an exclusive minimum', () => {
+      expect(renderField(total).current()).toMatchObject({max: '4000.5', min: '0.01', step: '0.01'});
+      expect(renderField({...quantity, exclusiveMinimum: 5, minimum: undefined}).current().min).toBe('10');
+    });
+
+    it('leaves a number without a step free to take any value', () => {
+      expect(renderField(amount).current()).toMatchObject({max: '35', min: undefined, step: undefined});
+    });
+
+    it('rejects a number below the minimum, at an exclusive limit, or off the step', () => {
+      const field = renderField(quantity);
+      const expectError = (text: string, key: string | undefined, value?: string): void => {
+        act(() => field.current().handleChange(text));
+        expect(field.current().error?.key).toBe(key && `consent.authorization_details.${key}`);
+        if (value) expect(field.current().error?.params).toEqual({value});
+      };
+
+      expectError('15', undefined);
+      expectError('5', undefined);
+      expectError('2', 'number_min', '5');
+      expectError('19', 'number_multiple', '5');
+      expectError('2.5', 'number_min', '5');
+      expectError('25', 'number_max', '20');
+      expect(field.current().error?.message).toBe('Enter 20 or less.');
+      act(() => field.current().handleChange('19'));
+      expect(field.current().error?.message).toBe('Enter a multiple of 5.');
+      expect(field.current().formValues['__consent_invalid__authorization_details:app1__d-1__quantity']).toBe('true');
+
+      const money = renderField(total);
+      act(() => money.current().handleChange('0'));
+      expect(money.current().error?.message).toBe('Enter more than 0.');
+      act(() => money.current().handleChange('10.005'));
+      expect(money.current().error?.message).toBe('Enter a multiple of 0.01.');
+      act(() => money.current().handleChange('0.07'));
+      expect(money.current().error).toBeUndefined();
+
+      const raised = renderField({...limit, exclusiveMaximum: 50});
+      act(() => raised.current().handleChange('50'));
+      expect(raised.current().error?.message).toBe('Enter less than 50.');
+    });
+
+    it('bounds a number that may be increased by its maximum', () => {
+      const field = renderField({...limit, maximum: 40});
+      expect(field.current()).toMatchObject({max: '40', min: '10'});
+      act(() => field.current().handleChange('41'));
+      expect(field.current().error?.key).toBe('consent.authorization_details.number_max');
+      expect(field.current().error?.params).toEqual({value: '40'});
+    });
+
+    it('bounds a date by its limits as well as by the value shown', () => {
+      const field = renderField({...fromDate, maximum: '2026-12-31'});
+      expect(field.current()).toMatchObject({max: '2026-12-31', min: '2026-09-01'});
+      act(() => field.current().handleChange('2027-01-01'));
+      expect(field.current().error?.params).toEqual({value: '2026-12-31'});
+
+      const narrowed = renderField({...toDate, minimum: '2026-09-10'});
+      expect(narrowed.current().min).toBe('2026-09-10');
+      act(() => narrowed.current().handleChange('2026-09-05'));
+      expect(narrowed.current().error?.key).toBe('consent.authorization_details.date_min');
+    });
+
+    it('keeps the fewest items a list must hold', () => {
+      const tags: ConsentDetailRow = {...actions, minItems: 2, value: ['a', 'b', 'c']};
+      const field = renderField(tags);
+
+      act(() => field.current().handleToggle('c'));
+      expect(field.current().items.map((item) => item.toggleable)).toEqual([false, false, true]);
+      act(() => field.current().handleToggle('a'));
+      expect(field.current().formValues['__consent_modified__authorization_details:app1__d-1__actions']).toBe(
+        '["a","b"]',
+      );
+      expect(renderField({...actions, minItems: 2}).current().kind).toBeUndefined();
+    });
+
+    it('stops offering items once a list holds its most', () => {
+      const field = renderField({...excluded, maxItems: 2, options: ['gambling', 'crypto', 'travel']});
+
+      act(() => field.current().handleToggle('crypto'));
+      expect(field.current().items).toEqual([
+        {origin: 'shown', selected: true, toggleable: false, value: 'gambling'},
+        {origin: 'added', selected: true, toggleable: true, value: 'crypto'},
+        {origin: 'offered', selected: false, toggleable: false, value: 'travel'},
+      ]);
+      act(() => field.current().handleToggle('travel'));
+      expect(field.current().items.filter((item) => item.selected)).toHaveLength(2);
+
+      const typed = renderField({...blocked, maxItems: 1});
+      expect(typed.current().isTypedItemAllowed).toBe(false);
+      expect(typed.current().handleAdd('y')).toBe(false);
+    });
+
+    it('gives the description the type declares for the field', () => {
+      expect(renderField({...quantity, description: 'Ordered in packs of 5'}).current().description).toBe(
+        'Ordered in packs of 5',
+      );
+      expect(renderField(quantity).current().description).toBeUndefined();
+      expect(renderField({...quantity, description: 'Ordered in packs of 5'}).current().descriptionId).toBe(
+        'consent_modify_authorization_details:app1_d-1_quantity_description',
+      );
+      expect(renderField(quantity).current().descriptionId).toBeUndefined();
+    });
+  });
 });

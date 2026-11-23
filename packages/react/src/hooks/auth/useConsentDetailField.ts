@@ -1,7 +1,17 @@
 // Copyright 2026 The ThunderID Authors
 // SPDX-License-Identifier: Apache-2.0
 
-import {type ConsentDetailRow, getConsentInvalidKey, getConsentModifiedKey} from '@thunderid/browser';
+import {
+  type ConsentDetailInputAttributes,
+  type ConsentDetailInputError,
+  type ConsentDetailRow,
+  getConsentDetailDescriptionId,
+  getConsentDetailFewestItems,
+  getConsentDetailInputAttributes,
+  getConsentDetailInputError,
+  getConsentInvalidKey,
+  getConsentModifiedKey,
+} from '@thunderid/browser';
 import {useState} from 'react';
 import resolveConsentText from '../../components/auth/flow/resolveConsentText';
 import getConsentDetailListDisplay, {type ConsentDetailListDisplay} from '../../utils/getConsentDetailListDisplay';
@@ -15,19 +25,6 @@ import {UseTranslation} from '../useTranslation';
  * @experimental This type may change in future versions
  */
 export type ConsentDetailInputKind = 'number' | 'date' | 'removeItems' | 'addItems';
-
-/**
- * Error shown for text a user entered into an authorization detail field, as a translation key and the
- * values to substitute into its text.
- *
- * @experimental This interface may change in future versions
- */
-export interface ConsentDetailInputError {
-  /** Translation key of the message. */
-  key: string;
-  /** Values to substitute into the message: `value` is the value that was shown. */
-  params: Record<string, string>;
-}
 
 /**
  * Outcome of the text a user entered into a `number` or `date` authorization detail field.
@@ -70,80 +67,10 @@ const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 type PlainItem = string | number | boolean;
 
 /**
- * Reports whether a value the user entered for an authorization detail field stays within the value
- * that was shown, in the direction the field may move.
- *
- * @param modification - `decrease` or `increase`.
- * @param candidate - Value the user entered.
- * @param shown - Value that was shown.
- * @returns Whether the candidate is allowed.
- *
- * @example
- * ```typescript
- * isWithinConsentBound('decrease', 20, 35) // returns true
- * isWithinConsentBound('decrease', 40, 35) // returns false
- * ```
- */
-const isWithinConsentBound = <T extends number | string>(modification: string, candidate: T, shown: T): boolean =>
-  modification === 'decrease' ? candidate <= shown : candidate >= shown;
-
-/**
- * Checks the text a user entered for an authorization detail field that may be decreased or increased: a
- * number, or a date in `YYYY-MM-DD` form. The text must be a value of the field's kind and stay within the
- * value that was shown, in the direction the field may move.
- *
- * @param row - The field, carrying the shown value and its modification.
- * @param text - The text the user entered.
- * @returns The error to show, or `undefined` when the text may be submitted.
- *
- * @example
- * ```typescript
- * getConsentDetailInputError({label: 'Amount', modification: 'decrease', path: 'amount', value: 35}, '50')
- * // returns {key: 'consent.authorization_details.number_max', params: {value: '35'}}
- * ```
- */
-const getConsentDetailInputError = (row: ConsentDetailRow, text: string): ConsentDetailInputError | undefined => {
-  const modification: string = row.modification ?? '';
-  const params: Record<string, string> = {value: String(row.value)};
-
-  if (typeof row.value === 'number') {
-    const entered = Number(text);
-    if (text.trim() === '' || !Number.isFinite(entered)) {
-      return {key: 'consent.authorization_details.invalid_number', params};
-    }
-    if (!isWithinConsentBound(modification, entered, row.value)) {
-      return {
-        key:
-          modification === 'decrease'
-            ? 'consent.authorization_details.number_max'
-            : 'consent.authorization_details.number_min',
-        params,
-      };
-    }
-
-    return undefined;
-  }
-
-  if (!DATE_PATTERN.test(text) || Number.isNaN(Date.parse(text))) {
-    return {key: 'consent.authorization_details.invalid_date', params};
-  }
-  if (!isWithinConsentBound(modification, text, String(row.value))) {
-    return {
-      key:
-        modification === 'decrease'
-          ? 'consent.authorization_details.date_max'
-          : 'consent.authorization_details.date_min',
-      params,
-    };
-  }
-
-  return undefined;
-};
-
-/**
  * Tells how the user may change one field of an authorization detail on the consent screen. A number may
  * be lowered or raised, a date in `YYYY-MM-DD` form moved earlier or later, and items of a plain list
- * removed (when it has more than one) or added. A date and time is never changed by the user.
+ * removed (when it has more than the fewest it must keep) or added. A date and time is never changed by the
+ * user.
  *
  * @param row - The field.
  * @returns The kind of input the field takes, or `undefined` when the field is read-only.
@@ -158,7 +85,11 @@ const getConsentDetailInputKind = (row: ConsentDetailRow): ConsentDetailInputKin
 
   if (isOrdered && typeof row.value === 'number') return 'number';
   if (isOrdered && row.as === 'date' && typeof row.value === 'string' && DATE_PATTERN.test(row.value)) return 'date';
-  if (row.modification === 'removeItems' && isConsentDetailPlainList(row.value) && row.value.length > 1)
+  if (
+    row.modification === 'removeItems' &&
+    isConsentDetailPlainList(row.value) &&
+    row.value.length > getConsentDetailFewestItems(row)
+  )
     return 'removeItems';
   if (row.modification === 'addItems' && isConsentDetailPlainList(row.value)) return 'addItems';
 
@@ -259,9 +190,10 @@ const resetConsentDetailInput = (purposeId: string, detailId: string, path: stri
 /**
  * Lists the items of a `removeItems` or `addItems` authorization detail field as the consent screen offers
  * them. For `removeItems`, every shown item is listed, selected while kept; a kept item can be removed
- * unless it is the last one, and a removed item can be added back. For `addItems`, the shown items are
- * selected and fixed, the items the user added are selected and can be taken out again, and the values the
- * type allows are offered unselected.
+ * while more than the fewest the field must keep remain, and a removed item can be added back. For
+ * `addItems`, the shown items are selected and fixed, the items the user added are selected and can be taken
+ * out again, and the values the type allows are offered unselected, to add while the list holds fewer than
+ * its `maxItems`.
  *
  * @param purposeId - The identifier of the consent purpose the authorization detail belongs to.
  * @param detailId - The identifier of the authorization detail, its consent element name.
@@ -295,9 +227,10 @@ const getConsentDetailListItems = (
 
   if (row.modification === 'removeItems') {
     const keptCount: number = shown.filter((item: PlainItem) => current.includes(item)).length;
+    const fewest: number = getConsentDetailFewestItems(row);
     return shown.map((value: PlainItem) => {
       const selected: boolean = current.includes(value);
-      return {origin: 'shown', selected, toggleable: !selected || keptCount > 1, value};
+      return {origin: 'shown', selected, toggleable: !selected || keptCount > fewest, value};
     });
   }
 
@@ -305,6 +238,7 @@ const getConsentDetailListItems = (
   const offered: PlainItem[] = (isConsentDetailPlainList(row.options) ? row.options : []).filter(
     (option: PlainItem) => !shown.includes(option) && !added.includes(option),
   );
+  const canAdd: boolean = row.maxItems === undefined || shown.length + added.length < row.maxItems;
 
   return [
     ...shown.map(
@@ -314,7 +248,7 @@ const getConsentDetailListItems = (
       (value: PlainItem): ConsentDetailListItem => ({origin: 'added', selected: true, toggleable: true, value}),
     ),
     ...offered.map(
-      (value: PlainItem): ConsentDetailListItem => ({origin: 'offered', selected: false, toggleable: true, value}),
+      (value: PlainItem): ConsentDetailListItem => ({origin: 'offered', selected: false, toggleable: canAdd, value}),
     ),
   ];
 };
@@ -363,7 +297,8 @@ const toggleConsentDetailListItem = (
  * @param formValues - Form values, holding the JSON text of each changed field under its modified key.
  * @param text - The text the user typed.
  * @returns The form values to write, keyed by form key, or `undefined` when the text is empty, not a
- * number where one is needed, already listed, or the field does not take typed values.
+ * number where one is needed, already listed, the list already holds its `maxItems`, or the field does not
+ * take typed values.
  *
  * @example
  * ```typescript
@@ -387,6 +322,7 @@ const addConsentDetailListItem = (
     .filter((entry: ConsentDetailListItem) => entry.selected)
     .map((entry: ConsentDetailListItem) => entry.value);
   if ((numeric && !Number.isFinite(value)) || selected.includes(value)) return undefined;
+  if (row.maxItems !== undefined && selected.length >= row.maxItems) return undefined;
 
   return {[getConsentModifiedKey(purposeId, detailId, row.path)]: JSON.stringify([...selected, value])};
 };
@@ -421,6 +357,13 @@ export interface ConsentDetailFieldError extends ConsentDetailInputError {
  * State and handlers of one authorization detail field, for drawing it in any UI.
  */
 export interface UseConsentDetailFieldResult {
+  /** Description the type declares for the field, to show with it as a hint. */
+  description?: string;
+  /**
+   * Identifier for the element that shows the description, for the field's controls to reference with
+   * `aria-describedby`; absent when the field has no description.
+   */
+  descriptionId?: string;
   /** Why the text shown cannot be submitted, absent when it can. */
   error?: ConsentDetailFieldError;
   /** Adds a typed item to an `addItems` list that takes typed values; returns whether it was added. */
@@ -443,7 +386,10 @@ export interface UseConsentDetailFieldResult {
   isSelected: (item: string | number | boolean) => boolean;
   /** Whether the user may toggle an item of a list field. */
   isToggleable: (item: string | number | boolean) => boolean;
-  /** Whether the field takes typed items: an `addItems` list whose type offers no fixed values. */
+  /**
+   * Whether the field takes typed items: an `addItems` list whose type offers no fixed values, while it holds
+   * fewer than its `maxItems`.
+   */
   isTypedItemAllowed: boolean;
   /** Whether the field's text may be submitted. Always true for a list or a read-only field. */
   isValid: boolean;
@@ -458,10 +404,18 @@ export interface UseConsentDetailFieldResult {
    * values of a read-only plain list. Nothing is hidden for any other field.
    */
   listDisplay: ConsentDetailListDisplay;
-  /** Upper bound of a `number` or `date` field that may be decreased. */
+  /**
+   * Upper bound of a `number` or `date` field: the value that was shown when the field may be decreased, or
+   * the field's maximum, whichever is lower.
+   */
   max?: string;
-  /** Lower bound of a `number` or `date` field that may be increased. */
+  /**
+   * Lower bound of a `number` or `date` field: the value that was shown when the field may be increased, or
+   * the field's minimum, whichever is higher. With a step, the lowest multiple of the step the field accepts.
+   */
   min?: string;
+  /** Step a `number` field moves by, its `multipleOf`; absent when any number is allowed. */
+  step?: string;
   /** Text to show: the typed text of a `number` or `date` field, or the item being typed into a list. */
   text: string;
 }
@@ -512,8 +466,13 @@ const useConsentDetailField = ({
 
   const inputError: ConsentDetailInputError | undefined =
     isScalar && draft !== undefined ? getConsentDetailInputError(row, draft) : undefined;
+  const attributes: ConsentDetailInputAttributes = isScalar ? getConsentDetailInputAttributes(row) : {};
+  const isBelowMostItems: boolean =
+    row.maxItems === undefined || items.filter((entry: ConsentDetailListItem) => entry.selected).length < row.maxItems;
 
   return {
+    description: row.description,
+    descriptionId: row.description ? getConsentDetailDescriptionId(purposeId, detailId, row.path) : undefined,
     error: inputError && {...inputError, message: resolveConsentText(t, inputError.key, inputError.params)},
     handleAdd: (text: string): boolean => {
       const values: Record<string, string> | undefined = addConsentDetailListItem(
@@ -549,14 +508,15 @@ const useConsentDetailField = ({
     isPlainList,
     isSelected: (item: string | number | boolean): boolean => Boolean(find(item)?.selected),
     isToggleable: (item: string | number | boolean): boolean => Boolean(find(item)?.toggleable),
-    isTypedItemAllowed: kind === 'addItems' && row.options === undefined,
+    isTypedItemAllowed: kind === 'addItems' && row.options === undefined && isBelowMostItems,
     isValid: !inputError,
     items,
     kind,
     label: row.label || row.path,
     listDisplay: getConsentDetailListDisplay(listCount, isListExpanded),
-    max: isScalar && row.modification === 'decrease' ? String(row.value) : undefined,
-    min: isScalar && row.modification === 'increase' ? String(row.value) : undefined,
+    max: attributes.max,
+    min: attributes.min,
+    step: attributes.step,
     text: draft ?? (isScalar ? getConsentDetailInputText(purposeId, detailId, row, formValues) : ''),
   };
 };

@@ -196,6 +196,23 @@ describe('ConsentDetailField', () => {
     });
   });
 
+  it('steps a number by the multiple its type declares, within its minimum', () => {
+    const {container, input, values} = renderStatefulField({...amount, minimum: 5, multipleOf: 5, value: 20});
+
+    expect(input.getAttribute('step')).toBe('5');
+    expect(input.getAttribute('min')).toBe('5');
+    expect(input.getAttribute('max')).toBe('20');
+    fireEvent.change(input, {target: {value: '19'}});
+    expect(container.textContent).toContain('Enter a multiple of 5.');
+    expect(values()[AMOUNT_INVALID_KEY]).toBe('true');
+  });
+
+  it('lets a number without a step take any value', () => {
+    const {container} = renderField(amount);
+
+    expect(container.querySelector('input')!.getAttribute('step')).toBe('any');
+  });
+
   it('bounds a number the user may increase from below', () => {
     const {container, input, values} = renderStatefulField({...amount, modification: 'increase'});
 
@@ -347,6 +364,19 @@ describe('ConsentDetailField', () => {
     expect(withAdded.container.querySelector('#consent_modify_p1_d-1_excluded_offered_crypto')).toBeNull();
     fireEvent.click(withAdded.container.querySelector('#consent_modify_p1_d-1_excluded_added_crypto')!);
     expect(withAdded.onInputChange).toHaveBeenCalledWith('__consent_modified__p1__d-1__excluded', '["gambling"]');
+  });
+
+  it('disables the offered values once the list holds the most items its type allows', () => {
+    const {container} = renderField({
+      label: 'Excluded',
+      maxItems: 1,
+      modification: 'addItems',
+      options: ['gambling', 'crypto'],
+      path: 'excluded',
+      value: ['gambling'],
+    });
+
+    expect(container.querySelector<HTMLButtonElement>('button[aria-label="crypto, add"]')!.disabled).toBe(true);
   });
 
   it('adds a typed value when the list allows any value', () => {

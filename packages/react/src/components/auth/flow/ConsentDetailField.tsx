@@ -48,6 +48,8 @@ export interface ConsentDetailFieldProps {
  * Renders one field of an authorization detail. A field the user may modify before
  * approving is editable, bounded by the value that was shown: a number or a date can only move in
  * the allowed direction, and items can only be removed from, or added to, a list as its rule allows. Every other field is read-only.
+ * The field's own limits from its type apply too: a minimum and maximum, exclusive limits and a step for a
+ * number, and the fewest or most items for a list.
  * A number or a date the user enters outside its bound, or that is not a value at all, is shown with an error and
  * is not submitted: the field's modification is cleared and the field is marked invalid, which blocks approval
  * until the user corrects it. The server checks whatever is submitted.
@@ -115,8 +117,9 @@ const ConsentDetailField: FC<ConsentDetailFieldProps> = ({
         id={inputId}
         className={inputClass}
         type={field.kind}
-        step={field.kind === 'number' ? 'any' : undefined}
+        step={field.kind === 'number' ? (field.step ?? 'any') : undefined}
         aria-label={label}
+        aria-describedby={field.descriptionId}
         max={field.max}
         min={field.min}
         value={field.text}
@@ -128,10 +131,11 @@ const ConsentDetailField: FC<ConsentDetailFieldProps> = ({
   }
 
   if (field.kind === 'removeItems') {
-    // A kept item can be removed, except the last one: to grant none of them the user declines the
-    // detail instead. A removed item stays visible so the user can add it back.
+    // A kept item can be removed while more than the fewest the field must keep remain, and never the last
+    // one: to grant none of them the user declines the detail instead. A removed item stays visible so the
+    // user can add it back.
     return (
-      <div className={chipsClass} role="group" aria-label={label}>
+      <div className={chipsClass} role="group" aria-label={label} aria-describedby={field.descriptionId}>
         {collapse(
           field.items.map(({selected, toggleable, value}: ConsentDetailListItem, index: number) => (
             <button
@@ -163,9 +167,9 @@ const ConsentDetailField: FC<ConsentDetailFieldProps> = ({
     // The items shown cannot be removed, since removing one would grant more. Items the user adds can be
     // taken out again before approving.
     return (
-      <div className={chipsClass} role="group" aria-label={label}>
+      <div className={chipsClass} role="group" aria-label={label} aria-describedby={field.descriptionId}>
         {collapse(
-          field.items.map(({origin, value}: ConsentDetailListItem, index: number) => {
+          field.items.map(({origin, toggleable, value}: ConsentDetailListItem, index: number) => {
             if (origin === 'shown') {
               return (
                 <span
@@ -192,6 +196,7 @@ const ConsentDetailField: FC<ConsentDetailFieldProps> = ({
                     : 'consent.authorization_details.add_item',
                   {item: String(value)},
                 )}
+                disabled={!toggleable}
                 onClick={(): void => field.handleToggle(value)}
               >
                 <span className={chipLabelClass}>
@@ -209,6 +214,7 @@ const ConsentDetailField: FC<ConsentDetailFieldProps> = ({
             id={`${inputId}_new`}
             className={inputClass}
             aria-label={resolveConsentText(t, 'consent.authorization_details.new_item', {label})}
+            aria-describedby={field.descriptionId}
             value={field.text}
             onChange={(e: ChangeEvent<HTMLInputElement>): void => field.handleChange(e.target.value)}
             onKeyDown={(e: KeyboardEvent<HTMLInputElement>): void => {

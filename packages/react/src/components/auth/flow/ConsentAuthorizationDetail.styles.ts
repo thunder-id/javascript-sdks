@@ -15,7 +15,10 @@ const useStyles = (theme: Theme, colorScheme: string): Record<string, string> =>
   useMemo(
     () => ({
       card: css({marginTop: '0.5rem'}),
-      label: css({flex: '1 1 auto', lineHeight: 1.45, minWidth: 0, overflowWrap: 'anywhere'}),
+      description: css({display: 'block', lineHeight: 1.4, overflowWrap: 'anywhere'}),
+      label: css({lineHeight: 1.45, overflowWrap: 'anywhere'}),
+      // The label and the type's description of the field, one above the other, beside the value.
+      labelGroup: css({display: 'flex', flex: '1 1 auto', flexDirection: 'column', minWidth: 0}),
       // A short field sits beside its label and drops below it when the two do not fit; a long one is
       // stacked, the label above the value, so neither squeezes the other.
       row: css({
