@@ -52,6 +52,7 @@ import {ADMIN_COMPONENTS} from './adminStories';
 import {CUSTOM_RENDER_COMPONENTS, SAMPLE_VERIFICATION_STEP, submitSampleVerification} from './customRenderStories';
 import {ORGANIZATION_UNIT_ADMIN_STORIES, PROJECT_STORIES, SHARING_STORIES} from './managementAreaStories';
 import {SampleOrganizationUnitSwitcher} from './organizationUnitSamples';
+import {PERSONAL_AGENT_COMPONENTS} from './personalAgentStories';
 import {bool, CARD_VARIANT, handler, num, omit, quoted, SIZE, slot, SOURCE_CONTROL, str, tpl} from './storyKit';
 import type {Action, Args, ComponentDef} from './types';
 import {narrow, VModel} from './widgets';
@@ -1323,6 +1324,7 @@ export const COMPONENTS: ComponentDef[] = [
       {args: {source: 'base'}, id: 'base', name: 'Base'},
     ],
   },
+  ...PERSONAL_AGENT_COMPONENTS,
   ...ADMIN_COMPONENTS,
   ...PROJECT_STORIES,
   ...ORGANIZATION_UNIT_ADMIN_STORIES,

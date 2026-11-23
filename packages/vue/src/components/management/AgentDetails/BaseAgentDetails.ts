@@ -6,7 +6,9 @@ import {
   type Agent,
   type MembershipGroup,
   type Preferences,
+  type SuspensionAppliedBy,
   getAgentName,
+  isPersonalAgent,
   withVendorCSSClassPrefix,
 } from '@thunderid/browser';
 import {type Component, type PropType, type SetupContext, type VNode, defineComponent, h} from 'vue';
@@ -157,10 +159,31 @@ const BaseAgentDetails: Component = defineComponent({
         {label: t('admin.common.columns.organization_unit'), value: agent.ouHandle ?? agent.ouId},
       ];
 
+      if (isPersonalAgent(agent)) {
+        details.push({label: t('admin.agents.details.kind'), value: t('admin.agents.kind.personal')});
+      }
+
       if (agent.status) {
         details.push({
           label: t('admin.common.columns.status'),
           value: h(AccessStatusBadge, {status: agent.status.value, t}),
+        });
+      }
+
+      // A suspension that names no party is the organization's, as the lifecycle actions read it.
+      const suspendedBy: SuspensionAppliedBy[] =
+        agent.status?.value === 'SUSPENDED'
+          ? agent.status.details?.appliedBy?.length
+            ? agent.status.details.appliedBy
+            : ['organization']
+          : [];
+
+      if (suspendedBy.length > 0) {
+        details.push({
+          label: t('admin.agents.details.suspension.title'),
+          value: suspendedBy
+            .map((party: SuspensionAppliedBy) => t(`admin.agents.details.suspension.${party}`))
+            .join(', '),
         });
       }
 

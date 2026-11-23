@@ -75,6 +75,10 @@ export {default as useFetchUsers} from './hooks/management/useFetchUsers';
 export {default as useFetchUserTypes} from './hooks/management/useFetchUserTypes';
 export {default as useManagementRequestConfig} from './hooks/management/useManagementRequestConfig';
 export type {ManagementCollection} from './hooks/management/useManagementRequestConfig';
+export {default as useResourceQuery} from './hooks/management/useResourceQuery';
+export type {ResourceQueryOptions, ResourceQueryResult} from './hooks/management/useResourceQuery';
+export {default as useResourceMutation} from './hooks/management/useResourceMutation';
+export type {ResourceMutationOptions, ResourceMutationResult} from './hooks/management/useResourceMutation';
 export {default as useGrantedPermissions} from './hooks/management/useGrantedPermissions';
 export type {GrantedPermissions} from './hooks/management/useGrantedPermissions';
 
@@ -205,6 +209,18 @@ export * from './components/account/VerifyAttribute/BaseVerifyAttribute';
 
 export {default as VerifyAttribute} from './components/account/VerifyAttribute/VerifyAttribute';
 export * from './components/account/VerifyAttribute/VerifyAttribute';
+
+export {default as BasePersonalAgentList} from './components/account/PersonalAgentList/BasePersonalAgentList';
+export * from './components/account/PersonalAgentList/BasePersonalAgentList';
+
+export {default as PersonalAgentList} from './components/account/PersonalAgentList/PersonalAgentList';
+export * from './components/account/PersonalAgentList/PersonalAgentList';
+
+export {default as BasePersonalAgentDetails} from './components/account/PersonalAgentDetails/BasePersonalAgentDetails';
+export * from './components/account/PersonalAgentDetails/BasePersonalAgentDetails';
+
+export {default as PersonalAgentDetails} from './components/account/PersonalAgentDetails/PersonalAgentDetails';
+export * from './components/account/PersonalAgentDetails/PersonalAgentDetails';
 
 export * from './components/management/shared/AdminListRenderProps';
 export type {AdminSearchValue} from './components/management/shared/AdminSearch';
@@ -524,6 +540,20 @@ export {default as getMeProfile} from './api/account/getUsersMe';
 export * from './api/account/getUsersMe';
 export {default as getUsersMeMeta} from './api/account/getUsersMeMeta';
 export * from './api/account/getUsersMeMeta';
+export {default as getMeAgents} from './api/account/getMeAgents';
+export type {GetMeAgentsConfig} from './api/account/getMeAgents';
+export {default as getMeAgent} from './api/account/getMeAgent';
+export type {GetMeAgentConfig} from './api/account/getMeAgent';
+export {default as updateMeAgent} from './api/account/updateMeAgent';
+export type {UpdateMeAgentConfig} from './api/account/updateMeAgent';
+export {default as deleteMeAgent} from './api/account/deleteMeAgent';
+export type {DeleteMeAgentConfig} from './api/account/deleteMeAgent';
+export {default as suspendMeAgent} from './api/account/suspendMeAgent';
+export type {SuspendMeAgentConfig} from './api/account/suspendMeAgent';
+export {default as unsuspendMeAgent} from './api/account/unsuspendMeAgent';
+export type {UnsuspendMeAgentConfig} from './api/account/unsuspendMeAgent';
+export {default as suspendAllMeAgents} from './api/account/suspendAllMeAgents';
+export type {SuspendAllMeAgentsConfig} from './api/account/suspendAllMeAgents';
 
 export {
   ThunderIDRuntimeError,
@@ -722,6 +752,18 @@ export {
   updateAgent,
   updateApplication,
   updateUser,
+  getMeAgentSuspensionAction,
+  getPersonalAgentOAuthConfig,
+  isPersonalAgentFormValid,
+  toPersonalAgentFormValues,
+  toUpdateMeAgentRequest,
+  type PersonalAgentFormValues,
+  PERSONAL_AGENT_GRANT_TYPES,
+  PERSONAL_AGENT_KIND,
+  type SuspensionAppliedBy,
+  type AgentKind,
+  type SuspendAllMeAgentsResponse,
+  type UpdateMeAgentRequest,
   type Agent,
   type AgentListResponse,
   type ApiFetcher,
@@ -775,6 +817,7 @@ export {
   getAccountLifecycleActions,
   getAgentName,
   getAgentType,
+  isPersonalAgent,
   getUserType,
   getUserTypes,
   getUserUsages,

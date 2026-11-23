@@ -1,7 +1,15 @@
 // Copyright 2026 The ThunderID Authors
 // SPDX-License-Identifier: Apache-2.0
 
-import {AccountLifecycleAction, Agent, MembershipGroup, Preferences, getAgentName} from '@thunderid/browser';
+import {
+  AccountLifecycleAction,
+  Agent,
+  MembershipGroup,
+  Preferences,
+  SuspensionAppliedBy,
+  getAgentName,
+  isPersonalAgent,
+} from '@thunderid/browser';
 import {FC, ReactElement, ReactNode} from 'react';
 import useTranslation from '../../../hooks/useTranslation';
 import Alert from '../../primitives/Alert/Alert';
@@ -146,8 +154,27 @@ const BaseAgentDetails: FC<BaseAgentDetailsProps> = ({
     {label: t('admin.common.columns.organization_unit'), value: agent.ouHandle ?? agent.ouId},
   ];
 
+  if (isPersonalAgent(agent)) {
+    details.push({label: t('admin.agents.details.kind'), value: t('admin.agents.kind.personal')});
+  }
+
   if (agent.status) {
     details.push({label: t('admin.common.columns.status'), value: <AccessStatusBadge status={agent.status.value} />});
+  }
+
+  // A suspension that names no party is the organization's, as the lifecycle actions read it.
+  const suspendedBy: SuspensionAppliedBy[] =
+    agent.status?.value === 'SUSPENDED'
+      ? agent.status.details?.appliedBy?.length
+        ? agent.status.details.appliedBy
+        : ['organization']
+      : [];
+
+  if (suspendedBy.length > 0) {
+    details.push({
+      label: t('admin.agents.details.suspension.title'),
+      value: suspendedBy.map((party: SuspensionAppliedBy) => t(`admin.agents.details.suspension.${party}`)).join(', '),
+    });
   }
 
   if (agent.clientId) {

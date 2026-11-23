@@ -1,13 +1,14 @@
 // Copyright 2026 The ThunderID Authors
 // SPDX-License-Identifier: Apache-2.0
 
-import {BasicAgent, Preferences, SelectOption, getAgentName} from '@thunderid/browser';
+import {BasicAgent, Preferences, SelectOption, getAgentName, isPersonalAgent} from '@thunderid/browser';
 import {FC, ReactElement, ReactNode} from 'react';
 import useTranslation from '../../../hooks/useTranslation';
 import DataTable, {DataTableColumn} from '../../primitives/DataTable/DataTable';
 import {AdminListRenderProps} from '../shared/AdminListRenderProps';
 import AdminSearch, {AdminSearchValue} from '../shared/AdminSearch';
 import AdminSection from '../shared/AdminSection';
+import useAdminPartStyles from '../shared/useAdminPartStyles';
 
 /**
  * What {@link BaseAgentList} hands its `children` render function. `agents` and `rows` are the same array.
@@ -91,12 +92,21 @@ const BaseAgentList: FC<BaseAgentListProps> = ({
   totalResults,
 }: BaseAgentListProps): ReactElement => {
   const {t} = useTranslation(preferences?.i18n);
+  const styles: Record<string, string> = useAdminPartStyles();
 
   const columns: DataTableColumn<BasicAgent>[] = [
     {
       header: t('admin.agents.list.columns.name'),
       id: 'name',
-      render: (agent: BasicAgent): ReactNode => getAgentName(agent),
+      render: (agent: BasicAgent): ReactNode =>
+        isPersonalAgent(agent) ? (
+          <span className={styles['row']}>
+            {getAgentName(agent)}
+            <span className={styles['chip']}>{t('admin.agents.kind.personal')}</span>
+          </span>
+        ) : (
+          getAgentName(agent)
+        ),
     },
     {header: t('admin.agents.list.columns.type'), id: 'type', render: (agent: BasicAgent): ReactNode => agent.type},
     {

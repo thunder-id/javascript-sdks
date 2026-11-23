@@ -12,6 +12,7 @@ import {
   getAgentTypes,
   getGroup,
   getGroupMembers,
+  getMeAgents,
   getGroups,
   getRole,
   getRoleAssignments,
@@ -20,6 +21,7 @@ import {
   getUserGroups,
   getUserTypes,
   hasPermission,
+  PERSONAL_AGENT_KIND,
   resolveResourceEndpoint,
   type SessionData,
 } from '@thunderid/browser';
@@ -512,6 +514,33 @@ export const CAPABILITIES: Capability[] = [
 
       return pass(
         `${plural(list.totalResults, 'unit')}; current ${current?.handle ?? list.current}; ${claims}. Switch in Components > OrganizationUnitSwitcher (live)`,
+      );
+    },
+    section: 'User',
+  },
+  {
+    api: 'getMeAgents() · <PersonalAgentList /> · <PersonalAgentDetails />',
+    id: 'personal-agents',
+    name: 'Personal agents',
+    run: async (getContext: () => CapabilityContext) => {
+      const gate: CapabilityResult | null = requireSignedIn(getContext());
+
+      if (gate) return gate;
+
+      const {sdk} = getContext();
+      const list = await track('getMeAgents', () =>
+        getMeAgents({
+          baseUrl: sdk.baseUrl,
+          fetcher: createTokenFetcher(sdk.getAccessToken),
+          kind: PERSONAL_AGENT_KIND,
+          limit: 5,
+          url: resolveResourceEndpoint('usersMeAgents', {endpoints: sdk.endpoints}),
+        }),
+      );
+      const suspended: number = list.agents.filter((agent) => agent.status?.value === 'SUSPENDED').length;
+
+      return pass(
+        `${plural(list.totalResults, 'personal agent')}; ${suspended} suspended on this page. Manage them in Components > PersonalAgentList and PersonalAgentDetails (live)`,
       );
     },
     section: 'User',
