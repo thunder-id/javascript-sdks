@@ -1,0 +1,27 @@
+# Configuration for GitHub's automatically generated release notes, the changelog of each release.
+# https://docs.github.com/en/repositories/releasing-projects-on-github/automatically-generated-release-notes
+# Every pull request carries one of these labels, or `skip-changelog` (see workflows/pr-label-check.yml).
+
+changelog:
+  exclude:
+    labels:
+      - skip-changelog
+    authors:
+      - dependabot
+      - copilot
+  categories:
+    - title: ⚠️ Breaking Changes
+      labels:
+        - 'breaking change'
+    - title: 🚀 Features
+      labels:
+        - 'Type/New Feature'
+    - title: ✨ Improvements
+      labels:
+        - 'Type/Improvement'
+    - title: 🐛 Bug Fixes
+      labels:
+        - 'Type/Bug'
+    - title: 📝 Other Changes
+      labels:
+        - '*'
