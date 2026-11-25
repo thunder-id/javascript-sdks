@@ -22,6 +22,13 @@ const mockSignIn = vi.fn() as Mock;
 const mockGetFlowMeta = vi.fn() as Mock;
 const mockReplaceLocation = vi.fn() as Mock;
 
+const mockHandlePasskeyAuthentication = vi.fn() as Mock;
+
+vi.mock('../../../../utils/passkey', async (importOriginal: () => Promise<Record<string, unknown>>) => ({
+  ...(await importOriginal()),
+  handlePasskeyAuthentication: (...args: unknown[]): unknown => mockHandlePasskeyAuthentication(...args),
+}));
+
 vi.mock('@thunderid/browser', async (importOriginal: () => Promise<Record<string, unknown>>) => ({
   ...(await importOriginal()),
   getFlowMeta: (...args: unknown[]): unknown => mockGetFlowMeta(...args),
@@ -202,6 +209,73 @@ describe('SignIn without an application', () => {
       expect(mockReplaceLocation).toHaveBeenCalledWith('https://home.example.com');
     });
     expect(renderChild.mock.lastCall?.[0].isFlowExpired).toBe(false);
+  });
+});
+
+describe('SignIn passkey prompt failure', () => {
+  const signInStep = (): Record<string, unknown> => ({
+    data: {
+      meta: {components: [{eventType: 'TRIGGER', id: 'action_passkey', label: 'Sign in with passkey', type: 'ACTION'}]},
+    },
+    executionId: 'exec-1',
+    flowStatus: 'INCOMPLETE',
+    type: 'VIEW',
+  });
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    sessionStorage.clear();
+    window.history.replaceState({}, '', '/signin');
+  });
+
+  afterEach(() => {
+    cleanup();
+  });
+
+  it('tells the flow the prompt failed and shows the step the flow returns', async () => {
+    mockHandlePasskeyAuthentication.mockRejectedValue(
+      new ThunderIDRuntimeError('Passkey authentication failed.', 'browser-webauthn-authentication-error', 'browser'),
+    );
+    mockSignIn
+      .mockResolvedValueOnce(signInStep())
+      .mockResolvedValueOnce({
+        data: {additionalData: {passkeyChallenge: '{"challenge":"Y2hhbGxlbmdl"}'}},
+        executionId: 'exec-1',
+        flowStatus: 'INCOMPLETE',
+        type: 'VIEW',
+      })
+      .mockResolvedValueOnce({
+        ...signInStep(),
+        error: {
+          code: 'FET-1019',
+          description: {defaultValue: 'Passkey authentication could not be completed', key: 'passkey_auth_failed_desc'},
+          message: {defaultValue: 'Passkey authentication failed', key: 'passkey_auth_failed'},
+        },
+      });
+
+    render(
+      <ThunderIDContext.Provider value={{...thunderIDContext, applicationId: 'app-1'}}>
+        <I18nProvider>
+          <ThemeProvider>
+            <SignIn />
+          </ThemeProvider>
+        </I18nProvider>
+      </ThunderIDContext.Provider>,
+    );
+
+    fireEvent.click(await screen.findByTestId('thunderid-signin-submit'));
+
+    await waitFor(() => {
+      expect(mockSignIn).toHaveBeenCalledTimes(3);
+    });
+    expect(mockSignIn.mock.calls[2][0]).toMatchObject({
+      executionId: 'exec-1',
+      inputs: {passkeyError: 'browser-webauthn-authentication-error'},
+    });
+    await waitFor(() => {
+      expect(screen.queryByRole('alert')?.textContent).toBe('Passkey authentication failed');
+    });
+    expect(screen.getByTestId('thunderid-signin-submit')).toBeTruthy();
   });
 });
 

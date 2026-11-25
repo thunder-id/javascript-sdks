@@ -33,7 +33,7 @@ import {cx} from '../../../styles/emotion';
 import composeAffixedInputs from '../../../utils/composeAffixedInputs';
 import {normalizeFlowResponse, extractErrorMessage, resolveFlowError} from '../../../utils/flowTransformer';
 import getAuthComponentHeadings from '../../../utils/getAuthComponentHeadings';
-import {handlePasskeyRegistration} from '../../../utils/passkey';
+import {handlePasskeyRegistration, passkeyFailureInputs} from '../../../utils/passkey';
 import removeUrlParams from '../../../utils/removeUrlParams';
 import AlertPrimitive from '../../primitives/Alert/Alert';
 // eslint-disable-next-line import/no-named-as-default
@@ -971,16 +971,23 @@ const BaseSignUpContent: FC<BaseSignUpProps> = ({
     passkeyProcessedRef.current = true;
 
     const performPasskeyRegistration = async (): Promise<void> => {
-      const passkeyResponse: any = await handlePasskeyRegistration(passkeyState.creationOptions!);
-      const passkeyResponseObj: any = JSON.parse(passkeyResponse);
+      let inputs: Record<string, string>;
 
-      const inputs: any = {
-        attestationObject: passkeyResponseObj.response.attestationObject,
-        clientDataJSON: passkeyResponseObj.response.clientDataJSON,
-        credentialId: passkeyResponseObj.id,
-      };
+      try {
+        const passkeyResponse: any = await handlePasskeyRegistration(passkeyState.creationOptions!);
+        const passkeyResponseObj: any = JSON.parse(passkeyResponse);
 
-      // After successful registration, submit the result to the server
+        inputs = {
+          attestationObject: passkeyResponseObj.response.attestationObject,
+          clientDataJSON: passkeyResponseObj.response.clientDataJSON,
+          credentialId: passkeyResponseObj.id,
+        };
+      } catch (error) {
+        // The flow is waiting for the passkey, so tell it the prompt failed and show the step it returns.
+        inputs = passkeyFailureInputs(error);
+      }
+
+      // Submit the passkey response, or the failed prompt, to the server
       const payload: EmbeddedSignUpFlowRequest = {
         executionId: passkeyState.executionId ?? undefined,
         inputs,
@@ -988,14 +995,22 @@ const BaseSignUpContent: FC<BaseSignUpProps> = ({
       } as any;
 
       const nextResponse: any = await onSubmit!(payload);
+      // The challenge token rotates every step, and the step the flow returns may be submitted next.
+      await setChallengeToken(nextResponse?.challengeToken ?? null);
       const processedResponse: any = normalizeFlowResponseLocal(nextResponse);
       onFlowChange?.(processedResponse);
 
-      if (processedResponse.flowStatus === EmbeddedSignUpFlowStatus.Complete) {
+      if (processedResponse.flowStatus === EmbeddedSignUpFlowStatus.Error) {
+        handleError(processedResponse);
+        onError?.(new Error(extractErrorMessage(processedResponse, t)));
+      } else if (processedResponse.flowStatus === EmbeddedSignUpFlowStatus.Complete) {
         handleFlowCompletion(processedResponse as EmbeddedSignUpFlowResponse);
       } else {
         setCurrentFlow(processedResponse);
         setupFormFields(processedResponse);
+        if (processedResponse.error) {
+          handleError(processedResponse);
+        }
       }
     };
 

@@ -39,7 +39,7 @@ import {
 } from '../../../utils/flowTransformer';
 import isConsentApprovalBlocked from '../../../utils/isConsentApprovalBlocked';
 import {initiateOAuthRedirect} from '../../../utils/oauth';
-import {handlePasskeyAuthentication, handlePasskeyRegistration} from '../../../utils/passkey';
+import {handlePasskeyAuthentication, handlePasskeyRegistration, passkeyFailureInputs} from '../../../utils/passkey';
 import removeUrlParams from '../../../utils/removeUrlParams';
 
 /**
@@ -1175,28 +1175,31 @@ const SignIn: FC<SignInProps> = ({
     const performPasskeyProcess = async (): Promise<void> => {
       let inputs: Record<string, string>;
 
-      if (passkeyState.challenge) {
-        const passkeyResponse: any = await handlePasskeyAuthentication(passkeyState.challenge);
-        const passkeyResponseObj: any = JSON.parse(passkeyResponse);
+      try {
+        if (passkeyState.challenge) {
+          const passkeyResponse: any = await handlePasskeyAuthentication(passkeyState.challenge);
+          const passkeyResponseObj: any = JSON.parse(passkeyResponse);
 
-        inputs = {
-          authenticatorData: passkeyResponseObj.response.authenticatorData,
-          clientDataJSON: passkeyResponseObj.response.clientDataJSON,
-          credentialId: passkeyResponseObj.id,
-          signature: passkeyResponseObj.response.signature,
-          userHandle: passkeyResponseObj.response.userHandle,
-        };
-      } else if (passkeyState.creationOptions) {
-        const passkeyResponse: any = await handlePasskeyRegistration(passkeyState.creationOptions);
-        const passkeyResponseObj: any = JSON.parse(passkeyResponse);
+          inputs = {
+            authenticatorData: passkeyResponseObj.response.authenticatorData,
+            clientDataJSON: passkeyResponseObj.response.clientDataJSON,
+            credentialId: passkeyResponseObj.id,
+            signature: passkeyResponseObj.response.signature,
+            userHandle: passkeyResponseObj.response.userHandle,
+          };
+        } else {
+          const passkeyResponse: any = await handlePasskeyRegistration(passkeyState.creationOptions!);
+          const passkeyResponseObj: any = JSON.parse(passkeyResponse);
 
-        inputs = {
-          attestationObject: passkeyResponseObj.response.attestationObject,
-          clientDataJSON: passkeyResponseObj.response.clientDataJSON,
-          credentialId: passkeyResponseObj.id,
-        };
-      } else {
-        throw new Error('No passkey challenge or creation options available');
+          inputs = {
+            attestationObject: passkeyResponseObj.response.attestationObject,
+            clientDataJSON: passkeyResponseObj.response.clientDataJSON,
+            credentialId: passkeyResponseObj.id,
+          };
+        }
+      } catch (error) {
+        // The flow is waiting for the passkey, so tell it the prompt failed and show the step it returns.
+        inputs = passkeyFailureInputs(error);
       }
 
       await handleSubmit({

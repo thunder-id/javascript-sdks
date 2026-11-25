@@ -774,26 +774,32 @@ const SignIn: Component = defineComponent({
         try {
           let inputs: Record<string, string>;
 
-          if (state.challenge) {
-            const passkeyResponse: string = await handlePasskeyAuthentication(state.challenge);
-            const obj: any = JSON.parse(passkeyResponse);
+          try {
+            if (state.challenge) {
+              const passkeyResponse: string = await handlePasskeyAuthentication(state.challenge);
+              const obj: any = JSON.parse(passkeyResponse);
+              inputs = {
+                authenticatorData: obj.response.authenticatorData,
+                clientDataJSON: obj.response.clientDataJSON,
+                credentialId: obj.id,
+                signature: obj.response.signature,
+                userHandle: obj.response.userHandle,
+              };
+            } else {
+              const passkeyResponse: string = await handlePasskeyRegistration(state.creationOptions!);
+              const obj: any = JSON.parse(passkeyResponse);
+              inputs = {
+                attestationObject: obj.response.attestationObject,
+                clientDataJSON: obj.response.clientDataJSON,
+                credentialId: obj.id,
+              };
+            }
+          } catch (passkeyError: unknown) {
+            // The flow is waiting for the passkey, so tell it the prompt failed and show the step it returns.
             inputs = {
-              authenticatorData: obj.response.authenticatorData,
-              clientDataJSON: obj.response.clientDataJSON,
-              credentialId: obj.id,
-              signature: obj.response.signature,
-              userHandle: obj.response.userHandle,
+              passkeyError:
+                passkeyError instanceof ThunderIDRuntimeError ? passkeyError.code : 'browser-webauthn-unexpected-error',
             };
-          } else if (state.creationOptions) {
-            const passkeyResponse: string = await handlePasskeyRegistration(state.creationOptions);
-            const obj: any = JSON.parse(passkeyResponse);
-            inputs = {
-              attestationObject: obj.response.attestationObject,
-              clientDataJSON: obj.response.clientDataJSON,
-              credentialId: obj.id,
-            };
-          } else {
-            throw new Error('No passkey challenge or creation options available');
           }
 
           await handleSubmit({executionId: state.executionId, inputs});
