@@ -29,6 +29,7 @@ const NuxtAPIRoutes: {
   SWITCH: string;
   TOKEN: string;
   USER: string;
+  USER_AGENTS: string;
   USER_CREDENTIALS: string;
   USER_ORGANIZATION_UNITS: string;
   USER_PROFILE: string;
@@ -60,6 +61,12 @@ const NuxtAPIRoutes: {
   TOKEN: '/api/auth/token',
   /** Returns the current user object. */
   USER: '/api/auth/user',
+  /**
+   * The signed-in user's personal agents, using the signed-in session: list (GET), suspend all (POST `/suspend`),
+   * and one agent at `/{id}`: read (GET), update (PUT), delete (DELETE), suspend and unsuspend (POST `/suspend`,
+   * `/unsuspend`).
+   */
+  USER_AGENTS: '/api/auth/user/agents',
   /** Updates (PATCH) one of the signed-in user's own credentials, e.g. `password`. */
   USER_CREDENTIALS: '/api/auth/user/credentials',
   /** Lists (GET) the organization units the signed-in user can access, using the signed-in session. */
