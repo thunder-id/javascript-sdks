@@ -4,6 +4,21 @@
 import {HttpError, HttpRequestConfig, HttpResponse} from './models/http';
 
 /**
+ * How a request ended, for a request observer.
+ */
+export type HttpRequestOutcome =
+  | {headers?: Record<string, string>; ok: true; status: number}
+  | {error: HttpError; ok: false};
+
+/**
+ * Sees every request this client sends and how its transport ended, whether or not the request
+ * handlers are enabled. A request that fails before it is sent, such as when its token cannot be
+ * attached, is not seen. It must not throw; whatever it does never affects the request, and it gets a
+ * copy of the response headers.
+ */
+export type HttpRequestObserver = (config: HttpRequestConfig, outcome: HttpRequestOutcome) => void;
+
+/**
  * Abstract base class for HTTP clients. Owns all handler/callback state and
  * the request lifecycle (pre-processing, transport, post-processing).
  *
@@ -29,6 +44,8 @@ export abstract class HttpClient {
 
   private requestFinishCallback: () => void = () => null;
 
+  private requestObserver: HttpRequestObserver | undefined;
+
   constructor(
     private isHandlerEnabled = true,
     private attachToken: (request: HttpRequestConfig) => Promise<void> = (): Promise<void> => Promise.resolve(),
@@ -45,13 +62,33 @@ export abstract class HttpClient {
    */
   async request<T = any>(config: HttpRequestConfig): Promise<HttpResponse<T>> {
     const processedConfig: HttpRequestConfig = await this.requestHandler(config);
+    let sent = false;
     try {
       const response: HttpResponse<T> = await this.transport<T>(processedConfig);
+      sent = true;
+      if (config.observe !== false) {
+        this.observe(processedConfig, {
+          headers: response.headers ? {...response.headers} : undefined,
+          ok: true,
+          status: response.status,
+        });
+      }
       return this.successHandler(response);
     } catch (error: any) {
+      // A failure after the transport, such as in a success callback, was already observed as a success.
+      if (!sent && config.observe !== false) {
+        this.observe(processedConfig, {error: error as HttpError, ok: false});
+      }
       this.errorHandler(error as HttpError);
       throw error;
     }
+  }
+
+  /**
+   * Sets the one observer that sees every request and how it ended, or removes it with `undefined`.
+   */
+  setHttpRequestObserver(observer: HttpRequestObserver | undefined): void {
+    this.requestObserver = observer;
   }
 
   enableHandler(): void {
@@ -83,6 +120,14 @@ export abstract class HttpClient {
 
   setHttpRequestFinishCallback(cb: () => void): void {
     this.requestFinishCallback = cb;
+  }
+
+  private observe(config: HttpRequestConfig, outcome: HttpRequestOutcome): void {
+    try {
+      this.requestObserver?.(config, outcome);
+    } catch {
+      // An observer never affects the request.
+    }
   }
 
   all<T>(values: (T | Promise<T>)[]): Promise<T[]> {

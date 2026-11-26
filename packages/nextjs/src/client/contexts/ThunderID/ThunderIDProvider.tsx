@@ -490,6 +490,8 @@ const ThunderIDClientProvider: FC<PropsWithChildren<ThunderIDClientProviderProps
       isSignedIn,
       meta: initialMeta ?? null,
       organizationHandle,
+      // Telemetry runs in the browser SDK; the Next.js SDK does not report yet.
+      telemetry: {track: () => undefined, trackPageView: () => undefined},
       reInitialize: unsupported('reInitialize'),
       recover: unsupported('recover'),
       resolveFlowTemplateLiterals: (text: string | undefined): string => text ?? '',

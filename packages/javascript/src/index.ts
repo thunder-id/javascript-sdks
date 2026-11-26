@@ -1270,6 +1270,23 @@ export type {LogLevel, LoggerConfig} from './utils/logger';
 export {default as StorageManager} from './StorageManager';
 
 export {HttpClient} from './HttpClient';
+export type {HttpRequestObserver, HttpRequestOutcome} from './HttpClient';
+export {default as Telemetry, TELEMETRY_EVENT_HEADER} from './telemetry/Telemetry';
+export type {TelemetryApiOutcome, TelemetryAuthAction, TelemetryDependencies} from './telemetry/Telemetry';
+export {default as TelemetryNames} from './telemetry/TelemetryNames';
+export type {
+  TelemetryApiEventsConfig,
+  TelemetryConfig,
+  TelemetryEvent,
+  TelemetryEventKind,
+  TelemetryFormat,
+  TelemetryIdentity,
+  TelemetryIdentityConfig,
+  TelemetryIdentitySource,
+  TelemetryKindConfig,
+  TelemetryMapping,
+  TelemetryTransport,
+} from './models/telemetry';
 export type {HttpError, HttpRequestConfig, HttpResponse} from './models/http';
 
 export type {I18nBundle, I18nTranslations} from './i18n/models/i18n';

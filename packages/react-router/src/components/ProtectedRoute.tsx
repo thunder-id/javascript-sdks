@@ -5,6 +5,7 @@ import {createPackageComponentLogger} from '@thunderid/browser';
 import {ThunderIDRuntimeError, navigate, useThunderID} from '@thunderid/react';
 import {FC, ReactElement, ReactNode, RefObject, useEffect, useRef} from 'react';
 import {Navigate} from 'react-router';
+import PageViewTracker from './PageViewTracker';
 
 const logger: ReturnType<typeof createPackageComponentLogger> = createPackageComponentLogger(
   '@thunderid/react-router',
@@ -231,7 +232,13 @@ const ProtectedRoute: FC<ProtectedRouteProps> = ({
   }
 
   if (isSignedIn) {
-    return children;
+    return (
+      <>
+        {children}
+        {/* After the children, so a tracker in a protected page below reports first. */}
+        <PageViewTracker />
+      </>
+    );
   }
 
   if (fallback) {

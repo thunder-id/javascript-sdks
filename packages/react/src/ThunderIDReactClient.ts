@@ -185,6 +185,10 @@ class ThunderIDReactClient<T extends ThunderIDReactConfig = ThunderIDReactConfig
           await this.storeFlowSessions(response);
         }
 
+        if (response?.flowStatus === EmbeddedSignInFlowStatus.Error) {
+          this.notifySignInFailed(response.error?.code);
+        }
+
         if (
           response &&
           typeof response === 'object' &&

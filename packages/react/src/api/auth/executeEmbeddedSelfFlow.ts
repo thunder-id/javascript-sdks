@@ -48,7 +48,8 @@ const executeEmbeddedSelfFlow = async ({
 }: ExecuteEmbeddedSelfFlowConfig): Promise<EmbeddedSelfFlowResponse> =>
   baseExecuteEmbeddedSelfFlow({
     ...requestConfig,
-    fetcher: fetcher ?? createHttpClientFetcher(instanceId),
+    // The SDK's own flow request: never reported as one of the app's API calls.
+    fetcher: fetcher ?? createHttpClientFetcher(instanceId, {observe: false}),
   });
 
 export default executeEmbeddedSelfFlow;

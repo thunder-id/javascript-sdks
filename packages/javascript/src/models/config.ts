@@ -6,6 +6,7 @@ import {ComponentsExtensions} from './extensions/components';
 import type {AuthorizationDetail} from './oauth-request';
 import type {OAuthResponseMode} from './oauth-response';
 import type {OIDCEndpoints} from './oidc-endpoints';
+import type {TelemetryConfig} from './telemetry';
 import {TokenEndpointAuthMethod} from './token-endpoint-auth';
 import {RecursivePartial} from './utility-types';
 import {I18nBundle} from '../i18n/models/i18n';
@@ -672,6 +673,16 @@ export interface BaseConfig<T = unknown> extends WithPreferences, WithExtensions
    * session: {silentSignIn: {beforeRedirect: true}}
    */
   session?: SessionConfig;
+
+  /**
+   * Telemetry: what people do in the app (page views, API events, auth events and links that leave
+   * the app), reported to an endpoint the deployment configures. Off until `telemetry.endpoint` is set.
+   *
+   * @remarks Browser SDKs only.
+   * @example
+   * telemetry: {endpoint: '/telemetry/v1/logs'}
+   */
+  telemetry?: TelemetryConfig;
 
   /**
    * Configuration for token lifecycle management.

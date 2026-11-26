@@ -31,7 +31,7 @@ describe('executeEmbeddedSelfFlow', () => {
   it("sends through the SPA client's authenticated fetcher by default", async () => {
     await executeEmbeddedSelfFlow({baseUrl: 'https://localhost:8090', payload});
 
-    expect(mocks.createHttpClientFetcher).toHaveBeenCalledWith(0);
+    expect(mocks.createHttpClientFetcher).toHaveBeenCalledWith(0, {observe: false});
     expect(mocks.baseExecute).toHaveBeenCalledWith({
       baseUrl: 'https://localhost:8090',
       fetcher: mocks.authenticatedFetcher,
@@ -46,7 +46,7 @@ describe('executeEmbeddedSelfFlow', () => {
       url: 'https://localhost:8090/flow/execute',
     });
 
-    expect(mocks.createHttpClientFetcher).toHaveBeenCalledWith(2);
+    expect(mocks.createHttpClientFetcher).toHaveBeenCalledWith(2, {observe: false});
     expect(mocks.baseExecute).toHaveBeenCalledWith(
       expect.objectContaining({fetcher: mocks.authenticatedFetcher, url: 'https://localhost:8090/flow/execute'}),
     );
