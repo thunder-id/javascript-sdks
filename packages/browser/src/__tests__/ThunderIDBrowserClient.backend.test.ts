@@ -8,7 +8,10 @@ import BackendClient from '../BackendClient';
 import BackendHttpClient from '../BackendHttpClient';
 import FetchHttpClient from '../FetchHttpClient';
 import ThunderIDBrowserClient from '../ThunderIDBrowserClient';
+import loadPage from '../utils/loadPage';
 import SPAUtils from '../utils/SPAUtils';
+
+vi.mock('../utils/loadPage', () => ({default: vi.fn()}));
 
 const json = (status: number, body: unknown): Response =>
   new Response(JSON.stringify(body), {headers: {'Content-Type': 'application/json'}, status});
@@ -41,7 +44,9 @@ describe('ThunderIDBrowserClient with sign-in on the backend', () => {
     fetchMock.mockReset();
   });
 
-  afterEach(() => {
+  afterEach(async () => {
+    // Leaving backend mode stops the client listening to other tabs.
+    await client.initialize({...CONFIG, endpoints: undefined});
     vi.restoreAllMocks();
     vi.unstubAllGlobals();
     FetchHttpClient.destroyInstance(7);
@@ -251,6 +256,124 @@ describe('ThunderIDBrowserClient with sign-in on the backend', () => {
 
     expect(afterSignOut).toHaveBeenCalledWith('https://auth.example.com/oauth2/logout?client_id=my-app');
     expect(fetchMock.mock.calls[0][0]).toBe(`${BFF}/api/auth/signout`);
+  });
+});
+
+describe('ThunderIDBrowserClient after an organization unit switch', () => {
+  let fetchMock: Mock;
+  let client: ThunderIDBrowserClient<any>;
+  let otherTab: BroadcastChannel;
+  // A backend of its own, so clients the other suites leave behind are not on this session's channel.
+  const TABS_BFF = 'https://tabs.example.com';
+  const TABS_CONFIG = {...CONFIG, baseUrl: TABS_BFF};
+  const SWITCHED = {isSignedIn: true, user: {name: 'Ada', ouId: 'ou-2', sub: 'u1'}};
+
+  const start = async (switchConfig?: Record<string, unknown>): Promise<void> => {
+    fetchMock = vi.fn().mockResolvedValueOnce(json(200, SIGNED_IN));
+    vi.stubGlobal('fetch', fetchMock);
+    client = new ThunderIDBrowserClient<any>(9);
+    await client.initialize({...TABS_CONFIG, ...(switchConfig ? {organizationUnits: {switch: switchConfig}} : {})});
+    await client.isSignedIn();
+    fetchMock.mockReset();
+  };
+
+  // What a tab that switches at the same endpoint sends after switching in place.
+  const switchInOtherTab = async (organizationUnitId: string): Promise<void> => {
+    otherTab.postMessage({organizationUnitId, type: 'organization-unit-switch'});
+    await new Promise((resolve: (value: unknown) => void) => setTimeout(resolve, 20));
+  };
+
+  const switchHere = async (): Promise<void> => {
+    fetchMock.mockResolvedValueOnce(new Response(null, {status: 204})).mockResolvedValueOnce(json(200, SWITCHED));
+    await client.switchOrganizationUnit('ou-2');
+  };
+
+  beforeEach(() => {
+    otherTab = new BroadcastChannel(`thunderid:organization-unit-switch:${TABS_BFF}/api/auth/switch`);
+    vi.mocked(loadPage).mockReset();
+  });
+
+  afterEach(async () => {
+    otherTab.close();
+    await client.initialize({...TABS_CONFIG, endpoints: undefined});
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+    FetchHttpClient.destroyInstance(9);
+  });
+
+  describe('in another tab on the same session', () => {
+    it('reloads the page by default', async () => {
+      await start();
+
+      await switchInOtherTab('ou-2');
+
+      expect(loadPage).toHaveBeenCalledWith(undefined);
+      expect(fetchMock).not.toHaveBeenCalled();
+    });
+
+    it('loads afterSwitchUrl instead when it is set', async () => {
+      await start({afterSwitchUrl: '/'});
+
+      await switchInOtherTab('ou-2');
+
+      expect(loadPage).toHaveBeenCalledWith('/');
+    });
+
+    it('reads the session again and leaves it to onSwitch, without reloading', async () => {
+      const onSwitch = vi.fn();
+      await start({afterSwitchUrl: '/', onSwitch});
+      const onSignIn = vi.fn();
+      await client.on('sign-in', onSignIn);
+      fetchMock.mockResolvedValueOnce(json(200, SWITCHED));
+
+      await switchInOtherTab('ou-2');
+
+      expect(fetchMock.mock.calls.map((call: unknown[]) => call[0])).toEqual([`${TABS_BFF}/api/auth/session`]);
+      expect(onSignIn).toHaveBeenCalledWith(SWITCHED.user);
+      expect(onSwitch).toHaveBeenCalledWith({id: 'ou-2'}, {initiatedHere: false});
+      expect((await client.getCurrentOrganizationUnit())?.id).toBe('ou-2');
+      expect(loadPage).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('in the tab that switched', () => {
+    it('stays on the page by default', async () => {
+      await start();
+
+      await switchHere();
+
+      expect(loadPage).not.toHaveBeenCalled();
+    });
+
+    it('loads afterSwitchUrl when it is set', async () => {
+      await start({afterSwitchUrl: '/'});
+
+      await switchHere();
+
+      expect(loadPage).toHaveBeenCalledWith('/');
+    });
+
+    it("calls onSwitch instead, after the session is the unit's", async () => {
+      const onSwitch = vi.fn(async () => {
+        expect((await client.getCurrentOrganizationUnit())?.id).toBe('ou-2');
+      });
+      await start({afterSwitchUrl: '/', onSwitch});
+
+      await switchHere();
+
+      expect(onSwitch).toHaveBeenCalledWith({id: 'ou-2'}, {initiatedHere: true});
+      expect(loadPage).not.toHaveBeenCalled();
+    });
+
+    it('does not call onSwitch when the switch fails', async () => {
+      const onSwitch = vi.fn();
+      await start({onSwitch});
+      fetchMock.mockResolvedValueOnce(json(400, {error: 'unauthorized_client'}));
+
+      await expect(client.switchOrganizationUnit('ou-2')).rejects.toBeDefined();
+
+      expect(onSwitch).not.toHaveBeenCalled();
+    });
   });
 });
 

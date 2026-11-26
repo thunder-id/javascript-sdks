@@ -14,6 +14,12 @@ const BACKEND_REQUEST_HEADER_VALUE = 'XMLHttpRequest';
 /** A check on focus is skipped when the last one is more recent than this, in milliseconds. */
 const FOCUS_CHECK_THROTTLE = 5000;
 
+/** The message one tab sends the others on the same backend session after switching its organization unit. */
+interface OrganizationUnitSwitchMessage {
+  organizationUnitId: string;
+  type: 'organization-unit-switch';
+}
+
 /**
  * Talks to the app's backend when sign-in runs there: reads the session, refreshes it, and starts and ends it. The
  * browser never holds a token; the backend keeps them behind an `HttpOnly` cookie.
@@ -32,7 +38,53 @@ class BackendClient {
 
   private readonly signedOutListeners: (() => void)[] = [];
 
+  private readonly switchedElsewhereListeners: ((organizationUnitId: string) => void)[] = [];
+
+  /**
+   * The tabs a switch moves talk over one channel, named after the switch endpoint: every tab that
+   * switches there is on the session it switches, even an app whose own session is read elsewhere.
+   */
+  private channel: BroadcastChannel | undefined;
+
   constructor(private readonly endpoints: ResolvedBackendEndpoints) {}
+
+  /**
+   * Calls the listener when another tab switches this backend session (the same `ouSwitch` endpoint) to
+   * another organization unit in place. The session stays live through such a switch, so the session checks cannot tell;
+   * the switching tab says so. The cached session is dropped first, so the next read returns the unit's.
+   */
+  onOrganizationUnitSwitchedElsewhere(listener: (organizationUnitId: string) => void): void {
+    this.switchedElsewhereListeners.push(listener);
+    this.openChannel();
+  }
+
+  /**
+   * Stops listening to the other tabs.
+   */
+  dispose(): void {
+    this.channel?.close();
+    this.channel = undefined;
+  }
+
+  private openChannel(): BroadcastChannel | undefined {
+    if (this.channel || typeof BroadcastChannel === 'undefined') {
+      return this.channel;
+    }
+
+    this.channel = new BroadcastChannel(`thunderid:organization-unit-switch:${this.endpoints.ouSwitch}`);
+    this.channel.onmessage = (event: MessageEvent<OrganizationUnitSwitchMessage>): void => {
+      const message: OrganizationUnitSwitchMessage | undefined = event.data;
+      if (message?.type !== 'organization-unit-switch' || typeof message.organizationUnitId !== 'string') {
+        return;
+      }
+      this.session = undefined;
+      this.switchedElsewhereListeners.forEach((listener: (organizationUnitId: string) => void) =>
+        listener(message.organizationUnitId),
+      );
+    };
+
+    return this.channel;
+  }
 
   /**
    * Calls the listener when a signed-in session turns out to have ended without this client signing
@@ -221,6 +273,8 @@ class BackendClient {
 
     if (response.ok) {
       this.session = undefined;
+      // The other tabs on this session are now in the unit too, without knowing it.
+      this.openChannel()?.postMessage({organizationUnitId: ouId, type: 'organization-unit-switch'});
 
       return undefined;
     }
