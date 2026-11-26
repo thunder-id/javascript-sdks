@@ -117,6 +117,22 @@ The quickstarts and integration samples live in [thunder-id/samples](https://git
 - **The change adds something a sample exists to show** (a self-service capability for `self-service/myaccount-react`, a management component or operation for `management/admin-react`, a new sign-in option for the quickstarts): update that sample in the same samples pull request, so it demonstrates the new capability rather than working around its absence.
 - Link the samples pull request from this pull request's **Related PRs**, or say why no sample is affected.
 
+## Pull request labels
+
+Every pull request carries one label that says what kind of change it is. The `🔎 PR Check / 🏷️ Check PR Labels` check fails without one, and the release notes and each package's CHANGELOG.md are grouped by it (see `.github/release.yml`). Pick the label from what someone using the SDKs would notice:
+
+| Label | Use it for | Release notes section |
+|---|---|---|
+| `Type/New Feature` | Something that wasn't there before: an operation, component, hook, configuration key or option | 🚀 Features |
+| `Type/Improvement` | Something that exists, made better: behaviour, performance, error messages, accessibility, a dependency bump users notice | ✨ Improvements |
+| `Type/Bug` | A fix for behaviour that was wrong | 🐛 Bug Fixes |
+| `skip-changelog` | A change users never see: CI and release tooling, tests, the playgrounds, agent instructions, and docs that live only in this repository | Left out |
+
+- When a pull request is a breaking change, also add `breaking change`, and fill in the pull request's Breaking Changes section. It is listed under ⚠️ Breaking Changes.
+- When a change mixes kinds, pick the label that matters most to someone upgrading.
+- Add the label when raising the pull request (`gh pr create --label "Type/Bug"`), or later with `gh pr edit <number> --add-label "Type/Bug"`.
+- If the check ran before the label was added, re-running it fails again, because it replays the original event. Remove and re-add the label to start a fresh run.
+
 ## Code style
 
 - TypeScript, ESLint via `@thunderid/eslint-plugin`, Prettier.

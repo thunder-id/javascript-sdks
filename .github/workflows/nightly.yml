@@ -33,34 +33,131 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           artifact-name: playwright-report-nightly
 
-      # Google Chat step - each failure posts as its own independent message.
-      - name: 🔔 Send Google Chat Notification on Failure
-        if: failure()
+  # Posts every nightly run to Google Chat, in this repository's own thread, so each SDK's results
+  # stay together instead of mixing with the other SDKs' in the space. The thread opens with a
+  # generic card, posted once, and every run is added to it as a reply that carries its result.
+  #
+  # A webhook can neither look up a thread nor edit a message, so whether the opening card has been
+  # posted is remembered as an Actions cache entry. The nightly reads that entry every day, which
+  # keeps it from being evicted. If it ever is, the opening card is posted again, inside the thread.
+  #
+  # It is a job of its own so that it runs whatever the result of `e2e`.
+  notify:
+    name: 🔔 Notify Google Chat
+    needs: e2e
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    env:
+      GOOGLE_CHAT_WEBHOOK: ${{ secrets.GOOGLE_CHAT_WEBHOOK }}
+      # Names this repository's thread.
+      THREAD_KEY: ${{ github.event.repository.name }}-nightly-e2e
+      CARD_TITLE: "JavaScript SDKs E2E Status"
+      CARD_IMAGE: "https://raw.githubusercontent.com/github/explore/main/topics/javascript/javascript.png"
+    steps:
+      - name: ⏭️ Skip without a webhook
+        if: env.GOOGLE_CHAT_WEBHOOK == ''
+        run: echo "GOOGLE_CHAT_WEBHOOK secret is not set. Skipping Google Chat notification."
+
+      - name: 🔍 Check for the thread's opening card
+        id: opener
+        if: env.GOOGLE_CHAT_WEBHOOK != ''
+        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: .google-chat-thread
+          key: google-chat-thread-${{ github.event.repository.name }}-nightly-e2e
+          lookup-only: true
+
+      - name: 🧵 Start the thread
+        id: start
+        if: env.GOOGLE_CHAT_WEBHOOK != '' && steps.opener.outputs.cache-hit != 'true'
         shell: bash
         env:
-          GOOGLE_CHAT_WEBHOOK: ${{ secrets.GOOGLE_CHAT_WEBHOOK }}
+          NIGHTLY_RUNS_URL: ${{ github.server_url }}/${{ github.repository }}/actions/workflows/nightly.yml
+        run: |
+          # Reply in the thread named by the payload's threadKey, or start it if it doesn't exist yet.
+          # Without this option Google Chat ignores the threadKey and starts a new thread each time.
+          case "$GOOGLE_CHAT_WEBHOOK" in
+            *\?*) WEBHOOK_URL="${GOOGLE_CHAT_WEBHOOK}&messageReplyOption=REPLY_MESSAGE_FALLBACK_TO_NEW_THREAD" ;;
+            *) WEBHOOK_URL="${GOOGLE_CHAT_WEBHOOK}?messageReplyOption=REPLY_MESSAGE_FALLBACK_TO_NEW_THREAD" ;;
+          esac
+          jq -n \
+            --arg thread_key "$THREAD_KEY" \
+            --arg title "$CARD_TITLE" \
+            --arg image "$CARD_IMAGE" \
+            --arg runs_url "$NIGHTLY_RUNS_URL" \
+            '{
+              "thread": {"threadKey": $thread_key},
+              "cards": [{
+                "header": {
+                  "title": $title,
+                  "subtitle": "Nightly E2E runs against the latest ThunderID release",
+                  "imageUrl": $image,
+                  "imageStyle": "AVATAR"
+                },
+                "sections": [{
+                  "widgets": [
+                    {"textParagraph": {"text": "Every nightly run is posted in this thread, with its result."}},
+                    {"buttons": [{"textButton": {"text": "VIEW NIGHTLY RUNS", "onClick": {"openLink": {"url": $runs_url}}}}]}
+                  ]
+                }]
+              }]
+            }' > opener.json
+
+          if curl -fsS -X POST -H "Content-Type: application/json" -d @opener.json "$WEBHOOK_URL" > /dev/null; then
+            mkdir -p .google-chat-thread
+            date -u > .google-chat-thread/started
+            echo "posted=true" >> "$GITHUB_OUTPUT"
+            echo "✅ Started the $THREAD_KEY thread"
+          else
+            echo "⚠️ Failed to post the thread's opening card"
+          fi
+
+      - name: 💾 Remember the thread's opening card
+        if: steps.start.outputs.posted == 'true'
+        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: .google-chat-thread
+          key: google-chat-thread-${{ github.event.repository.name }}-nightly-e2e
+
+      - name: 🔔 Post the run's result
+        if: env.GOOGLE_CHAT_WEBHOOK != ''
+        shell: bash
+        env:
+          RESULT: ${{ needs.e2e.result }}
           WORKFLOW_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           RUN_NUMBER: ${{ github.run_number }}
           COMMIT: ${{ github.sha }}
         run: |
-          if [ -z "$GOOGLE_CHAT_WEBHOOK" ]; then
-            echo "GOOGLE_CHAT_WEBHOOK secret is not set. Skipping Google Chat notification."
-            exit 0
-          fi
+          case "$RESULT" in
+            success) STATUS="✅ Passed" ;;
+            failure) STATUS="🔴 Failed" ;;
+            cancelled) STATUS="⚪ Cancelled" ;;
+            *) STATUS="⚪ Skipped" ;;
+          esac
 
-          FAILURE_DATE=$(date -u +"%d-%m-%Y")
-
+          # Reply in the thread named by the payload's threadKey, or start it if it doesn't exist yet.
+          # Without this option Google Chat ignores the threadKey and starts a new thread each time.
+          case "$GOOGLE_CHAT_WEBHOOK" in
+            *\?*) WEBHOOK_URL="${GOOGLE_CHAT_WEBHOOK}&messageReplyOption=REPLY_MESSAGE_FALLBACK_TO_NEW_THREAD" ;;
+            *) WEBHOOK_URL="${GOOGLE_CHAT_WEBHOOK}?messageReplyOption=REPLY_MESSAGE_FALLBACK_TO_NEW_THREAD" ;;
+          esac
           jq -n \
+            --arg thread_key "$THREAD_KEY" \
+            --arg status "$STATUS" \
+            --arg date "$(date -u +"%d-%m-%Y")" \
+            --arg image "$CARD_IMAGE" \
             --arg run_number "$RUN_NUMBER" \
             --arg commit "${COMMIT:0:8}" \
             --arg workflow_url "$WORKFLOW_URL" \
-            --arg failure_date "$FAILURE_DATE" \
             '{
+              "thread": {"threadKey": $thread_key},
               "cards": [{
                 "header": {
-                  "title": "🔴 JavaScript SDKs E2E Failed",
-                  "subtitle": ("Nightly - " + $failure_date),
-                  "imageUrl": "https://raw.githubusercontent.com/github/explore/main/topics/javascript/javascript.png",
+                  "title": $status,
+                  "subtitle": ("Nightly - " + $date),
+                  "imageUrl": $image,
                   "imageStyle": "AVATAR"
                 },
                 "sections": [
@@ -72,24 +169,15 @@ jobs:
                   },
                   {
                     "widgets": [
-                      {
-                        "buttons": [
-                          {
-                            "textButton": {
-                              "text": "VIEW WORKFLOW RUN",
-                              "onClick": {"openLink": {"url": $workflow_url}}
-                            }
-                          }
-                        ]
-                      }
+                      {"buttons": [{"textButton": {"text": "VIEW WORKFLOW RUN", "onClick": {"openLink": {"url": $workflow_url}}}}]}
                     ]
                   }
                 ]
               }]
-            }' > payload.json
+            }' > result.json
 
-          if curl -f -X POST -H "Content-Type: application/json" -d @payload.json "$GOOGLE_CHAT_WEBHOOK"; then
-            echo "✅ Google Chat notification sent successfully"
+          if curl -fsS -X POST -H "Content-Type: application/json" -d @result.json "$WEBHOOK_URL" > /dev/null; then
+            echo "✅ Posted \"$STATUS\" to the $THREAD_KEY thread"
           else
             echo "⚠️ Failed to send Google Chat notification"
           fi
