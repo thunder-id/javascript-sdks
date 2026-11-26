@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * quickstarts/browser Page Object — vanilla JS + @thunderid/browser, redirect flow.
+ * quickstarts/quickstart-browser Page Object — vanilla JS + @thunderid/browser, redirect flow.
  * Custom hand-built markup (not the shared component library), so its own selectors: see
- * thunder-id/samples quickstarts/browser/src/components/nav.js and src/pages/home.js.
+ * thunder-id/samples quickstarts/quickstart-browser/src/components/nav.js and src/pages/home.js.
  */
 
 import {Page, expect} from '@playwright/test';
@@ -72,7 +72,7 @@ export class BrowserQuickstartPage extends GateLoginPage {
 
   /** Opens the "Manage Account" page (src/pages/account.js) via the nav dropdown, then switches
    * to its Personal info tab — the account page lands on the Home tab first, same as
-   * react/quickstarts/vue's own Account page. Replaces the old "Manage Profile" popup; the field
+   * the React and Vue quickstarts' own Account page. Replaces the old "Manage Profile" popup; the field
    * rendering/editing logic that used to back that popup (src/components/profileDialog.js) was
    * kept and repurposed to feed this page's Personal info tab instead (renamed to
    * profileFields.js). */

@@ -4,7 +4,7 @@
 /**
  * Decodes an access token's JWT payload for assertion purposes only (no signature
  * verification — the token debug pages under test do the exact same client-side decode, see
- * e.g. thunder-id/samples quickstarts/react/src/pages/TokenDebugPage.jsx's decodeJwtPart()).
+ * e.g. thunder-id/samples quickstarts/quickstart-react/src/pages/TokenDebugPage.jsx's decodeJwtPart()).
  */
 export function decodeJwtPayload(token: string): Record<string, unknown> {
   const parts = token.split('.');

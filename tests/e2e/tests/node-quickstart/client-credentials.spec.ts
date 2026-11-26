@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * quickstarts/node — a service-to-service CLI, not a browser app: it authenticates via the OAuth2
- * `client_credentials` grant (quickstarts/node/lib/AuthService.mjs in thunder-id/samples) and prints the result.
+ * quickstarts/quickstart-node — a service-to-service CLI, not a browser app: it authenticates via the OAuth2
+ * `client_credentials` grant (quickstarts/quickstart-node/lib/AuthService.mjs in thunder-id/samples) and prints the result.
  * No page to drive, so this spawns the CLI directly and asserts it exits 0 having actually
  * obtained a token, rather than being skipped from E2E coverage entirely.
  */
@@ -13,9 +13,9 @@ import path from 'node:path';
 import {test, expect} from '@playwright/test';
 import {Timeouts} from '../../constants/timeouts';
 
-const APP_DIR = path.resolve(import.meta.dirname, '../../.samples/quickstarts/node');
+const APP_DIR = path.resolve(import.meta.dirname, '../../.samples/quickstarts/quickstart-node');
 
-test.describe('quickstarts/node - client_credentials', () => {
+test.describe('quickstarts/quickstart-node - client_credentials', () => {
   test('TC001: obtains an access token and exits cleanly', async () => {
     let child: ChildProcess | undefined;
 

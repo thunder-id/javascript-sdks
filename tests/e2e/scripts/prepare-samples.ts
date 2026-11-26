@@ -103,17 +103,22 @@ try {
   const tarballs = packPackages();
 
   for (const name of QUICKSTARTS) {
-    const from = path.join(source.dir, 'quickstarts', name);
-    if (!fs.existsSync(from)) throw new Error(`quickstarts/${name} not found in ${source.dir}`);
+    const sample = `quickstart-${name}`;
+    // A samples checkout from before the quickstarts were renamed has them under their bare
+    // platform name (`quickstarts/react`), so an older THUNDERID_SAMPLES_REF still works.
+    const from = [sample, name]
+      .map((dir) => path.join(source.dir, 'quickstarts', dir))
+      .find((dir) => fs.existsSync(dir));
+    if (!from) throw new Error(`quickstarts/${sample} not found in ${source.dir}`);
 
-    const to = path.join(samplesHome, 'quickstarts', name);
+    const to = path.join(samplesHome, 'quickstarts', sample);
     fs.cpSync(from, to, {
       filter: (src) => !['node_modules', '.env', 'dist', '.next', '.nuxt', '.output'].includes(path.basename(src)),
       recursive: true,
     });
 
     overrideWithTarballs(to, tarballs);
-    console.log(`Installing quickstarts/${name} against the local SDK packages...`);
+    console.log(`Installing quickstarts/${sample} against the local SDK packages...`);
     // The samples repo's lockfile pins the published releases, which the overrides replace.
     run('npm', ['install'], to);
   }

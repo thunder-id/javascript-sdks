@@ -266,31 +266,31 @@ write_app_envs() {
     nextjs_secret=$(openssl rand -base64 32)
     nuxt_secret=$(openssl rand -base64 32)
 
-    cat > "$SAMPLES_DIR/quickstarts/browser/.env" <<EOF
+    cat > "$SAMPLES_DIR/quickstarts/quickstart-browser/.env" <<EOF
 VITE_THUNDERID_BASE_URL=https://localhost:${SERVER_PORT}
 VITE_THUNDERID_CLIENT_ID=JS_SDK_E2E_BROWSER
 EOF
 
-    cat > "$SAMPLES_DIR/quickstarts/react/.env" <<EOF
+    cat > "$SAMPLES_DIR/quickstarts/quickstart-react/.env" <<EOF
 VITE_THUNDERID_BASE_URL=https://localhost:${SERVER_PORT}
 VITE_THUNDERID_CLIENT_ID=JS_SDK_E2E_REACT
 EOF
 
-    cat > "$SAMPLES_DIR/quickstarts/vue/.env" <<EOF
+    cat > "$SAMPLES_DIR/quickstarts/quickstart-vue/.env" <<EOF
 VITE_THUNDERID_BASE_URL=https://localhost:${SERVER_PORT}
 VITE_THUNDERID_CLIENT_ID=JS_SDK_E2E_VUE
 EOF
 
-    cat > "$SAMPLES_DIR/quickstarts/express/.env" <<EOF
+    cat > "$SAMPLES_DIR/quickstarts/quickstart-express/.env" <<EOF
 THUNDERID_BASE_URL=https://localhost:${SERVER_PORT}
 THUNDERID_CLIENT_ID=JS_SDK_E2E_EXPRESS
 THUNDERID_CLIENT_SECRET=e2e-express-secret
 NODE_TLS_REJECT_UNAUTHORIZED=0
 EOF
 
-    # Redirect-flow variable names per thunder-id/samples quickstarts/nextjs/scripts/prepare-dev.cjs;
+    # Redirect-flow variable names per thunder-id/samples quickstarts/quickstart-nextjs/scripts/prepare-dev.cjs;
     # native-flow vars (APPLICATION_ID, SIGN_IN_URL, SIGN_UP_URL, FLOW_SECRET) are omitted entirely.
-    cat > "$SAMPLES_DIR/quickstarts/nextjs/.env" <<EOF
+    cat > "$SAMPLES_DIR/quickstarts/quickstart-nextjs/.env" <<EOF
 NEXT_PUBLIC_THUNDERID_BASE_URL=https://localhost:${SERVER_PORT}
 NEXT_PUBLIC_THUNDERID_CLIENT_ID=JS_SDK_E2E_NEXTJS
 THUNDERID_CLIENT_SECRET=e2e-nextjs-secret
@@ -298,8 +298,8 @@ THUNDERID_SECRET=${nextjs_secret}
 NODE_TLS_REJECT_UNAUTHORIZED=0
 EOF
 
-    # Same idea per quickstarts/nuxt/scripts/prepare-dev.cjs.
-    cat > "$SAMPLES_DIR/quickstarts/nuxt/.env" <<EOF
+    # Same idea per quickstarts/quickstart-nuxt/scripts/prepare-dev.cjs.
+    cat > "$SAMPLES_DIR/quickstarts/quickstart-nuxt/.env" <<EOF
 NUXT_PUBLIC_THUNDERID_BASE_URL=https://localhost:${SERVER_PORT}
 NUXT_PUBLIC_THUNDERID_CLIENT_ID=JS_SDK_E2E_NUXT
 THUNDERID_CLIENT_SECRET=e2e-nuxt-secret
@@ -310,19 +310,19 @@ EOF
 
 start_sample_apps() {
     echo "Starting sample apps..."
-    ( cd "$SAMPLES_DIR/quickstarts/browser" && npx --no-install vite --port 5173 ) &
-    ( cd "$SAMPLES_DIR/quickstarts/react" && npx --no-install vite --port 5174 ) &
-    ( cd "$SAMPLES_DIR/quickstarts/vue" && npx --no-install vite --port 5175 ) &
-    ( cd "$SAMPLES_DIR/quickstarts/nextjs" && npx --no-install next dev -p 3001 ) &
-    ( cd "$SAMPLES_DIR/quickstarts/nuxt" && npx --no-install nuxt dev --port 3002 ) &
-    ( cd "$SAMPLES_DIR/quickstarts/express" && node --env-file-if-exists=.env index.mjs ) &
+    ( cd "$SAMPLES_DIR/quickstarts/quickstart-browser" && npx --no-install vite --port 5173 ) &
+    ( cd "$SAMPLES_DIR/quickstarts/quickstart-react" && npx --no-install vite --port 5174 ) &
+    ( cd "$SAMPLES_DIR/quickstarts/quickstart-vue" && npx --no-install vite --port 5175 ) &
+    ( cd "$SAMPLES_DIR/quickstarts/quickstart-nextjs" && npx --no-install next dev -p 3001 ) &
+    ( cd "$SAMPLES_DIR/quickstarts/quickstart-nuxt" && npx --no-install nuxt dev --port 3002 ) &
+    ( cd "$SAMPLES_DIR/quickstarts/quickstart-express" && node --env-file-if-exists=.env index.mjs ) &
 
-    wait_for_url "http://localhost:5173" "quickstarts/browser"
-    wait_for_url "http://localhost:5174" "quickstarts/react"
-    wait_for_url "http://localhost:5175" "quickstarts/vue"
-    wait_for_url "http://localhost:3001" "quickstarts/nextjs"
-    wait_for_url "http://localhost:3002" "quickstarts/nuxt"
-    wait_for_url "http://localhost:3000" "quickstarts/express"
+    wait_for_url "http://localhost:5173" "quickstarts/quickstart-browser"
+    wait_for_url "http://localhost:5174" "quickstarts/quickstart-react"
+    wait_for_url "http://localhost:5175" "quickstarts/quickstart-vue"
+    wait_for_url "http://localhost:3001" "quickstarts/quickstart-nextjs"
+    wait_for_url "http://localhost:3002" "quickstarts/quickstart-nuxt"
+    wait_for_url "http://localhost:3000" "quickstarts/quickstart-express"
 }
 
 setup_env() {
@@ -340,7 +340,7 @@ setup_env() {
     export NEXTJS_APP_URL="http://localhost:3001"
     export NUXT_APP_URL="http://localhost:3002"
     export EXPRESS_APP_URL="http://localhost:3000"
-    # quickstarts/node has no page to drive — client-credentials.spec.ts spawns it directly with
+    # quickstarts/quickstart-node has no page to drive — client-credentials.spec.ts spawns it directly with
     # `env: process.env`, so its credentials just need to be in this process's environment, not a
     # .env file on disk.
     export THUNDERID_BASE_URL="https://localhost:${SERVER_PORT}"
