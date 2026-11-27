@@ -1,8 +1,9 @@
 // Copyright 2025 The ThunderID Authors
 // SPDX-License-Identifier: Apache-2.0
 
+import {renderSignInContinuePage} from '@thunderid/node';
 import type {TokenResponse} from '@thunderid/node';
-import {defineEventHandler, getQuery, getCookie, deleteCookie, sendRedirect, createError} from 'h3';
+import {defineEventHandler, getQuery, getCookie, deleteCookie, sendRedirect, createError, setResponseHeader} from 'h3';
 import type {H3Event} from 'h3';
 import ThunderIDNuxtClient from '../../../ThunderIDNuxtClient';
 import {
@@ -10,6 +11,7 @@ import {
   verifyTempSessionToken,
   getTempSessionCookieName,
   getTempSessionCookieOptions,
+  getSessionCookieOptions,
 } from '../../../utils/session';
 import {useRuntimeConfig} from '#imports';
 
@@ -18,7 +20,7 @@ import {useRuntimeConfig} from '#imports';
  *
  * Handles the OAuth2 callback from ThunderID.
  * Exchanges the authorization code for tokens,
- * creates a signed session JWT cookie,
+ * creates an encrypted session cookie,
  * and redirects to afterSignInUrl.
  */
 export default defineEventHandler(async (event: H3Event) => {
@@ -97,7 +99,7 @@ export default defineEventHandler(async (event: H3Event) => {
     });
   }
 
-  // Create signed session JWT and set cookie
+  // Create the encrypted session cookie
   try {
     await issueSessionCookie(event, sessionId, tokenResponse, sessionSecret);
     deleteCookie(event, getTempSessionCookieName(), getTempSessionCookieOptions());
@@ -112,5 +114,15 @@ export default defineEventHandler(async (event: H3Event) => {
 
   // Redirect to returnTo (from sign-in request) or configured afterSignInUrl
   const redirectUrl: string = returnTo || publicConfig.afterSignInUrl || '/';
+
+  if (getSessionCookieOptions().sameSite === 'strict') {
+    // A redirect would still belong to the identity provider's cross-site chain, so the browser would leave out the
+    // Strict session cookie just set. A page on this site moves on instead, which makes the next request same-site.
+    setResponseHeader(event, 'cache-control', 'no-store');
+    setResponseHeader(event, 'content-type', 'text/html; charset=utf-8');
+
+    return renderSignInContinuePage(redirectUrl);
+  }
+
   return sendRedirect(event, redirectUrl, 302);
 });

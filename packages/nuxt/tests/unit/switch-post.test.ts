@@ -7,6 +7,7 @@ import {getQuery, readBody, setResponseStatus} from 'h3';
 import {describe, it, expect, vi, beforeEach} from 'vitest';
 
 import switchHandler from '../../src/runtime/server/routes/auth/session/switch.post';
+import {refuseCrossSiteRequest} from '../../src/runtime/server/utils/checkBffRequest';
 import {verifyAndRehydrateSession} from '../../src/runtime/server/utils/serverSession';
 import {issueSessionCookie} from '../../src/runtime/server/utils/session';
 
@@ -32,6 +33,10 @@ vi.mock('../../src/runtime/server/ThunderIDNuxtClient', () => ({
   default: {getInstance: () => mockClientInstance},
 }));
 
+vi.mock('../../src/runtime/server/utils/checkBffRequest', () => ({
+  refuseCrossSiteRequest: vi.fn(),
+}));
+
 vi.mock('../../src/runtime/server/utils/serverSession', () => ({
   verifyAndRehydrateSession: vi.fn(),
 }));
@@ -46,6 +51,7 @@ const tokenResponse = {accessToken: 'unit-at', idToken: 'unit-id', scope: 'openi
 describe('POST /api/auth/switch', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(refuseCrossSiteRequest).mockReturnValue(undefined);
     vi.mocked(getQuery).mockReturnValue({ouId: 'ou-2'});
     vi.mocked(readBody).mockResolvedValue({ouId: 'ou-2'});
     vi.mocked(verifyAndRehydrateSession).mockResolvedValue({sessionId: 'session-1'} as any);
@@ -68,6 +74,14 @@ describe('POST /api/auth/switch', () => {
     expect(mockClientInstance.switchOrganizationUnitWithDeviceSecret).toHaveBeenCalledWith('ou-2', 'session-1');
     expect(issueSessionCookie).toHaveBeenCalledWith(event, 'session-1', tokenResponse, 'test-secret');
     expect(setResponseStatus).not.toHaveBeenCalled();
+  });
+
+  it('refuses a cross-site request before reading the session', async () => {
+    vi.mocked(refuseCrossSiteRequest).mockReturnValue({error: 'forbidden', message: 'Missing the header.'});
+
+    await expect((switchHandler as any)(event)).resolves.toEqual({error: 'forbidden', message: 'Missing the header.'});
+    expect(verifyAndRehydrateSession).not.toHaveBeenCalled();
+    expect(mockClientInstance.switchOrganizationUnitWithDeviceSecret).not.toHaveBeenCalled();
   });
 
   it('reads the unit from the body when the query has none', async () => {

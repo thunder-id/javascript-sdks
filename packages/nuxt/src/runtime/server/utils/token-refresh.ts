@@ -59,6 +59,19 @@ export async function getValidAccessToken(event: H3Event): Promise<string> {
   }
 
   // Token is expired (or within skew window). Attempt silent refresh.
+  return (await refreshServerSession(event, session)).accessToken;
+}
+
+/**
+ * Refreshes the session's tokens with its refresh token and writes the new session cookie.
+ *
+ * @returns The refreshed session.
+ * @throws A `401` error when the session holds no refresh token or the refresh fails.
+ */
+export async function refreshServerSession(
+  event: H3Event,
+  session: ThunderIDSessionPayload,
+): Promise<ThunderIDSessionPayload> {
   if (!session.refreshToken) {
     throw createError({
       statusCode: 401,
@@ -66,6 +79,7 @@ export async function getValidAccessToken(event: H3Event): Promise<string> {
     });
   }
 
+  const now: number = Math.floor(Date.now() / 1000);
   const config: ReturnType<typeof useRuntimeConfig> = useRuntimeConfig(event);
   const publicConfig: typeof config.public.thunderid = config.public.thunderid;
   const privateConfig: typeof config.thunderid = config.thunderid;
@@ -107,23 +121,23 @@ export async function getValidAccessToken(event: H3Event): Promise<string> {
   }
 
   // Re-issue session JWT with the refreshed tokens.
-  const newSessionToken: string = await createSessionToken(
-    {
-      accessToken: refreshed.access_token,
-      accessTokenExpiresAt: now + (refreshed.expires_in ?? 3600),
-      idToken: refreshed.id_token ?? session.idToken,
-      organizationId: session.organizationId,
-      refreshToken: refreshed.refresh_token ?? session.refreshToken,
-      scopes: refreshed.scope ?? session.scopes,
-      sessionId: session.sessionId,
-      sid: session.sid,
-      signedInAt: session.signedInAt ?? session.iat,
-      userId: session.sub,
-    },
-    privateConfig?.sessionSecret,
-  );
+  const refreshedSession: Parameters<typeof createSessionToken>[0] = {
+    accessToken: refreshed.access_token,
+    accessTokenExpiresAt: now + (refreshed.expires_in ?? 3600),
+    idToken: refreshed.id_token ?? session.idToken,
+    organizationId: session.organizationId,
+    refreshToken: refreshed.refresh_token ?? session.refreshToken,
+    scopes: refreshed.scope ?? session.scopes,
+    sessionId: session.sessionId,
+    sid: session.sid,
+    signedInAt: session.signedInAt ?? session.iat,
+    userId: session.sub,
+  };
+  const newSessionToken: string = await createSessionToken(refreshedSession, privateConfig?.sessionSecret);
 
   setChunkedCookie(event, getSessionCookieName(), newSessionToken, getSessionCookieOptions());
 
-  return refreshed.access_token;
+  const {userId, ...claims} = refreshedSession;
+
+  return {...session, ...claims, sub: userId} as ThunderIDSessionPayload;
 }

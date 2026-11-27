@@ -26,9 +26,14 @@ export interface SessionCookieConfig {
   expiryTime?: number;
   /** Whether the cookie is inaccessible to JavaScript. Default: `true`. */
   httpOnly?: boolean;
-  /** SameSite policy. Default: `'lax'`. */
+  /**
+   * `SameSite` of the session cookie. Default: `'strict'`, as RFC 10017 recommends for a BFF, or the value of
+   * `THUNDERID_SESSION_COOKIE_SAME_SITE`. With `'lax'` the browser also sends the session cookie when the user follows
+   * a link from another site, so such a link lands signed in. It then relies on the BFF's request checks alone against
+   * cross-site request forgery, and logs a warning. The cookie that carries a sign-in in progress is always `'lax'`.
+   */
   sameSite?: 'lax' | 'strict' | 'none';
-  /** Whether the cookie requires HTTPS. Default: `false` (dev-friendly). */
+  /** Whether the cookie requires HTTPS. Default: `true` when `NODE_ENV` is `production`, otherwise `false`. A Secure cookie also gets the `__Host-` prefix, unless `name` is set. */
   secure?: boolean;
   /**
    * Full override of the cookie name. If not set, derived from `vendor`.

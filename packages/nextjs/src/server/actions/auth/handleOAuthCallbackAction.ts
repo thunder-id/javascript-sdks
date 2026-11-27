@@ -5,6 +5,7 @@
 
 import {cookies} from 'next/headers';
 import {ThunderIDNextConfig} from '../../../models/config';
+import {toCookieDeletion} from '../../../utils/chunkedCookie';
 import logger from '../../../utils/logger';
 import SessionManager from '../../../utils/SessionManager';
 import setSessionCookie from '../../../utils/setSessionCookie';
@@ -93,7 +94,9 @@ const handleOAuthCallbackAction = async (
       try {
         await setSessionCookie(thunderIDClient, cookieStore, sessionId, signInResult, config);
 
-        cookieStore.delete(SessionManager.getTempSessionCookieName());
+        cookieStore.delete(
+          toCookieDeletion(SessionManager.getTempSessionCookieName(), SessionManager.getTempSessionCookieOptions()),
+        );
       } catch (error) {
         logger.error(
           `[handleOAuthCallbackAction] Failed to create JWT session, continuing with legacy session:

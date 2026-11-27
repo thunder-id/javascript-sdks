@@ -41,7 +41,10 @@ const setSessionCookie = async (
     expiresIn,
     refreshToken,
     organizationId,
-    {sid: typeof idToken['sid'] === 'string' ? idToken['sid'] : undefined},
+    {
+      idToken: (tokens['id_token'] ?? tokens['idToken']) as string | undefined,
+      sid: typeof idToken['sid'] === 'string' ? idToken['sid'] : undefined,
+    },
   );
 
   setChunkedCookie(

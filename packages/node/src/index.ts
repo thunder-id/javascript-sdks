@@ -73,6 +73,17 @@ export {
   type ManagementCollectionKey,
 } from './utils/managementCollections';
 export {default as getSessionCookieOptions} from './utils/getSessionCookieOptions';
+export {default as SessionCookie, SessionCookieError} from './utils/SessionCookie';
+export type {SessionCookieClaims, SessionCookieErrorCode} from './utils/SessionCookie';
+export {default as resolveSessionSecret, SESSION_SECRET_ENV} from './utils/resolveSessionSecret';
+export {
+  default as resolveSessionCookieSameSite,
+  SESSION_COOKIE_SAME_SITE_ENV,
+} from './utils/resolveSessionCookieSameSite';
+export type {SessionCookieSameSite} from './utils/resolveSessionCookieSameSite';
+
+// BFF contract
+export * from './bff';
 export {default as parseUpdateMeAgentRequest} from './utils/parseUpdateMeAgentRequest';
 
 // Re-export everything from the JavaScript SDK

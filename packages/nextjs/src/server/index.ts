@@ -15,3 +15,6 @@ export {default as createRouteMatcher} from './proxy/createRouteMatcher';
 
 export {default as backchannelLogout} from './backchannelLogout';
 export type {BackchannelLogoutOptions} from './backchannelLogout';
+
+export {default as thunderIDBff} from './bff';
+export type {ThunderIDBffOptions} from './bff';

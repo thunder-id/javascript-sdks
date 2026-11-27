@@ -19,6 +19,7 @@ const encode = (part: Record<string, unknown>): string => Buffer.from(JSON.strin
 const ID_TOKEN = `${encode({alg: 'none'})}.${encode({sid: 'server-session-1', sub: 'user-1'})}.`;
 
 interface MockResponse {
+  clearCookie: ReturnType<typeof vi.fn>;
   cookie: ReturnType<typeof vi.fn>;
   end: ReturnType<typeof vi.fn>;
   redirect: ReturnType<typeof vi.fn>;
@@ -30,7 +31,7 @@ describe('authorization details through the Express middleware', () => {
   let client: ThunderIDExpressClient;
 
   const newResponse = (): MockResponse => {
-    const res: MockResponse = {cookie: vi.fn(), end: vi.fn(), redirect: vi.fn(), status: vi.fn()};
+    const res: MockResponse = {clearCookie: vi.fn(), cookie: vi.fn(), end: vi.fn(), redirect: vi.fn(), status: vi.fn()};
 
     res.status.mockReturnValue(res);
 
@@ -135,10 +136,51 @@ describe('authorization details through the Express middleware', () => {
     );
 
     expect(onSignIn).toHaveBeenCalledTimes(1);
+    // Sign-in starts with the Lax sign-in cookie, and only a completed sign-in sets the Strict session cookie.
+    expect(cookieName).toBe('thunderid-session-state');
+    expect(callback.cookie).toHaveBeenCalledWith(
+      'thunderid-session',
+      sessionId,
+      expect.objectContaining({sameSite: 'strict'}),
+    );
+    expect(callback.clearCookie).toHaveBeenCalledWith(
+      'thunderid-session-state',
+      expect.objectContaining({sameSite: 'lax'}),
+    );
 
     const tokenResponse = onSignIn.mock.calls[0][1] as TokenResponse;
 
     expect(tokenResponse.accessToken).toBe('access-1');
     expect(tokenResponse.authorizationDetails).toEqual(AUTHORIZATION_DETAILS);
+  });
+
+  it("answers onSignIn's redirect with a page that moves on, so the Strict session cookie is sent", async () => {
+    const config: Partial<ThunderIDExpressConfig> = {onSignIn: (r: express.Response) => r.redirect('/home')};
+    const start = newResponse();
+
+    await signIn(config, newRequest(), start);
+
+    const [cookieName, sessionId] = start.cookie.mock.calls[0] as [string, string];
+    const state = redirectedTo(start).searchParams.get('state')!;
+
+    fetchMock.mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({access_token: 'access-1', expires_in: '3600', id_token: ID_TOKEN, token_type: 'Bearer'}),
+        {headers: {'Content-Type': 'application/json'}, status: 200},
+      ),
+    );
+
+    const callback = Object.assign(newResponse(), {send: vi.fn(), set: vi.fn()});
+
+    callback.set.mockReturnValue(callback);
+
+    await handleSignIn()(
+      Object.assign(newRequest({code: 'auth-code', state}, {[cookieName]: sessionId}), {thunderIDAuth: client}),
+      callback as unknown as express.Response,
+      vi.fn(),
+    );
+
+    expect(callback.status).toHaveBeenCalledWith(200);
+    expect(callback.send).toHaveBeenCalledWith(expect.stringContaining('content="0;url=/home"'));
   });
 });

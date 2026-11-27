@@ -30,9 +30,11 @@ export default defineEventHandler(async (event: H3Event): Promise<ThunderIDAuthS
     const client: ThunderIDNuxtClient = ThunderIDNuxtClient.getInstance();
     const user: Awaited<ReturnType<ThunderIDNuxtClient['getUser']>> = await client.getUser(session.sessionId);
     return {
+      expiresAt: session.accessTokenExpiresAt ?? session.exp,
       isLoading: false,
       isSignedIn: true,
       organizationId: session.organizationId,
+      scope: session.scopes,
       scopes: session.scopes,
       user,
     };

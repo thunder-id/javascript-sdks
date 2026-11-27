@@ -1,7 +1,7 @@
 // Copyright 2025 The ThunderID Authors
 // SPDX-License-Identifier: Apache-2.0
 
-import {VendorConstants} from '@thunderid/node';
+import {SessionCookie, VendorConstants} from '@thunderid/node';
 import type {FlowMetadataResponse} from '@thunderid/node';
 import {getRequestURL, type H3Event} from 'h3';
 import {defineNitroPlugin} from 'nitropack/runtime';
@@ -80,14 +80,15 @@ export default defineNitroPlugin((nitro: {hooks: {hook: Function}}) => {
       }
 
       // Enforce session secret strictness at server runtime (not at build time).
-      // In production the cookie must be signed with a real secret; in dev we
+      // In production the cookie must be encrypted with a real secret; in dev we
       // allow a warning + fallback so local development is frictionless.
-      const sessionSecret: string | undefined = process.env.THUNDERID_SESSION_SECRET || privateConfig?.sessionSecret;
-      if (!sessionSecret) {
+      // The same order the cookie code uses: the module's `sessionSecret`, then the environment variable.
+      const sessionSecret: string | undefined = privateConfig?.sessionSecret || process.env.THUNDERID_SESSION_SECRET;
+      if (!SessionCookie.isUsableSecret(sessionSecret)) {
         if (process.env.NODE_ENV === 'production') {
           log.error(
-            'THUNDERID_SESSION_SECRET is required in production. Set it to a secure ' +
-              'random string of at least 32 characters. Refusing to initialize ThunderID client.',
+            'THUNDERID_SESSION_SECRET is required in production, and must be at least 32 bytes. ' +
+              'Set it to a secure random value. Refusing to initialize ThunderID client.',
           );
           return;
         }
@@ -126,7 +127,7 @@ export default defineNitroPlugin((nitro: {hooks: {hook: Function}}) => {
     const config: ReturnType<typeof useRuntimeConfig> = useRuntimeConfig(event);
     const publicConfig: ThunderIDNuxtConfig = config.public.thunderid as ThunderIDNuxtConfig;
     const prefs: ThunderIDNuxtConfig['preferences'] | undefined = publicConfig?.preferences;
-    const sessionSecret: string | undefined = process.env.THUNDERID_SESSION_SECRET || config.thunderid?.sessionSecret;
+    const sessionSecret: string | undefined = config.thunderid?.sessionSecret || process.env.THUNDERID_SESSION_SECRET;
     // Vendor namespace for `event.context[vendor]` — must match the key the
     // Nuxt plugin (`runtime/plugins/thunderid.ts`) reads from.
     const vendor: string = publicConfig?.vendor ?? VendorConstants.VENDOR_PREFIX;

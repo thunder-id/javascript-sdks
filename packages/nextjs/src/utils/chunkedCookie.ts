@@ -1,13 +1,13 @@
 // Copyright 2025 The ThunderID Authors
 // SPDX-License-Identifier: Apache-2.0
 
-import {CookieChunking} from '@thunderid/node';
+import {CookieChunking, SessionCookieSameSite} from '@thunderid/node';
 
 export interface ChunkedCookieOptions {
   httpOnly: boolean;
   maxAge: number;
   path: string;
-  sameSite: 'lax';
+  sameSite: SessionCookieSameSite;
   secure: boolean;
 }
 
@@ -17,8 +17,21 @@ export interface ChunkedCookieReader {
 }
 
 /** Minimal shape shared by `cookies()` (next/headers) and `NextResponse.cookies`. */
+/**
+ * What a deletion repeats of the cookie's attributes. A browser ignores a deletion of a `__Host-` cookie
+ * that is not `Secure` with `Path=/`. `maxAge` is left out: it would override the deletion's `Expires`.
+ */
+export type CookieDeletion = {name: string} & Omit<ChunkedCookieOptions, 'maxAge'>;
+
+/**
+ * The attributes a deletion of a cookie set with `options` repeats.
+ */
+export function toCookieDeletion(name: string, options: ChunkedCookieOptions): CookieDeletion {
+  return {httpOnly: options.httpOnly, name, path: options.path, sameSite: options.sameSite, secure: options.secure};
+}
+
 export interface ChunkedCookieWriter {
-  delete(name: string): void;
+  delete(cookie: CookieDeletion): void;
   getAll(): {name: string}[];
   set(name: string, value: string, options: ChunkedCookieOptions): void;
 }
@@ -59,7 +72,7 @@ export function setChunkedCookie(
 
   for (const existingName of existing) {
     if (!newNames.has(existingName)) {
-      store.delete(existingName);
+      store.delete(toCookieDeletion(existingName, options));
     }
   }
 
@@ -72,18 +85,18 @@ export function setChunkedCookie(
  * Delete a cookie that may have been chunked — clears the base cookie name
  * and every numbered chunk present in `store`.
  */
-export function deleteChunkedCookie(store: ChunkedCookieWriter, name: string): void {
+export function deleteChunkedCookie(store: ChunkedCookieWriter, name: string, options: ChunkedCookieOptions): void {
   const existing: string[] = CookieChunking.filterChunkNames(
     name,
     store.getAll().map((cookie: {name: string}) => cookie.name),
   );
 
   if (existing.length === 0) {
-    store.delete(name);
+    store.delete(toCookieDeletion(name, options));
     return;
   }
 
   for (const existingName of existing) {
-    store.delete(existingName);
+    store.delete(toCookieDeletion(existingName, options));
   }
 }

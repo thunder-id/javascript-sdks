@@ -10,6 +10,7 @@ import {
 } from '@thunderid/browser';
 import {useThunderID as useThunderIDVue, type ThunderIDContext} from '@thunderid/vue';
 import type {Ref} from 'vue';
+import bffRequestHeaders from '../constants/bffRequestHeaders';
 import NuxtAPIRoutes from '../constants/NuxtAPIRoutes';
 import type {ThunderIDAuthState} from '../types';
 
@@ -101,7 +102,9 @@ export function useThunderID(): ThunderIDContext {
       if (res.data?.afterSignInUrl) {
         if (import.meta.client) {
           try {
-            const session: ThunderIDAuthState = await $fetch<ThunderIDAuthState>(NuxtAPIRoutes.SESSION);
+            const session: ThunderIDAuthState = await $fetch<ThunderIDAuthState>(NuxtAPIRoutes.SESSION, {
+              headers: bffRequestHeaders,
+            });
             const authState: Ref<ThunderIDAuthState> = useState<ThunderIDAuthState>('thunderid:auth');
             authState.value = session;
           } catch {
@@ -127,7 +130,10 @@ export function useThunderID(): ThunderIDContext {
   };
 
   const signOut = async (): Promise<void> => {
-    const res: {redirectUrl: string} = await $fetch<{redirectUrl: string}>(NuxtAPIRoutes.SIGN_OUT, {method: 'POST'});
+    const res: {redirectUrl: string} = await $fetch<{redirectUrl: string}>(NuxtAPIRoutes.SIGN_OUT, {
+      headers: bffRequestHeaders,
+      method: 'POST',
+    });
     await navigateTo(res.redirectUrl || '/', {external: true});
   };
 

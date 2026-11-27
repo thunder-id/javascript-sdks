@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import {CookieChunking} from '@thunderid/node';
+import type {SessionCookieSameSite} from '@thunderid/node';
 import {deleteCookie, getCookie, parseCookies, setCookie} from 'h3';
 import type {H3Event} from 'h3';
 
@@ -9,7 +10,7 @@ interface ChunkedCookieOptions {
   httpOnly: boolean;
   maxAge: number;
   path: string;
-  sameSite: 'lax';
+  sameSite: SessionCookieSameSite;
   secure: boolean;
 }
 

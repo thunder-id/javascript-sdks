@@ -6,6 +6,7 @@ import {defineEventHandler, getQuery, readBody, setResponseStatus} from 'h3';
 import type {H3Event} from 'h3';
 import type {ThunderIDAuthState} from '../../../../types';
 import ThunderIDNuxtClient from '../../../ThunderIDNuxtClient';
+import {refuseCrossSiteRequest} from '../../../utils/checkBffRequest';
 import {verifyAndRehydrateSession} from '../../../utils/serverSession';
 import {issueSessionCookie} from '../../../utils/session';
 import {useRuntimeConfig} from '#imports';
@@ -23,6 +24,12 @@ import {useRuntimeConfig} from '#imports';
  * error says the user has to.
  */
 export default defineEventHandler(async (event: H3Event): Promise<ThunderIDAuthState | {error: string}> => {
+  const refusal: {error: string; message: string} | undefined = refuseCrossSiteRequest(event);
+
+  if (refusal) {
+    return refusal;
+  }
+
   const config: ReturnType<typeof useRuntimeConfig> = useRuntimeConfig();
   const sessionSecret: string | undefined = config.thunderid?.sessionSecret;
 

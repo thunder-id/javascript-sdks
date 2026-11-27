@@ -40,7 +40,7 @@ export interface StrictExpressClientConfig {
  *
  * Inherits `vendor` and `sessionCookie.name` from `ThunderIDNodeConfig` — set
  * either to control the session cookie name written by this SDK (default:
- * `__thunderid__session`, the same `@thunderid/node` `CookieConfig` naming
+ * `thunderid-session`, the same `@thunderid/node` `CookieConfig` naming
  * convention used by every server-side ThunderID SDK, derived from `vendor`
  * defaulting to `'thunderid'`). `sessionCookie.name` takes priority over the
  * `vendor`-derived default.

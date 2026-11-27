@@ -276,7 +276,7 @@ export const CAPABILITIES: Capability[] = [
 
       const missing: string[] = [
         config.clientId && !config.clientSecretSet ? 'THUNDERID_CLIENT_SECRET' : '',
-        config.sessionSecretSet ? '' : 'THUNDERID_SECRET',
+        config.sessionSecretSet ? '' : 'THUNDERID_SESSION_SECRET',
       ].filter(Boolean);
 
       return pass(

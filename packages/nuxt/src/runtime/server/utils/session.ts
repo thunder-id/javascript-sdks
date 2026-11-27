@@ -1,40 +1,33 @@
 // Copyright 2025 The ThunderID Authors
 // SPDX-License-Identifier: Apache-2.0
 
-import {CookieConfig} from '@thunderid/node';
-import type {IdToken, TokenResponse} from '@thunderid/node';
+import {CookieConfig, SessionCookie, resolveSessionCookieSameSite, resolveSessionSecret} from '@thunderid/node';
+import type {IdToken, SessionCookieSameSite, TokenResponse} from '@thunderid/node';
 import type {H3Event} from 'h3';
-import {SignJWT, jwtVerify} from 'jose';
 import type {ThunderIDSessionPayload} from '../../types';
 import {setChunkedCookie} from './chunkedCookie';
 
 const DEFAULT_EXPIRY_SECONDS = 3600;
 
+const TEMP_SESSION_TTL_SECONDS = 15 * 60;
+
 /**
- * Get the signing secret from environment or runtime config.
+ * The secret the session cookies are encrypted with: the module's `sessionSecret`, or
+ * `THUNDERID_SESSION_SECRET`. Throws in production when neither is set or the secret is shorter than 32 bytes.
  */
-function getSecret(sessionSecret?: string): Uint8Array {
-  const secret: string | undefined = sessionSecret || process.env.THUNDERID_SESSION_SECRET;
-
-  if (!secret) {
-    if (process.env.NODE_ENV === 'production') {
-      throw new Error(
-        '[thunderid] THUNDERID_SESSION_SECRET environment variable is required in production. ' +
-          'Set it to a secure random string of at least 32 characters.',
-      );
-    }
-    // eslint-disable-next-line no-console
-    console.warn(
-      '[thunderid] Using default session secret for development. Set THUNDERID_SESSION_SECRET for production.',
-    );
-    return new TextEncoder().encode('thunderid-dev-secret-not-for-production');
-  }
-
-  return new TextEncoder().encode(secret);
+function getSecret(sessionSecret?: string): string {
+  return resolveSessionSecret({configured: sessionSecret, sdk: 'nuxt'});
 }
 
 /**
- * Create a signed JWT session token.
+ * Whether the session cookies are `Secure`, and so carry the `__Host-` prefix.
+ */
+function isSecure(): boolean {
+  return process.env.NODE_ENV === 'production';
+}
+
+/**
+ * Create a session cookie value, encrypted in the BFF contract's session cookie format.
  */
 export async function createSessionToken(
   params: {
@@ -57,37 +50,33 @@ export async function createSessionToken(
   },
   sessionSecret?: string,
 ): Promise<string> {
-  const secret: Uint8Array = getSecret(sessionSecret);
-
-  return new SignJWT({
-    accessToken: params.accessToken,
-    accessTokenExpiresAt: params.accessTokenExpiresAt,
-    idToken: params.idToken,
-    organizationId: params.organizationId,
-    refreshToken: params.refreshToken,
-    scopes: params.scopes,
-    sessionId: params.sessionId,
-    sid: params.sid,
-    signedInAt: params.signedInAt ?? Math.floor(Date.now() / 1000),
-    type: 'session',
-  } as Omit<ThunderIDSessionPayload, 'sub' | 'iat' | 'exp'>)
-    .setProtectedHeader({alg: 'HS256'})
-    .setSubject(params.userId)
-    .setIssuedAt()
-    .setExpirationTime(Date.now() / 1000 + (params.expirySeconds ?? DEFAULT_EXPIRY_SECONDS))
-    .sign(secret);
+  return SessionCookie.seal(
+    {
+      accessToken: params.accessToken,
+      accessTokenExpiresAt: params.accessTokenExpiresAt,
+      idToken: params.idToken,
+      organizationId: params.organizationId,
+      refreshToken: params.refreshToken,
+      scopes: params.scopes,
+      sessionId: params.sessionId,
+      sid: params.sid,
+      signedInAt: params.signedInAt ?? Math.floor(Date.now() / 1000),
+      sub: params.userId,
+      type: 'session',
+    } as Omit<ThunderIDSessionPayload, 'iat' | 'exp'>,
+    getSecret(sessionSecret),
+    Math.floor(Date.now() / 1000) + (params.expirySeconds ?? DEFAULT_EXPIRY_SECONDS),
+  );
 }
 
 /**
- * Create a signed JWT temp session token (used during OAuth flow).
+ * Create the temporary session cookie value used during the OAuth flow, encrypted like the session cookie.
  */
 export async function createTempSessionToken(
   sessionId: string,
   sessionSecret?: string,
   returnTo?: string,
 ): Promise<string> {
-  const secret: Uint8Array = getSecret(sessionSecret);
-
   const payload: Record<string, unknown> = {
     sessionId,
     type: 'temp',
@@ -97,27 +86,37 @@ export async function createTempSessionToken(
     payload.returnTo = returnTo;
   }
 
-  return new SignJWT(payload).setProtectedHeader({alg: 'HS256'}).setIssuedAt().setExpirationTime('15m').sign(secret);
+  return SessionCookie.seal(
+    payload,
+    getSecret(sessionSecret),
+    Math.floor(Date.now() / 1000) + TEMP_SESSION_TTL_SECONDS,
+  );
 }
 
 /**
- * Verify and decode a session JWT.
+ * Decrypt a session cookie value. Throws when it is not a session cookie made with this secret, or has expired.
  */
 export async function verifySessionToken(token: string, sessionSecret?: string): Promise<ThunderIDSessionPayload> {
-  const secret: Uint8Array = getSecret(sessionSecret);
-  const {payload} = await jwtVerify(token, secret);
-  return payload as ThunderIDSessionPayload;
+  const payload: ThunderIDSessionPayload = await SessionCookie.unseal<ThunderIDSessionPayload>(
+    token,
+    getSecret(sessionSecret),
+  );
+
+  if (payload.type !== 'session') {
+    throw new Error('Invalid token type: expected session');
+  }
+
+  return payload;
 }
 
 /**
- * Verify and decode a temp session JWT.
+ * Decrypt a temporary session cookie value.
  */
 export async function verifyTempSessionToken(
   token: string,
   sessionSecret?: string,
 ): Promise<{returnTo?: string; sessionId: string}> {
-  const secret: Uint8Array = getSecret(sessionSecret);
-  const {payload} = await jwtVerify(token, secret);
+  const payload: Record<string, unknown> = await SessionCookie.unseal(token, getSecret(sessionSecret));
 
   if (payload.type !== 'temp') {
     throw new Error('Invalid token type: expected temp session');
@@ -133,14 +132,14 @@ export async function verifyTempSessionToken(
  * Session cookie name.
  */
 export function getSessionCookieName(vendor?: string): string {
-  return CookieConfig.getSessionCookieName(vendor);
+  return CookieConfig.withHostPrefix(CookieConfig.getSessionCookieName(vendor), isSecure());
 }
 
 /**
  * Temp session cookie name.
  */
 export function getTempSessionCookieName(vendor?: string): string {
-  return CookieConfig.getTempSessionCookieName(vendor);
+  return CookieConfig.withHostPrefix(CookieConfig.getTempSessionCookieName(vendor), isSecure());
 }
 
 /**
@@ -150,35 +149,39 @@ interface SessionCookieOptions {
   httpOnly: boolean;
   maxAge: number;
   path: string;
-  sameSite: 'lax';
+  sameSite: SessionCookieSameSite;
   secure: boolean;
 }
 
+/**
+ * Session cookie options. `SameSite` is `Strict` unless `THUNDERID_SESSION_COOKIE_SAME_SITE` says otherwise.
+ */
 export function getSessionCookieOptions(): SessionCookieOptions {
   return {
     httpOnly: true,
     maxAge: DEFAULT_EXPIRY_SECONDS,
     path: '/',
-    sameSite: 'lax' as const,
-    secure: process.env.NODE_ENV === 'production',
+    sameSite: resolveSessionCookieSameSite(),
+    secure: isSecure(),
   };
 }
 
 /**
- * Temp session cookie options (15 min TTL).
+ * Options of the cookie that carries a sign-in in progress (15 min TTL). It is `Lax` whatever the session cookie is,
+ * so it comes back on the redirect to the callback.
  */
 export function getTempSessionCookieOptions(): SessionCookieOptions {
   return {
     httpOnly: true,
-    maxAge: 15 * 60,
+    maxAge: TEMP_SESSION_TTL_SECONDS,
     path: '/',
     sameSite: 'lax' as const,
-    secure: process.env.NODE_ENV === 'production',
+    secure: isSecure(),
   };
 }
 
 /**
- * Decode a token response into a signed session JWT and write it as the
+ * Decode a token response into an encrypted session token and write it as the
  * session cookie on the H3 event.
  *
  * Extracted from the inline blocks in `callback.get.ts` and

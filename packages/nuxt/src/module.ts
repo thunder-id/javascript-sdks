@@ -197,6 +197,10 @@ export default defineNuxtModule<ThunderIDNuxtConfig>({
       // ── Session / token ───────────────────────────────────────────────
       {handler: resolve('./runtime/server/routes/auth/session/session.get'), route: NuxtAPIRoutes.SESSION},
       {handler: resolve('./runtime/server/routes/auth/session/token.get'), route: NuxtAPIRoutes.TOKEN},
+      // ── BFF contract endpoints for `backend`-mode apps ──────────────────
+      {handler: resolve('./runtime/server/routes/auth/session/bff'), route: NuxtAPIRoutes.CHECK_SESSION},
+      {handler: resolve('./runtime/server/routes/auth/session/bff'), route: NuxtAPIRoutes.REFRESH},
+      {handler: resolve('./runtime/server/routes/auth/session/bff'), route: `${NuxtAPIRoutes.PROXY}/**`},
       {handler: resolve('./runtime/server/routes/auth/session/meta.get'), route: NuxtAPIRoutes.META},
       // ── User ──────────────────────────────────────────────────────────
       {handler: resolve('./runtime/server/routes/auth/user/user.get'), route: NuxtAPIRoutes.USER},

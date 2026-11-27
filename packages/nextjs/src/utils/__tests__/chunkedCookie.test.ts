@@ -2,7 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import {describe, it, expect} from 'vitest';
-import {ChunkedCookieOptions, deleteChunkedCookie, getChunkedCookie, setChunkedCookie} from '../chunkedCookie';
+import {
+  ChunkedCookieOptions,
+  CookieDeletion,
+  deleteChunkedCookie,
+  getChunkedCookie,
+  setChunkedCookie,
+} from '../chunkedCookie';
 
 const OPTIONS: ChunkedCookieOptions = {httpOnly: true, maxAge: 3600, path: '/', sameSite: 'lax', secure: false};
 
@@ -10,8 +16,11 @@ const OPTIONS: ChunkedCookieOptions = {httpOnly: true, maxAge: 3600, path: '/', 
 class FakeCookieJar {
   private readonly jar = new Map<string, string>();
 
-  delete(name: string): void {
-    this.jar.delete(name);
+  readonly deletions: CookieDeletion[] = [];
+
+  delete(cookie: CookieDeletion): void {
+    this.deletions.push(cookie);
+    this.jar.delete(cookie.name);
   }
 
   get(name: string): {value: string} | undefined {
@@ -85,7 +94,7 @@ describe('deleteChunkedCookie', () => {
     const jar = new FakeCookieJar();
     setChunkedCookie(jar, 'session', 'small-value', OPTIONS);
 
-    deleteChunkedCookie(jar, 'session');
+    deleteChunkedCookie(jar, 'session', OPTIONS);
 
     expect(jar.getAll()).toEqual([]);
   });
@@ -95,13 +104,26 @@ describe('deleteChunkedCookie', () => {
     setChunkedCookie(jar, 'session', 'z'.repeat(12_000), OPTIONS);
     expect(jar.getAll().length).toBeGreaterThan(1);
 
-    deleteChunkedCookie(jar, 'session');
+    deleteChunkedCookie(jar, 'session', OPTIONS);
 
     expect(jar.getAll()).toEqual([]);
   });
 
   it('is a no-op-safe call when nothing is present', () => {
     const jar = new FakeCookieJar();
-    expect(() => deleteChunkedCookie(jar, 'session')).not.toThrow();
+    expect(() => deleteChunkedCookie(jar, 'session', OPTIONS)).not.toThrow();
+  });
+
+  it('repeats the cookie attributes but not maxAge, so a __Host- cookie is really deleted', () => {
+    const jar = new FakeCookieJar();
+    const secure: ChunkedCookieOptions = {...OPTIONS, secure: true};
+
+    setChunkedCookie(jar, '__Host-session', 'z'.repeat(12_000), secure);
+    deleteChunkedCookie(jar, '__Host-session', secure);
+
+    expect(jar.deletions.length).toBeGreaterThan(1);
+    for (const deletion of jar.deletions) {
+      expect(deletion).toEqual({httpOnly: true, name: deletion.name, path: '/', sameSite: 'lax', secure: true});
+    }
   });
 });

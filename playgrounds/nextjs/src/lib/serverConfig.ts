@@ -63,7 +63,8 @@ export const getConfigSummary = (): ConfigSummary => ({
   ),
   flowSecretSet: !!read('THUNDERID_FLOW_SECRET'),
   scopes: read('NEXT_PUBLIC_THUNDERID_SCOPES'),
-  sessionSecretSet: !!read('THUNDERID_SECRET'),
+  // THUNDERID_SECRET is the deprecated name, still read by the SDK.
+  sessionSecretSet: !!(read('THUNDERID_SESSION_SECRET') || read('THUNDERID_SECRET')),
   signInUrl: read('NEXT_PUBLIC_THUNDERID_SIGN_IN_URL'),
   signUpUrl: read('NEXT_PUBLIC_THUNDERID_SIGN_UP_URL'),
   tlsVerification: read('NODE_TLS_REJECT_UNAUTHORIZED') !== '0',

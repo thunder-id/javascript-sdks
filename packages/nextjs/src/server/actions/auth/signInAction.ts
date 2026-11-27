@@ -14,7 +14,7 @@ import {
 } from '@thunderid/node';
 import {cookies} from 'next/headers';
 import {ThunderIDNextConfig} from '../../../models/config';
-import {getChunkedCookie, setChunkedCookie} from '../../../utils/chunkedCookie';
+import {getChunkedCookie, setChunkedCookie, toCookieDeletion} from '../../../utils/chunkedCookie';
 import logger from '../../../utils/logger';
 import SessionManager, {SessionTokenPayload} from '../../../utils/SessionManager';
 import getClient from '../../getClient';
@@ -107,7 +107,9 @@ const signInAction = async (
         throw new Error('[signInAction] Flow completed without an assertion.');
       }
 
-      const idToken: IdToken = await client.getDecodedIdToken(sessionId, response.assertion);
+      const assertion: string = response.assertion as string;
+
+      const idToken: IdToken = await client.getDecodedIdToken(sessionId, assertion);
       const userIdFromToken: string = (idToken.sub as string | undefined) ?? sessionId;
       const organizationId: string | undefined = (idToken['user_org'] || idToken['organization_id']) as
         | string
@@ -123,14 +125,15 @@ const signInAction = async (
       );
 
       const sessionToken: string = await SessionManager.createSessionToken(
-        response.assertion,
+        assertion,
         userIdFromToken,
         sessionId,
         scopes,
         expiresIn,
         '',
         organizationId,
-        {sid: typeof idToken['sid'] === 'string' ? idToken['sid'] : undefined},
+        // The assertion is the ID token of an embedded sign-in.
+        {idToken: assertion, sid: typeof idToken['sid'] === 'string' ? idToken['sid'] : undefined},
       );
 
       setChunkedCookie(
@@ -140,7 +143,9 @@ const signInAction = async (
         SessionManager.getSessionCookieOptions(sessionCookieExpiryTime),
       );
 
-      cookieStore.delete(SessionManager.getTempSessionCookieName());
+      cookieStore.delete(
+        toCookieDeletion(SessionManager.getTempSessionCookieName(), SessionManager.getTempSessionCookieOptions()),
+      );
 
       const afterSignInUrl: string = await (await client.getStorageManager()).getConfigDataParameter('afterSignInUrl');
       return {data: {afterSignInUrl: String(afterSignInUrl)}, success: true};

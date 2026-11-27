@@ -22,6 +22,7 @@ import type {H3Event} from 'h3';
 import {computed} from 'vue';
 import type {ComputedRef, Ref} from 'vue';
 import ThunderIDRoot from '../components/ThunderIDRoot';
+import bffRequestHeaders from '../constants/bffRequestHeaders';
 import NuxtAPIRoutes from '../constants/NuxtAPIRoutes';
 import type {ThunderIDAuthState, ThunderIDNuxtConfig, ThunderIDSSRData} from '../types';
 import fetchManagementFromServer from '../utils/fetchManagementFromServer';
@@ -234,7 +235,10 @@ export default defineNuxtPlugin((nuxtApp: NuxtApp) => {
   };
 
   const signOut = async (): Promise<void> => {
-    const res: {redirectUrl: string} = await $fetch<{redirectUrl: string}>(NuxtAPIRoutes.SIGN_OUT, {method: 'POST'});
+    const res: {redirectUrl: string} = await $fetch<{redirectUrl: string}>(NuxtAPIRoutes.SIGN_OUT, {
+      headers: bffRequestHeaders,
+      method: 'POST',
+    });
     await navigateTo(res.redirectUrl || '/', {external: true});
   };
 
@@ -267,7 +271,9 @@ export default defineNuxtPlugin((nuxtApp: NuxtApp) => {
 
   const getAccessToken = async (): Promise<string> => {
     try {
-      const res: {accessToken: string} = await $fetch<{accessToken: string}>(NuxtAPIRoutes.TOKEN);
+      const res: {accessToken: string} = await $fetch<{accessToken: string}>(NuxtAPIRoutes.TOKEN, {
+        headers: bffRequestHeaders,
+      });
       return res.accessToken ?? '';
     } catch {
       return '';

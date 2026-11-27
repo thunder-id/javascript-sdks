@@ -7,12 +7,16 @@ import {getQuery, sendRedirect} from 'h3';
 import {describe, it, expect, vi, beforeEach} from 'vitest';
 
 import signInHandler from '../../src/runtime/server/routes/auth/session/signin.get';
+import {createTempSessionToken} from '../../src/runtime/server/utils/session';
 
 const mockClientInstance = vi.hoisted(() => ({
   signIn: vi.fn<(...args: any[]) => Promise<any>>(),
 }));
 
-vi.mock('@thunderid/node', () => ({generateSessionId: () => 'session-new'}));
+vi.mock('@thunderid/node', async (importOriginal: () => Promise<object>) => ({
+  ...(await importOriginal()),
+  generateSessionId: () => 'session-new',
+}));
 
 vi.mock('h3', () => ({
   createError: vi.fn((opts: any) => Object.assign(new Error(opts.statusMessage), opts)),
@@ -67,5 +71,20 @@ describe('GET /api/auth/signin organization unit', () => {
       undefined,
       {},
     );
+  });
+
+  it('keeps only a returnTo that is a path on the app', async () => {
+    for (const [returnTo, kept] of [
+      ['/orders?id=1', '/orders?id=1'],
+      ['//evil.example', undefined],
+      ['/\\evil.example', undefined],
+      ['/\t/evil.example', undefined],
+    ] as const) {
+      vi.mocked(getQuery).mockReturnValue({returnTo});
+
+      await (signInHandler as any)({});
+
+      expect(createTempSessionToken).toHaveBeenLastCalledWith('session-new', 'test-secret', kept);
+    }
   });
 });
