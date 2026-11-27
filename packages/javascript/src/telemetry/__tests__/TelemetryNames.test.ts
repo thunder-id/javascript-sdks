@@ -18,6 +18,14 @@ describe('TelemetryNames', () => {
     expect(TelemetryNames.pageName('/home')).toBe('app.home-view');
   });
 
+  it('names a collection right below another as a view of the first', () => {
+    expect(TelemetryNames.pageName('/applications/types')).toBe('application.types-view');
+    expect(TelemetryNames.pageName('/organizations/:org/applications/types')).toBe('application.types-view');
+    // An id between them still makes the lower one a collection of its own.
+    expect(TelemetryNames.pageName('/projects/:project/applications')).toBe('application.list-view');
+    expect(TelemetryNames.pageName('/applications/:id/settings')).toBe('setting.list-view');
+  });
+
   it('reads plurals by English spelling, with no list of words', () => {
     expect(TelemetryNames.singular('applications')).toBe('application');
     expect(TelemetryNames.singular('policies')).toBe('policy');
