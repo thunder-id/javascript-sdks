@@ -12,7 +12,10 @@ const mockClientInstance = vi.hoisted(() => ({
   signIn: vi.fn<(...args: any[]) => Promise<any>>(),
 }));
 
-vi.mock('@thunderid/node', () => ({generateSessionId: () => 'session-new'}));
+vi.mock('@thunderid/node', async (importOriginal: () => Promise<Record<string, unknown>>) => ({
+  ...(await importOriginal()),
+  generateSessionId: () => 'session-new',
+}));
 
 vi.mock('h3', () => ({
   createError: vi.fn((opts: any) => Object.assign(new Error(opts.statusMessage), opts)),
@@ -67,5 +70,21 @@ describe('GET /api/auth/signin organization unit', () => {
       undefined,
       {},
     );
+  });
+
+  it('passes on only max_age and prompt=login to ask for a recent sign-in', async () => {
+    vi.mocked(getQuery).mockReturnValue({
+      max_age: '180',
+      prompt: 'login',
+      redirect_uri: 'https://other.example',
+      scope: 'x',
+    });
+
+    await (signInHandler as any)({});
+
+    expect(mockClientInstance.signIn).toHaveBeenCalledWith(expect.any(Function), 'session-new', undefined, undefined, {
+      max_age: '180',
+      prompt: 'login',
+    });
   });
 });

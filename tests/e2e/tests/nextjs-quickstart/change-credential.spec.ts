@@ -50,7 +50,7 @@ test.describe('nextjs/quickstart - Change credential', () => {
     await nextjsQuickstartPage.openSecurityTab();
 
     try {
-      await nextjsQuickstartPage.changeCredential('Change password', tempPassword);
+      await nextjsQuickstartPage.changeCredential('Change password', password, tempPassword);
 
       // Prove the change landed server-side, not just that the UI collapsed the form: sign
       // out and back in using the new password.
@@ -78,7 +78,7 @@ test.describe('nextjs/quickstart - Change credential', () => {
         await nextjsQuickstartPage.verifyLoggedIn();
       }
       await nextjsQuickstartPage.openSecurityTab();
-      await nextjsQuickstartPage.changeCredential('Change password', password);
+      await nextjsQuickstartPage.changeCredential('Change password', tempPassword, password);
     }
 
     // The restore itself also has to have actually worked, or the next test to sign in with

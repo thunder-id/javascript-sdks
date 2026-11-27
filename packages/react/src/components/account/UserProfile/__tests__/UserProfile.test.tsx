@@ -12,6 +12,13 @@ import UserProfile, {UserProfileProps} from '../UserProfile';
 
 const mockExecute = vi.fn() as Mock;
 const mockRevalidateProfile = vi.fn() as Mock;
+const mockUpdateMeProfile = vi.fn() as Mock;
+const mockReauthenticate = vi.fn() as Mock;
+const mockOnUpdateProfile = vi.fn() as Mock;
+
+vi.mock('../../../../api/account/updateMeProfile', () => ({
+  default: (...args: unknown[]): unknown => mockUpdateMeProfile(...args) as unknown,
+}));
 
 vi.mock('../../../../api/auth/executeEmbeddedSelfFlow', () => ({
   default: (...args: unknown[]): unknown => mockExecute(...args) as unknown,
@@ -23,6 +30,7 @@ const thunderIDContext: ThunderIDContextProps = {
   isInitialized: true,
   isLoading: false,
   meta: null,
+  reauthenticate: (...args: unknown[]): unknown => mockReauthenticate(...args) as unknown,
   vendor: 'thunderid',
 } as unknown as ThunderIDContextProps;
 
@@ -41,7 +49,7 @@ const renderUserProfile = (props: UserProfileProps = {}): ReturnType<typeof rend
         value={
           {
             flattenedProfile: profile,
-            onUpdateProfile: vi.fn(),
+            onUpdateProfile: mockOnUpdateProfile,
             profile,
             revalidateProfile: mockRevalidateProfile,
             updateProfile: vi.fn(),
@@ -136,5 +144,88 @@ describe('UserProfile verification', () => {
 
     expect(within(row('Email')).getByText('Unverified')).toBeTruthy();
     expect(screen.queryByText('Verify')).toBeNull();
+  });
+});
+
+const editAndSave = (label: string, value: string): void => {
+  fireEvent.click(within(row(label)).getByTitle('Edit'));
+  fireEvent.change(within(row(label)).getByRole('textbox'), {target: {value}});
+  fireEvent.click(within(row(label)).getByText('Save'));
+};
+
+const stepUp = async (): Promise<Error> => {
+  const {StepUpRequiredError} = await import('@thunderid/browser');
+
+  return new StepUpRequiredError(
+    JSON.stringify({code: 'AUTH-4011', message: {defaultValue: 'Recent authentication required'}}),
+    'updateMeProfile-StepUpRequired-001',
+    'react',
+    401,
+    'Unauthorized',
+    undefined,
+    'Bearer error="insufficient_user_authentication", max_age="300"',
+  );
+};
+
+describe('UserProfile recent sign-in', () => {
+  beforeEach(() => {
+    mockUpdateMeProfile.mockReset();
+    mockReauthenticate.mockReset();
+    mockOnUpdateProfile.mockReset();
+  });
+
+  afterEach(() => {
+    cleanup();
+  });
+
+  it('signs the user in again with the challenge max_age and saves the change once more', async () => {
+    const updated: User = {...profile, email: 'new@example.com'};
+    mockUpdateMeProfile.mockRejectedValueOnce(await stepUp()).mockResolvedValueOnce(updated);
+    mockReauthenticate.mockResolvedValue(undefined);
+    renderUserProfile();
+
+    editAndSave('Email', 'new@example.com');
+
+    await waitFor(() => expect(mockOnUpdateProfile).toHaveBeenCalledWith(updated));
+    expect(mockReauthenticate).toHaveBeenCalledWith({maxAge: 300});
+    expect(mockUpdateMeProfile).toHaveBeenCalledTimes(2);
+    expect(mockUpdateMeProfile.mock.calls[1][0]).toEqual(mockUpdateMeProfile.mock.calls[0][0]);
+  });
+
+  it('shows an error when the change is refused again after signing in', async () => {
+    mockUpdateMeProfile.mockRejectedValue(await stepUp());
+    mockReauthenticate.mockResolvedValue(undefined);
+    renderUserProfile();
+
+    editAndSave('Email', 'new@example.com');
+
+    expect(await screen.findByText(/sign in again to save this change/i)).toBeTruthy();
+    expect(mockUpdateMeProfile).toHaveBeenCalledTimes(2);
+    expect(mockReauthenticate).toHaveBeenCalledTimes(1);
+  });
+
+  it('shows why signing in again failed and does not retry', async () => {
+    mockUpdateMeProfile.mockRejectedValue(await stepUp());
+    mockReauthenticate.mockRejectedValue(Object.assign(new Error('blocked'), {code: 'BROWSER-REAUTHENTICATION-PB01'}));
+    renderUserProfile();
+
+    editAndSave('Email', 'new@example.com');
+
+    expect(await screen.findByText(/allow pop-ups for this site/i)).toBeTruthy();
+    expect(mockUpdateMeProfile).toHaveBeenCalledTimes(1);
+  });
+
+  it('hands the challenge to the app instead of signing in again', async () => {
+    const onReauthenticationRequired = vi.fn();
+    mockUpdateMeProfile.mockRejectedValue(await stepUp());
+    renderUserProfile({onReauthenticationRequired});
+
+    editAndSave('Email', 'new@example.com');
+
+    await waitFor(() =>
+      expect(onReauthenticationRequired).toHaveBeenCalledWith({error: 'insufficient_user_authentication', maxAge: 300}),
+    );
+    expect(mockReauthenticate).not.toHaveBeenCalled();
+    expect(await screen.findByText(/sign in again to save this change/i)).toBeTruthy();
   });
 });

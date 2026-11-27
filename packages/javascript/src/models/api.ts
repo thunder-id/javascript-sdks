@@ -83,3 +83,23 @@ export interface ServerError {
   description?: ServerErrorMessage;
   message?: ServerErrorMessage;
 }
+
+/**
+ * A `WWW-Authenticate: Bearer` challenge that asks for a more recent sign-in (RFC 9470), such as the one
+ * the self-service APIs return when a change needs one. Sign the user in again with `maxAge` as the
+ * `max_age` authorization parameter, or with `prompt=login`, and retry the request with the new token.
+ */
+export interface AuthenticationChallenge {
+  /**
+   * The challenge's `error`, such as `insufficient_user_authentication`.
+   */
+  error: string;
+  /**
+   * The challenge's `error_description`, when the server sent one.
+   */
+  errorDescription?: string;
+  /**
+   * The challenge's `max_age`: how recent, in seconds, the sign-in must be.
+   */
+  maxAge?: number;
+}

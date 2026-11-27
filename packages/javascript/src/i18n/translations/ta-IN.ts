@@ -1,4 +1,4 @@
-// Copyright 2025 The ThunderID Authors
+// Copyright 2025-2026 The ThunderID Authors
 // SPDX-License-Identifier: Apache-2.0
 
 import {I18nTranslations, I18nMetadata, I18nBundle} from '../models/i18n';
@@ -149,6 +149,9 @@ const translations: I18nTranslations = {
   /* |---------------------------------------------------------------| */
 
   'user.change_password.heading': '{credential} மாற்றவும்',
+  'user.change_password.current.label': 'தற்போதைய {credential}',
+  'user.change_password.current.placeholder': 'உங்கள் தற்போதைய {credentialLower} ஐ உள்ளிடவும்',
+  'user.change_password.current.hint': 'நீங்கள் இன்னும் அமைக்கவில்லை என்றால் இதைக் காலியாக விடவும்.',
   'user.change_password.new.label': 'புதிய {credential}',
   'user.change_password.new.placeholder': 'உங்கள் புதிய {credentialLower}-ஐ உள்ளிடவும்',
   'user.change_password.confirm.label': 'புதிய {credential}-ஐ உறுதிப்படுத்தவும்',
@@ -159,6 +162,19 @@ const translations: I18nTranslations = {
   'user.change_password.mismatch.error': '{credentialLower} பொருந்தவில்லை.',
   'user.change_password.generic.error':
     'உங்கள் {credentialLower}-ஐ புதுப்பிக்கும் போது பிழை ஏற்பட்டது. மீண்டும் முயற்சிக்கவும்.',
+  'user.change_password.current.required.error': 'உங்கள் தற்போதைய {credentialLower} ஐ உள்ளிடவும்.',
+  'user.change_password.current.invalid.error': 'தற்போதைய {credentialLower} தவறானது.',
+  'user.change_password.reauthentication.error': 'உங்கள் {credentialLower} ஐ அமைக்க மீண்டும் உள்நுழையவும்.',
+  'user.reauthentication.required.error': 'இந்த மாற்றத்தைச் சேமிக்க மீண்டும் உள்நுழையவும்.',
+  'user.reauthentication.failed.error': 'மீண்டும் உள்நுழைவது முடியவில்லை. மீண்டும் முயற்சிக்கவும்.',
+  'user.reauthentication.popup_blocked.error': 'இந்தத் தளத்திற்கு பாப்-அப்களை அனுமதித்து, மீண்டும் முயற்சிக்கவும்.',
+  'user.reauthentication.different_user.error':
+    'நீங்கள் வேறொரு கணக்கில் உள்நுழைந்தீர்கள். உங்கள் கணக்கில் உள்நுழைந்து மீண்டும் முயற்சிக்கவும்.',
+  'user.reauthentication.heading': 'மீண்டும் உள்நுழையவும்',
+  'user.reauthentication.description': 'இந்த மாற்றத்தைச் சேமிக்க இது நீங்கள்தான் என்பதை உறுதிப்படுத்தவும்.',
+  'user.reauthentication.unsupported_option.error':
+    'இந்த உள்நுழைவு விருப்பம் இங்கே கிடைக்கவில்லை. வேறொன்றைத் தேர்ந்தெடுக்கவும்.',
+  'user.reauthentication.buttons.close.text': 'மூடு',
   'user.change_password.unavailable.heading': '{credential} மாற்றங்கள் கிடைக்கவில்லை',
   'user.change_password.unavailable.description': 'உங்கள் நிர்வாகியை தொடர்பு கொள்ளவும்.',
 

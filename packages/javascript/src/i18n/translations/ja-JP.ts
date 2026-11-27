@@ -1,4 +1,4 @@
-// Copyright 2025 The ThunderID Authors
+// Copyright 2025-2026 The ThunderID Authors
 // SPDX-License-Identifier: Apache-2.0
 
 import {I18nTranslations, I18nMetadata, I18nBundle} from '../models/i18n';
@@ -148,6 +148,9 @@ const translations: I18nTranslations = {
   /* |---------------------------------------------------------------| */
 
   'user.change_password.heading': '{credential}の変更',
+  'user.change_password.current.label': '現在の{credential}',
+  'user.change_password.current.placeholder': '現在の{credentialLower}を入力してください',
+  'user.change_password.current.hint': 'まだ設定していない場合は空欄のままにしてください。',
   'user.change_password.new.label': '新しい{credential}',
   'user.change_password.new.placeholder': '新しい{credentialLower}を入力してください',
   'user.change_password.confirm.label': '新しい{credential}の確認',
@@ -157,6 +160,19 @@ const translations: I18nTranslations = {
   'user.change_password.success': '{credentialLower}を更新しました。',
   'user.change_password.mismatch.error': '{credentialLower}が一致しません。',
   'user.change_password.generic.error': '{credentialLower}の更新中にエラーが発生しました。もう一度お試しください。',
+  'user.change_password.current.required.error': '現在の{credentialLower}を入力してください。',
+  'user.change_password.current.invalid.error': '現在の{credentialLower}が正しくありません。',
+  'user.change_password.reauthentication.error': '{credentialLower}を設定するには、もう一度サインインしてください。',
+  'user.reauthentication.required.error': 'この変更を保存するには、もう一度サインインしてください。',
+  'user.reauthentication.failed.error': '再サインインが完了しませんでした。もう一度お試しください。',
+  'user.reauthentication.popup_blocked.error': 'このサイトのポップアップを許可してから、もう一度お試しください。',
+  'user.reauthentication.different_user.error':
+    '別のアカウントでサインインしました。ご自分のアカウントでサインインして、もう一度お試しください。',
+  'user.reauthentication.heading': 'もう一度サインイン',
+  'user.reauthentication.description': 'この変更を保存するには、本人であることを確認してください。',
+  'user.reauthentication.unsupported_option.error':
+    'このサインイン方法はここでは使用できません。別の方法を選択してください。',
+  'user.reauthentication.buttons.close.text': '閉じる',
   'user.change_password.unavailable.heading': '{credential}の変更はできません',
   'user.change_password.unavailable.description': '管理者にお問い合わせください。',
 

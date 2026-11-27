@@ -1,4 +1,4 @@
-// Copyright 2025 The ThunderID Authors
+// Copyright 2025-2026 The ThunderID Authors
 // SPDX-License-Identifier: Apache-2.0
 
 import {withVendorCSSClassPrefix} from '@thunderid/browser';
@@ -10,6 +10,7 @@ type PasswordFieldProps = Readonly<{
   autocomplete: string;
   disabled: boolean;
   error: string | undefined;
+  helperText: string | undefined;
   hideLabel: string;
   label: string | undefined;
   modelValue: string;
@@ -37,6 +38,8 @@ const PasswordField: Component = defineComponent({
     autocomplete: {default: 'current-password', type: String},
     disabled: {default: false, type: Boolean},
     error: {default: undefined, type: String},
+    /** Text shown under the field while it has no error. */
+    helperText: {default: undefined, type: String},
     /** Accessible name of the toggle button while the password is visible. */
     hideLabel: {default: 'Hide password', type: String},
     label: {default: undefined, type: String},
@@ -55,6 +58,9 @@ const PasswordField: Component = defineComponent({
 
     return (): VNode => {
       const hasError = !!props.error;
+      // The error or hint below the input describes it, for assistive technology.
+      const describedById: string | undefined =
+        props.name && (hasError || props.helperText) ? `${props.name}-description` : undefined;
       const wrapperClass: string = [
         withVendorCSSClassPrefix('password-field'),
         hasError ? withVendorCSSClassPrefix('password-field--error') : '',
@@ -79,6 +85,8 @@ const PasswordField: Component = defineComponent({
           : null,
         h('div', {class: withVendorCSSClassPrefix('password-field__wrapper')}, [
           h('input', {
+            'aria-describedby': describedById,
+            'aria-invalid': hasError || undefined,
             'aria-label': props.ariaLabel,
             autocomplete: props.autocomplete,
             class: withVendorCSSClassPrefix('password-field__input'),
@@ -109,7 +117,12 @@ const PasswordField: Component = defineComponent({
           ),
           slots['append']?.(),
         ]),
-        hasError ? h('span', {class: withVendorCSSClassPrefix('password-field__error')}, props.error) : null,
+        hasError
+          ? h('span', {class: withVendorCSSClassPrefix('password-field__error'), id: describedById}, props.error)
+          : null,
+        !hasError && props.helperText
+          ? h('span', {class: withVendorCSSClassPrefix('password-field__helper'), id: describedById}, props.helperText)
+          : null,
       ]);
     };
   },

@@ -1,7 +1,12 @@
-// Copyright 2025 The ThunderID Authors
+// Copyright 2025-2026 The ThunderID Authors
 // SPDX-License-Identifier: Apache-2.0
 
-import {AttributeVerificationConstants, deepMerge, withVendorCSSClassPrefix} from '@thunderid/browser';
+import {
+  type AuthenticationChallenge,
+  AttributeVerificationConstants,
+  deepMerge,
+  withVendorCSSClassPrefix,
+} from '@thunderid/browser';
 import {BaseUserProfile, type BaseUserProfileVerificationSlotProps, useI18n} from '@thunderid/vue';
 import {type Component, type PropType, type Ref, type SetupContext, type VNode, defineComponent, h, ref} from 'vue';
 import VerifyAttribute from './VerifyAttribute';
@@ -17,12 +22,17 @@ import {useUser} from '#imports';
  * Preserves the same prop/slot API as the Vue SDK's `UserProfile` component
  * so consumers don't need to change their templates.
  *
+ * A change that needs a more recent sign-in, such as a new email address, asks the user to sign in
+ * again and emits `reauthentication-required` with the server's challenge: sign the user in again
+ * with `challenge.maxAge` as the `max_age` sign-in option, then let the user save again.
+ *
  * @example
  * ```vue
- * <UserProfile :editable="true" title="My Profile" />
+ * <UserProfile :editable="true" title="My Profile" @reauthentication-required="onReauthenticationRequired" />
  * ```
  */
 const UserProfile: Component = defineComponent({
+  emits: ['reauthentication-required'],
   name: 'UserProfile',
   props: {
     cardLayout: {default: true, type: Boolean},
@@ -44,7 +54,7 @@ const UserProfile: Component = defineComponent({
       title: string;
       verificationFlowHandle: string;
     }>,
-    {slots}: SetupContext,
+    {emit, slots}: SetupContext,
   ): () => VNode {
     const {flattenedProfile, profile, updateProfile, userSchema} = useUser();
     const {t} = useI18n();
@@ -74,11 +84,16 @@ const UserProfile: Component = defineComponent({
       });
 
       error.value = null;
-      const result: Awaited<ReturnType<NonNullable<typeof updateProfile>>> = await updateProfile({
+      const result: Awaited<ReturnType<NonNullable<typeof updateProfile>>> & {
+        authenticationChallenge?: AuthenticationChallenge;
+      } = await updateProfile({
         payload: updatedAttributes,
       } as any);
-      // `result.error` carries the route and server text, which is not meant for the user.
-      if (result && !result.success) {
+      if (result?.authenticationChallenge) {
+        error.value = t('user.reauthentication.required.error');
+        emit('reauthentication-required', result.authenticationChallenge);
+      } else if (result && !result.success) {
+        // `result.error` carries the route and server text, which is not meant for the user.
         error.value = t('user.profile.update.generic.error');
       }
     }

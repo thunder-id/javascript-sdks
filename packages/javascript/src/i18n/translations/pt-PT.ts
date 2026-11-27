@@ -1,4 +1,4 @@
-// Copyright 2025 The ThunderID Authors
+// Copyright 2025-2026 The ThunderID Authors
 // SPDX-License-Identifier: Apache-2.0
 
 import {I18nTranslations, I18nMetadata, I18nBundle} from '../models/i18n';
@@ -148,6 +148,9 @@ const translations: I18nTranslations = {
   /* |---------------------------------------------------------------| */
 
   'user.change_password.heading': 'Alterar {credential}',
+  'user.change_password.current.label': '{credential} actual',
+  'user.change_password.current.placeholder': 'Introduza o seu {credentialLower} actual',
+  'user.change_password.current.hint': 'Deixe em branco se ainda não definiu um.',
   'user.change_password.new.label': 'Novo {credential}',
   'user.change_password.new.placeholder': 'Introduza o seu novo {credentialLower}',
   'user.change_password.confirm.label': 'Confirmar novo {credential}',
@@ -157,6 +160,19 @@ const translations: I18nTranslations = {
   'user.change_password.success': 'O seu {credentialLower} foi atualizado.',
   'user.change_password.mismatch.error': 'Os {credentialLower}s não coincidem.',
   'user.change_password.generic.error': 'Ocorreu um erro ao actualizar o seu {credentialLower}. Tente novamente.',
+  'user.change_password.current.required.error': 'Introduza o seu {credentialLower} actual.',
+  'user.change_password.current.invalid.error': 'O {credentialLower} actual está incorrecto.',
+  'user.change_password.reauthentication.error': 'Inicie sessão novamente para definir o seu {credentialLower}.',
+  'user.reauthentication.required.error': 'Inicie sessão novamente para guardar esta alteração.',
+  'user.reauthentication.failed.error': 'O novo início de sessão não foi concluído. Tente novamente.',
+  'user.reauthentication.popup_blocked.error': 'Permita pop-ups para este site e tente novamente.',
+  'user.reauthentication.different_user.error':
+    'Iniciou sessão com outra conta. Inicie sessão com a sua conta e tente novamente.',
+  'user.reauthentication.heading': 'Inicie sessão novamente',
+  'user.reauthentication.description': 'Confirme a sua identidade para guardar esta alteração.',
+  'user.reauthentication.unsupported_option.error':
+    'Esta opção de início de sessão não está disponível aqui. Escolha outra.',
+  'user.reauthentication.buttons.close.text': 'Fechar',
   'user.change_password.unavailable.heading': 'Alteração de {credentialLower} indisponível',
   'user.change_password.unavailable.description': 'Contacte o seu administrador.',
 

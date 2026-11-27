@@ -1,13 +1,20 @@
-// Copyright 2025 The ThunderID Authors
+// Copyright 2025-2026 The ThunderID Authors
 // SPDX-License-Identifier: Apache-2.0
 
 import {
   AttributeVerificationConstants,
+  type AuthenticationChallenge,
+  type PendingStepUp,
   Preferences,
+  REAUTHENTICATION_FAILED,
+  StepUpRequiredError,
   ThunderIDError,
+  ThunderIDRuntimeError,
   User,
   deepMerge,
+  mapReauthenticationError,
   resolveResourceEndpoint,
+  runWithStepUp,
   withVendorCSSClassPrefix,
 } from '@thunderid/browser';
 import {
@@ -18,6 +25,7 @@ import {
   computed,
   defineComponent,
   h,
+  onUnmounted,
   ref,
   type Ref,
 } from 'vue';
@@ -36,6 +44,7 @@ type UserProfileProps = Readonly<{
   compact: boolean;
   editable: boolean;
   hideFields: string[];
+  onReauthenticationRequired?: (challenge: AuthenticationChallenge) => void;
   preferences?: Preferences;
   showAvatar: boolean;
   showFields: string[];
@@ -66,6 +75,15 @@ const UserProfile: Component = defineComponent({
     editable: {default: true, type: Boolean},
     /** Fields to hide by name. */
     hideFields: {default: () => [], type: Array as PropType<string[]>},
+    /**
+     * Bound by `@reauthentication-required`. When set, a change that needs a more recent sign-in
+     * (`AUTH-4011`), such as a new email address or mobile number, calls it with the server's challenge
+     * instead of the component signing the user in again by itself.
+     */
+    onReauthenticationRequired: {
+      default: undefined,
+      type: Function as PropType<(challenge: AuthenticationChallenge) => void>,
+    },
     /** Component-level preferences to override global preferences. */
     preferences: {
       default: undefined,
@@ -81,7 +99,14 @@ const UserProfile: Component = defineComponent({
     verificationFlowHandle: {default: AttributeVerificationConstants.DEFAULT_FLOW_HANDLE, type: String},
   },
   setup(props: UserProfileProps, {slots}: SetupContext): () => VNode {
-    const {baseUrl, endpoints, instanceId, preferences: contextPreferences} = useThunderID();
+    const {baseUrl, endpoints, instanceId, preferences: contextPreferences, reauthenticate} = useThunderID();
+    const pendingStepUp: PendingStepUp = {};
+    // Whether the component is still on screen, so a change is not sent after it has closed.
+    let active = true;
+
+    onUnmounted((): void => {
+      active = false;
+    });
     const {flattenedProfile, profile, onUpdateProfile, updateProfile, userSchema} = useUser();
     const {t} = useI18n();
 
@@ -126,17 +151,28 @@ const UserProfile: Component = defineComponent({
 
         if (!baseUrl) return;
 
-        const response: User = await updateMeProfile({
-          baseUrl,
-          url: resolveResourceEndpoint('usersMe', {endpoints}),
-          instanceId,
-          payload: updatedAttributes,
+        const response: User = await runWithStepUp({
+          onReauthenticationRequired: props.onReauthenticationRequired,
+          isActive: (): boolean => active,
+          pending: pendingStepUp,
+          reauthenticate,
+          send: () =>
+            updateMeProfile({
+              baseUrl,
+              url: resolveResourceEndpoint('usersMe', {endpoints}),
+              instanceId,
+              payload: updatedAttributes,
+            }),
         });
         onUpdateProfile(response);
       } catch (caughtError: unknown) {
         let message: string = t('user.profile.update.generic.error') || 'Failed to update profile. Please try again.';
 
-        if (caughtError instanceof ThunderIDError) {
+        if (caughtError instanceof ThunderIDRuntimeError && caughtError.code === REAUTHENTICATION_FAILED) {
+          message = t(mapReauthenticationError((caughtError.details as {cause?: unknown} | undefined)?.cause));
+        } else if (caughtError instanceof StepUpRequiredError) {
+          message = t('user.reauthentication.required.error');
+        } else if (caughtError instanceof ThunderIDError) {
           message = caughtError.message;
         }
 

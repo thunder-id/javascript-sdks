@@ -1,4 +1,4 @@
-﻿// Copyright 2025 The ThunderID Authors
+﻿// Copyright 2025-2026 The ThunderID Authors
 // SPDX-License-Identifier: Apache-2.0
 
 /**
@@ -33,6 +33,7 @@ import ADMIN_CSS from '../components/management/shared/Admin.css';
 import BASE_DEVICE_GRANT_CSS from '../components/auth/device-grant/BaseDeviceGrant.css';
 import CONSENT_CSS from '../components/auth/flow/Consent.css';
 import FLOW_EXPIRED_CSS from '../components/auth/flow/FlowExpired.css';
+import REAUTHENTICATION_CSS from '../components/auth/reauthentication/ReauthenticationDialog.css';
 import BASE_SIGN_IN_CSS from '../components/auth/sign-in/BaseSignIn.css';
 import ATTRIBUTION_CSS from '../components/common/attribution/Attribution.css';
 import LANGUAGE_SWITCHER_CSS from '../components/common/language-switcher/LanguageSwitcher.css';
@@ -83,6 +84,7 @@ const STYLES: string = [
   DATA_TABLE_CSS,
   // Auth
   BASE_SIGN_IN_CSS,
+  REAUTHENTICATION_CSS,
   CONSENT_CSS,
   FLOW_EXPIRED_CSS,
   BASE_DEVICE_GRANT_CSS,

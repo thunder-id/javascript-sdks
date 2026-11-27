@@ -310,6 +310,13 @@ export interface EmbeddedSignInFlowInitiateRequest {
   flowType: EmbeddedFlowType;
 
   /**
+   * How recent, in seconds, a sign-in the flow may reuse must be, as OIDC `max_age`. An older SSO
+   * session makes the flow prompt the user again; `0` always prompts. Accepted only on the request that
+   * starts an `AUTHENTICATION` flow. Never sent on a continuation.
+   */
+  maxAge?: number;
+
+  /**
    * Identifier of the organization unit to sign in to. Accepted only on the request that starts an
    * `AUTHENTICATION` flow; the sign-in is then bounded to that unit. Never sent on a continuation.
    */

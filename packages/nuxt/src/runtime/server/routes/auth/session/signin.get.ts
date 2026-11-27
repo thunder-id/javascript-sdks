@@ -1,7 +1,7 @@
-// Copyright 2025 The ThunderID Authors
+// Copyright 2025-2026 The ThunderID Authors
 // SPDX-License-Identifier: Apache-2.0
 
-import {generateSessionId} from '@thunderid/node';
+import {type RecentSignInParams, generateSessionId, pickRecentSignInParams} from '@thunderid/node';
 import {defineEventHandler, getQuery, sendRedirect, setCookie, createError} from 'h3';
 import type {H3Event} from 'h3';
 import ThunderIDNuxtClient from '../../../ThunderIDNuxtClient';
@@ -19,6 +19,7 @@ import {useRuntimeConfig} from '#imports';
  * the user to a specific page after sign-in, and an optional `ouId` that bounds the sign-in to that
  * organization unit (`{baseUrl}/ou/{ouId}/oauth2/authorize`). Switching organization units uses this:
  * the server reuses the SSO session, and the callback replaces the session only when it succeeds.
+ * `max_age` (whole seconds) and `prompt=login` ask for a recent sign-in, for a change that needs one.
  */
 export default defineEventHandler(async (event: H3Event) => {
   const client: ThunderIDNuxtClient = ThunderIDNuxtClient.getInstance();
@@ -34,6 +35,9 @@ export default defineEventHandler(async (event: H3Event) => {
 
   const ouId: unknown = query.ouId;
   const organizationUnitId: string | undefined = typeof ouId === 'string' && ouId.trim() !== '' ? ouId : undefined;
+
+  // Only `max_age` and `prompt=login`, which ask for a recent sign-in, reach the authorization request.
+  const recentSignInParams: RecentSignInParams = pickRecentSignInParams(query);
 
   const sessionId: string = generateSessionId();
 
@@ -51,7 +55,7 @@ export default defineEventHandler(async (event: H3Event) => {
     sessionId,
     undefined, // no authorization code (initial redirect)
     undefined, // no state
-    organizationUnitId ? {organizationUnitId} : {},
+    {...recentSignInParams, ...(organizationUnitId ? {organizationUnitId} : {})},
   );
 
   if (!authorizationUrl) {

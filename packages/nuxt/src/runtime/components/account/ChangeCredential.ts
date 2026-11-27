@@ -59,12 +59,18 @@ type ChangeCredentialProps = Readonly<{
  * same reason `ThunderIDRoot.ts`'s `fetchMeta` proxies flow metadata: the browser never talks
  * to the ThunderID server directly, so no CORS configuration is required there.
  *
+ * The server needs the current value when the user holds the credential. A user who has not
+ * set it yet leaves the current value empty; that change needs a recent sign-in, and when the
+ * sign-in is too old the form asks the user to sign in again and emits
+ * `reauthentication-required` with the server's challenge.
+ *
  * Preserves the same prop/event API as the Vue SDK's `ChangeCredential` component so consumers
  * don't need to change their templates.
  *
  * @example
  * ```vue
  * <ChangeCredential @success="onPasswordUpdated" />
+ * <ChangeCredential attribute="pin" @reauthentication-required="onReauthenticationRequired" />
  * <ChangeCredential attribute="pin" />
  * ```
  */
@@ -79,7 +85,7 @@ const ChangeCredential: Component = defineComponent({
     showRequirements: {default: true, type: Boolean},
     title: {default: undefined, type: String},
   },
-  emits: ['success'],
+  emits: ['reauthentication-required', 'success'],
   setup(props: ChangeCredentialProps, {emit}: SetupContext): () => VNode {
     const {userSchema} = useUser();
     const {t} = useI18n();
@@ -97,7 +103,7 @@ const ChangeCredential: Component = defineComponent({
       resolveChangeCredentialPolicy(userSchema?.value, props.attribute, props.policy),
     );
 
-    async function handleSubmit({newPassword}: ChangePasswordValues): Promise<void> {
+    async function handleSubmit({currentPassword, newPassword}: ChangePasswordValues): Promise<void> {
       error.value = null;
       fieldErrors.value = {};
       success.value = false;
@@ -105,7 +111,7 @@ const ChangeCredential: Component = defineComponent({
 
       try {
         const result: UpdateUserCredentialsResult = await $fetch(NuxtAPIRoutes.USER_CREDENTIALS, {
-          body: {payload: {[props.attribute]: newPassword}},
+          body: {payload: {currentValue: currentPassword, name: props.attribute, newValue: newPassword}},
           method: 'PATCH',
         });
 
@@ -124,6 +130,10 @@ const ChangeCredential: Component = defineComponent({
             fieldErrors.value = {[result.field]: text};
           } else {
             error.value = text;
+          }
+
+          if (result.authenticationChallenge) {
+            emit('reauthentication-required', result.authenticationChallenge);
           }
         }
       } catch (caughtError: unknown) {

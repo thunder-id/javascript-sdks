@@ -42,7 +42,7 @@ test.describe('react/quickstart - Change credential', () => {
     await reactQuickstartPage.openSecurityTab();
 
     try {
-      await reactQuickstartPage.changeCredential('Change password', tempPassword);
+      await reactQuickstartPage.changeCredential('Change password', password, tempPassword);
 
       // Prove the change landed server-side, not just that the UI collapsed the form: sign
       // out and back in using the new password.
@@ -58,7 +58,7 @@ test.describe('react/quickstart - Change credential', () => {
     } finally {
       // Always attempt to restore the shared test user's original password, even if an
       // assertion above failed.
-      await reactQuickstartPage.changeCredential('Change password', password);
+      await reactQuickstartPage.changeCredential('Change password', tempPassword, password);
     }
 
     // The restore itself also has to have actually worked, or the next test to sign in with

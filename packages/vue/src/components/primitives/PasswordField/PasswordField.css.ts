@@ -1,4 +1,4 @@
-// Copyright 2025 The ThunderID Authors
+// Copyright 2025-2026 The ThunderID Authors
 // SPDX-License-Identifier: Apache-2.0
 
 /**
@@ -105,6 +105,12 @@ const PASSWORD_FIELD_CSS = `
 .thunderid-password-field__error {
   font-size: var(--thunderid-typography-fontSize-xs);
   color: var(--thunderid-color-error-contrastText);
+  line-height: var(--thunderid-typography-lineHeight-normal);
+}
+
+.thunderid-password-field__helper {
+  font-size: var(--thunderid-typography-fontSize-xs);
+  color: var(--thunderid-color-text-secondary);
   line-height: var(--thunderid-typography-lineHeight-normal);
 }
 `;

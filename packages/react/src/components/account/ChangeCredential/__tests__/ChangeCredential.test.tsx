@@ -10,6 +10,7 @@ import UserContext, {UserContextProps} from '../../../../contexts/User/UserConte
 import ChangeCredential from '../ChangeCredential';
 
 const mockUpdateMeCredentials = vi.fn() as Mock;
+const mockReauthenticate = vi.fn() as Mock;
 
 vi.mock('../../../../api/account/updateMeCredentials', () => ({
   default: (...args: unknown[]): unknown => mockUpdateMeCredentials(...args) as unknown,
@@ -20,6 +21,7 @@ const thunderIDContext: ThunderIDContextProps = {
   instanceId: 0,
   isInitialized: true,
   isLoading: false,
+  reauthenticate: (...args: unknown[]): unknown => mockReauthenticate(...args) as unknown,
   vendor: 'thunderid',
 } as unknown as ThunderIDContextProps;
 
@@ -70,17 +72,20 @@ describe('ChangeCredential', () => {
     cleanup();
   });
 
-  it('renders only the two fields, with no current-value field', () => {
+  it('renders an optional current-value field above the new value and its confirmation', () => {
     renderChangeCredential();
 
+    expect(fieldByName('currentPassword')).toBeTruthy();
+    expect(fieldByName('currentPassword').required).toBe(false);
     expect(fieldByName('newPassword')).toBeTruthy();
     expect(fieldByName('confirmPassword')).toBeTruthy();
-    expect(document.querySelector('input[name="currentPassword"]')).toBeNull();
+    expect(screen.getByText(/leave this empty if you have not set one yet/i)).toBeTruthy();
   });
 
-  it('marks both fields as new-password for password managers', () => {
+  it('marks the current field as current-password and the new fields as new-password', () => {
     renderChangeCredential();
 
+    expect(fieldByName('currentPassword').getAttribute('autocomplete')).toBe('current-password');
     expect(fieldByName('newPassword').getAttribute('autocomplete')).toBe('new-password');
     expect(fieldByName('confirmPassword').getAttribute('autocomplete')).toBe('new-password');
   });
@@ -124,7 +129,7 @@ describe('ChangeCredential', () => {
     expect(mockUpdateMeCredentials).not.toHaveBeenCalled();
   });
 
-  it('sends only the new value, keyed by password by default', async () => {
+  it('sends the name and new value without a current value when it is left empty', async () => {
     mockUpdateMeCredentials.mockResolvedValueOnce(undefined);
     renderChangeCredential({policy: {regex: '^.{8,}$'}});
 
@@ -137,15 +142,16 @@ describe('ChangeCredential', () => {
     expect(mockUpdateMeCredentials).toHaveBeenCalledWith(
       expect.objectContaining({
         baseUrl: 'https://localhost:8090',
-        payload: {password: 'n3wP@ssword'},
+        payload: {currentValue: undefined, name: 'password', newValue: 'n3wP@ssword'},
       }),
     );
   });
 
-  it('keys the payload by attribute when set to something other than password', async () => {
+  it('sends the current value and names the attribute when set to something other than password', async () => {
     mockUpdateMeCredentials.mockResolvedValueOnce(undefined);
     renderChangeCredential({attribute: 'pin', policy: {regex: '^.{4,}$'}});
 
+    setField('currentPassword', '0000');
     setField('newPassword', '1234');
     setField('confirmPassword', '1234');
     fireEvent.click(submitButton());
@@ -154,7 +160,7 @@ describe('ChangeCredential', () => {
 
     expect(mockUpdateMeCredentials).toHaveBeenCalledWith(
       expect.objectContaining({
-        payload: {pin: '1234'},
+        payload: {currentValue: '0000', name: 'pin', newValue: '1234'},
       }),
     );
   });
@@ -182,6 +188,7 @@ describe('ChangeCredential', () => {
 
     await waitFor(() => expect(fieldByName('newPassword').value).toBe(''));
 
+    expect(fieldByName('currentPassword').value).toBe('');
     expect(fieldByName('confirmPassword').value).toBe('');
   });
 
@@ -198,6 +205,138 @@ describe('ChangeCredential', () => {
     fireEvent.click(submitButton());
 
     await waitFor(() => expect(screen.getByText(/password is too common/i)).toBeTruthy());
+  });
+
+  it.each([
+    ['USR-1047', 400, /enter your current password/i],
+    ['USR-1048', 403, /the current password is incorrect/i],
+  ])('shows %s on the current field with translated text', async (code: string, status: number, text: RegExp) => {
+    const {ThunderIDAPIError} = await import('@thunderid/browser');
+
+    mockUpdateMeCredentials.mockRejectedValueOnce(
+      new ThunderIDAPIError(JSON.stringify({code, message: {defaultValue: 'Server text'}}), 'x-003', 'react', status),
+    );
+    renderChangeCredential({policy: {regex: '^.{8,}$'}});
+
+    setField('currentPassword', 'wr0ngValue');
+    setField('newPassword', 'n3wP@ssword');
+    setField('confirmPassword', 'n3wP@ssword');
+    fireEvent.click(submitButton());
+
+    await waitFor(() => expect(screen.getByText(text)).toBeTruthy());
+    expect(fieldByName('currentPassword').getAttribute('aria-invalid')).toBe('true');
+    expect(screen.queryByText('Server text')).toBeNull();
+  });
+
+  it('asks the user to sign in again and hands over the challenge on AUTH-4011', async () => {
+    const {StepUpRequiredError} = await import('@thunderid/browser');
+    const onReauthenticationRequired = vi.fn();
+
+    mockUpdateMeCredentials.mockRejectedValueOnce(
+      new StepUpRequiredError(
+        JSON.stringify({code: 'AUTH-4011', message: {defaultValue: 'Recent authentication required'}}),
+        'x-004',
+        'react',
+        401,
+        'Unauthorized',
+        undefined,
+        'Bearer error="insufficient_user_authentication", max_age="300"',
+      ),
+    );
+    renderChangeCredential({attribute: 'pin', onReauthenticationRequired, policy: {regex: '^.{4,}$'}});
+
+    setField('newPassword', '1234');
+    setField('confirmPassword', '1234');
+    fireEvent.click(submitButton());
+
+    await waitFor(() => expect(screen.getByText(/sign in again to set your pin/i)).toBeTruthy());
+    expect(onReauthenticationRequired).toHaveBeenCalledWith({error: 'insufficient_user_authentication', maxAge: 300});
+    expect(mockReauthenticate).not.toHaveBeenCalled();
+  });
+
+  describe('when a first value needs a recent sign-in', () => {
+    const stepUp = async (): Promise<Error> => {
+      const {StepUpRequiredError} = await import('@thunderid/browser');
+
+      return new StepUpRequiredError(
+        JSON.stringify({code: 'AUTH-4011', message: {defaultValue: 'Recent authentication required'}}),
+        'updateMeCredentials-StepUpRequired-001',
+        'react',
+        401,
+        'Unauthorized',
+        undefined,
+        'Bearer error="insufficient_user_authentication", max_age="300"',
+      );
+    };
+
+    const submitPin = (): void => {
+      setField('newPassword', '1234');
+      setField('confirmPassword', '1234');
+      fireEvent.click(submitButton());
+    };
+
+    beforeEach(() => {
+      mockReauthenticate.mockReset();
+    });
+
+    it('signs the user in again with the challenge max_age and sends the same change once more', async () => {
+      const onSuccess = vi.fn();
+      mockUpdateMeCredentials.mockRejectedValueOnce(await stepUp()).mockResolvedValueOnce(undefined);
+      mockReauthenticate.mockResolvedValue(undefined);
+      renderChangeCredential({attribute: 'pin', onSuccess, policy: {regex: '^.{4,}$'}});
+
+      submitPin();
+
+      await waitFor(() => expect(onSuccess).toHaveBeenCalledTimes(1));
+      expect(mockReauthenticate).toHaveBeenCalledWith({maxAge: 300});
+      expect(mockUpdateMeCredentials).toHaveBeenCalledTimes(2);
+      expect((mockUpdateMeCredentials.mock.calls[1][0] as {payload: unknown}).payload).toEqual({
+        currentValue: undefined,
+        name: 'pin',
+        newValue: '1234',
+      });
+    });
+
+    it('shows the sign-in-again text when the change is refused again', async () => {
+      mockUpdateMeCredentials.mockRejectedValue(await stepUp());
+      mockReauthenticate.mockResolvedValue(undefined);
+      renderChangeCredential({attribute: 'pin', policy: {regex: '^.{4,}$'}});
+
+      submitPin();
+
+      expect(await screen.findByText(/sign in again to set your pin/i)).toBeTruthy();
+      expect(mockUpdateMeCredentials).toHaveBeenCalledTimes(2);
+    });
+
+    it('shows a different-account error and keeps the change unsent', async () => {
+      mockUpdateMeCredentials.mockRejectedValue(await stepUp());
+      mockReauthenticate.mockRejectedValue(Object.assign(new Error('other user'), {code: 'JS-AUTH_CORE-CRA-IV03'}));
+      renderChangeCredential({attribute: 'pin', policy: {regex: '^.{4,}$'}});
+
+      submitPin();
+
+      expect(await screen.findByText(/you signed in with a different account/i)).toBeTruthy();
+      expect(mockUpdateMeCredentials).toHaveBeenCalledTimes(1);
+    });
+
+    it('signs in again first on the next submit when the popup was blocked', async () => {
+      mockUpdateMeCredentials.mockRejectedValueOnce(await stepUp()).mockResolvedValueOnce(undefined);
+      mockReauthenticate
+        .mockRejectedValueOnce(Object.assign(new Error('blocked'), {code: 'BROWSER-REAUTHENTICATION-PB01'}))
+        .mockResolvedValueOnce(undefined);
+      renderChangeCredential({attribute: 'pin', policy: {regex: '^.{4,}$'}});
+
+      submitPin();
+      expect(await screen.findByText(/allow pop-ups for this site/i)).toBeTruthy();
+
+      fireEvent.click(submitButton());
+
+      await waitFor(() => expect(mockUpdateMeCredentials).toHaveBeenCalledTimes(2));
+      expect(mockReauthenticate).toHaveBeenCalledTimes(2);
+      expect(mockReauthenticate.mock.invocationCallOrder[1]).toBeLessThan(
+        mockUpdateMeCredentials.mock.invocationCallOrder[1],
+      );
+    });
   });
 
   it('surfaces an unmapped failure as a form-level error', async () => {

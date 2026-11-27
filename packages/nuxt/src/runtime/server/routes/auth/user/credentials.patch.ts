@@ -1,7 +1,7 @@
 // Copyright 2026 The ThunderID Authors
 // SPDX-License-Identifier: Apache-2.0
 
-import type {CredentialUpdateErrorResult} from '@thunderid/node';
+import type {CredentialUpdateErrorResult, UpdateMeCredentialsPayload} from '@thunderid/node';
 import {mapCredentialUpdateError} from '@thunderid/node';
 import {defineEventHandler, readBody, createError} from 'h3';
 import type {H3Event} from 'h3';
@@ -14,7 +14,7 @@ export interface UpdateUserCredentialsResult extends CredentialUpdateErrorResult
 }
 
 interface UpdateUserCredentialsBody {
-  payload: Record<string, string>;
+  payload: UpdateMeCredentialsPayload;
 }
 
 /**
@@ -23,10 +23,12 @@ interface UpdateUserCredentialsBody {
  * Updates one of the signed-in user's own credentials (e.g. `password`). Mirrors the
  * `updateUserCredentialsAction` Next.js server action.
  *
- * Request body: `{ payload: Record<string, string> }` — `payload` is keyed by credential attribute
- * (e.g. `{ password: "n3wP@ssword!" }`), the same shape `updateMeCredentials`'s own `payload` takes.
+ * Request body: `{ payload: { name, currentValue?, newValue } }` (e.g.
+ * `{ payload: { name: "password", currentValue: "0ldP@ssword!", newValue: "n3wP@ssword!" } }`), the
+ * same shape `updateMeCredentials`'s own `payload` takes.
  *
- * Response: `{ success: boolean; field: 'newPassword' | null; message?: string; messageKey: string }`.
+ * Response: `{ success: boolean; field: 'currentPassword' | 'newPassword' | null; message?: string;
+ * messageKey: string; authenticationChallenge?: { error, errorDescription?, maxAge? } }`.
  * Always resolves 200, even on a failed credential write — the failure is carried in the body
  * (`success: false` plus `field`/`message`/`messageKey`, from {@link mapCredentialUpdateError})
  * rather than the HTTP status, so `<ChangeCredential />`'s client component can attach the
@@ -58,7 +60,6 @@ export default defineEventHandler(async (event: H3Event): Promise<UpdateUserCred
     await client.updateUserCredentials(body.payload, session.sessionId);
     return {field: null, messageKey: '', success: true};
   } catch (error) {
-    const {field, message, messageKey}: CredentialUpdateErrorResult = mapCredentialUpdateError(error);
-    return {field, message, messageKey, success: false};
+    return {...mapCredentialUpdateError(error), success: false};
   }
 });

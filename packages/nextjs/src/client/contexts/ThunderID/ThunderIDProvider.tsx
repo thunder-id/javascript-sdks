@@ -1,4 +1,4 @@
-// Copyright 2025 The ThunderID Authors
+// Copyright 2025-2026 The ThunderID Authors
 // SPDX-License-Identifier: Apache-2.0
 
 'use client';
@@ -475,6 +475,7 @@ const ThunderIDClientProvider: FC<PropsWithChildren<ThunderIDClientProviderProps
       // The Next.js useGrantedPermissions reads them through a server action instead.
       getGrantedPermissions: unsupported('getGrantedPermissions'),
       getIdToken: unsupported('getIdToken'),
+      reauthenticate: unsupported('reauthenticate'),
       getStorageManager: () => Promise.resolve(null),
       http: {
         // The admin components and hooks send management requests through a server action that adds
