@@ -139,7 +139,14 @@ class ThunderIDBrowserClient<T = BrowserAuthConfig> extends ThunderIDJavaScriptC
     };
     const store: Storage = storage ?? initiateStore(this._storage as BrowserStorage);
 
-    await super.initialize(merged as unknown as T, store);
+    try {
+      await super.initialize(merged as unknown as T, store);
+    } catch (error) {
+      // A refused configuration leaves the client uninitialized, so later calls fail instead of waiting.
+      this._startedInitialize = false;
+
+      throw error;
+    }
 
     const sm = this.getStorageManager();
     this._spaHelper = new SPAHelper<T>(sm);
@@ -236,6 +243,11 @@ class ThunderIDBrowserClient<T = BrowserAuthConfig> extends ThunderIDJavaScriptC
     let iterations = 0;
 
     while (!this._initialized) {
+      // A failed initialization ends the wait.
+      if (!this._startedInitialize) {
+        return false;
+      }
+
       if (iterations === 1e4) {
         logger.warn('Initialization is taking longer than expected');
       }
@@ -683,8 +695,48 @@ class ThunderIDBrowserClient<T = BrowserAuthConfig> extends ThunderIDJavaScriptC
   }
 
   /**
+   * Replaces the session with the result of a completed embedded flow: the access token its assertion
+   * is exchanged for, with the assertion as the ID token. Only the kept SSO session handles carry over.
+   * A failed exchange drops the handles the step returned, so a retry shows the flow again.
+   *
+   * @param step - The flow step whose `flowStatus` is `COMPLETE`.
+   * @returns The assertion's claims.
+   */
+  protected async setSessionFromFlowAssertion(step: {
+    assertion: string;
+    sessionData?: EmbeddedFlowSessionData[];
+  }): Promise<Record<string, unknown>> {
+    let session: SessionData;
+
+    try {
+      session = await this.exchangeFlowAssertion(step.assertion);
+    } catch (error) {
+      const clearedSessions: string[] = (step.sessionData ?? []).map(
+        ({flowIdentifier}: EmbeddedFlowSessionData) => flowIdentifier,
+      );
+
+      await this.storeFlowSessions({clearedSessions});
+
+      throw error;
+    }
+
+    // The previous session's refresh would run against a session with no refresh token.
+    await this._spaHelper?.clearRefreshTokenTimeout();
+
+    const previous: Partial<SessionData> = (await this.getStorageManager().getSessionData()) ?? {};
+    // Session writes merge and drop undefined keys, so every previous key is cleared in the same write.
+    const cleared: Record<string, undefined> = Object.fromEntries(
+      Object.keys(previous).map((key: string): [string, undefined] => [key, undefined]),
+    );
+
+    await this.setSession({...cleared, flow_sessions: previous.flow_sessions, ...session});
+
+    return this.decodeJwtToken<Record<string, unknown>>(step.assertion);
+  }
+
+  /**
    * Embedded mode: starts a sign-in flow bounded to the unit. When the SSO session is reused, the flow
-   * completes at once and its assertion replaces the session.
+   * completes at once and the token its assertion is exchanged for replaces the session.
    */
   private async _switchOrganizationUnitEmbedded(
     organizationUnitId: string,
@@ -718,18 +770,13 @@ class ThunderIDBrowserClient<T = BrowserAuthConfig> extends ThunderIDJavaScriptC
     await this.storeFlowSessions(response);
 
     if (response?.flowStatus === EmbeddedSignInFlowStatus.Complete && response.assertion) {
-      const claims: Record<string, unknown> = await this.decodeJwtToken<Record<string, unknown>>(response.assertion);
-      const iat: number | undefined = typeof claims['iat'] === 'number' ? claims['iat'] : undefined;
-      const exp: number | undefined = typeof claims['exp'] === 'number' ? claims['exp'] : undefined;
+      try {
+        await this.setSessionFromFlowAssertion({...response, assertion: response.assertion});
+      } catch (error) {
+        logger.error('Keeping the session of the organization unit failed.', error);
 
-      await this.setSession({
-        access_token: response.assertion,
-        created_at: iat ? iat * 1000 : Date.now(),
-        expires_in: exp && iat ? exp - iat : 3600,
-        id_token: response.assertion,
-        scope: claims['scope'],
-        token_type: 'Bearer',
-      });
+        throw ThunderIDBrowserClient._toSwitchError(undefined, error);
+      }
 
       const user: User = await this.getUser();
 

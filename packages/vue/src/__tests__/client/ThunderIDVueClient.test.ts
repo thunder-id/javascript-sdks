@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-return */
-import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
+import {afterEach, beforeEach, describe, expect, it, type Mock, vi} from 'vitest';
 import type {ThunderIDVueConfig} from '../../models/config';
 import ThunderIDVueClient from '../../ThunderIDVueClient';
 
@@ -207,5 +207,71 @@ describe('ThunderIDVueClient authId of an authorization request', () => {
     await client.signIn({executionId: 'execution-a', inputs: {token: 'magic-token'}} as any);
 
     expect(postedCallbackBody(fetchMock)['authId']).toBe('auth-a');
+  });
+});
+
+describe('ThunderIDVueClient embedded session', () => {
+  const baseUrl = 'https://idp.example.com';
+  const assertion = 'h.eyJzdWIiOiJ1MSJ9.s';
+  let client: ThunderIDVueClient;
+
+  const json = (body: unknown, status = 200): Response =>
+    new Response(JSON.stringify(body), {headers: {'Content-Type': 'application/json'}, status});
+
+  /** Answers discovery, the flow step and the token request. */
+  const serverAnswering = (tokenBody: unknown, tokenStatus = 200): Mock =>
+    vi.fn((url: string) => {
+      if (url.includes('/.well-known/')) {
+        return Promise.resolve(json({issuer: baseUrl, token_endpoint: `${baseUrl}/oauth2/token`}));
+      }
+
+      if (url.endsWith('/oauth2/token')) {
+        return Promise.resolve(json(tokenBody, tokenStatus));
+      }
+
+      return Promise.resolve(json({assertion, flowStatus: 'COMPLETE'}));
+    });
+
+  beforeEach(async () => {
+    sessionStorage.clear();
+    client = new ThunderIDVueClient(44);
+    await client.initialize({
+      afterSignInUrl: window.location.origin,
+      applicationId: 'app-1',
+      baseUrl,
+      clientId: 'embedded-session-client',
+      storage: 'sessionStorage',
+    } as ThunderIDVueConfig);
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    sessionStorage.clear();
+  });
+
+  it.each([
+    ['sign-in', (c: ThunderIDVueClient): Promise<unknown> => c.signIn({executionId: 'e1', inputs: {}} as any)],
+    ['sign-up', (c: ThunderIDVueClient): Promise<unknown> => c.signUp({executionId: 'e1', inputs: {}} as any)],
+  ])('keeps the access token a completed %s exchanges its assertion for', async (_name: string, run: any) => {
+    const fetchMock = serverAnswering({access_token: 'at', expires_in: 900});
+    vi.stubGlobal('fetch', fetchMock);
+    // The test browser has no Buffer for the default JWT decoder.
+    vi.spyOn(client, 'decodeJwtToken').mockResolvedValue({sub: 'u1'} as any);
+
+    await run(client);
+
+    const tokenCall: any[] = fetchMock.mock.calls.find(([url]: any[]) => String(url).endsWith('/oauth2/token'))!;
+    expect(tokenCall[1].body.get('subject_token')).toBe(assertion);
+    expect(await client.getAccessToken()).toBe('at');
+    expect((await client.getStorageManager().getSessionData()).id_token).toBe(assertion);
+  });
+
+  it('fails a completed sign-in and keeps no session when the application lacks the grant', async () => {
+    vi.stubGlobal('fetch', serverAnswering({error: 'unauthorized_client'}, 400));
+
+    await expect(client.signIn({executionId: 'e1', inputs: {}} as any)).rejects.toMatchObject({
+      code: 'JS-AUTH_CORE-EFA-UC04',
+    });
+    expect((await client.getStorageManager().getSessionData())?.access_token).toBeUndefined();
   });
 });

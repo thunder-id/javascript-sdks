@@ -254,6 +254,15 @@ class ThunderIDNodeClient<T extends ThunderIDNodeConfig = ThunderIDNodeConfig> e
   }
 
   /**
+   * Exchanges the assertion a completed embedded flow returned for an access token, with the
+   * assertion kept as the ID token. Nothing is stored; the caller keeps the result in its session.
+   * The application needs the token exchange grant.
+   */
+  public override async exchangeFlowAssertion(assertion: string): Promise<SessionData> {
+    return super.exchangeFlowAssertion(assertion);
+  }
+
+  /**
    * Starts a device authorization request (RFC 8628) for an input-constrained device or a CLI tool. Show
    * the user `userCode` and `verificationUri`; keep `deviceCode`, a credential, to yourself and pass it
    * to {@link pollDeviceAuthorization}. It is never logged.

@@ -199,32 +199,16 @@ class ThunderIDVueClient<T extends ThunderIDVueConfig = ThunderIDVueConfig> exte
           response.flowStatus === EmbeddedSignInFlowStatus.Complete &&
           response.assertion
         ) {
-          const decodedAssertion: {
-            [key: string]: unknown;
-            exp?: number;
-            iat?: number;
-            scope?: string;
-          } = await this.decodeJwtToken<{
-            [key: string]: unknown;
-            exp?: number;
-            iat?: number;
-            scope?: string;
-          }>(response.assertion);
+          const claims: Record<string, unknown> = await this.setSessionFromFlowAssertion({
+            ...response,
+            assertion: response.assertion,
+          }).catch((error: unknown) => {
+            this.notifySignInFailed((error as {code?: unknown})?.code);
 
-          const createdAt: number = decodedAssertion.iat ? decodedAssertion.iat * 1000 : Date.now();
-          const expiresIn: number =
-            decodedAssertion.exp && decodedAssertion.iat ? decodedAssertion.exp - decodedAssertion.iat : 3600;
-
-          await this.setSession({
-            access_token: response.assertion,
-            created_at: createdAt,
-            expires_in: expiresIn,
-            id_token: response.assertion,
-            scope: decodedAssertion.scope,
-            token_type: 'Bearer',
+            throw error;
           });
 
-          this.notifySignIn(extractUserClaimsFromIdToken(decodedAssertion as IdToken) as User);
+          this.notifySignIn(extractUserClaimsFromIdToken(claims as IdToken) as User);
         }
 
         return response;
@@ -264,32 +248,9 @@ class ThunderIDVueClient<T extends ThunderIDVueConfig = ThunderIDVueConfig> exte
       response.flowStatus === EmbeddedSignUpFlowStatus.Complete &&
       response.assertion
     ) {
-      const decodedAssertion: {
-        [key: string]: unknown;
-        exp?: number;
-        iat?: number;
-        scope?: string;
-      } = await this.decodeJwtToken<{
-        [key: string]: unknown;
-        exp?: number;
-        iat?: number;
-        scope?: string;
-      }>(response.assertion);
+      const claims: Record<string, unknown> = await this.setSessionFromFlowAssertion(response);
 
-      const createdAt: number = decodedAssertion.iat ? decodedAssertion.iat * 1000 : Date.now();
-      const expiresIn: number =
-        decodedAssertion.exp && decodedAssertion.iat ? decodedAssertion.exp - decodedAssertion.iat : 3600;
-
-      await this.setSession({
-        access_token: response.assertion,
-        created_at: createdAt,
-        expires_in: expiresIn,
-        id_token: response.assertion,
-        scope: decodedAssertion.scope,
-        token_type: 'Bearer',
-      });
-
-      this.notifySignIn(extractUserClaimsFromIdToken(decodedAssertion as IdToken) as User);
+      this.notifySignIn(extractUserClaimsFromIdToken(claims as IdToken) as User);
     }
 
     return response;

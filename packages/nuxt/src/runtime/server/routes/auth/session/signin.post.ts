@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import {EmbeddedSignInFlowStatus, generateSessionId, isEmpty} from '@thunderid/node';
-import type {IdToken, TokenResponse} from '@thunderid/node';
+import type {SessionData, TokenResponse} from '@thunderid/node';
 import {defineEventHandler, readBody, getCookie, setCookie, deleteCookie, createError} from 'h3';
 import type {H3Event} from 'h3';
 import ThunderIDNuxtClient from '../../../ThunderIDNuxtClient';
@@ -106,9 +106,8 @@ export default defineEventHandler(async (event: H3Event) => {
   }
 
   // ── Flow complete — establish the session from the flow's JWT assertion ────
-  // A completed embedded flow returns a self-contained JWT `assertion` rather than an
-  // authorization code to exchange (mirrors how @thunderid/react and @thunderid/vue treat it:
-  // the assertion is used directly as the bearer session token).
+  // A completed embedded flow returns a JWT `assertion` rather than an authorization code. It is
+  // exchanged for the session's access token and kept as the ID token.
   if ((response as {flowStatus?: unknown})?.flowStatus === EmbeddedSignInFlowStatus.Complete) {
     const assertion: string | undefined = (response as {assertion?: string})?.assertion;
 
@@ -117,19 +116,16 @@ export default defineEventHandler(async (event: H3Event) => {
     }
 
     try {
-      const idToken: IdToken = await client.getDecodedIdToken(sessionId, assertion);
-      const iat: number = typeof idToken.iat === 'number' ? idToken.iat : Math.floor(Date.now() / 1000);
-      const exp: number = typeof idToken.exp === 'number' ? idToken.exp : iat + 3600;
-      const scope: string = typeof idToken.scope === 'string' ? idToken.scope : '';
+      const tokens: SessionData = await client.exchangeFlowAssertion(assertion);
 
       const tokenResponse: TokenResponse = {
-        accessToken: assertion,
-        createdAt: iat,
-        expiresIn: String(Math.max(exp - iat, 0)),
+        accessToken: tokens.access_token,
+        createdAt: tokens.created_at,
+        expiresIn: tokens.expires_in,
         idToken: assertion,
         refreshToken: '',
-        scope,
-        tokenType: 'Bearer',
+        scope: tokens.scope,
+        tokenType: tokens.token_type,
       } as TokenResponse;
 
       await issueSessionCookie(event, sessionId, tokenResponse, sessionSecret);
