@@ -162,15 +162,6 @@ class ThunderIDJavaScriptClient<T = Config> implements ThunderIDClient<T> {
     const fullConfig = config as unknown as AuthClientConfig<T>;
     const {clientId, instanceId, mode} = fullConfig as any;
 
-    // An embedded sign-in exchanges its assertion at the token endpoint, which needs the client ID.
-    if (mode === 'embedded' && !clientId) {
-      throw new ThunderIDRuntimeError(
-        'Embedded mode needs the `clientId` of the application, next to its `applicationId`.',
-        'JS-AUTH_CORE-INIT-IV01',
-        'javascript',
-      );
-    }
-
     if (instanceId !== undefined) {
       this.instanceIdValue = instanceId;
     }
@@ -208,6 +199,16 @@ class ThunderIDJavaScriptClient<T = Config> implements ThunderIDClient<T> {
     );
 
     this.baseURL = (fullConfig as any).baseUrl ?? '';
+
+    // An embedded sign-in exchanges its assertion at the token endpoint, which needs the client ID. Checked
+    // last, so a refused client still answers calls instead of failing on unset state.
+    if (mode === 'embedded' && !clientId) {
+      throw new ThunderIDRuntimeError(
+        'Embedded mode needs the `clientId` of the application, next to its `applicationId`.',
+        'JS-AUTH_CORE-INIT-IV01',
+        'javascript',
+      );
+    }
 
     return true;
   }

@@ -152,11 +152,22 @@ describe('ThunderIDReactClient embedded session', () => {
   });
 
   it('fails a completed sign-in and keeps no session when the application lacks the grant', async () => {
-    vi.stubGlobal('fetch', serverAnswering({assertion, flowStatus: 'COMPLETE'}, {error: 'unauthorized_client'}, 400));
+    vi.stubGlobal(
+      'fetch',
+      serverAnswering(
+        {assertion, flowStatus: 'COMPLETE', sessionData: [{flowIdentifier: 'f1', sessionHandle: 'h1'}]},
+        {error: 'unauthorized_client'},
+        400,
+      ),
+    );
+    const notifySignInFailed = vi.spyOn(client as any, 'notifySignInFailed');
 
     await expect(client.signIn({executionId: 'e1', inputs: {}} as any)).rejects.toMatchObject({
       code: 'JS-AUTH_CORE-EFA-UC04',
     });
     expect((await client.getStorageManager().getSessionData())?.access_token).toBeUndefined();
+    // A retry shows the flow again instead of completing at once with the same handle.
+    expect(await keptSessions(client)).toEqual([]);
+    expect(notifySignInFailed).toHaveBeenCalledWith('JS-AUTH_CORE-EFA-UC04');
   });
 });

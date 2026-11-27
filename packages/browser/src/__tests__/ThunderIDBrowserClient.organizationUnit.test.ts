@@ -193,9 +193,11 @@ describe('ThunderIDBrowserClient.switchOrganizationUnit()', () => {
       });
       const fetchMock = flowThenToken({assertion, flowStatus: 'COMPLETE'});
       vi.stubGlobal('fetch', fetchMock);
+      const clearRefreshTimer = vi.spyOn((client as any)._spaHelper, 'clearRefreshTokenTimeout');
 
       await client.switchOrganizationUnit('ou-1');
 
+      expect(clearRefreshTimer).toHaveBeenCalled();
       const body = JSON.parse(fetchMock.mock.calls[0][1].body);
       expect(fetchMock.mock.calls[0][0]).toBe('https://example.com/flow/execute');
       expect(body).toMatchObject({applicationId: 'app-1', flowType: 'AUTHENTICATION', ouId: 'ou-1'});
@@ -211,12 +213,22 @@ describe('ThunderIDBrowserClient.switchOrganizationUnit()', () => {
     it('fails and keeps the session when the assertion cannot be exchanged', async () => {
       const client = await createClient({mode: 'embedded'} as any);
       const assertion: string = encode({iat: Math.floor(Date.now() / 1000), ouId: 'ou-1', sub: 'u1'});
-      vi.stubGlobal('fetch', flowThenToken({assertion, flowStatus: 'COMPLETE'}, {error: 'unauthorized_client'}));
+      vi.stubGlobal(
+        'fetch',
+        flowThenToken(
+          {assertion, flowStatus: 'COMPLETE', sessionData: [{flowIdentifier: 'f9', sessionHandle: 'h9'}]},
+          {error: 'unauthorized_client'},
+        ),
+      );
+      const clearRefreshTimer = vi.spyOn((client as any)._spaHelper, 'clearRefreshTokenTimeout');
 
       await expect(client.switchOrganizationUnit('ou-1')).rejects.toMatchObject({
         code: OrganizationUnitSwitchErrorCodes.Failed,
       });
       expect(await sessionOf(client)).toMatchObject({access_token: 'old-at', id_token: 'old-id'});
+      // The previous session keeps refreshing, and the handle of the failed switch is not kept.
+      expect(clearRefreshTimer).not.toHaveBeenCalled();
+      expect((await sessionOf(client)).flow_sessions ?? []).toEqual([]);
     });
 
     it('maps FES-1023 to unauthorized_client and keeps the session', async () => {

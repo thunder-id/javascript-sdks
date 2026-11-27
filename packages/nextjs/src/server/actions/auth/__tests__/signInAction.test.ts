@@ -31,7 +31,8 @@ describe('signInAction', () => {
     client = {
       exchangeFlowAssertion: vi.fn(),
       getConfiguration: vi.fn().mockResolvedValue({}),
-      getDecodedIdToken: vi.fn().mockResolvedValue({sid: 'sid-1', sub: 'user-1'}),
+      decodeJwtToken: vi.fn().mockResolvedValue({sid: 'sid-1', sub: 'user-1'}),
+      getDecodedIdToken: vi.fn().mockResolvedValue({sid: 'old-sid', sub: 'old-user'}),
       getStorageManager: vi.fn().mockResolvedValue({getConfigDataParameter: vi.fn().mockResolvedValue('/home')}),
       signIn: vi.fn(),
     };
@@ -77,6 +78,9 @@ describe('signInAction', () => {
       const result = await signInAction({executionId: 'e-1'}, {});
 
       expect(client['exchangeFlowAssertion']).toHaveBeenCalledWith('flow-assertion');
+      // The identity comes from the new assertion, not an ID token stored for the session ID.
+      expect(client['decodeJwtToken']).toHaveBeenCalledWith('flow-assertion');
+      expect(client['getDecodedIdToken']).not.toHaveBeenCalled();
       expect((SessionManager.createSessionToken as unknown as Mock).mock.calls).toEqual([
         ['exchanged-at', 'user-1', expect.any(String), 'self', 900, '', undefined, {sid: 'sid-1'}],
       ]);

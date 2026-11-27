@@ -243,6 +243,11 @@ class ThunderIDBrowserClient<T = BrowserAuthConfig> extends ThunderIDJavaScriptC
     let iterations = 0;
 
     while (!this._initialized) {
+      // A failed initialization ends the wait.
+      if (!this._startedInitialize) {
+        return false;
+      }
+
       if (iterations === 1e4) {
         logger.warn('Initialization is taking longer than expected');
       }
@@ -692,12 +697,32 @@ class ThunderIDBrowserClient<T = BrowserAuthConfig> extends ThunderIDJavaScriptC
   /**
    * Replaces the session with the result of a completed embedded flow: the access token its assertion
    * is exchanged for, with the assertion as the ID token. Only the kept SSO session handles carry over.
+   * A failed exchange drops the handles the step returned, so a retry shows the flow again.
    *
-   * @param assertion - The `assertion` of a flow step whose `flowStatus` is `COMPLETE`.
+   * @param step - The flow step whose `flowStatus` is `COMPLETE`.
    * @returns The assertion's claims.
    */
-  protected async setSessionFromFlowAssertion(assertion: string): Promise<Record<string, unknown>> {
-    const session: SessionData = await this.exchangeFlowAssertion(assertion);
+  protected async setSessionFromFlowAssertion(step: {
+    assertion: string;
+    sessionData?: EmbeddedFlowSessionData[];
+  }): Promise<Record<string, unknown>> {
+    let session: SessionData;
+
+    try {
+      session = await this.exchangeFlowAssertion(step.assertion);
+    } catch (error) {
+      const clearedSessions: string[] = (step.sessionData ?? []).map(
+        ({flowIdentifier}: EmbeddedFlowSessionData) => flowIdentifier,
+      );
+
+      await this.storeFlowSessions({clearedSessions});
+
+      throw error;
+    }
+
+    // The previous session's refresh would run against a session with no refresh token.
+    await this._spaHelper?.clearRefreshTokenTimeout();
+
     const previous: Partial<SessionData> = (await this.getStorageManager().getSessionData()) ?? {};
     // Session writes merge and drop undefined keys, so every previous key is cleared in the same write.
     const cleared: Record<string, undefined> = Object.fromEntries(
@@ -706,7 +731,7 @@ class ThunderIDBrowserClient<T = BrowserAuthConfig> extends ThunderIDJavaScriptC
 
     await this.setSession({...cleared, flow_sessions: previous.flow_sessions, ...session});
 
-    return this.decodeJwtToken<Record<string, unknown>>(assertion);
+    return this.decodeJwtToken<Record<string, unknown>>(step.assertion);
   }
 
   /**
@@ -746,7 +771,7 @@ class ThunderIDBrowserClient<T = BrowserAuthConfig> extends ThunderIDJavaScriptC
 
     if (response?.flowStatus === EmbeddedSignInFlowStatus.Complete && response.assertion) {
       try {
-        await this.setSessionFromFlowAssertion(response.assertion);
+        await this.setSessionFromFlowAssertion({...response, assertion: response.assertion});
       } catch (error) {
         logger.error('Keeping the session of the organization unit failed.', error);
 

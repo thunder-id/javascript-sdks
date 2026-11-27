@@ -199,7 +199,14 @@ class ThunderIDVueClient<T extends ThunderIDVueConfig = ThunderIDVueConfig> exte
           response.flowStatus === EmbeddedSignInFlowStatus.Complete &&
           response.assertion
         ) {
-          const claims: Record<string, unknown> = await this.setSessionFromFlowAssertion(response.assertion);
+          const claims: Record<string, unknown> = await this.setSessionFromFlowAssertion({
+            ...response,
+            assertion: response.assertion,
+          }).catch((error: unknown) => {
+            this.notifySignInFailed((error as {code?: unknown})?.code);
+
+            throw error;
+          });
 
           this.notifySignIn(extractUserClaimsFromIdToken(claims as IdToken) as User);
         }
@@ -241,7 +248,7 @@ class ThunderIDVueClient<T extends ThunderIDVueConfig = ThunderIDVueConfig> exte
       response.flowStatus === EmbeddedSignUpFlowStatus.Complete &&
       response.assertion
     ) {
-      const claims: Record<string, unknown> = await this.setSessionFromFlowAssertion(response.assertion);
+      const claims: Record<string, unknown> = await this.setSessionFromFlowAssertion(response);
 
       this.notifySignIn(extractUserClaimsFromIdToken(claims as IdToken) as User);
     }

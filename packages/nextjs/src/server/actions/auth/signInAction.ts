@@ -107,7 +107,8 @@ const signInAction = async (
       }
 
       const tokens: SessionData = await client.exchangeFlowAssertion(response.assertion);
-      const idToken: IdToken = await client.getDecodedIdToken(sessionId, response.assertion);
+      // The new assertion, not an ID token stored for this session ID by an earlier sign-in.
+      const idToken: IdToken = await client.decodeJwtToken<IdToken>(response.assertion);
       const userIdFromToken: string = (idToken.sub as string | undefined) ?? sessionId;
       const organizationId: string | undefined = (idToken['user_org'] || idToken['organization_id']) as
         | string

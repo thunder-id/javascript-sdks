@@ -3,13 +3,23 @@
 
 /* eslint-disable @typescript-eslint/typedef, sort-keys */
 
-import {describe, it, expect} from 'vitest';
+import {describe, it, expect, vi} from 'vitest';
+import {setChunkedCookie} from '../../src/runtime/server/utils/chunkedCookie';
 import {
   createSessionToken,
+  issueSessionCookie,
   verifySessionToken,
   createTempSessionToken,
   verifyTempSessionToken,
 } from '../../src/runtime/server/utils/session';
+
+const mockClient = vi.hoisted(() => ({
+  decodeJwtToken: vi.fn(),
+  getDecodedIdToken: vi.fn(),
+}));
+
+vi.mock('../../src/runtime/server/ThunderIDNuxtClient', () => ({default: {getInstance: () => mockClient}}));
+vi.mock('../../src/runtime/server/utils/chunkedCookie', () => ({setChunkedCookie: vi.fn()}));
 
 const TEST_SECRET = 'test-secret-at-least-32-characters-long!!';
 
@@ -256,5 +266,26 @@ describe('createSessionToken — Phase 2 fields (accessTokenExpiresAt / refreshT
     expect(payload.accessTokenExpiresAt).toBeUndefined();
     expect(payload.refreshToken).toBeUndefined();
     expect(payload.idToken).toBeUndefined();
+  });
+});
+
+describe('issueSessionCookie', () => {
+  it('takes the identity from the issued ID token, not one stored for the session ID', async () => {
+    mockClient.decodeJwtToken.mockResolvedValue({sid: 'new-sid', sub: 'new-user'});
+    mockClient.getDecodedIdToken.mockResolvedValue({sid: 'old-sid', sub: 'old-user'});
+
+    await issueSessionCookie(
+      {} as any,
+      'session-1',
+      {accessToken: 'at', expiresIn: '900', idToken: 'new-id-token', scope: ''} as any,
+      TEST_SECRET,
+    );
+
+    const token: string = vi.mocked(setChunkedCookie).mock.calls[0][2];
+    const payload = await verifySessionToken(token, TEST_SECRET);
+
+    expect(mockClient.decodeJwtToken).toHaveBeenCalledWith('new-id-token');
+    expect(mockClient.getDecodedIdToken).not.toHaveBeenCalled();
+    expect(payload).toMatchObject({sid: 'new-sid', sub: 'new-user'});
   });
 });

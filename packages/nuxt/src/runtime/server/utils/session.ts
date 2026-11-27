@@ -195,7 +195,10 @@ export async function issueSessionCookie(
   const {default: ThunderIDNuxtClient} = await import('../ThunderIDNuxtClient');
   const client: ReturnType<typeof ThunderIDNuxtClient.getInstance> = ThunderIDNuxtClient.getInstance();
 
-  const idToken: IdToken = await client.getDecodedIdToken(sessionId, tokenResponse.idToken);
+  // The issued ID token, not one stored for this session ID by an earlier sign-in.
+  const idToken: IdToken = tokenResponse.idToken
+    ? await client.decodeJwtToken<IdToken>(tokenResponse.idToken)
+    : await client.getDecodedIdToken(sessionId);
 
   const userId: string = idToken.sub || sessionId;
   const organizationId: string | undefined = (idToken.user_org || idToken.organization_id) as string | undefined;
