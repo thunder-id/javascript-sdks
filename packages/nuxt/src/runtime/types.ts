@@ -159,12 +159,16 @@ export interface ThunderIDSSRData {
  * Auth state hydrated from server to client via useState.
  */
 export interface ThunderIDAuthState {
+  /** When the access token expires, in seconds since the epoch. Read by `backend`-mode apps. */
+  expiresAt?: number;
   isLoading: boolean;
   isSignedIn: boolean;
   /** Organization the session acts within, from the session's `organizationId`. */
   organizationId?: string;
   /** The organization unit the session was issued for, from its ID token claims. For display only. */
   organizationUnit?: CurrentOrganizationUnit | null;
+  /** The same as `scopes`, under the name the BFF contract gives it. Read by `backend`-mode apps. */
+  scope?: string;
   /** Space-separated scopes granted to the session, from the session's `scopes`. */
   scopes?: string;
   user: User | null;

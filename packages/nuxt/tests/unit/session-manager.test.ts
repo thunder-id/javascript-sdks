@@ -3,12 +3,15 @@
 
 /* eslint-disable @typescript-eslint/typedef, sort-keys */
 
-import {describe, it, expect} from 'vitest';
+import {afterEach, describe, it, expect, vi} from 'vitest';
 import {
   createSessionToken,
   verifySessionToken,
   createTempSessionToken,
   verifyTempSessionToken,
+  getSessionCookieOptions,
+  getTempSessionCookieName,
+  getTempSessionCookieOptions,
 } from '../../src/runtime/server/utils/session';
 
 const TEST_SECRET = 'test-secret-at-least-32-characters-long!!';
@@ -26,7 +29,9 @@ describe('createSessionToken / verifySessionToken', () => {
     );
 
     expect(typeof token).toBe('string');
-    expect(token.split('.')).toHaveLength(3); // valid JWT
+    // A compact JWE: the tokens are encrypted, not only signed.
+    expect(token.split('.')).toHaveLength(5);
+    expect(Buffer.from(token.split('.')[3] as string, 'base64url').toString('latin1')).not.toContain('at_test');
 
     const payload = await verifySessionToken(token, TEST_SECRET);
     expect(payload.sub).toBe('user-123');
@@ -256,5 +261,24 @@ describe('createSessionToken — Phase 2 fields (accessTokenExpiresAt / refreshT
     expect(payload.accessTokenExpiresAt).toBeUndefined();
     expect(payload.refreshToken).toBeUndefined();
     expect(payload.idToken).toBeUndefined();
+  });
+});
+
+describe('cookie SameSite', () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it('makes the session cookie Strict and the sign-in cookie Lax by default', () => {
+    expect(getSessionCookieOptions().sameSite).toBe('strict');
+    expect(getTempSessionCookieOptions().sameSite).toBe('lax');
+    expect(getTempSessionCookieName()).toBe('thunderid-session-state');
+  });
+
+  it('makes the session cookie Lax when THUNDERID_SESSION_COOKIE_SAME_SITE says so', () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    vi.stubEnv('THUNDERID_SESSION_COOKIE_SAME_SITE', 'lax');
+
+    expect(getSessionCookieOptions().sameSite).toBe('lax');
   });
 });

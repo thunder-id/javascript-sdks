@@ -20,8 +20,11 @@ const NuxtAPIRoutes: {
   AUTH_FLOWS: string;
   BACKCHANNEL_LOGOUT: string;
   CALLBACK: string;
+  CHECK_SESSION: string;
   MANAGEMENT: string;
   META: string;
+  PROXY: string;
+  REFRESH: string;
   SESSION: string;
   SIGN_IN: string;
   SIGN_OUT: string;
@@ -43,10 +46,16 @@ const NuxtAPIRoutes: {
   BACKCHANNEL_LOGOUT: '/api/auth/backchannel-logout',
   /** Resolves the OAuth callback and completes sign-in. */
   CALLBACK: '/api/auth/callback',
+  /** Reports whether the session is still live, without refreshing it, for `backend`-mode apps to poll. */
+  CHECK_SESSION: '/api/auth/checksession',
   /** Performs (POST) one management API request with the signed-in session. Served only when `management` is on. */
   MANAGEMENT: '/api/auth/management',
   /** Serves flow metadata (design config + i18n bundle). */
   META: '/api/auth/meta',
+  /** Forwards an API call to ThunderID with the session's access token, for `backend`-mode apps. */
+  PROXY: '/api/auth/proxy',
+  /** Refreshes the session's tokens, for `backend`-mode apps. */
+  REFRESH: '/api/auth/refresh',
   /** Returns the current server-verified session. */
   SESSION: '/api/auth/session',
   /** Starts (embedded) or redirects to (redirect flow) sign-in. */

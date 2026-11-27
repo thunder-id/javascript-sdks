@@ -50,7 +50,7 @@ describe('setSessionCookie', () => {
       3600,
       'unit-rt',
       'ou-globex',
-      {sid: 'sid-2'},
+      {idToken: 'unit-id', sid: 'sid-2'},
     ]);
     expect(setChunkedCookie).toHaveBeenCalledWith(cookieStore, 'session', 'session-jwt', {httpOnly: true});
   });

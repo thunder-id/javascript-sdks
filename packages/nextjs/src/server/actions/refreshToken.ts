@@ -94,7 +94,11 @@ const refreshToken = async (): Promise<RefreshResult> => {
     // path covers that case on the next request.
     try {
       const cookieStore: RequestCookies = await cookies();
-      deleteChunkedCookie(cookieStore, SessionManager.getSessionCookieName());
+      deleteChunkedCookie(
+        cookieStore,
+        SessionManager.getSessionCookieName(),
+        SessionManager.getSessionCookieOptions(0),
+      );
       logger.debug('[refreshToken] Cleared session cookie after refresh failure.');
     } catch {
       // Intentionally swallowed — middleware handles cleanup when mutation is blocked.

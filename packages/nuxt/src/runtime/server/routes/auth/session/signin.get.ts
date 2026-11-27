@@ -1,7 +1,7 @@
 // Copyright 2025 The ThunderID Authors
 // SPDX-License-Identifier: Apache-2.0
 
-import {generateSessionId} from '@thunderid/node';
+import {generateSessionId, toSafeReturnTo} from '@thunderid/node';
 import {defineEventHandler, getQuery, sendRedirect, setCookie, createError} from 'h3';
 import type {H3Event} from 'h3';
 import ThunderIDNuxtClient from '../../../ThunderIDNuxtClient';
@@ -26,11 +26,11 @@ export default defineEventHandler(async (event: H3Event) => {
   const sessionSecret: string | undefined = config.thunderid?.sessionSecret;
 
   const query: Record<string, unknown> = getQuery(event);
-  const returnTo: string | undefined = query.returnTo as string | undefined;
+  const returnTo: unknown = query.returnTo;
 
-  // Validate returnTo is a relative path to prevent open redirect
+  // Only a path on this app is kept, so sign-in cannot send the user to another site.
   const safeReturnTo: string | undefined =
-    returnTo && returnTo.startsWith('/') && !returnTo.startsWith('//') ? returnTo : undefined;
+    typeof returnTo === 'string' && toSafeReturnTo(returnTo) === returnTo ? returnTo : undefined;
 
   const ouId: unknown = query.ouId;
   const organizationUnitId: string | undefined = typeof ouId === 'string' && ouId.trim() !== '' ? ouId : undefined;

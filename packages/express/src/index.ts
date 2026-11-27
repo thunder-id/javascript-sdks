@@ -9,6 +9,8 @@ export {thunderID, handleSignIn, handleSignOut} from './middleware/authenticatio
 export {default as protect} from './middleware/protect';
 export {default as handleFlow} from './middleware/flow';
 export {default as handleBackchannelLogout} from './middleware/backchannelLogout';
+export {default as thunderIDBff} from './middleware/bff';
+export type {ThunderIDBffOptions} from './middleware/bff';
 export {default as requireAccess} from './middleware/requireAccess';
 export type {RequireAccessOptions} from './middleware/requireAccess';
 

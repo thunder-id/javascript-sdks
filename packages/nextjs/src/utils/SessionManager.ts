@@ -1,19 +1,28 @@
 // Copyright 2025 The ThunderID Authors
 // SPDX-License-Identifier: Apache-2.0
 
-import {ThunderIDRuntimeError, CookieConfig} from '@thunderid/node';
+import {
+  ThunderIDRuntimeError,
+  CookieConfig,
+  SessionCookie,
+  SessionCookieSameSite,
+  resolveSessionCookieSameSite,
+  resolveSessionSecret,
+} from '@thunderid/node';
 import type {JWTPayload} from 'jose';
-// Subpath imports keep the proxy's bundle free of jose's JWE code, whose CompressionStream use the Edge runtime rejects.
-import {compactVerify} from 'jose/jws/compact/verify';
-import {SignJWT} from 'jose/jwt/sign';
-import {jwtVerify} from 'jose/jwt/verify';
 import {getLoggedOutSessions} from './loggedOutSessions';
 import {DEFAULT_SESSION_COOKIE_EXPIRY_TIME} from '../constants/sessionConstants';
+
+const TEMP_SESSION_TTL_SECONDS: number = 15 * 60;
 
 /**
  * Session token payload interface
  */
 export interface SessionTokenPayload extends JWTPayload {
+  /** The access token. Never sent to the browser. */
+  accessToken: string;
+  /** The raw ID token, so the user's claims are at hand on any instance without a session store. */
+  idToken?: string;
   /** Expiration timestamp — doubles as the access token expiry (JWT exp == access token exp) */
   exp: number;
   /** Issued at timestamp */
@@ -37,50 +46,34 @@ export interface SessionTokenPayload extends JWTPayload {
 }
 
 /**
- * Session management utility class for JWT-based session cookies
+ * Reads and writes the session cookies. Their contents are encrypted in the BFF contract's session cookie
+ * format (see `SessionCookie` in `@thunderid/node`), so the tokens in them cannot be read from the browser.
  */
 class SessionManager {
   /**
-   * Get the signing secret from environment variable
-   * Throws error in production if not set
+   * The secret the session cookies are encrypted with: `THUNDERID_SESSION_SECRET`, or the deprecated
+   * `THUNDERID_SECRET`. Throws in production when neither is set or the secret is shorter than 32 bytes.
    */
-  private static getSecret(): Uint8Array {
-    const secret: string | undefined = process.env['THUNDERID_SECRET'];
+  private static getSecret(): string {
+    return resolveSessionSecret({deprecatedEnv: ['THUNDERID_SECRET'], sdk: 'nextjs'});
+  }
 
-    if (!secret) {
-      if (process.env['NODE_ENV'] === 'production') {
-        throw new ThunderIDRuntimeError(
-          'THUNDERID_SECRET environment variable is required in production',
-          'session-secret-required',
-          'nextjs',
-          'Set the THUNDERID_SECRET environment variable with a secure random string',
-        );
-      }
-      // Use a default secret for development (not secure)
-      // eslint-disable-next-line no-console
-      console.warn('Using default secret for development. Set THUNDERID_SECRET for production!');
-      return new TextEncoder().encode('development-secret-not-for-production');
-    }
-
-    return new TextEncoder().encode(secret);
+  /**
+   * Whether the session cookies are `Secure`, and so carry the `__Host-` prefix.
+   */
+  private static isSecure(): boolean {
+    return process.env['NODE_ENV'] === 'production';
   }
 
   /**
    * Create a temporary session cookie for login initiation
    */
-  static async createTempSession(sessionId: string): Promise<string> {
-    const secret: Uint8Array = this.getSecret();
-
-    const jwt: string = await new SignJWT({
-      sessionId,
-      type: 'temp',
-    })
-      .setProtectedHeader({alg: 'HS256'})
-      .setIssuedAt()
-      .setExpirationTime('15m')
-      .sign(secret);
-
-    return jwt;
+  static async createTempSession(sessionId: string, returnTo?: string): Promise<string> {
+    return SessionCookie.seal(
+      {sessionId, type: 'temp', ...(returnTo ? {returnTo} : {})},
+      this.getSecret(),
+      Math.floor(Date.now() / 1000) + TEMP_SESSION_TTL_SECONDS,
+    );
   }
 
   /**
@@ -117,28 +110,25 @@ class SessionManager {
     accessTokenTtlSeconds: number,
     refreshToken: string,
     organizationId?: string,
-    serverSession?: {sid?: string; signedInAt?: number},
+    serverSession?: {idToken?: string; sid?: string; signedInAt?: number},
   ): Promise<string> {
-    const secret: Uint8Array = this.getSecret();
-
-    const jwt: string = await new SignJWT({
-      accessToken,
-      organizationId,
-      refreshToken,
-      scopes,
-      sessionId,
-      // What a back-channel logout matches this session by.
-      sid: serverSession?.sid,
-      signedInAt: serverSession?.signedInAt ?? Math.floor(Date.now() / 1000),
-      type: 'session',
-    } as Omit<SessionTokenPayload, 'sub' | 'iat' | 'exp'>)
-      .setProtectedHeader({alg: 'HS256'})
-      .setSubject(userId)
-      .setIssuedAt()
-      .setExpirationTime(Math.floor(Date.now() / 1000) + accessTokenTtlSeconds)
-      .sign(secret);
-
-    return jwt;
+    return SessionCookie.seal(
+      {
+        accessToken,
+        idToken: serverSession?.idToken,
+        organizationId,
+        refreshToken,
+        scopes,
+        sessionId,
+        // What a back-channel logout matches this session by.
+        sid: serverSession?.sid,
+        signedInAt: serverSession?.signedInAt ?? Math.floor(Date.now() / 1000),
+        sub: userId,
+        type: 'session',
+      } as Omit<SessionTokenPayload, 'iat' | 'exp'>,
+      this.getSecret(),
+      Math.floor(Date.now() / 1000) + accessTokenTtlSeconds,
+    );
   }
 
   /**
@@ -146,16 +136,15 @@ class SessionManager {
    */
   static async verifySessionToken(token: string): Promise<SessionTokenPayload> {
     try {
-      const secret: Uint8Array = this.getSecret();
-      const {payload} = await jwtVerify(token, secret);
+      const payload: SessionTokenPayload = await SessionCookie.unseal<SessionTokenPayload>(token, this.getSecret());
 
-      if (payload['type'] !== 'session') {
+      if (payload.type !== 'session') {
         throw new Error('Invalid token type');
       }
 
-      await this.refuseLoggedOutSession(payload as SessionTokenPayload);
+      await this.refuseLoggedOutSession(payload);
 
-      return payload as SessionTokenPayload;
+      return payload;
     } catch (error) {
       throw new ThunderIDRuntimeError(
         `Invalid session token: ${error instanceof Error ? error.message : 'Unknown error'}`,
@@ -167,7 +156,7 @@ class SessionManager {
   }
 
   /**
-   * Verify a session token for refresh. Validates the HMAC signature and the
+   * Verify a session token for refresh. Decrypts the token, which also authenticates it, and checks and the
    * `type === 'session'` discriminant but intentionally skips the `exp` check
    * so an expired access token can still be exchanged for a new one.
    *
@@ -179,9 +168,9 @@ class SessionManager {
    */
   static async verifySessionTokenForRefresh(token: string): Promise<SessionTokenPayload> {
     try {
-      const secret: Uint8Array = this.getSecret();
-      const {payload: rawPayload} = await compactVerify(token, secret);
-      const payload: SessionTokenPayload = JSON.parse(new TextDecoder().decode(rawPayload)) as SessionTokenPayload;
+      const payload: SessionTokenPayload = await SessionCookie.unseal<SessionTokenPayload>(token, this.getSecret(), {
+        ignoreExpiry: true,
+      });
 
       if (payload.type !== 'session') {
         throw new Error('Invalid token type');
@@ -203,16 +192,21 @@ class SessionManager {
   /**
    * Verify and decode a temporary session token
    */
-  static async verifyTempSession(token: string): Promise<{sessionId: string}> {
+  static async verifyTempSession(token: string): Promise<{returnTo?: string; sessionId: string}> {
     try {
-      const secret: Uint8Array = this.getSecret();
-      const {payload} = await jwtVerify(token, secret);
+      const payload: {returnTo?: unknown; sessionId?: unknown; type?: unknown} = await SessionCookie.unseal(
+        token,
+        this.getSecret(),
+      );
 
-      if (payload['type'] !== 'temp') {
+      if (payload.type !== 'temp' || typeof payload.sessionId !== 'string') {
         throw new Error('Invalid token type');
       }
 
-      return {sessionId: payload['sessionId'] as string};
+      return {
+        sessionId: payload.sessionId,
+        ...(typeof payload.returnTo === 'string' ? {returnTo: payload.returnTo} : {}),
+      };
     } catch (error) {
       throw new ThunderIDRuntimeError(
         `Invalid temporary session token: ${error instanceof Error ? error.message : 'Unknown error'}`,
@@ -224,11 +218,8 @@ class SessionManager {
   }
 
   /**
-   * Get session cookie options
-   */
-  /**
-   * Throws when a back-channel logout has ended the session this cookie carries. The cookie is
-   * still correctly signed, so this is the only thing that stops it from being used.
+   * Throws when a back-channel logout has ended the session this cookie carries. The cookie still
+   * decrypts, so this is the only thing that stops it from being used.
    */
   private static async refuseLoggedOutSession(payload: SessionTokenPayload): Promise<void> {
     const loggedOut: boolean = await getLoggedOutSessions().isLoggedOut({
@@ -242,38 +233,42 @@ class SessionManager {
     }
   }
 
+  /**
+   * Session cookie options. `SameSite` is `Strict` unless `THUNDERID_SESSION_COOKIE_SAME_SITE` says otherwise.
+   */
   static getSessionCookieOptions(maxAge: number): {
     httpOnly: boolean;
     maxAge: number;
     path: string;
-    sameSite: 'lax';
+    sameSite: SessionCookieSameSite;
     secure: boolean;
   } {
     return {
       httpOnly: true,
       maxAge,
       path: '/',
-      sameSite: 'lax' as const,
-      secure: process.env['NODE_ENV'] === 'production',
+      sameSite: resolveSessionCookieSameSite(),
+      secure: this.isSecure(),
     };
   }
 
   /**
-   * Get temporary session cookie options
+   * Options of the cookie that carries a sign-in in progress. It is `Lax` whatever the session cookie is, so it
+   * comes back on the redirect to the callback.
    */
   static getTempSessionCookieOptions(): {
     httpOnly: boolean;
     maxAge: number;
     path: string;
-    sameSite: 'lax';
+    sameSite: SessionCookieSameSite;
     secure: boolean;
   } {
     return {
       httpOnly: true,
-      maxAge: 15 * 60,
+      maxAge: TEMP_SESSION_TTL_SECONDS,
       path: '/',
       sameSite: 'lax' as const,
-      secure: process.env['NODE_ENV'] === 'production',
+      secure: this.isSecure(),
     };
   }
 
@@ -281,14 +276,14 @@ class SessionManager {
    * Get session cookie name
    */
   static getSessionCookieName(): string {
-    return CookieConfig.getSessionCookieName();
+    return CookieConfig.withHostPrefix(CookieConfig.getSessionCookieName(), this.isSecure());
   }
 
   /**
    * Get temporary session cookie name
    */
   static getTempSessionCookieName(): string {
-    return CookieConfig.getTempSessionCookieName();
+    return CookieConfig.withHostPrefix(CookieConfig.getTempSessionCookieName(), this.isSecure());
   }
 }
 

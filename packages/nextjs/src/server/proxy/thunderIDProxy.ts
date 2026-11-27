@@ -8,6 +8,7 @@ import {ThunderIDNextConfig} from '../../models/config';
 import {
   ChunkedCookieOptions,
   ChunkedCookieWriter,
+  CookieDeletion,
   deleteChunkedCookie,
   getChunkedCookie,
   setChunkedCookie,
@@ -113,8 +114,8 @@ const toChunkedCookieWriter = (
   request: NextRequest,
   responseCookies: NextResponse['cookies'],
 ): ChunkedCookieWriter => ({
-  delete: (name: string): void => {
-    responseCookies.delete(name);
+  delete: (cookie: CookieDeletion): void => {
+    responseCookies.delete(cookie);
   },
   getAll: (): {name: string}[] => request.cookies.getAll(),
   set: (name: string, value: string, options: ChunkedCookieOptions): void => {
@@ -331,7 +332,11 @@ const thunderIDProxy =
         // Handler returned a response (e.g. a redirect from protectRoute).
         // Attach the deletion so the browser discards the stale cookie (and
         // every chunk of it).
-        deleteChunkedCookie(toChunkedCookieWriter(request, handlerResponse.cookies), cookieName);
+        deleteChunkedCookie(
+          toChunkedCookieWriter(request, handlerResponse.cookies),
+          cookieName,
+          SessionManager.getSessionCookieOptions(0),
+        );
         return handlerResponse;
       }
 
@@ -340,7 +345,11 @@ const thunderIDProxy =
       const requestHeaders: Headers = new Headers(request.headers);
       requestHeaders.set('cookie', removeChunkedCookieFromHeader(request.headers.get('cookie') ?? '', cookieName));
       const cleanResponse: NextResponse = NextResponse.next({request: {headers: requestHeaders}});
-      deleteChunkedCookie(toChunkedCookieWriter(request, cleanResponse.cookies), cookieName);
+      deleteChunkedCookie(
+        toChunkedCookieWriter(request, cleanResponse.cookies),
+        cookieName,
+        SessionManager.getSessionCookieOptions(0),
+      );
       return cleanResponse;
     }
 

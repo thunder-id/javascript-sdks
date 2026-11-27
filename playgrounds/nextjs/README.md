@@ -55,7 +55,7 @@ pnpm build
 # Configure the playground.
 cp playgrounds/nextjs/.env.example playgrounds/nextjs/.env
 # Set NEXT_PUBLIC_THUNDERID_CLIENT_ID and THUNDERID_CLIENT_SECRET, and/or NEXT_PUBLIC_THUNDERID_APPLICATION_ID and
-# THUNDERID_FLOW_SECRET, and a THUNDERID_SECRET.
+# THUNDERID_FLOW_SECRET, and a THUNDERID_SESSION_SECRET.
 
 pnpm --filter @thunderid/playground-nextjs dev
 ```
@@ -71,7 +71,7 @@ Open http://localhost:3001. After changing SDK source, rebuild that package (for
 | `NEXT_PUBLIC_THUNDERID_AFTER_SIGN_IN_URL`, `NEXT_PUBLIC_THUNDERID_AFTER_SIGN_OUT_URL`     | Redirect targets. Unset uses the app origin.                                              |
 | `NEXT_PUBLIC_THUNDERID_SCOPES`                                                            | Space separated scopes.                                                                   |
 | `NEXT_PUBLIC_THUNDERID_SIGN_IN_URL`                                                       | Optional. `/signin` sends `<SignInButton />` and `protectRoute()` to the app-native page. |
-| `THUNDERID_SECRET`                                                                        | Signs the session cookie. Unset uses a development default and logs a warning.            |
+| `THUNDERID_SESSION_SECRET`                                                                | Encrypts the session cookie; at least 32 bytes. Unset uses a development default.         |
 | `NODE_TLS_REJECT_UNAUTHORIZED`                                                            | `0` accepts the local server's self-signed certificate. Local development only.           |
 | `THUNDERID_ENDPOINT_GROUPS`, `_ROLES`, `_AGENT_TYPES`, `_AGENTS`, `_USERS`, `_USER_TYPES` | Optional, playground only. Full URL of one management collection.                         |
 

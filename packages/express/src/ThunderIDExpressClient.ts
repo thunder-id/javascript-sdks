@@ -8,10 +8,12 @@ import {
   FlowSessionStore,
   ThunderIDNodeManagementClient,
   ThunderIDRuntimeError,
+  SessionData,
   Storage,
   TokenResponse,
   User,
   CookieConfig as NodeCookieConfig,
+  resolveSessionCookieSameSite,
 } from '@thunderid/node';
 import express from 'express';
 import {v4 as uuidv4} from 'uuid';
@@ -49,10 +51,94 @@ class ThunderIDExpressClient<T extends ExpressClientConfig = ExpressClientConfig
    * `vendor`-derived default (which itself defaults to `'thunderid'`).
    */
   public getSessionCookieName(): string {
-    return NodeCookieConfig.resolveSessionCookieName(
-      this._expressConfig?.vendor,
-      this._expressConfig?.sessionCookie?.name,
+    const configuredName: string | undefined = this._expressConfig?.sessionCookie?.name;
+    const name: string = NodeCookieConfig.resolveSessionCookieName(this._expressConfig?.vendor, configuredName);
+
+    // A name the app chose is kept as it is; the default gets `__Host-` when the cookie is Secure.
+    return configuredName ? name : NodeCookieConfig.withHostPrefix(name, this.getSessionCookieOptions().secure);
+  }
+
+  /**
+   * The attributes the session cookie is set with. `Secure` defaults to on in production, and the
+   * cookie is always on `Path=/` with no `Domain`, so it can carry the `__Host-` prefix.
+   */
+  public getSessionCookieOptions(): express.CookieOptions & {maxAge: number; secure: boolean} {
+    const sc = this._expressConfig?.sessionCookie;
+
+    return {
+      httpOnly: sc?.httpOnly ?? CookieConfig.defaultHttpOnly,
+      maxAge: (sc?.expiryTime ?? CookieConfig.defaultExpirySeconds) * 1000,
+      path: '/',
+      sameSite: resolveSessionCookieSameSite(sc?.sameSite),
+      secure: sc?.secure ?? process.env['NODE_ENV'] === 'production',
+    };
+  }
+
+  /**
+   * The tokens a session holds, without refreshing them, or `undefined` when there is no such session.
+   * A back-channel logout removes the session, so this is also how to check it is still live.
+   */
+  public async getSessionData(sessionId: string): Promise<SessionData | undefined> {
+    try {
+      const data: SessionData | undefined = await this.getStorageManager().getSessionData(sessionId);
+
+      return data?.access_token ? data : undefined;
+    } catch {
+      return undefined;
+    }
+  }
+
+  /**
+   * Removes a session from the store and waits for it, unlike `clearSession`, which does not wait.
+   *
+   * @param sessionId - The session to remove.
+   */
+  public async endSession(sessionId: string): Promise<void> {
+    await this.clearSessionAsync(sessionId);
+  }
+
+  /**
+   * Deletes the session cookie. The deletion repeats the cookie's attributes, without which a
+   * browser ignores it for a `__Host-` cookie.
+   */
+  public clearSessionCookie(res: express.Response): void {
+    const {httpOnly, path, sameSite, secure} = this.getSessionCookieOptions();
+
+    res.clearCookie(this.getSessionCookieName(), {httpOnly, path, sameSite, secure});
+  }
+
+  /**
+   * The name of the cookie that carries a sign-in in progress: `thunderid-session-state`, with `__Host-` when
+   * `Secure`. It holds the session ID the authorization request's `state` and PKCE verifier are stored under.
+   */
+  public getSessionStateCookieName(): string {
+    return NodeCookieConfig.withHostPrefix(
+      NodeCookieConfig.getTempSessionCookieName(this._expressConfig?.vendor),
+      this.getSessionCookieOptions().secure,
     );
+  }
+
+  /**
+   * The attributes of the sign-in cookie. It is `SameSite=Lax` whatever the session cookie is, so it comes back on
+   * the redirect to the callback, which a `Strict` session cookie does not.
+   */
+  public getSessionStateCookieOptions(): express.CookieOptions & {maxAge: number; secure: boolean} {
+    return {
+      httpOnly: true,
+      maxAge: CookieConfig.sessionStateMaxAgeSeconds * 1000,
+      path: '/',
+      sameSite: 'lax',
+      secure: this.getSessionCookieOptions().secure,
+    };
+  }
+
+  /**
+   * Deletes the sign-in cookie, repeating its attributes.
+   */
+  public clearSessionStateCookie(res: express.Response): void {
+    const {httpOnly, path, sameSite, secure} = this.getSessionStateCookieOptions();
+
+    res.clearCookie(this.getSessionStateCookieName(), {httpOnly, path, sameSite, secure});
   }
 
   public async getUserFromRequest(req: express.Request): Promise<User | undefined> {
@@ -108,23 +194,18 @@ class ThunderIDExpressClient<T extends ExpressClientConfig = ExpressClientConfig
       );
     }
 
-    const cookieName = this.getSessionCookieName();
-    let userId: string = req.cookies?.[cookieName];
-    if (!userId) {
-      userId = uuidv4();
-    }
-
-    const sc = this._expressConfig?.sessionCookie;
+    const cookieName: string = this.getSessionCookieName();
+    const stateCookieName: string = this.getSessionStateCookieName();
+    const cookies = (req.cookies ?? {}) as Record<string, string | undefined>;
+    // The callback finds its sign-in through the sign-in cookie: a Strict session cookie does not come back on the
+    // identity provider's redirect. Starting a sign-in keeps the session already on this browser, if any.
+    const userId: string =
+      (req.query['code'] ? (cookies[stateCookieName] ?? cookies[cookieName]) : cookies[cookieName]) ?? uuidv4();
 
     const authRedirectCallback = (url: string): void => {
       if (!url) return;
 
-      res.cookie(cookieName, userId, {
-        httpOnly: sc?.httpOnly ?? CookieConfig.defaultHttpOnly,
-        maxAge: (sc?.expiryTime ?? CookieConfig.defaultExpirySeconds) * 1000,
-        sameSite: (sc?.sameSite ?? CookieConfig.defaultSameSite) as any,
-        secure: sc?.secure ?? CookieConfig.defaultSecure,
-      });
+      res.cookie(stateCookieName, userId, this.getSessionStateCookieOptions());
       // The redirect is the response, so the request ends here rather than going on to later routes.
       res.redirect(url);
     };
@@ -146,6 +227,10 @@ class ThunderIDExpressClient<T extends ExpressClientConfig = ExpressClientConfig
     )) as unknown as TokenResponse;
 
     if (authResponse.accessToken || authResponse.idToken) {
+      // The session cookie is set only once the sign-in has completed.
+      res.cookie(cookieName, userId, this.getSessionCookieOptions());
+      this.clearSessionStateCookie(res);
+
       return authResponse;
     }
 

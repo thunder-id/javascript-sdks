@@ -4,6 +4,8 @@
 import {defineEventHandler, deleteCookie} from 'h3';
 import type {H3Event} from 'h3';
 import ThunderIDNuxtClient from '../../../ThunderIDNuxtClient';
+import {refuseCrossSiteRequest} from '../../../utils/checkBffRequest';
+import {deleteChunkedCookie} from '../../../utils/chunkedCookie';
 import {verifyAndRehydrateSession} from '../../../utils/serverSession';
 import {
   getSessionCookieName,
@@ -11,7 +13,6 @@ import {
   getTempSessionCookieName,
   getTempSessionCookieOptions,
 } from '../../../utils/session';
-import {deleteChunkedCookie} from '../../../utils/chunkedCookie';
 import {useRuntimeConfig} from '#imports';
 
 /**
@@ -24,7 +25,13 @@ import {useRuntimeConfig} from '#imports';
  *
  * Using POST instead of GET prevents CSRF-based forced sign-outs.
  */
-export default defineEventHandler(async (event: H3Event): Promise<{redirectUrl: string}> => {
+export default defineEventHandler(async (event: H3Event): Promise<{error: string} | {redirectUrl: string}> => {
+  const refusal: {error: string; message: string} | undefined = refuseCrossSiteRequest(event);
+
+  if (refusal) {
+    return refusal;
+  }
+
   const config: ReturnType<typeof useRuntimeConfig> = useRuntimeConfig();
   const sessionSecret: string | undefined = config.thunderid?.sessionSecret;
   const publicConfig: typeof config.public.thunderid = config.public.thunderid;

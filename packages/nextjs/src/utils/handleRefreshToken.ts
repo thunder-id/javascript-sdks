@@ -45,6 +45,7 @@ const handleRefreshToken = async (
     sid,
     signedInAt,
     iat,
+    idToken: storedIdToken,
   } = sessionPayload;
 
   if (!storedRefreshToken) {
@@ -104,7 +105,7 @@ const handleRefreshToken = async (
     newRefreshToken,
     organizationId,
     // A refreshed session is still the same sign-in, so it keeps what a logout matches it by.
-    {sid, signedInAt: signedInAt ?? iat},
+    {idToken: (tokenData['id_token'] as string | undefined) ?? storedIdToken, sid, signedInAt: signedInAt ?? iat},
   );
 
   return {

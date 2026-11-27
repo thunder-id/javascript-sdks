@@ -4,13 +4,31 @@
 'use server';
 
 import {cookies} from 'next/headers';
-import {deleteChunkedCookie} from '../../../utils/chunkedCookie';
+import {deleteChunkedCookie, getChunkedCookie, toCookieDeletion} from '../../../utils/chunkedCookie';
 import logger from '../../../utils/logger';
 import SessionManager from '../../../utils/SessionManager';
 import getClient from '../../getClient';
-import getSessionId from '../getSessionId';
 
 type RequestCookies = Awaited<ReturnType<typeof cookies>>;
+
+/**
+ * Reads the session ID for sign-out. An expired access token still identifies the session, so sign-out
+ * ends the authorization server's session too. The cookie must still decrypt, and a session a
+ * back-channel logout ended is still refused.
+ */
+const getSessionIdForSignOut = async (): Promise<string | undefined> => {
+  const token: string | undefined = getChunkedCookie(await cookies(), SessionManager.getSessionCookieName());
+
+  if (!token) {
+    return undefined;
+  }
+
+  try {
+    return (await SessionManager.verifySessionTokenForRefresh(token)).sessionId;
+  } catch {
+    return undefined;
+  }
+};
 
 /**
  * Server action for signing out a user.
@@ -26,13 +44,15 @@ const signOutAction = async (): Promise<{data?: {signOutUrl?: string}; error?: u
   const clearSessionCookies = async (): Promise<void> => {
     const cookieStore: RequestCookies = await cookies();
 
-    deleteChunkedCookie(cookieStore, SessionManager.getSessionCookieName());
-    cookieStore.delete(SessionManager.getTempSessionCookieName());
+    deleteChunkedCookie(cookieStore, SessionManager.getSessionCookieName(), SessionManager.getSessionCookieOptions(0));
+    cookieStore.delete(
+      toCookieDeletion(SessionManager.getTempSessionCookieName(), SessionManager.getTempSessionCookieOptions()),
+    );
   };
 
   try {
     const client = getClient();
-    const sessionId: string | undefined = await getSessionId();
+    const sessionId: string | undefined = await getSessionIdForSignOut();
 
     let signOutUrl = '/';
 

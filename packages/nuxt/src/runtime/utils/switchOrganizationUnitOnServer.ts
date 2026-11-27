@@ -6,6 +6,7 @@ import {
   OrganizationUnitSwitchFallbackErrors,
   ThunderIDAPIError,
 } from '@thunderid/browser';
+import bffRequestHeaders from '../constants/bffRequestHeaders';
 import NuxtAPIRoutes from '../constants/NuxtAPIRoutes';
 import type {ThunderIDAuthState} from '../types';
 
@@ -22,6 +23,7 @@ const switchOrganizationUnitOnServer = async (organizationUnitId: string): Promi
   try {
     return await $fetch<ThunderIDAuthState>(NuxtAPIRoutes.SWITCH, {
       body: {ouId: organizationUnitId},
+      headers: bffRequestHeaders,
       method: 'POST',
       query: {ouId: organizationUnitId},
     });

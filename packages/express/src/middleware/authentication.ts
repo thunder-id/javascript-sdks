@@ -1,7 +1,7 @@
 // Copyright 2025 The ThunderID Authors
 // SPDX-License-Identifier: Apache-2.0
 
-import {ThunderIDRuntimeError, TokenResponse, logger as Logger} from '@thunderid/node';
+import {ThunderIDRuntimeError, TokenResponse, logger as Logger, renderSignInContinuePage} from '@thunderid/node';
 import express from 'express';
 import {ThunderIDExpressConfig} from '../models/config';
 import ThunderIDExpressClient from '../ThunderIDExpressClient';
@@ -46,6 +46,22 @@ const thunderID = (config: ThunderIDExpressConfig): express.RequestHandler => {
 };
 
 /**
+ * Makes `res.redirect` answer with a page that moves on to the target, instead of a `302`. A redirect from the
+ * callback still belongs to the identity provider's cross-site chain, so the browser would leave out the `Strict`
+ * session cookie just set, and a protected page would send the user back through sign-in without end.
+ */
+const continueWithPage = (res: express.Response): void => {
+  res.redirect = ((first: string | number, second?: string): void => {
+    const target: string = typeof first === 'string' ? first : (second ?? '/');
+
+    res
+      .status(200)
+      .set({'cache-control': 'no-store', 'content-type': 'text/html; charset=utf-8'})
+      .send(renderSignInContinuePage(target));
+  }) as express.Response['redirect'];
+};
+
+/**
  * Returns an Express route handler for the sign-in path.
  *
  * - If the request has no `?code` query param, initiates the OAuth 2.0 redirect.
@@ -80,6 +96,9 @@ const handleSignIn = (): express.RequestHandler => {
     try {
       const response: TokenResponse = await client.signIn(req, res, next, config?.signInOptions);
       if (response.accessToken || response.idToken) {
+        if (client.getSessionCookieOptions().sameSite === 'strict') {
+          continueWithPage(res);
+        }
         onSignIn(res, response);
       }
     } catch (e: any) {
@@ -141,7 +160,7 @@ const handleSignOut = (): express.RequestHandler => {
     try {
       const signOutURL: string = await client.signOut(sessionId);
       if (signOutURL) {
-        res.cookie(cookieName, null, {maxAge: 0});
+        client.clearSessionCookie(res);
         res.redirect(signOutURL);
       }
     } catch (e: any) {

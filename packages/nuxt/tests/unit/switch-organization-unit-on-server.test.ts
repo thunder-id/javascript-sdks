@@ -28,6 +28,7 @@ describe('switchOrganizationUnitOnServer', () => {
     await expect(switchOrganizationUnitOnServer('ou-2')).resolves.toEqual(state);
     expect(fetchMock).toHaveBeenCalledWith('/api/auth/switch', {
       body: {ouId: 'ou-2'},
+      headers: {'X-Requested-With': 'XMLHttpRequest'},
       method: 'POST',
       query: {ouId: 'ou-2'},
     });
