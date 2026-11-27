@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import {render, waitFor, cleanup, act, fireEvent, screen} from '@testing-library/react';
-import {I18nPreferences, ThunderIDAPIError} from '@thunderid/browser';
+import {I18nPreferences, ThunderIDAPIError, ThunderIDRuntimeError} from '@thunderid/browser';
 import {afterEach, beforeEach, describe, expect, it, vi, Mock, MockInstance} from 'vitest';
 import type {ReactElement, ReactNode} from 'react';
 import I18nProvider from '../../../../contexts/I18n/I18nProvider';
@@ -12,6 +12,12 @@ import useTranslation from '../../../../hooks/useTranslation';
 import SignUp, {SignUpRenderProps} from '../SignUp';
 
 const mockSignUp = vi.fn() as Mock;
+const mockHandlePasskeyRegistration = vi.fn() as Mock;
+
+vi.mock('../../../../utils/passkey', async (importOriginal: () => Promise<Record<string, unknown>>) => ({
+  ...(await importOriginal()),
+  handlePasskeyRegistration: (...args: unknown[]): unknown => mockHandlePasskeyRegistration(...args),
+}));
 
 const thunderIDContext: ThunderIDContextProps = {
   applicationId: 'app-1',
@@ -177,6 +183,63 @@ describe('SignUp', () => {
       await captured.submit?.({id: 'continue'}, {}, true);
     });
     expect(mockSignUp).toHaveBeenCalledTimes(2);
+  });
+
+  it('tells the flow a failed passkey prompt and shows the step and error the flow returns', async () => {
+    mockHandlePasskeyRegistration.mockRejectedValue(
+      new ThunderIDRuntimeError('Passkey registration failed.', 'browser-webauthn-registration-error', 'browser'),
+    );
+    let latest: SignUpRenderProps | undefined;
+    mockSignUp.mockResolvedValueOnce({executionId: 'exec-1', flowStatus: 'INCOMPLETE'});
+    renderSignUp({
+      children: (renderProps: SignUpRenderProps) => {
+        latest = renderProps;
+        return <div />;
+      },
+    });
+    await waitFor(() => {
+      expect(mockSignUp).toHaveBeenCalledTimes(1);
+    });
+
+    mockSignUp
+      .mockResolvedValueOnce({
+        challengeToken: 'token-2',
+        data: {additionalData: {passkeyCreationOptions: '{"challenge":"Y2hhbGxlbmdl"}'}},
+        executionId: 'exec-1',
+        flowStatus: 'INCOMPLETE',
+      })
+      .mockResolvedValueOnce({
+        challengeToken: 'token-3',
+        data: {
+          meta: {components: [{eventType: 'TRIGGER', id: 'action_retry_passkey', label: 'Try Again', type: 'ACTION'}]},
+        },
+        error: {code: 'FET-1018', message: {defaultValue: 'Passkey registration failed', key: 'passkey_reg_failed'}},
+        executionId: 'exec-1',
+        flowStatus: 'INCOMPLETE',
+      });
+    await act(async () => {
+      await latest?.handleSubmit({id: 'continue'}, {});
+    });
+
+    await waitFor(() => {
+      expect(mockSignUp).toHaveBeenCalledTimes(3);
+    });
+    expect(mockSignUp.mock.calls[2][0]).toMatchObject({
+      challengeToken: 'token-2',
+      executionId: 'exec-1',
+      inputs: {passkeyError: 'browser-webauthn-registration-error'},
+    });
+    await waitFor(() => {
+      expect(latest?.error?.message).toBe('Passkey registration failed');
+    });
+    expect(latest?.components).toEqual([expect.objectContaining({id: 'action_retry_passkey'})]);
+
+    // Trying again carries the challenge token of the step the flow returned.
+    mockSignUp.mockResolvedValueOnce({executionId: 'exec-1', flowStatus: 'INCOMPLETE'});
+    await act(async () => {
+      await latest?.handleSubmit({id: 'action_retry_passkey'}, {});
+    });
+    expect(mockSignUp.mock.calls[3][0]).toMatchObject({challengeToken: 'token-3'});
   });
 
   it('translates a server error message again when the language changes', async () => {

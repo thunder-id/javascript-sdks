@@ -12,6 +12,13 @@ import {FLOW_KEY, FLOW_META_KEY, I18N_KEY, THUNDERID_KEY} from '../../../keys';
 
 const mockGetFlowMeta: Mock = vi.fn(() => Promise.reject(new Error('no metadata')));
 
+const mockHandlePasskeyAuthentication: Mock = vi.fn();
+
+vi.mock('../../../utils/passkey', async (importOriginal: () => Promise<Record<string, unknown>>) => ({
+  ...(await importOriginal()),
+  handlePasskeyAuthentication: (...args: unknown[]): unknown => mockHandlePasskeyAuthentication(...args),
+}));
+
 vi.mock('@thunderid/browser', async (importOriginal: () => Promise<Record<string, unknown>>) => ({
   ...(await importOriginal()),
   getFlowMeta: (...args: unknown[]): unknown => mockGetFlowMeta(...args),
@@ -213,6 +220,63 @@ describe('SignIn', () => {
 
     expect(slot.mock.lastCall?.[0].error?.message).toBe('Identifiant individuel invalide');
     expect(wrapper.emitted('error')).toHaveLength(1);
+  });
+
+  it('tells the flow a failed passkey prompt and shows the step the flow returns', async () => {
+    mockHandlePasskeyAuthentication.mockRejectedValue(
+      new ThunderIDRuntimeError('Passkey authentication failed.', 'browser-webauthn-authentication-error', 'browser'),
+    );
+    const isInitialized = ref(false);
+    const signInStep: Record<string, unknown> = {
+      data: {meta: {components: [{eventType: 'TRIGGER', id: 'action_passkey', label: 'Passkey', type: 'ACTION'}]}},
+      executionId: 'exec-1',
+      flowStatus: 'INCOMPLETE',
+      type: 'VIEW',
+    };
+    const signIn: Mock = vi
+      .fn()
+      .mockResolvedValueOnce(signInStep)
+      .mockResolvedValueOnce({
+        data: {additionalData: {passkeyChallenge: '{"challenge":"Y2hhbGxlbmdl"}'}},
+        executionId: 'exec-1',
+        flowStatus: 'INCOMPLETE',
+        type: 'VIEW',
+      })
+      .mockResolvedValueOnce({
+        ...signInStep,
+        error: {code: 'FET-1019', message: {defaultValue: 'Passkey authentication failed', key: 'passkey_failed'}},
+      });
+    const slot: Mock<(props: SignInRenderProps) => never[]> = vi.fn(() => []);
+
+    mount(SignIn, {
+      global: {
+        provide: {
+          [THUNDERID_KEY as symbol]: {
+            applicationId: 'app-1',
+            getStorageManager: () => null,
+            isInitialized,
+            isLoading: ref(false),
+            signIn,
+            vendor: 'thunderid',
+          },
+          [FLOW_META_KEY as symbol]: {meta: ref(null)},
+          [I18N_KEY as symbol]: {currentLanguage: ref('en-US'), t: (key: string): string => key},
+        },
+      },
+      slots: {default: slot},
+    });
+
+    isInitialized.value = true;
+    await flushPromises();
+    await slot.mock.lastCall?.[0].onSubmit({executionId: 'exec-1', inputs: {}});
+    await flushPromises();
+
+    expect(signIn).toHaveBeenCalledTimes(3);
+    expect(signIn.mock.calls[2][0]).toMatchObject({
+      executionId: 'exec-1',
+      inputs: {passkeyError: 'browser-webauthn-authentication-error'},
+    });
+    expect(slot.mock.lastCall?.[0].error?.message).toBe('Passkey authentication failed');
   });
 });
 

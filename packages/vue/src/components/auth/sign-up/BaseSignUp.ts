@@ -31,7 +31,7 @@ import useI18n from '../../../composables/useI18n';
 import {normalizeFlowResponse, resolveFlowError} from '../../../utils/flowTransformer';
 import getAuthComponentHeadings from '../../../utils/getAuthComponentHeadings';
 import {createVueLogger} from '../../../utils/logger';
-import {handlePasskeyRegistration} from '../../../utils/passkey';
+import {handlePasskeyRegistration, passkeyFailureInputs} from '../../../utils/passkey';
 import Alert from '../../primitives/Alert';
 import Card from '../../primitives/Card';
 import Spinner from '../../primitives/Spinner';
@@ -588,13 +588,20 @@ const BaseSignUp: Component = defineComponent({
         passkeyProcessed = true;
 
         try {
-          const passkeyResponse: string = await handlePasskeyRegistration(state.creationOptions);
-          const passkeyObj: any = JSON.parse(passkeyResponse);
-          const inputs: Record<string, string> = {
-            attestationObject: passkeyObj.response.attestationObject,
-            clientDataJSON: passkeyObj.response.clientDataJSON,
-            credentialId: passkeyObj.id,
-          };
+          let inputs: Record<string, string>;
+
+          try {
+            const passkeyResponse: string = await handlePasskeyRegistration(state.creationOptions);
+            const passkeyObj: any = JSON.parse(passkeyResponse);
+            inputs = {
+              attestationObject: passkeyObj.response.attestationObject,
+              clientDataJSON: passkeyObj.response.clientDataJSON,
+              credentialId: passkeyObj.id,
+            };
+          } catch (passkeyError: unknown) {
+            // The flow is waiting for the passkey, so tell it the prompt failed and show the step it returns.
+            inputs = passkeyFailureInputs(passkeyError);
+          }
 
           const payload: any = {
             actionId: state.actionId || 'submit',

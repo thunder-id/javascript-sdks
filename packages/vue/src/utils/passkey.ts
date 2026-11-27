@@ -177,3 +177,14 @@ export const handlePasskeyAuthentication = async (challengeData: string): Promis
     );
   }
 };
+
+/**
+ * Builds the flow inputs that report a failed passkey prompt, as when the person cancels it or the device holds no
+ * matching passkey. The flow can then take the person back to try again.
+ *
+ * @param error - The error the passkey ceremony failed with.
+ * @returns The flow inputs to submit in place of the passkey response.
+ */
+export const passkeyFailureInputs = (error: unknown): Record<string, string> => ({
+  passkeyError: error instanceof ThunderIDRuntimeError ? error.code : 'browser-webauthn-unexpected-error',
+});

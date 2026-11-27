@@ -45,7 +45,7 @@ import useI18n from '../../../composables/useI18n';
 import useThunderID from '../../../composables/useThunderID';
 import {type FlowErrorBuilder, normalizeFlowResponse, resolveFlowError} from '../../../utils/flowTransformer';
 import {initiateOAuthRedirect} from '../../../utils/oauth';
-import {handlePasskeyAuthentication, handlePasskeyRegistration} from '../../../utils/passkey';
+import {handlePasskeyAuthentication, handlePasskeyRegistration, passkeyFailureInputs} from '../../../utils/passkey';
 
 interface PasskeyState {
   actionId: string | null;
@@ -678,26 +678,29 @@ const SignIn: Component = defineComponent({
         try {
           let inputs: Record<string, string>;
 
-          if (state.challenge) {
-            const passkeyResponse: string = await handlePasskeyAuthentication(state.challenge);
-            const obj: any = JSON.parse(passkeyResponse);
-            inputs = {
-              authenticatorData: obj.response.authenticatorData,
-              clientDataJSON: obj.response.clientDataJSON,
-              credentialId: obj.id,
-              signature: obj.response.signature,
-              userHandle: obj.response.userHandle,
-            };
-          } else if (state.creationOptions) {
-            const passkeyResponse: string = await handlePasskeyRegistration(state.creationOptions);
-            const obj: any = JSON.parse(passkeyResponse);
-            inputs = {
-              attestationObject: obj.response.attestationObject,
-              clientDataJSON: obj.response.clientDataJSON,
-              credentialId: obj.id,
-            };
-          } else {
-            throw new Error('No passkey challenge or creation options available');
+          try {
+            if (state.challenge) {
+              const passkeyResponse: string = await handlePasskeyAuthentication(state.challenge);
+              const obj: any = JSON.parse(passkeyResponse);
+              inputs = {
+                authenticatorData: obj.response.authenticatorData,
+                clientDataJSON: obj.response.clientDataJSON,
+                credentialId: obj.id,
+                signature: obj.response.signature,
+                userHandle: obj.response.userHandle,
+              };
+            } else {
+              const passkeyResponse: string = await handlePasskeyRegistration(state.creationOptions!);
+              const obj: any = JSON.parse(passkeyResponse);
+              inputs = {
+                attestationObject: obj.response.attestationObject,
+                clientDataJSON: obj.response.clientDataJSON,
+                credentialId: obj.id,
+              };
+            }
+          } catch (passkeyError: unknown) {
+            // The flow is waiting for the passkey, so tell it the prompt failed and show the step it returns.
+            inputs = passkeyFailureInputs(passkeyError);
           }
 
           await handleSubmit({executionId: state.executionId, inputs});
