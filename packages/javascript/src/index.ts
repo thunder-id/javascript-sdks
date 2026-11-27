@@ -31,7 +31,8 @@ export type {GetUsersMeMetaConfig, UsersMeMetaResponse, AttributeSchema} from '.
 export {default as getAccessibleOrganizationUnits} from './api/account/getAccessibleOrganizationUnits';
 export type {GetAccessibleOrganizationUnitsConfig} from './api/account/getAccessibleOrganizationUnits';
 export {default as updateMeCredentials} from './api/account/updateMeCredentials';
-export type {UpdateMeCredentialsConfig} from './api/account/updateMeCredentials';
+export type {UpdateMeCredentialsConfig, UpdateMeCredentialsPayload} from './api/account/updateMeCredentials';
+export type {ReauthenticationMethod, ReauthenticationOptions, ReauthenticationRequest} from './models/reauthentication';
 export {default as updateMeProfile} from './api/account/updateMeProfile';
 export type {UpdateMeProfileConfig} from './api/account/updateMeProfile';
 export {default as getMeAgents} from './api/account/getMeAgents';
@@ -565,6 +566,7 @@ export {default as AttributeVerificationConstants} from './constants/AttributeVe
 
 export {default as ThunderIDError} from './errors/ThunderIDError';
 export {default as ThunderIDAPIError} from './errors/ThunderIDAPIError';
+export {default as StepUpRequiredError, INSUFFICIENT_USER_AUTHENTICATION} from './errors/StepUpRequiredError';
 export {default as AdministrationFlowError} from './errors/AdministrationFlowError';
 export {default as ThunderIDRuntimeError} from './errors/ThunderIDRuntimeError';
 export {InvalidLogoutTokenError, ThunderIDAuthException} from './errors/exception';
@@ -714,6 +716,7 @@ export type {AgentConfig} from './models/agent';
 export type {
   ApiError,
   ApiFetcher,
+  AuthenticationChallenge,
   ApiFilteringParams,
   ApiPaginationLink,
   ManagementRequestConfig,
@@ -1236,6 +1239,15 @@ export type {ChangePasswordFormValues, ChangePasswordFormEvaluation} from './uti
 export {default as resolveChangeCredentialPolicy} from './utils/resolveChangeCredentialPolicy';
 export {default as supportsCredential} from './utils/supportsCredential';
 export {default as mapCredentialUpdateError} from './utils/mapCredentialUpdateError';
+export {default as mapReauthenticationError} from './utils/mapReauthenticationError';
+export {default as pickRecentSignInParams} from './utils/pickRecentSignInParams';
+export type {RecentSignInParams} from './utils/pickRecentSignInParams';
+export {default as runWithStepUp, REAUTHENTICATION_FAILED, STEP_UP_ABANDONED} from './utils/runWithStepUp';
+export type {PendingStepUp, RunWithStepUpOptions} from './utils/runWithStepUp';
+export {
+  default as parseAuthenticationChallenge,
+  RECENT_AUTHENTICATION_REQUIRED_CODE,
+} from './utils/parseAuthenticationChallenge';
 export type {CredentialUpdateErrorField, CredentialUpdateErrorResult} from './utils/mapCredentialUpdateError';
 export {default as mapSelectPageError} from './utils/mapSelectPageError';
 export type {SelectPageErrorResult} from './utils/mapSelectPageError';

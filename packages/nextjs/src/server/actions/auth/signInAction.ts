@@ -1,4 +1,4 @@
-// Copyright 2025 The ThunderID Authors
+// Copyright 2025-2026 The ThunderID Authors
 // SPDX-License-Identifier: Apache-2.0
 
 'use server';
@@ -9,7 +9,10 @@ import {
   EmbeddedFlowExecuteRequestConfig,
   IdToken,
   isEmpty,
+  pickRecentSignInParams,
+  RecentSignInParams,
   ServerError,
+  SessionData,
   ThunderIDAPIError,
 } from '@thunderid/node';
 import {cookies} from 'next/headers';
@@ -50,10 +53,21 @@ const signInAction = async (
 
     let sessionId: string | undefined;
 
-    const existingSessionToken: string | undefined = getChunkedCookie(
-      cookieStore,
-      SessionManager.getSessionCookieName(),
-    );
+    // Without a flow payload, the user signs in by redirect. Of the sign-in options, only `max_age` and
+    // `prompt=login`, which ask for a recent sign-in, reach the authorization request.
+    const isRedirect: boolean =
+      !payload ||
+      isEmpty(payload) ||
+      !('executionId' in payload || 'applicationId' in payload || 'flowType' in payload);
+    const recentSignInParams: RecentSignInParams = isRedirect
+      ? pickRecentSignInParams(payload as Record<string, unknown> | undefined)
+      : {};
+    // A recent sign-in for a signed-in user starts a new session, whose callback then replaces the cookie.
+    const isRecentSignIn: boolean = Object.keys(recentSignInParams).length > 0;
+
+    const existingSessionToken: string | undefined = isRecentSignIn
+      ? undefined
+      : getChunkedCookie(cookieStore, SessionManager.getSessionCookieName());
 
     if (existingSessionToken) {
       try {
@@ -64,7 +78,7 @@ const signInAction = async (
       }
     }
 
-    if (!sessionId) {
+    if (!sessionId && !isRecentSignIn) {
       const tempSessionToken: string | undefined = cookieStore.get(SessionManager.getTempSessionCookieName())?.value;
 
       if (tempSessionToken) {
@@ -89,9 +103,8 @@ const signInAction = async (
       );
     }
 
-    // If no payload provided, redirect to sign-in URL for redirect-based sign-in.
-    if (!payload || isEmpty(payload)) {
-      const defaultSignInUrl: string = await client.getAuthorizeRequestUrl({}, sessionId);
+    if (isRedirect) {
+      const defaultSignInUrl: string = await client.getAuthorizeRequestUrl({...recentSignInParams}, sessionId);
       return {data: {signInUrl: String(defaultSignInUrl)}, success: true};
     }
 
@@ -99,23 +112,21 @@ const signInAction = async (
     const response: any = await client.signIn(payload, request!, sessionId);
 
     if (response.flowStatus === EmbeddedSignInFlowStatus.Complete) {
-      // On the V2 platform, a completed embedded flow (without a preceding `/authorize` redirect,
-      // i.e. no `authId`) returns a self-contained JWT `assertion` rather than an authorization
-      // code to exchange. This mirrors how @thunderid/react and @thunderid/vue treat it: the
-      // assertion is used directly as the bearer session token.
+      // A completed embedded flow (no preceding `/authorize` redirect, i.e. no `authId`) returns a
+      // JWT `assertion`, which is exchanged for the session's access token.
       if (!response.assertion) {
         throw new Error('[signInAction] Flow completed without an assertion.');
       }
 
-      const idToken: IdToken = await client.getDecodedIdToken(sessionId, response.assertion);
+      const tokens: SessionData = await client.exchangeFlowAssertion(response.assertion);
+      // The new assertion, not an ID token stored for this session ID by an earlier sign-in.
+      const idToken: IdToken = await client.decodeJwtToken<IdToken>(response.assertion);
       const userIdFromToken: string = (idToken.sub as string | undefined) ?? sessionId;
       const organizationId: string | undefined = (idToken['user_org'] || idToken['organization_id']) as
         | string
         | undefined;
-      const scopes: string = (idToken['scope'] as string | undefined) ?? '';
-      const iat: number = (idToken['iat'] as number | undefined) ?? Math.floor(Date.now() / 1000);
-      const exp: number = (idToken['exp'] as number | undefined) ?? iat + 3600;
-      const expiresIn: number = Math.max(exp - iat, 0);
+      const scopes: string = tokens.scope;
+      const expiresIn: number = Math.max(parseInt(tokens.expires_in, 10) || 0, 0);
 
       const config: ThunderIDNextConfig = await client.getConfiguration();
       const sessionCookieExpiryTime: number = SessionManager.resolveSessionCookieExpiry(
@@ -123,7 +134,7 @@ const signInAction = async (
       );
 
       const sessionToken: string = await SessionManager.createSessionToken(
-        response.assertion,
+        tokens.access_token,
         userIdFromToken,
         sessionId,
         scopes,

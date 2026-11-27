@@ -3,7 +3,13 @@
 
 'use client';
 
-import {CredentialConstants, PasswordPolicy, resolveChangeCredentialPolicy, supportsCredential} from '@thunderid/node';
+import {
+  AuthenticationChallenge,
+  CredentialConstants,
+  PasswordPolicy,
+  resolveChangeCredentialPolicy,
+  supportsCredential,
+} from '@thunderid/node';
 import {
   BaseChangeCredential,
   BaseChangeCredentialProps,
@@ -42,6 +48,12 @@ export type ChangeCredentialProps = Omit<
    */
   attribute?: string;
   /**
+   * Called when setting the credential needs a more recent sign-in (`AUTH-4011`), with the
+   * server's challenge. Sign the user in again with `challenge.maxAge` as the `max_age`
+   * authorization parameter, then let the user submit again.
+   */
+  onReauthenticationRequired?: (challenge: AuthenticationChallenge) => void;
+  /**
    * Called after the credential has been changed successfully.
    */
   onSuccess?: () => void;
@@ -54,6 +66,11 @@ export type ChangeCredentialProps = Omit<
  * `@thunderid/react` for rendering, but routes the write through
  * `updateUserCredentialsAction` (a server action) instead of calling the ThunderID server
  * directly from the browser, matching how `UserProfile` reaches `updateUserProfileAction`.
+ *
+ * The server needs the current value when the user holds the credential. A user who has not
+ * set it yet leaves the current value empty; that change needs a recent sign-in, and when the
+ * sign-in is too old the form asks the user to sign in again and calls
+ * `onReauthenticationRequired`.
  *
  * Defaults to managing the `password` credential. To manage a different one (for example a
  * PIN declared on the user type schema), set `attribute`; render the component once per
@@ -70,6 +87,7 @@ export type ChangeCredentialProps = Omit<
  */
 const ChangeCredential: FC<ChangeCredentialProps> = ({
   attribute = CredentialConstants.PASSWORD,
+  onReauthenticationRequired,
   onSuccess,
   policy,
   preferences,
@@ -99,14 +117,14 @@ const ChangeCredential: FC<ChangeCredentialProps> = ({
     [userSchema, attribute, policy],
   );
 
-  const handleSubmit = async ({newPassword}: ChangePasswordValues): Promise<void> => {
+  const handleSubmit = async ({currentPassword, newPassword}: ChangePasswordValues): Promise<void> => {
     setError(null);
     setFieldErrors({});
     setSuccess(false);
     setLoading(true);
 
     const result: UpdateUserCredentialsActionResult = await updateUserCredentialsAction(
-      {[attribute]: newPassword},
+      {currentValue: currentPassword, name: attribute, newValue: newPassword},
       await getSessionId(),
     );
 
@@ -122,6 +140,10 @@ const ChangeCredential: FC<ChangeCredentialProps> = ({
         setFieldErrors({[result.field]: text});
       } else {
         setError(text);
+      }
+
+      if (result.authenticationChallenge) {
+        onReauthenticationRequired?.(result.authenticationChallenge);
       }
     }
 

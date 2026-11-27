@@ -3,12 +3,19 @@
 
 import {
   AttributeVerificationConstants,
+  AuthenticationChallenge,
+  PendingStepUp,
+  REAUTHENTICATION_FAILED,
+  StepUpRequiredError,
   ThunderIDError,
+  ThunderIDRuntimeError,
   User,
   deepMerge,
+  mapReauthenticationError,
   resolveResourceEndpoint,
+  runWithStepUp,
 } from '@thunderid/browser';
-import {FC, ReactElement, ReactNode, useState} from 'react';
+import {FC, ReactElement, ReactNode, useEffect, useRef, useState} from 'react';
 // eslint-disable-next-line import/no-named-as-default
 import BaseUserProfile, {BaseUserProfileProps, BaseUserProfileVerificationRenderProps} from './BaseUserProfile';
 import updateMeProfile from '../../../api/account/updateMeProfile';
@@ -27,6 +34,12 @@ export type UserProfileProps = Omit<BaseUserProfileProps, 'user' | 'profile' | '
    * `default-self-attribute-verification-flow`.
    */
   verificationFlowHandle?: string;
+  /**
+   * Called when a change needs a more recent sign-in (`AUTH-4011`), such as a new email address or
+   * mobile number, with the server's challenge, instead of the component signing the user in again by
+   * itself. Sign the user in again with `challenge.maxAge` as `max_age`, then let the user save again.
+   */
+  onReauthenticationRequired?: (challenge: AuthenticationChallenge) => void;
 };
 
 /**
@@ -36,6 +49,12 @@ export type UserProfileProps = Omit<BaseUserProfileProps, 'user' | 'profile' | '
  *
  * This component is the React-specific implementation that uses the BaseUserProfile
  * and automatically retrieves the user data from ThunderID context if not provided.
+ *
+ * Changing an email address or mobile number needs a recent sign-in. When the sign-in is too old,
+ * the component signs the user in again with the server's `max_age`, checks that the same user signed
+ * in, and saves the change once more: in a popup for a session from a redirect sign-in, or by running
+ * the sign-in flow in a dialog for a session from an embedded sign-in flow. If the browser blocks the
+ * popup, the next save opens it first.
  *
  * @example
  * ```tsx
@@ -66,9 +85,21 @@ const UserProfile: FC<UserProfileProps> = ({
   preferences,
   editable = true,
   verificationFlowHandle = AttributeVerificationConstants.DEFAULT_FLOW_HANDLE,
+  onReauthenticationRequired = undefined,
   ...rest
 }: UserProfileProps): ReactElement => {
-  const {baseUrl, endpoints, instanceId, preferences: contextPreferences} = useThunderID();
+  const {baseUrl, endpoints, instanceId, preferences: contextPreferences, reauthenticate} = useThunderID();
+  const pendingStepUp: PendingStepUp = useRef<PendingStepUp['current']>(undefined);
+  // Whether the component is still on screen, so a change is not sent after it has closed.
+  const mountedRef = useRef<boolean>(true);
+
+  useEffect(() => {
+    mountedRef.current = true;
+
+    return (): void => {
+      mountedRef.current = false;
+    };
+  }, []);
   const {profile, flattenedProfile, onUpdateProfile, userSchema} = useUser();
   const resolvedPreferences = {
     ...contextPreferences,
@@ -98,17 +129,28 @@ const UserProfile: FC<UserProfileProps> = ({
         }
       });
 
-      const response: User = await updateMeProfile({
-        baseUrl,
-        url: resolveResourceEndpoint('usersMe', {endpoints}),
-        instanceId,
-        payload: updatedAttributes,
+      const response: User = await runWithStepUp({
+        onReauthenticationRequired,
+        isActive: (): boolean => mountedRef.current,
+        pending: pendingStepUp,
+        reauthenticate,
+        send: () =>
+          updateMeProfile({
+            baseUrl,
+            url: resolveResourceEndpoint('usersMe', {endpoints}),
+            instanceId,
+            payload: updatedAttributes,
+          }),
       });
       onUpdateProfile(response);
     } catch (caughtError: unknown) {
       let message: string = t('user.profile.update.generic.error');
 
-      if (caughtError instanceof ThunderIDError) {
+      if (caughtError instanceof ThunderIDRuntimeError && caughtError.code === REAUTHENTICATION_FAILED) {
+        message = t(mapReauthenticationError((caughtError.details as {cause?: unknown} | undefined)?.cause));
+      } else if (caughtError instanceof StepUpRequiredError) {
+        message = t('user.reauthentication.required.error');
+      } else if (caughtError instanceof ThunderIDError) {
         message = caughtError?.message;
       }
 

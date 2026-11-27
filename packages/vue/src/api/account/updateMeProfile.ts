@@ -1,13 +1,11 @@
-// Copyright 2025 The ThunderID Authors
+// Copyright 2025-2026 The ThunderID Authors
 // SPDX-License-Identifier: Apache-2.0
 
 import {
-  FetchHttpClient,
-  HttpRequestConfig,
-  HttpResponse,
   User,
-  UpdateMeProfileConfig as BaseUpdateMeProfileConfig,
+  createHttpClientFetcher,
   updateMeProfile as baseUpdateMeProfile,
+  UpdateMeProfileConfig as BaseUpdateMeProfileConfig,
 } from '@thunderid/browser';
 
 export interface UpdateMeProfileConfig extends Omit<BaseUpdateMeProfileConfig, 'fetcher'> {
@@ -16,28 +14,10 @@ export interface UpdateMeProfileConfig extends Omit<BaseUpdateMeProfileConfig, '
 }
 
 const updateMeProfile = async ({fetcher, instanceId = 0, ...requestConfig}: UpdateMeProfileConfig): Promise<User> => {
-  const defaultFetcher = async (url: string, config: RequestInit): Promise<Response> => {
-    const httpClient: FetchHttpClient = FetchHttpClient.getInstance(instanceId);
-
-    const response: HttpResponse<any> = await httpClient.request({
-      data: config.body ? JSON.parse(config.body as string) : undefined,
-      headers: config.headers as Record<string, string>,
-      method: config.method || 'PUT',
-      url,
-    } as HttpRequestConfig);
-
-    return {
-      json: () => Promise.resolve(response.data),
-      ok: response.status >= 200 && response.status < 300,
-      status: response.status,
-      statusText: response.statusText || '',
-      text: () => Promise.resolve(typeof response.data === 'string' ? response.data : JSON.stringify(response.data)),
-    } as Response;
-  };
-
   return baseUpdateMeProfile({
     ...requestConfig,
-    fetcher: fetcher || defaultFetcher,
+    // Keeps a refused response, so the server's error, such as a step-up challenge, reaches the caller.
+    fetcher: fetcher ?? createHttpClientFetcher(instanceId),
   });
 };
 

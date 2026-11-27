@@ -47,6 +47,35 @@ describe('ThunderIDBrowserClient', () => {
     await expect(client.initialize(config)).resolves.toBe(true);
   });
 
+  it('refuses embedded mode without a client ID, and later calls fail instead of waiting', async () => {
+    const client = new ThunderIDBrowserClient();
+
+    await expect(
+      client.initialize({
+        ...config,
+        applicationId: 'app-1',
+        clientId: undefined,
+        mode: 'embedded',
+      } as BrowserAuthConfig),
+    ).rejects.toMatchObject({code: 'JS-AUTH_CORE-INIT-IV01'});
+    expect(await client.isInitialized()).toBe(false);
+    await expect(client.getUser()).rejects.toMatchObject({code: 'SPA-AUTH_CLIENT-VM-NF01'});
+  });
+
+  it('ends the wait of a call made while an initialization that fails is running', async () => {
+    const client = new ThunderIDBrowserClient();
+    const init: Promise<boolean> = client.initialize({
+      ...config,
+      applicationId: 'app-1',
+      clientId: undefined,
+      mode: 'embedded',
+    } as BrowserAuthConfig);
+    const waiting: Promise<boolean> = client.isInitialized();
+
+    await expect(init).rejects.toMatchObject({code: 'JS-AUTH_CORE-INIT-IV01'});
+    await expect(waiting).resolves.toBe(false);
+  });
+
   describe('on()', () => {
     it('fires http-request-start and http-request-success hooks registered before initialize()', async () => {
       const client = new ThunderIDBrowserClient();

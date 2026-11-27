@@ -1,4 +1,4 @@
-// Copyright 2025 The ThunderID Authors
+// Copyright 2025-2026 The ThunderID Authors
 // SPDX-License-Identifier: Apache-2.0
 
 import {I18nTranslations, I18nMetadata, I18nBundle} from '../models/i18n';
@@ -148,6 +148,9 @@ const translations: I18nTranslations = {
   /* |---------------------------------------------------------------| */
 
   'user.change_password.heading': 'Change {credential}',
+  'user.change_password.current.label': 'Current {credential}',
+  'user.change_password.current.placeholder': 'Enter your current {credentialLower}',
+  'user.change_password.current.hint': 'Leave this empty if you have not set one yet.',
   'user.change_password.new.label': 'New {credential}',
   'user.change_password.new.placeholder': 'Enter your new {credentialLower}',
   'user.change_password.confirm.label': 'Confirm New {credential}',
@@ -157,6 +160,18 @@ const translations: I18nTranslations = {
   'user.change_password.success': 'Your {credentialLower} has been updated.',
   'user.change_password.mismatch.error': '{credential}s do not match.',
   'user.change_password.generic.error': 'An error occurred while updating your {credentialLower}. Please try again.',
+  'user.change_password.current.required.error': 'Enter your current {credentialLower}.',
+  'user.change_password.current.invalid.error': 'The current {credentialLower} is incorrect.',
+  'user.change_password.reauthentication.error': 'Sign in again to set your {credentialLower}.',
+  'user.reauthentication.required.error': 'Sign in again to save this change.',
+  'user.reauthentication.failed.error': 'Signing in again did not finish. Try again.',
+  'user.reauthentication.popup_blocked.error': 'Allow pop-ups for this site, then try again.',
+  'user.reauthentication.different_user.error':
+    'You signed in with a different account. Sign in as yourself and try again.',
+  'user.reauthentication.heading': 'Sign in again',
+  'user.reauthentication.description': 'Confirm it is you to save this change.',
+  'user.reauthentication.unsupported_option.error': 'This sign-in option is not available here. Choose another one.',
+  'user.reauthentication.buttons.close.text': 'Close',
   'user.change_password.unavailable.heading': '{credential} changes unavailable',
   'user.change_password.unavailable.description': 'Please contact your administrator.',
 

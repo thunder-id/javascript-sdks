@@ -30,6 +30,7 @@ import {ExtendedAuthorizeRequestUrlParams} from './models/oauth-request';
 import {OIDCDiscoveryApiResponse} from './models/oidc-discovery';
 import {OIDCEndpoints} from './models/oidc-endpoints';
 import {LogoutTokenClaims} from './models/logout-token';
+import type {ReauthenticationOptions, ReauthenticationRequest} from './models/reauthentication';
 import {SessionData, StoredFlowSession, UserSession} from './models/session';
 import {Storage, TemporaryStore} from './models/store';
 import {
@@ -108,7 +109,7 @@ const getOrganizationUnitStorageKey = (pkceKey: string): string => `${getStateSt
 const REVOKE_ACCESS_TOKEN_REQUEST_TIMEOUT_MS = 10_000;
 
 /**
- * The subject token type of a device secret, which the server issues as a JWT.
+ * The subject token type of a device secret and of a flow assertion, both JWTs.
  */
 const JWT_TOKEN_TYPE = 'urn:ietf:params:oauth:token-type:jwt';
 
@@ -160,7 +161,7 @@ class ThunderIDJavaScriptClient<T = Config> implements ThunderIDClient<T> {
   public async initialize(config: T, storage?: Storage): Promise<boolean> {
     const store = storage ?? this.cacheStore;
     const fullConfig = config as unknown as AuthClientConfig<T>;
-    const {clientId, instanceId} = fullConfig as any;
+    const {clientId, instanceId, mode} = fullConfig as any;
 
     if (instanceId !== undefined) {
       this.instanceIdValue = instanceId;
@@ -199,6 +200,16 @@ class ThunderIDJavaScriptClient<T = Config> implements ThunderIDClient<T> {
     );
 
     this.baseURL = (fullConfig as any).baseUrl ?? '';
+
+    // An embedded sign-in exchanges its assertion at the token endpoint, which needs the client ID. Checked
+    // last, so a refused client still answers calls instead of failing on unset state.
+    if (mode === 'embedded' && !clientId) {
+      throw new ThunderIDRuntimeError(
+        'Embedded mode needs the `clientId` of the application, next to its `applicationId`.',
+        'JS-AUTH_CORE-INIT-IV01',
+        'javascript',
+      );
+    }
 
     return true;
   }
@@ -321,43 +332,13 @@ class ThunderIDJavaScriptClient<T = Config> implements ThunderIDClient<T> {
       );
     }
 
-    const body: URLSearchParams = new URLSearchParams();
-
-    body.set('client_id', configData.clientId ?? '');
-
-    const hasSecret = Boolean(configData.clientSecret && configData.clientSecret.trim().length > 0);
-    const tokenEndpointAuthMethod = configData.tokenRequest?.authMethod ?? 'client_secret_basic';
-
-    if (hasSecret && tokenEndpointAuthMethod === 'client_secret_post') {
-      body.set('client_secret', configData.clientSecret!);
-    }
-
-    body.set('grant_type', OAuth2GrantTypes.TOKEN_EXCHANGE);
-    body.set('scope', processOpenIDScopes(configData.scopes));
-    body.set('subject_token', deviceSecret);
-    body.set('subject_token_type', JWT_TOKEN_TYPE);
-
-    const headers: Record<string, string> = {
-      Accept: 'application/json',
-      'Content-Type': 'application/x-www-form-urlencoded',
-    };
-
-    if (hasSecret && tokenEndpointAuthMethod === 'client_secret_basic') {
-      const credential = `${encodeURIComponent(configData.clientId!)}:${encodeURIComponent(configData.clientSecret!)}`;
-      headers['Authorization'] = `Basic ${base64Encode(credential)}`;
-    }
-
     let response: Response;
 
     try {
-      response = await fetch(
+      response = await this.postTokenExchange(
         resolveOrganizationUnitEndpoint(discoveredTokenEndpoint, organizationUnitId, configData.baseUrl),
-        {
-          body,
-          credentials: configData.sendCookiesInRequests ? 'include' : 'same-origin',
-          headers,
-          method: 'POST',
-        },
+        deviceSecret,
+        processOpenIDScopes(configData.scopes),
       );
     } catch (error) {
       throw new ThunderIDAuthException(
@@ -381,6 +362,314 @@ class ThunderIDJavaScriptClient<T = Config> implements ThunderIDClient<T> {
     }
 
     return {tokenResponse: await this.authHelper.handleTokenResponse(response, sessionId, true)};
+  }
+
+  /**
+   * Exchanges the assertion a completed embedded flow returned for an access token (RFC 8693), and
+   * returns the session data to keep. The assertion stays as the ID token, the source of the user's
+   * claims. The application needs the token exchange grant.
+   *
+   * @param assertion - The `assertion` of a flow step whose `flowStatus` is `COMPLETE`.
+   * @returns Session data holding the issued access token, with the assertion as `id_token`.
+   */
+  protected async exchangeFlowAssertion(assertion: string): Promise<SessionData> {
+    if (
+      !(await this.storageManager.getTemporaryDataParameter(
+        OIDCDiscoveryConstants.Storage.StorageKeys.OPENID_PROVIDER_CONFIG_INITIATED,
+      ))
+    ) {
+      await this.loadOpenIDProviderConfiguration(false);
+    }
+
+    const tokenEndpoint: string | undefined = (await this.oidcProviderMetaDataProvider()).token_endpoint;
+    const configData = await this.configProvider();
+
+    if (!tokenEndpoint) {
+      throw new ThunderIDAuthException(
+        'JS-AUTH_CORE-EFA-NF01',
+        'Token endpoint not found.',
+        'No token endpoint was found in the OIDC provider meta data returned by the well-known endpoint.',
+      );
+    }
+
+    if (!configData.clientId) {
+      throw new ThunderIDAuthException(
+        'JS-AUTH_CORE-EFA-IV02',
+        'Client ID not configured.',
+        'An embedded sign-in exchanges its assertion for an access token, which needs the `clientId` ' +
+          'of the application.',
+      );
+    }
+
+    let response: Response;
+
+    try {
+      // No `scope`: the issued token carries what the flow granted.
+      response = await this.postTokenExchange(tokenEndpoint, assertion);
+    } catch (error) {
+      throw new ThunderIDAuthException(
+        'JS-AUTH_CORE-EFA-NE03',
+        'The sign-in assertion exchange failed.',
+        error instanceof Error ? error.message : 'The request to exchange the sign-in assertion failed.',
+      );
+    }
+
+    if (!response.ok) {
+      const errorBody: unknown = await response.json().catch((): undefined => undefined);
+      const errorCode: unknown = (errorBody as {error?: unknown} | undefined)?.error;
+
+      if (errorCode === 'unauthorized_client') {
+        throw new ThunderIDAuthException(
+          'JS-AUTH_CORE-EFA-UC04',
+          'The application cannot exchange the sign-in assertion.',
+          `An embedded sign-in needs the ${OAuth2GrantTypes.TOKEN_EXCHANGE} grant type on the application ` +
+            `(${getOAuthErrorMessage(errorBody, String(errorCode))}).`,
+        );
+      }
+
+      throw new ThunderIDAuthException(
+        'JS-AUTH_CORE-EFA-HE05',
+        `The sign-in assertion exchange failed with ${response.status}.`,
+        getOAuthErrorMessage(errorBody, 'The sign-in assertion exchange was rejected.'),
+      );
+    }
+
+    const tokens: {access_token?: unknown; expires_in?: unknown; scope?: unknown; token_type?: unknown} =
+      ((await response.json().catch((): undefined => undefined)) as Record<string, unknown> | undefined) ?? {};
+
+    if (typeof tokens.access_token !== 'string' || !tokens.access_token) {
+      throw new ThunderIDAuthException(
+        'JS-AUTH_CORE-EFA-IV06',
+        'No access token in the response.',
+        'The token endpoint answered the sign-in assertion exchange without an access token.',
+      );
+    }
+
+    return {
+      access_token: tokens.access_token,
+      created_at: Date.now(),
+      expires_in: typeof tokens.expires_in === 'number' ? String(tokens.expires_in) : '3600',
+      id_token: assertion,
+      scope: typeof tokens.scope === 'string' ? tokens.scope : '',
+      token_type: typeof tokens.token_type === 'string' ? tokens.token_type : 'Bearer',
+    };
+  }
+
+  /**
+   * Posts a token exchange (RFC 8693) for a JWT subject token, authenticating the client as configured.
+   */
+  private async postTokenExchange(tokenEndpoint: string, subjectToken: string, scope?: string): Promise<Response> {
+    const configData = await this.configProvider();
+    const body: URLSearchParams = new URLSearchParams();
+
+    body.set('client_id', configData.clientId ?? '');
+
+    const hasSecret = Boolean(configData.clientSecret && configData.clientSecret.trim().length > 0);
+    const tokenEndpointAuthMethod = configData.tokenRequest?.authMethod ?? 'client_secret_basic';
+
+    if (hasSecret && tokenEndpointAuthMethod === 'client_secret_post') {
+      body.set('client_secret', configData.clientSecret!);
+    }
+
+    body.set('grant_type', OAuth2GrantTypes.TOKEN_EXCHANGE);
+
+    if (scope !== undefined) {
+      body.set('scope', scope);
+    }
+
+    body.set('subject_token', subjectToken);
+    body.set('subject_token_type', JWT_TOKEN_TYPE);
+
+    const headers: Record<string, string> = {
+      Accept: 'application/json',
+      'Content-Type': 'application/x-www-form-urlencoded',
+    };
+
+    if (hasSecret && tokenEndpointAuthMethod === 'client_secret_basic') {
+      const credential = `${encodeURIComponent(configData.clientId!)}:${encodeURIComponent(configData.clientSecret!)}`;
+      headers['Authorization'] = `Basic ${base64Encode(credential)}`;
+    }
+
+    return fetch(tokenEndpoint, {
+      body,
+      credentials: configData.sendCookiesInRequests ? 'include' : 'same-origin',
+      headers,
+      method: 'POST',
+    });
+  }
+
+  /**
+   * Builds an authorization request that signs the signed-in user in again, for a change that needs a
+   * recent sign-in. It asks for the configured scopes with PKCE, a new `state` and `nonce`, `max_age`
+   * (or `prompt=login` when `maxAge` is not given), and `id_token_hint` naming the signed-in user.
+   *
+   * @param options - How recent the sign-in must be.
+   * @param redirectUri - A redirect URI registered on the application.
+   * @param userId - The session to sign in again.
+   * @returns The request URL and what redeeming its code needs.
+   */
+  protected async buildReauthenticationRequest(
+    options: ReauthenticationOptions,
+    redirectUri: string,
+    userId?: string,
+  ): Promise<ReauthenticationRequest> {
+    const authorizeEndpoint: string | undefined = (await this.oidcProviderMetaDataProvider()).authorization_endpoint;
+
+    if (!authorizeEndpoint) {
+      throw new ThunderIDRuntimeError(
+        'No authorization endpoint was found in the OpenID provider metadata.',
+        'JS-AUTH_CORE-BRR-NF01',
+        'javascript',
+      );
+    }
+
+    const configData = await this.configProvider();
+    const codeVerifier: string = this.cryptoHelper.getCodeVerifier();
+    const state: string = this.cryptoHelper.generateState();
+    const nonce: string = this.cryptoHelper.generateState();
+    const signInResource: unknown = (configData.signInOptions as Record<string, unknown> | undefined)?.['resource'];
+    const resource: string | undefined = typeof signInResource === 'string' ? signInResource : undefined;
+    const url: URL = new URL(authorizeEndpoint);
+
+    url.searchParams.set('response_type', 'code');
+    url.searchParams.set('client_id', configData.clientId ?? '');
+    url.searchParams.set('redirect_uri', redirectUri);
+    url.searchParams.set('scope', processOpenIDScopes(configData.scopes));
+    url.searchParams.set('state', state);
+    url.searchParams.set('nonce', nonce);
+    url.searchParams.set('code_challenge', await this.cryptoHelper.getCodeChallenge(codeVerifier));
+    url.searchParams.set('code_challenge_method', PKCEConstants.DEFAULT_CODE_CHALLENGE_METHOD);
+
+    if (options.maxAge !== undefined && Number.isFinite(options.maxAge) && options.maxAge >= 0) {
+      url.searchParams.set('max_age', String(Math.floor(options.maxAge)));
+    } else {
+      url.searchParams.set('prompt', 'login');
+    }
+
+    if (resource) {
+      url.searchParams.set('resource', resource);
+    }
+
+    const idToken: string | undefined = (await this.storageManager.getSessionData(userId))?.id_token;
+
+    if (idToken) {
+      url.searchParams.set('id_token_hint', idToken);
+    }
+
+    return {codeVerifier, nonce, redirectUri, resource, state, url: url.toString()};
+  }
+
+  /**
+   * Redeems the code of a request from {@link buildReauthenticationRequest} and, only when the sign-in
+   * belongs to the signed-in user, replaces the session's tokens with the new ones. The ID token must be
+   * valid, carry the request's `nonce`, and name the same `sub` as the session's ID token; otherwise the
+   * session is left as it was. The new access token carries the new sign-in time; a refresh never would.
+   *
+   * @param authorization - The request the code answers.
+   * @param code - The authorization code.
+   * @param userId - The session to update.
+   * @returns The new tokens.
+   */
+  protected async completeReauthentication(
+    authorization: ReauthenticationRequest,
+    code: string,
+    userId?: string,
+  ): Promise<TokenResponse> {
+    const tokenEndpoint: string | undefined = (await this.oidcProviderMetaDataProvider()).token_endpoint;
+    const configData = await this.configProvider();
+
+    if (!tokenEndpoint) {
+      throw new ThunderIDRuntimeError(
+        'No token endpoint was found in the OpenID provider metadata.',
+        'JS-AUTH_CORE-CRA-NF01',
+        'javascript',
+      );
+    }
+
+    const body: URLSearchParams = new URLSearchParams({
+      client_id: configData.clientId ?? '',
+      code,
+      code_verifier: authorization.codeVerifier,
+      grant_type: 'authorization_code',
+      redirect_uri: authorization.redirectUri,
+    });
+
+    if (authorization.resource) {
+      body.set('resource', authorization.resource);
+    }
+
+    const hasSecret = Boolean(configData.clientSecret && configData.clientSecret.trim().length > 0);
+    const tokenEndpointAuthMethod = configData.tokenRequest?.authMethod ?? 'client_secret_basic';
+    const headers: Record<string, string> = {
+      Accept: 'application/json',
+      'Content-Type': 'application/x-www-form-urlencoded',
+    };
+
+    if (hasSecret && tokenEndpointAuthMethod === 'client_secret_post') {
+      body.set('client_secret', configData.clientSecret!);
+    }
+
+    if (hasSecret && tokenEndpointAuthMethod === 'client_secret_basic') {
+      const credential = `${encodeURIComponent(configData.clientId!)}:${encodeURIComponent(configData.clientSecret!)}`;
+      headers['Authorization'] = `Basic ${base64Encode(credential)}`;
+    }
+
+    const response: Response = await fetch(tokenEndpoint, {
+      body,
+      credentials: configData.sendCookiesInRequests ? 'include' : 'same-origin',
+      headers,
+      method: 'POST',
+    });
+    const parsed: AccessTokenApiResponse = (await response.json().catch(() => ({}))) as AccessTokenApiResponse;
+
+    if (!response.ok || !parsed.access_token) {
+      throw new ThunderIDRuntimeError('The sign-in could not be completed.', 'JS-AUTH_CORE-CRA-TE01', 'javascript', {
+        error: (parsed as {error?: unknown}).error,
+      });
+    }
+
+    const idToken: string | undefined = parsed.id_token;
+
+    if (!idToken || !(await this.authHelper.validateIdToken(idToken))) {
+      throw new ThunderIDRuntimeError('The sign-in returned no valid ID token.', 'JS-AUTH_CORE-CRA-IV01', 'javascript');
+    }
+
+    const claims: IdToken = this.cryptoHelper.decodeJwtToken<IdToken>(idToken);
+
+    if (claims['nonce'] !== authorization.nonce) {
+      throw new ThunderIDRuntimeError(
+        'The ID token does not carry the nonce of its request.',
+        'JS-AUTH_CORE-CRA-IV02',
+        'javascript',
+      );
+    }
+
+    const sessionIdToken: string | undefined = (await this.storageManager.getSessionData(userId))?.id_token;
+    const sessionSubject: string | undefined = sessionIdToken
+      ? this.cryptoHelper.decodeJwtToken<IdToken>(sessionIdToken).sub
+      : undefined;
+
+    if (!sessionSubject || claims.sub !== sessionSubject) {
+      throw new ThunderIDRuntimeError(
+        'The sign-in used a different account than the signed-in user.',
+        'JS-AUTH_CORE-CRA-IV03',
+        'javascript',
+      );
+    }
+
+    parsed.created_at = new Date().getTime();
+    await this.authHelper.storeTokenResponse(parsed, userId, true);
+
+    return {
+      accessToken: parsed.access_token,
+      authorizationDetails: parsed.authorization_details,
+      createdAt: parsed.created_at,
+      expiresIn: parsed.expires_in,
+      idToken: parsed.id_token,
+      refreshToken: parsed.refresh_token,
+      scope: parsed.scope,
+      tokenType: parsed.token_type,
+    };
   }
 
   /**

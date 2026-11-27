@@ -517,13 +517,22 @@ class AuthenticationHelper<T> {
     };
   }
 
-  private async storeTokenResponse(
+  /**
+   * Stores a token response in the session. With `replaceSession`, every earlier session key is cleared
+   * in the same write, except the device secret and the flow sessions.
+   *
+   * @param parsedResponse - The token response.
+   * @param userId - The session.
+   * @param replaceSession - Whether the response replaces the session.
+   */
+  public async storeTokenResponse(
     parsedResponse: AccessTokenApiResponse,
     userId: string | undefined,
     replaceSession: boolean,
   ): Promise<void> {
     if (!replaceSession) {
-      await this.storageManager.setSessionData(parsedResponse, userId);
+      // A token endpoint response ends a session from an embedded sign-in flow.
+      await this.storageManager.setSessionData({...parsedResponse, embedded_sign_in: undefined}, userId);
 
       return;
     }

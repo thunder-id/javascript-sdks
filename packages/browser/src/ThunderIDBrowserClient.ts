@@ -34,12 +34,17 @@ import {
   DeviceSecretSwitchResult,
   EmbeddedFlowSessionData,
   EmbeddedFlowType,
+  EmbeddedSignInFlowRequest,
   EmbeddedSignInFlowResponse,
   EmbeddedSignInFlowStatus,
   OrganizationUnitSwitchErrorCodes,
   OrganizationUnitSwitchFallbackErrors,
   SwitchOrganizationUnitOptions,
   ThunderIDAPIError,
+  ThunderIDRuntimeError,
+  ReauthenticationMethod,
+  ReauthenticationOptions,
+  ReauthenticationRequest,
   executeEmbeddedSignInFlow,
   Telemetry,
   TelemetryConfig,
@@ -63,6 +68,13 @@ import BrowserTelemetry from './telemetry/BrowserTelemetry';
 import AuthenticationHelper from './utils/AuthenticationHelper';
 import createHttpClientFetcher from './utils/createHttpClientFetcher';
 import navigate from './utils/navigate';
+import {
+  completeReauthenticationInPopup,
+  isReauthenticationPopup,
+  openReauthenticationPopup,
+  ReauthenticationMessage,
+  waitForReauthentication,
+} from './utils/reauthenticationPopup';
 import SPACryptoUtils from './utils/SPACryptoUtils';
 import SPAHelper from './utils/SPAHelper';
 import SPAUtils from './utils/SPAUtils';
@@ -124,6 +136,12 @@ class ThunderIDBrowserClient<T = BrowserAuthConfig> extends ThunderIDJavaScriptC
   }
 
   public override async initialize(config: T, storage?: Storage): Promise<boolean> {
+    // A re-sign-in popup's callback belongs to the window that opened it, so it is handed over before
+    // anything treats it as a sign-in callback, and the popup's SDK does nothing more.
+    if (completeReauthenticationInPopup()) {
+      return false;
+    }
+
     this._startedInitialize = true;
     this._initialized = false;
 
@@ -139,7 +157,14 @@ class ThunderIDBrowserClient<T = BrowserAuthConfig> extends ThunderIDJavaScriptC
     };
     const store: Storage = storage ?? initiateStore(this._storage as BrowserStorage);
 
-    await super.initialize(merged as unknown as T, store);
+    try {
+      await super.initialize(merged as unknown as T, store);
+    } catch (error) {
+      // A refused configuration leaves the client uninitialized, so later calls fail instead of waiting.
+      this._startedInitialize = false;
+
+      throw error;
+    }
 
     const sm = this.getStorageManager();
     this._spaHelper = new SPAHelper<T>(sm);
@@ -236,6 +261,11 @@ class ThunderIDBrowserClient<T = BrowserAuthConfig> extends ThunderIDJavaScriptC
     let iterations = 0;
 
     while (!this._initialized) {
+      // A failed initialization ends the wait.
+      if (!this._startedInitialize) {
+        return false;
+      }
+
       if (iterations === 1e4) {
         logger.warn('Initialization is taking longer than expected');
       }
@@ -297,6 +327,11 @@ class ThunderIDBrowserClient<T = BrowserAuthConfig> extends ThunderIDJavaScriptC
     state?: string,
     tokenRequestConfig?: {params: Record<string, unknown>},
   ): Promise<User | undefined> {
+    // In a re-sign-in popup the code belongs to the opener, which redeems it.
+    if (isReauthenticationPopup()) {
+      return undefined;
+    }
+
     await this.isInitialized();
 
     if (this._backend) {
@@ -462,6 +497,211 @@ class ThunderIDBrowserClient<T = BrowserAuthConfig> extends ThunderIDJavaScriptC
     await this._spaHelper!.refreshAccessTokenAutomatically(() => this.refreshAccessToken() as any);
 
     return this.getUser();
+  }
+
+  /**
+   * Signs the signed-in user in again in a popup, for a change that needs a recent sign-in, such as
+   * setting a first credential or changing an email address. Pass the `maxAge` of the
+   * `StepUpRequiredError` the change failed with. The popup sends `max_age` (or `prompt=login`) and
+   * `id_token_hint`; the code it returns is redeemed here, and the session's tokens are replaced only when
+   * the ID token is valid, carries the request's nonce, and names the same user. Then retry the change
+   * once. Call it from the user action, such as a click, so the browser lets the popup open.
+   *
+   * For a session from a redirect sign-in only: see {@link getReauthenticationMethod}. A session from an
+   * embedded sign-in flow signs in again with {@link executeReauthenticationFlow}, and backend mode
+   * through the backend's sign-in.
+   *
+   * @param options - How recent the sign-in must be.
+   * @throws {ThunderIDRuntimeError} When the popup is blocked or closed, the sign-in fails, or it signs
+   *   in a different user; the session is then left as it was.
+   */
+  public async reauthenticate(options: ReauthenticationOptions = {}): Promise<void> {
+    if (this._backend) {
+      throw new ThunderIDRuntimeError(
+        'Signing in again in a popup is not available in backend mode.',
+        'BROWSER-REAUTHENTICATION-UM01',
+        'browser',
+      );
+    }
+
+    // Opened before any await, so the browser treats it as part of the user action.
+    const popup: Window = openReauthenticationPopup(this._browserInstanceId);
+    let refreshPaused = false;
+
+    try {
+      await this.isInitialized();
+
+      const config: AuthClientConfig<T> = await this.getStorageManager().getConfigData();
+
+      if (await this._isFlowSession(config)) {
+        throw new ThunderIDRuntimeError(
+          'Signing in again in a popup is not available for a session from an embedded sign-in flow.',
+          'BROWSER-REAUTHENTICATION-UM02',
+          'browser',
+        );
+      }
+
+      const authorization: ReauthenticationRequest = await this.buildReauthenticationRequest(
+        options,
+        config?.afterSignInUrl ?? window.location.origin,
+      );
+
+      popup.location.href = authorization.url;
+      // A refresh while the user signs in again could store tokens with the old sign-in time over the new
+      // ones, so the timer stops here and starts again below.
+      await this._spaHelper?.clearRefreshTokenTimeout();
+      refreshPaused = true;
+
+      const message: ReauthenticationMessage = await waitForReauthentication(popup, authorization.state);
+
+      if (message.error || !message.code) {
+        throw new ThunderIDRuntimeError(
+          message.errorDescription ?? message.error ?? 'The sign-in returned no authorization code.',
+          'BROWSER-REAUTHENTICATION-AE01',
+          'browser',
+          {error: message.error},
+        );
+      }
+
+      await this.completeReauthentication(authorization, message.code);
+    } finally {
+      if (refreshPaused) {
+        await this._spaHelper?.refreshAccessTokenAutomatically((): Promise<unknown> => this.refreshAccessToken());
+      }
+      if (!popup.closed) {
+        popup.close();
+      }
+    }
+  }
+
+  /**
+   * How the signed-in user signs in again for a change that needs a recent sign-in: `popup` with
+   * {@link reauthenticate} for a session from a redirect sign-in, `flow` with
+   * {@link executeReauthenticationFlow} for a session from an embedded sign-in flow (or with `mode`
+   * set to `embedded`), and `unavailable` in backend mode.
+   *
+   * @returns The method for the current session.
+   */
+  public async getReauthenticationMethod(): Promise<ReauthenticationMethod> {
+    if (this._backend) {
+      return 'unavailable';
+    }
+
+    await this.isInitialized();
+
+    const config: AuthClientConfig<T> = await this.getStorageManager().getConfigData();
+
+    return (await this._isFlowSession(config)) ? 'flow' : 'popup';
+  }
+
+  /**
+   * Runs the sign-in flow again for the signed-in user, for a change that needs a recent sign-in, in a
+   * session from an embedded sign-in flow. Call it without an `executionId` to start the flow: it starts
+   * an `AUTHENTICATION` flow for the configured `applicationId` with `maxAge` (`0` when not given, so the
+   * user is always asked), and the server asks the user again when the sign-in is older. Then call it with
+   * each step's `executionId`, inputs and action, as `signIn` takes them, and render each response.
+   *
+   * When the flow completes, the session's tokens are replaced with its assertion only when it names the
+   * same user (`sub`) as the session; otherwise the session is left as it was. Then retry the change once.
+   *
+   * @param payload - A step of the flow; empty to start it.
+   * @param options - How recent the sign-in must be, read when starting.
+   * @returns The flow's response.
+   * @throws {ThunderIDRuntimeError} In backend mode (`BROWSER-REAUTHENTICATION-UM01`), without an
+   *   `applicationId` (`BROWSER-REAUTHENTICATION-UM03`), or when a different user signed in
+   *   (`BROWSER-REAUTHENTICATION-DU01`).
+   */
+  public async executeReauthenticationFlow(
+    payload: EmbeddedSignInFlowRequest = {},
+    options: ReauthenticationOptions = {},
+  ): Promise<EmbeddedSignInFlowResponse> {
+    if (this._backend) {
+      throw new ThunderIDRuntimeError(
+        'Signing in again with a sign-in flow is not available in backend mode.',
+        'BROWSER-REAUTHENTICATION-UM01',
+        'browser',
+      );
+    }
+
+    await this.isInitialized();
+
+    const config: AuthClientConfig<T> = await this.getStorageManager().getConfigData();
+    let request: EmbeddedSignInFlowRequest;
+
+    if (payload.executionId) {
+      const {action, challengeToken, executionId, inputs} = payload;
+
+      request = {action, challengeToken, executionId, inputs};
+    } else {
+      const applicationId: string | undefined = (config as {applicationId?: string})?.applicationId;
+
+      if (!applicationId) {
+        throw new ThunderIDRuntimeError(
+          'Signing in again with a sign-in flow needs the application ID.',
+          'BROWSER-REAUTHENTICATION-UM03',
+          'browser',
+        );
+      }
+
+      const maxAge: number =
+        options.maxAge !== undefined && Number.isFinite(options.maxAge) && options.maxAge >= 0
+          ? Math.floor(options.maxAge)
+          : 0;
+      // The kept session handles let the server read the sign-in time where its cookie is not sent.
+      const sessionData: EmbeddedFlowSessionData[] = await this.getFlowSessions();
+
+      request = {
+        applicationId,
+        flowType: EmbeddedFlowType.Authentication,
+        maxAge,
+        ...(config?.scopes ? {scopes: config.scopes} : {}),
+        ...(sessionData.length > 0 ? {sessionData} : {}),
+      };
+    }
+
+    const response: EmbeddedSignInFlowResponse = await executeEmbeddedSignInFlow({
+      baseUrl: config?.baseUrl,
+      payload: request,
+      url: resolveResourceEndpoint('flowExecute', config),
+    });
+
+    if (response?.flowStatus !== EmbeddedSignInFlowStatus.Complete || !response.assertion) {
+      await this.storeFlowSessions(response ?? {});
+
+      return response;
+    }
+
+    const claims: Record<string, unknown> = await this.decodeJwtToken<Record<string, unknown>>(response.assertion);
+    const idToken: string | undefined = (await this.getStorageManager().getSessionData())?.id_token;
+    const sessionSubject: unknown = idToken
+      ? (await this.decodeJwtToken<Record<string, unknown>>(idToken))['sub']
+      : undefined;
+
+    if (!sessionSubject || claims['sub'] !== sessionSubject) {
+      throw new ThunderIDRuntimeError(
+        'The sign-in used a different account than the signed-in user.',
+        'BROWSER-REAUTHENTICATION-DU01',
+        'browser',
+      );
+    }
+
+    await this.storeFlowSessions(response);
+    await this.setSessionFromFlowAssertion({...response, assertion: response.assertion});
+
+    return response;
+  }
+
+  /**
+   * Whether the session came from an embedded sign-in flow, or the SDK is configured for embedded mode.
+   */
+  private async _isFlowSession(config: AuthClientConfig<T>): Promise<boolean> {
+    if ((config as {mode?: string})?.mode === 'embedded') {
+      return true;
+    }
+
+    const session: Partial<SessionData> | undefined = await this.getStorageManager().getSessionData();
+
+    return Boolean(session?.embedded_sign_in);
   }
 
   /**
@@ -683,8 +923,48 @@ class ThunderIDBrowserClient<T = BrowserAuthConfig> extends ThunderIDJavaScriptC
   }
 
   /**
+   * Replaces the session with the result of a completed embedded flow: the access token its assertion
+   * is exchanged for, with the assertion as the ID token. Only the kept SSO session handles carry over.
+   * A failed exchange drops the handles the step returned, so a retry shows the flow again.
+   *
+   * @param step - The flow step whose `flowStatus` is `COMPLETE`.
+   * @returns The assertion's claims.
+   */
+  protected async setSessionFromFlowAssertion(step: {
+    assertion: string;
+    sessionData?: EmbeddedFlowSessionData[];
+  }): Promise<Record<string, unknown>> {
+    let session: SessionData;
+
+    try {
+      session = await this.exchangeFlowAssertion(step.assertion);
+    } catch (error) {
+      const clearedSessions: string[] = (step.sessionData ?? []).map(
+        ({flowIdentifier}: EmbeddedFlowSessionData) => flowIdentifier,
+      );
+
+      await this.storeFlowSessions({clearedSessions});
+
+      throw error;
+    }
+
+    // The previous session's refresh would run against a session with no refresh token.
+    await this._spaHelper?.clearRefreshTokenTimeout();
+
+    const previous: Partial<SessionData> = (await this.getStorageManager().getSessionData()) ?? {};
+    // Session writes merge and drop undefined keys, so every previous key is cleared in the same write.
+    const cleared: Record<string, undefined> = Object.fromEntries(
+      Object.keys(previous).map((key: string): [string, undefined] => [key, undefined]),
+    );
+
+    await this.setSession({...cleared, embedded_sign_in: true, flow_sessions: previous.flow_sessions, ...session});
+
+    return this.decodeJwtToken<Record<string, unknown>>(step.assertion);
+  }
+
+  /**
    * Embedded mode: starts a sign-in flow bounded to the unit. When the SSO session is reused, the flow
-   * completes at once and its assertion replaces the session.
+   * completes at once and the token its assertion is exchanged for replaces the session.
    */
   private async _switchOrganizationUnitEmbedded(
     organizationUnitId: string,
@@ -718,18 +998,13 @@ class ThunderIDBrowserClient<T = BrowserAuthConfig> extends ThunderIDJavaScriptC
     await this.storeFlowSessions(response);
 
     if (response?.flowStatus === EmbeddedSignInFlowStatus.Complete && response.assertion) {
-      const claims: Record<string, unknown> = await this.decodeJwtToken<Record<string, unknown>>(response.assertion);
-      const iat: number | undefined = typeof claims['iat'] === 'number' ? claims['iat'] : undefined;
-      const exp: number | undefined = typeof claims['exp'] === 'number' ? claims['exp'] : undefined;
+      try {
+        await this.setSessionFromFlowAssertion({...response, assertion: response.assertion});
+      } catch (error) {
+        logger.error('Keeping the session of the organization unit failed.', error);
 
-      await this.setSession({
-        access_token: response.assertion,
-        created_at: iat ? iat * 1000 : Date.now(),
-        expires_in: exp && iat ? exp - iat : 3600,
-        id_token: response.assertion,
-        scope: claims['scope'],
-        token_type: 'Bearer',
-      });
+        throw ThunderIDBrowserClient._toSwitchError(undefined, error);
+      }
 
       const user: User = await this.getUser();
 

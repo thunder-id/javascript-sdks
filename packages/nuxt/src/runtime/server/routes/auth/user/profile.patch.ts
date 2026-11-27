@@ -1,7 +1,8 @@
-// Copyright 2025 The ThunderID Authors
+// Copyright 2025-2026 The ThunderID Authors
 // SPDX-License-Identifier: Apache-2.0
 
-import type {UpdateMeProfileConfig, User} from '@thunderid/node';
+import {INSUFFICIENT_USER_AUTHENTICATION, ThunderIDAPIError} from '@thunderid/node';
+import type {AuthenticationChallenge, UpdateMeProfileConfig, User} from '@thunderid/node';
 import {defineEventHandler, readBody, createError} from 'h3';
 import type {H3Event} from 'h3';
 import type {ThunderIDNuxtConfig} from '../../../../types';
@@ -16,10 +17,19 @@ import {useRuntimeConfig} from '#imports';
  * Mirrors the `updateUserProfileAction` Next.js server action.
  *
  * Request body: {@link UpdateMeProfileConfig} (the patch payload).
- * Response: `{ data: { user: User }; success: boolean; error: string }`
+ * Response: `{ data: { user: User }; success: boolean; error: string }`. When the change needs a more
+ * recent sign-in (`AUTH-4011`), the response is `success: false` with the server's
+ * `authenticationChallenge`.
  */
 export default defineEventHandler(
-  async (event: H3Event): Promise<{data: {user: User}; error: string; success: boolean}> => {
+  async (
+    event: H3Event,
+  ): Promise<{
+    authenticationChallenge?: AuthenticationChallenge;
+    data: {user: User};
+    error: string;
+    success: boolean;
+  }> => {
     const config: ReturnType<typeof useRuntimeConfig> = useRuntimeConfig();
     const sessionSecret: string | undefined = config.thunderid?.sessionSecret;
     const publicConfig: ThunderIDNuxtConfig = config.public.thunderid as ThunderIDNuxtConfig;
@@ -44,6 +54,10 @@ export default defineEventHandler(
       const user: User = await client.updateUserProfile(payload, session.sessionId);
       return {data: {user}, error: '', success: true};
     } catch (err) {
+      if (err instanceof ThunderIDAPIError && err.authenticationChallenge?.error === INSUFFICIENT_USER_AUTHENTICATION) {
+        return {authenticationChallenge: {...err.authenticationChallenge}, data: {user: {}}, error: '', success: false};
+      }
+
       throw createError({
         statusCode: 500,
         statusMessage: `Failed to update user profile: ${err instanceof Error ? err.message : String(err)}`,

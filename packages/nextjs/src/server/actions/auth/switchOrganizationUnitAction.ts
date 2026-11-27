@@ -35,8 +35,8 @@ export type SwitchOrganizationUnitActionResult =
  *   endpoint and replaces the session. With `redirect: false` it fails with `interaction_required`
  *   instead.
  * - Embedded mode starts an `AUTHENTICATION` flow with `ouId`. When the SSO session is reused the flow
- *   completes at once and its assertion replaces the session cookie; a flow that needs input fails
- *   with `interaction_required`.
+ *   completes at once and the token its assertion is exchanged for replaces the session cookie; a flow
+ *   that needs input fails with `interaction_required`.
  *
  * The previous session stays as it was on any failure. The error code is one of
  * `OrganizationUnitSwitchErrorCodes`.

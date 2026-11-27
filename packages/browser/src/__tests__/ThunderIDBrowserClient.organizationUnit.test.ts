@@ -172,24 +172,63 @@ describe('ThunderIDBrowserClient.switchOrganizationUnit()', () => {
       text: () => Promise.resolve(JSON.stringify(body)),
     });
 
-    it('starts a sign-in flow with ouId and replaces the session with its assertion', async () => {
+    /** Answers the flow request with `flowBody` and the token request with `tokenBody`. */
+    const flowThenToken = (flowBody: unknown, tokenBody: unknown = {access_token: 'ou-at', expires_in: 3600}): any =>
+      vi.fn((url: string) =>
+        Promise.resolve(
+          url.endsWith('/oauth2/token')
+            ? flowResponse(tokenBody, !('error' in (tokenBody as object)), 'error' in (tokenBody as object) ? 400 : 200)
+            : flowResponse(flowBody),
+        ),
+      );
+
+    it('starts a sign-in flow with ouId and replaces the session with the exchanged token', async () => {
       const client = await createClient({mode: 'embedded'} as any);
+      await (client as any).getStorageManager().setSessionData({refresh_token: 'old-rt', session_state: 'old-ss'});
       const assertion: string = encode({
         exp: Math.floor(Date.now() / 1000) + 600,
         iat: Math.floor(Date.now() / 1000),
         ouId: 'ou-1',
         sub: 'u1',
       });
-      const fetchMock = vi.fn().mockResolvedValue(flowResponse({assertion, flowStatus: 'COMPLETE'}));
+      const fetchMock = flowThenToken({assertion, flowStatus: 'COMPLETE'});
       vi.stubGlobal('fetch', fetchMock);
+      const clearRefreshTimer = vi.spyOn((client as any)._spaHelper, 'clearRefreshTokenTimeout');
 
       await client.switchOrganizationUnit('ou-1');
 
+      expect(clearRefreshTimer).toHaveBeenCalled();
       const body = JSON.parse(fetchMock.mock.calls[0][1].body);
       expect(fetchMock.mock.calls[0][0]).toBe('https://example.com/flow/execute');
       expect(body).toMatchObject({applicationId: 'app-1', flowType: 'AUTHENTICATION', ouId: 'ou-1'});
-      expect(await sessionOf(client)).toMatchObject({access_token: assertion, id_token: assertion});
+      expect(fetchMock.mock.calls[1][0]).toBe('https://example.com/oauth2/token');
+      expect(fetchMock.mock.calls[1][1].body.get('subject_token')).toBe(assertion);
+      const session = await sessionOf(client);
+      expect(session).toMatchObject({access_token: 'ou-at', id_token: assertion});
+      expect(session).not.toHaveProperty('refresh_token');
+      expect(session).not.toHaveProperty('session_state');
       expect(await client.getCurrentOrganizationUnit()).toEqual({id: 'ou-1'});
+    });
+
+    it('fails and keeps the session when the assertion cannot be exchanged', async () => {
+      const client = await createClient({mode: 'embedded'} as any);
+      const assertion: string = encode({iat: Math.floor(Date.now() / 1000), ouId: 'ou-1', sub: 'u1'});
+      vi.stubGlobal(
+        'fetch',
+        flowThenToken(
+          {assertion, flowStatus: 'COMPLETE', sessionData: [{flowIdentifier: 'f9', sessionHandle: 'h9'}]},
+          {error: 'unauthorized_client'},
+        ),
+      );
+      const clearRefreshTimer = vi.spyOn((client as any)._spaHelper, 'clearRefreshTokenTimeout');
+
+      await expect(client.switchOrganizationUnit('ou-1')).rejects.toMatchObject({
+        code: OrganizationUnitSwitchErrorCodes.Failed,
+      });
+      expect(await sessionOf(client)).toMatchObject({access_token: 'old-at', id_token: 'old-id'});
+      // The previous session keeps refreshing, and the handle of the failed switch is not kept.
+      expect(clearRefreshTimer).not.toHaveBeenCalled();
+      expect((await sessionOf(client)).flow_sessions ?? []).toEqual([]);
     });
 
     it('maps FES-1023 to unauthorized_client and keeps the session', async () => {
@@ -225,7 +264,7 @@ describe('ThunderIDBrowserClient.switchOrganizationUnit()', () => {
         iat: Math.floor(Date.now() / 1000),
         sub: 'u1',
       });
-      const fetchMock = vi.fn().mockResolvedValue(flowResponse({assertion, flowStatus: 'COMPLETE'}));
+      const fetchMock = flowThenToken({assertion, flowStatus: 'COMPLETE'});
       vi.stubGlobal('fetch', fetchMock);
 
       await client.switchOrganizationUnit('ou-1');
@@ -234,7 +273,7 @@ describe('ThunderIDBrowserClient.switchOrganizationUnit()', () => {
         {flowIdentifier: 'f1', sessionHandle: 'h1'},
       ]);
       expect(await sessionOf(client)).toMatchObject({
-        access_token: assertion,
+        access_token: 'ou-at',
         flow_sessions: [{flowIdentifier: 'f1', sessionHandle: 'h1'}],
       });
     });
@@ -254,13 +293,11 @@ describe('ThunderIDBrowserClient.switchOrganizationUnit()', () => {
       const assertion: string = encode({iat: Math.floor(Date.now() / 1000), sub: 'u1'});
       vi.stubGlobal(
         'fetch',
-        vi.fn().mockResolvedValue(
-          flowResponse({
-            assertion,
-            flowStatus: 'COMPLETE',
-            sessionData: [{flowIdentifier: 'f2', sessionHandle: 'h2'}],
-          }),
-        ),
+        flowThenToken({
+          assertion,
+          flowStatus: 'COMPLETE',
+          sessionData: [{flowIdentifier: 'f2', sessionHandle: 'h2'}],
+        }),
       );
 
       await client.switchOrganizationUnit('ou-1');

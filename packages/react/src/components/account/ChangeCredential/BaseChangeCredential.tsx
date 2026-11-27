@@ -24,12 +24,13 @@ import Typography from '../../primitives/Typography/Typography';
 
 /**
  * The values collected by the form and handed to `onSubmit`.
- *
- * There is deliberately no current-value field here. The self-service credential write
- * endpoint does not verify the account's existing value today, so a field the server
- * ignores would only teach the user a false sense of security.
  */
 export interface ChangePasswordValues {
+  /**
+   * The credential's current value, present only when the user filled it in. The server
+   * needs it when the user holds the credential, and not when the user sets a first one.
+   */
+  currentPassword?: string;
   /**
    * The value to set.
    */
@@ -58,7 +59,7 @@ export interface BaseChangeCredentialProps {
    */
   error?: string | null;
   /**
-   * Server-supplied errors keyed by field name (`newPassword`).
+   * Server-supplied errors keyed by field name (`currentPassword` or `newPassword`).
    */
   fieldErrors?: Record<string, string>;
   /**
@@ -104,8 +105,9 @@ export interface BaseChangeCredentialProps {
 }
 
 /**
- * Presentational change-credential form with just the two fields a first-time or
- * unverified credential change needs: new value and confirmation.
+ * Presentational change-credential form: the current value, the new value and its
+ * confirmation. The current value is optional, so a user who has not set the credential
+ * yet can set a first one.
  *
  * Holds no context and performs no network calls: it renders the fields, evaluates the
  * policy for the checklist and the submit gate, and hands validated values to `onSubmit`.
@@ -148,6 +150,7 @@ const BaseChangeCredential: FC<BaseChangeCredentialProps> = ({
   // `title` overrides the default heading; an explicit empty string omits it entirely.
   const resolvedTitle: string = title ?? t('user.change_password.heading', labelParams);
 
+  const [currentPassword, setCurrentPassword] = useState<string>('');
   const [newPassword, setNewPassword] = useState<string>('');
   const [confirmPassword, setConfirmPassword] = useState<string>('');
   const [submitted, setSubmitted] = useState<boolean>(false);
@@ -162,6 +165,7 @@ const BaseChangeCredential: FC<BaseChangeCredentialProps> = ({
     setPrevSuccess(success);
 
     if (success) {
+      setCurrentPassword('');
       setNewPassword('');
       setConfirmPassword('');
       setSubmitted(false);
@@ -186,7 +190,7 @@ const BaseChangeCredential: FC<BaseChangeCredentialProps> = ({
       return;
     }
 
-    onSubmit?.({newPassword});
+    onSubmit?.(currentPassword ? {currentPassword, newPassword} : {newPassword});
   };
 
   const renderRequirement = (rule: PasswordRuleResult): ReactElement => (
@@ -217,6 +221,7 @@ const BaseChangeCredential: FC<BaseChangeCredentialProps> = ({
   // not flag fields the user has not finished filling in.
   const confirmError: string | undefined =
     submitted && !confirmMatches ? t('user.change_password.mismatch.error', labelParams) : undefined;
+  const currentPasswordError: string | undefined = fieldErrors['currentPassword'];
   const newPasswordError: string | undefined = fieldErrors['newPassword'];
 
   const form: ReactElement = (
@@ -259,6 +264,18 @@ const BaseChangeCredential: FC<BaseChangeCredentialProps> = ({
       )}
 
       <div className={cx(withVendorCSSClassPrefix(bem('change-credential', 'fields')), styles['fields'])}>
+        <PasswordField
+          name="currentPassword"
+          autoComplete="current-password"
+          label={t('user.change_password.current.label', labelParams)}
+          placeholder={t('user.change_password.current.placeholder', labelParams)}
+          helperText={t('user.change_password.current.hint', labelParams)}
+          value={currentPassword}
+          onChange={setCurrentPassword}
+          disabled={interactionDisabled}
+          error={currentPasswordError}
+        />
+
         <PasswordField
           name="newPassword"
           autoComplete="new-password"

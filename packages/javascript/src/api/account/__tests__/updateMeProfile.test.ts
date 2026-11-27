@@ -1,7 +1,8 @@
-// Copyright 2025 The ThunderID Authors
+// Copyright 2025-2026 The ThunderID Authors
 // SPDX-License-Identifier: Apache-2.0
 
 import {Mock, beforeEach, describe, expect, it, vi} from 'vitest';
+import StepUpRequiredError from '../../../errors/StepUpRequiredError';
 import ThunderIDAPIError from '../../../errors/ThunderIDAPIError';
 import type {User} from '../../../models/user';
 import updateMeProfile from '../updateMeProfile';
@@ -160,6 +161,61 @@ describe('updateMeProfile', (): void => {
     await expect(updateMeProfile({baseUrl, payload: {bad: 'data'}})).rejects.toThrow(
       'Failed to update user profile: SCIM validation failed',
     );
+  });
+
+  it('should throw a StepUpRequiredError when an email change needs a recent sign-in', async (): Promise<void> => {
+    global.fetch = vi.fn().mockResolvedValue({
+      headers: new Headers({
+        'WWW-Authenticate': 'Bearer error="insufficient_user_authentication", max_age="300"',
+      }),
+      ok: false,
+      status: 401,
+      statusText: 'Unauthorized',
+      text: () =>
+        Promise.resolve(JSON.stringify({code: 'AUTH-4011', message: {defaultValue: 'Recent authentication required'}})),
+    });
+
+    const error: unknown = await updateMeProfile({
+      baseUrl: 'https://localhost:8090',
+      payload: {email: 'new@example.com'},
+    }).catch((caught: unknown) => caught);
+
+    expect(error).toBeInstanceOf(StepUpRequiredError);
+    expect(error).toMatchObject({code: 'updateMeProfile-StepUpRequired-001', maxAge: 300, statusCode: 401});
+  });
+
+  it('should read a step-up from the AUTH-4011 body when the header is not readable', async (): Promise<void> => {
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 401,
+      statusText: 'Unauthorized',
+      text: () => Promise.resolve(JSON.stringify({code: 'AUTH-4011', description: {params: {maxAge: '60'}}})),
+    });
+
+    const error: unknown = await updateMeProfile({
+      baseUrl: 'https://localhost:8090',
+      payload: {mobile: '+15550100'},
+    }).catch((caught: unknown) => caught);
+
+    expect(error).toBeInstanceOf(StepUpRequiredError);
+    expect(error).toMatchObject({maxAge: 60});
+  });
+
+  it('should keep a plain API error for a 401 that is not a step-up', async (): Promise<void> => {
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 401,
+      statusText: 'Unauthorized',
+      text: () => Promise.resolve(JSON.stringify({code: 'AUTH-4010', message: {defaultValue: 'Unauthorized'}})),
+    });
+
+    const error: unknown = await updateMeProfile({baseUrl: 'https://localhost:8090', payload: {a: 'b'}}).catch(
+      (caught: unknown) => caught,
+    );
+
+    expect(error).toBeInstanceOf(ThunderIDAPIError);
+    expect(error).not.toBeInstanceOf(StepUpRequiredError);
+    expect(error).toMatchObject({code: 'updateMeProfile-ResponseError-001'});
   });
 
   it('should handle network or unknown errors with the generic message', async (): Promise<void> => {

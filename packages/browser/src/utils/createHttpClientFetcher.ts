@@ -34,8 +34,14 @@ const createHttpClientFetcher = (
   return async (url: string, config: RequestInit): Promise<Response> => {
     const httpClient: FetchHttpClient = FetchHttpClient.getInstance(instanceId);
 
-    const toResponse = (data: unknown, status: number, statusText: string): Response =>
+    const toResponse = (
+      data: unknown,
+      status: number,
+      statusText: string,
+      headers?: Record<string, string>,
+    ): Response =>
       ({
+        headers: new Headers(headers ?? {}),
         json: () => Promise.resolve(data),
         ok: status >= 200 && status < 300,
         status,
@@ -53,11 +59,16 @@ const createHttpClientFetcher = (
         url,
       } as HttpRequestConfig);
 
-      return toResponse(response.data, response.status, response.statusText || '');
+      return toResponse(response.data, response.status, response.statusText || '', response.headers);
     } catch (error) {
       const httpError: HttpError = error as HttpError;
       if (httpError?.response) {
-        return toResponse(httpError.response.data, httpError.response.status, httpError.response.statusText ?? '');
+        return toResponse(
+          httpError.response.data,
+          httpError.response.status,
+          httpError.response.statusText ?? '',
+          httpError.response.headers,
+        );
       }
       throw error;
     }

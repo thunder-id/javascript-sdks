@@ -1,4 +1,4 @@
-// Copyright 2025 The ThunderID Authors
+// Copyright 2025-2026 The ThunderID Authors
 // SPDX-License-Identifier: Apache-2.0
 
 import {I18nTranslations, I18nMetadata, I18nBundle} from '../models/i18n';
@@ -148,6 +148,9 @@ const translations: I18nTranslations = {
   /* |---------------------------------------------------------------| */
 
   'user.change_password.heading': '{credential} වෙනස් කරන්න',
+  'user.change_password.current.label': 'වත්මන් {credential}',
+  'user.change_password.current.placeholder': 'ඔබගේ වත්මන් {credentialLower} ඇතුළත් කරන්න',
+  'user.change_password.current.hint': 'ඔබ තවමත් එකක් සකසා නොමැති නම් මෙය හිස්ව තබන්න.',
   'user.change_password.new.label': 'නව {credential}',
   'user.change_password.new.placeholder': 'ඔබේ නව {credentialLower} ඇතුළත් කරන්න',
   'user.change_password.confirm.label': 'නව {credential} තහවුරු කරන්න',
@@ -158,6 +161,18 @@ const translations: I18nTranslations = {
   'user.change_password.mismatch.error': '{credentialLower} නොගැලපේ.',
   'user.change_password.generic.error':
     'ඔබේ {credentialLower} යාවත්කාලීන කිරීමේදී දෝෂයක් ඇතිවිය. කරුණාකර නැවත උත්සාහ කරන්න.',
+  'user.change_password.current.required.error': 'ඔබගේ වත්මන් {credentialLower} ඇතුළත් කරන්න.',
+  'user.change_password.current.invalid.error': 'වත්මන් {credentialLower} වැරදියි.',
+  'user.change_password.reauthentication.error': 'ඔබගේ {credentialLower} සැකසීමට නැවත පුරනය වන්න.',
+  'user.reauthentication.required.error': 'මෙම වෙනස සුරැකීමට නැවත පුරනය වන්න.',
+  'user.reauthentication.failed.error': 'නැවත පුරනය වීම අවසන් නොවීය. නැවත උත්සාහ කරන්න.',
+  'user.reauthentication.popup_blocked.error': 'මෙම අඩවිය සඳහා උත්පතන ඉඩ දී, නැවත උත්සාහ කරන්න.',
+  'user.reauthentication.different_user.error':
+    'ඔබ වෙනත් ගිණුමකින් පුරනය විය. ඔබගේම ගිණුමෙන් පුරනය වී නැවත උත්සාහ කරන්න.',
+  'user.reauthentication.heading': 'නැවත පුරනය වන්න',
+  'user.reauthentication.description': 'මෙම වෙනස සුරැකීමට එය ඔබ බව තහවුරු කරන්න.',
+  'user.reauthentication.unsupported_option.error': 'මෙම පුරනය වීමේ විකල්පය මෙහි ලබා ගත නොහැක. වෙනත් එකක් තෝරන්න.',
+  'user.reauthentication.buttons.close.text': 'වසන්න',
   'user.change_password.unavailable.heading': '{credential} වෙනස් කිරීම් ලබා ගත නොහැක',
   'user.change_password.unavailable.description': 'කරුණාකර ඔබේ පරිපාලක සම්බන්ධ කර ගන්න.',
 

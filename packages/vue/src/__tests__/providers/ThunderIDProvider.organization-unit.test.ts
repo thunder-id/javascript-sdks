@@ -12,6 +12,7 @@ const client = vi.hoisted(() => ({
   getConfiguration: vi.fn(),
   getCurrentOrganizationUnit: vi.fn(),
   getDecodedIdToken: vi.fn(),
+  getReauthenticationMethod: vi.fn().mockResolvedValue('popup'),
   getDiscoveryResponse: vi.fn(),
   initialize: vi.fn(),
   isInitialized: vi.fn(),

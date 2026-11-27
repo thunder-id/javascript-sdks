@@ -939,7 +939,9 @@ export const COMPONENTS: ComponentDef[] = [
           }
         : {
             imports: ['BaseChangeCredential'],
-            script: ['const handleSubmit = ({newPassword}: {newPassword: string}): void => {};'],
+            script: [
+              'const handleSubmit = ({currentPassword, newPassword}: {currentPassword: string; newPassword: string}): void => {};',
+            ],
             template: tpl('BaseChangeCredential', omit(args, 'source'), {
               defaults: {showRequirements: true},
               extra: ['@submit="handleSubmit"'],

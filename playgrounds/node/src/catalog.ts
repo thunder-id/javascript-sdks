@@ -454,10 +454,10 @@ const operations: OperationSpec[] = [
     summary: 'Run a SELF flow step.',
   },
   {
-    args: json({password: ''}),
+    args: json({currentValue: '', name: 'password', newValue: ''}),
     call: 'client.updateUserCredentials(payload, sessionId)',
     description:
-      'Updates credentials of the signed-in user, such as password, through the /users/me credentials endpoint. Running it changes your real credentials.',
+      'Sets one credential of the signed-in user, such as password, through the /users/me credentials endpoint. Give currentValue when the user holds the credential. Running it changes your real credentials.',
     group: 'Management API',
     id: 'updateUserCredentials',
     network: true,
@@ -465,7 +465,7 @@ const operations: OperationSpec[] = [
     regions: ['updateUserCredentials'],
     returns: 'Promise<void>',
     session: true,
-    summary: 'Update own credentials.',
+    summary: 'Update an own credential.',
   },
   management(
     'listGroups',

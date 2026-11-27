@@ -1,7 +1,8 @@
-// Copyright 2025 The ThunderID Authors
+// Copyright 2025-2026 The ThunderID Authors
 // SPDX-License-Identifier: Apache-2.0
 
 import ThunderIDAPIError from '../../errors/ThunderIDAPIError';
+import createApiResponseError from '../../utils/createApiResponseError';
 import {User} from '../../models/user';
 
 /**
@@ -111,14 +112,7 @@ const updateMeProfile = async ({
     if (!response?.ok) {
       const errorText: string = await response.text();
 
-      throw new ThunderIDAPIError(
-        errorText,
-        'updateMeProfile-ResponseError-001',
-        'javascript',
-        response.status,
-        response.statusText,
-        'Failed to update user profile',
-      );
+      throw createApiResponseError('updateMeProfile', errorText, response, 'Failed to update user profile');
     }
 
     const user: User = (await response.json()) as User;

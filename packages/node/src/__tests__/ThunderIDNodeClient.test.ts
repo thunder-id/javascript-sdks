@@ -28,7 +28,7 @@ describe('ThunderIDNodeClient', () => {
 
       vi.spyOn(client, 'getAccessToken').mockResolvedValue('test-access-token');
 
-      const payload = {password: 'new-secure-password!'};
+      const payload = {currentValue: 'old-secure-password!', name: 'password', newValue: 'new-secure-password!'};
       await client.updateUserCredentials(payload, 'user-123');
 
       expect(thunderJS.updateMeCredentials).toHaveBeenCalledWith({

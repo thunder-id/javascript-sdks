@@ -1,4 +1,4 @@
-// Copyright 2025 The ThunderID Authors
+// Copyright 2025-2026 The ThunderID Authors
 // SPDX-License-Identifier: Apache-2.0
 
 import {
@@ -36,6 +36,7 @@ import {
   ThunderIDRuntimeError,
   TokenResponse,
   updateMeCredentials,
+  UpdateMeCredentialsPayload,
   User,
 } from '@thunderid/javascript';
 import evaluateAccessRequest from './api/access/evaluateAccess';
@@ -251,6 +252,15 @@ class ThunderIDNodeClient<T extends ThunderIDNodeConfig = ThunderIDNodeConfig> e
     }
 
     return result;
+  }
+
+  /**
+   * Exchanges the assertion a completed embedded flow returned for an access token, with the
+   * assertion kept as the ID token. Nothing is stored; the caller keeps the result in its session.
+   * The application needs the token exchange grant.
+   */
+  public override async exchangeFlowAssertion(assertion: string): Promise<SessionData> {
+    return super.exchangeFlowAssertion(assertion);
   }
 
   /**
@@ -619,10 +629,11 @@ class ThunderIDNodeClient<T extends ThunderIDNodeConfig = ThunderIDNodeConfig> e
   }
 
   /**
-   * Updates one or more of the signed-in user's credentials (e.g. `password`, or any other
-   * attribute the user type schema declares `credential: true`).
+   * Sets one of the signed-in user's credentials (e.g. `password`, or any other attribute the user
+   * type schema declares `credential: true`). Give `currentValue` when the user holds the credential;
+   * a first value needs a recent sign-in instead. See {@link updateMeCredentials}.
    */
-  public async updateUserCredentials(payload: Record<string, string>, userId?: string): Promise<void> {
+  public async updateUserCredentials(payload: UpdateMeCredentialsPayload, userId?: string): Promise<void> {
     const configData: AuthClientConfig<T> = await this.getStorageManager().getConfigData();
     const baseUrl: string | undefined = configData?.baseUrl;
 

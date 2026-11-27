@@ -13,6 +13,7 @@ import {
   type ExtendedAuthorizeRequestUrlParams,
   type ManagementListOptions,
   type RoleAssigneeType,
+  type UpdateMeCredentialsPayload,
   type ThunderIDNodeClient,
   type TokenExchangeRequestConfig,
 } from '@thunderid/node';
@@ -200,8 +201,9 @@ const executeEmbeddedSelfFlow: Runner = ({args, client, sessionId}) =>
 
 // #region updateUserCredentials
 const updateUserCredentials: Runner = async ({args, client, sessionId}) => {
-  await client.updateUserCredentials(args as Record<string, string>, sessionId);
-  return {updated: Object.keys(args as Record<string, string>)};
+  const payload = args as UpdateMeCredentialsPayload;
+  await client.updateUserCredentials(payload, sessionId);
+  return {updated: payload.name};
 };
 // #endregion
 

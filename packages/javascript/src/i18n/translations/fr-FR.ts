@@ -1,4 +1,4 @@
-// Copyright 2025 The ThunderID Authors
+// Copyright 2025-2026 The ThunderID Authors
 // SPDX-License-Identifier: Apache-2.0
 
 import {I18nTranslations, I18nMetadata, I18nBundle} from '../models/i18n';
@@ -150,6 +150,9 @@ const translations: I18nTranslations = {
   /* |---------------------------------------------------------------| */
 
   'user.change_password.heading': 'Modifier {credential}',
+  'user.change_password.current.label': '{credential} actuel',
+  'user.change_password.current.placeholder': 'Entrez votre {credentialLower} actuel',
+  'user.change_password.current.hint': "Laissez ce champ vide si vous n'en avez pas encore défini.",
   'user.change_password.new.label': 'Nouveau {credential}',
   'user.change_password.new.placeholder': 'Entrez votre nouveau {credentialLower}',
   'user.change_password.confirm.label': 'Confirmer le nouveau {credential}',
@@ -160,6 +163,19 @@ const translations: I18nTranslations = {
   'user.change_password.mismatch.error': 'Les {credentialLower}s ne correspondent pas.',
   'user.change_password.generic.error':
     'Une erreur est survenue lors de la mise à jour de votre {credentialLower}. Veuillez réessayer.',
+  'user.change_password.current.required.error': 'Entrez votre {credentialLower} actuel.',
+  'user.change_password.current.invalid.error': 'Le {credentialLower} actuel est incorrect.',
+  'user.change_password.reauthentication.error': 'Reconnectez-vous pour définir votre {credentialLower}.',
+  'user.reauthentication.required.error': 'Reconnectez-vous pour enregistrer cette modification.',
+  'user.reauthentication.failed.error': "La reconnexion n'a pas abouti. Réessayez.",
+  'user.reauthentication.popup_blocked.error': 'Autorisez les fenêtres pop-up pour ce site, puis réessayez.',
+  'user.reauthentication.different_user.error':
+    'Vous vous êtes connecté avec un autre compte. Connectez-vous avec votre compte et réessayez.',
+  'user.reauthentication.heading': 'Reconnectez-vous',
+  'user.reauthentication.description': 'Confirmez votre identité pour enregistrer cette modification.',
+  'user.reauthentication.unsupported_option.error':
+    "Cette option de connexion n'est pas disponible ici. Choisissez-en une autre.",
+  'user.reauthentication.buttons.close.text': 'Fermer',
   'user.change_password.unavailable.heading': 'Modification du {credentialLower} indisponible',
   'user.change_password.unavailable.description': 'Veuillez contacter votre administrateur.',
 
