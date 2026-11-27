@@ -1,3 +1,9 @@
+## 1.23.1
+
+No changes to this SDK since sdk/react-router/v1.23.0.
+
+**Full Changelog**: https://github.com/thunder-id/javascript-sdks/compare/sdk/react-router/v1.23.0...sdk/react-router/v1.23.1
+
 ## 1.23.0
 
 ### 📝 Other Changes

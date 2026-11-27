@@ -1,3 +1,9 @@
+## 1.26.1
+
+No changes to this SDK since sdk/browser/v1.26.0.
+
+**Full Changelog**: https://github.com/thunder-id/javascript-sdks/compare/sdk/browser/v1.26.0...sdk/browser/v1.26.1
+
 ## 1.26.0
 
 ### 📝 Other Changes
