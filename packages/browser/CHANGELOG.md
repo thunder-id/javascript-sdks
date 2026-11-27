@@ -1,3 +1,10 @@
+## 1.27.0
+
+### ✨ Improvements
+* Align the Node.js SDKs with the BFF contract of RFC 10017 by @brionmario in https://github.com/thunder-id/javascript-sdks/pull/192
+
+**Full Changelog**: https://github.com/thunder-id/javascript-sdks/compare/sdk/browser/v1.26.1...sdk/browser/v1.27.0
+
 ## 1.26.1
 
 No changes to this SDK since sdk/browser/v1.26.0.

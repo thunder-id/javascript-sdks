@@ -1,3 +1,10 @@
+## 1.28.0
+
+### ✨ Improvements
+* Align the Node.js SDKs with the BFF contract of RFC 10017 by @brionmario in https://github.com/thunder-id/javascript-sdks/pull/192
+
+**Full Changelog**: https://github.com/thunder-id/javascript-sdks/compare/sdk/javascript/v1.27.1...sdk/javascript/v1.28.0
+
 ## 1.27.1
 
 No changes to this SDK since sdk/javascript/v1.27.0.
