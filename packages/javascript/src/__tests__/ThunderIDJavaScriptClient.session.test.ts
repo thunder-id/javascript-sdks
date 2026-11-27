@@ -336,4 +336,163 @@ describe('ThunderIDJavaScriptClient', () => {
       expect(fetchMock).not.toHaveBeenCalled();
     });
   });
+
+  describe('embedded mode configuration', () => {
+    it('refuses to initialize without a client ID', async () => {
+      const client: any = new ThunderIDJavaScriptClient(new MemoryStore(), new DefaultCrypto());
+
+      await expect(
+        client.initialize({applicationId: 'app-1', baseUrl: 'https://example.com', mode: 'embedded'}),
+      ).rejects.toMatchObject({code: 'JS-AUTH_CORE-INIT-IV01'});
+    });
+
+    it('initializes with an application ID and a client ID', async () => {
+      const client: any = new ThunderIDJavaScriptClient(new MemoryStore(), new DefaultCrypto());
+
+      await expect(
+        client.initialize({applicationId: 'app-1', baseUrl: 'https://example.com', clientId: 'c1', mode: 'embedded'}),
+      ).resolves.toBe(true);
+    });
+
+    it('leaves redirect mode without a client ID to the sign-in request', async () => {
+      const client: any = new ThunderIDJavaScriptClient(new MemoryStore(), new DefaultCrypto());
+
+      await expect(client.initialize({baseUrl: 'https://example.com'})).resolves.toBe(true);
+    });
+  });
+
+  describe('exchangeFlowAssertion()', () => {
+    const ASSERTION = 'flow.assertion.jwt';
+
+    it('exchanges the assertion for an access token without a scope, and keeps it as the ID token', async () => {
+      const client = await newClient();
+      const fetchMock = vi
+        .fn()
+        .mockResolvedValue(jsonResponse({access_token: 'at', expires_in: 900, scope: 'self', token_type: 'Bearer'}));
+      vi.stubGlobal('fetch', fetchMock);
+
+      const session = await client.exchangeFlowAssertion(ASSERTION);
+
+      const [url, init] = fetchMock.mock.calls[0];
+      const body: URLSearchParams = init.body;
+      expect(url).toBe('https://example.com/oauth2/token');
+      expect(Object.fromEntries(body)).toEqual({
+        client_id: 'test-client',
+        grant_type: 'urn:ietf:params:oauth:grant-type:token-exchange',
+        subject_token: ASSERTION,
+        subject_token_type: 'urn:ietf:params:oauth:token-type:jwt',
+      });
+      expect(init.headers).not.toHaveProperty('Authorization');
+      expect(session).toMatchObject({
+        access_token: 'at',
+        expires_in: '900',
+        id_token: ASSERTION,
+        scope: 'self',
+        token_type: 'Bearer',
+      });
+      expect((await client.storageManager.getSessionData())?.access_token).toBeUndefined();
+    });
+
+    it('authenticates a confidential client with its secret', async () => {
+      const client = await newClient({clientSecret: 'secret'});
+      const fetchMock = vi.fn().mockResolvedValue(jsonResponse({access_token: 'at', expires_in: 900}));
+      vi.stubGlobal('fetch', fetchMock);
+
+      await client.exchangeFlowAssertion(ASSERTION);
+
+      expect(fetchMock.mock.calls[0][1].headers.Authorization).toBe(
+        `Basic ${Buffer.from('test-client:secret').toString('base64')}`,
+      );
+    });
+
+    it('sends the secret in the body for client_secret_post', async () => {
+      const client = await newClient({clientSecret: 'secret', tokenRequest: {authMethod: 'client_secret_post'}});
+      const fetchMock = vi.fn().mockResolvedValue(jsonResponse({access_token: 'at', expires_in: 900}));
+      vi.stubGlobal('fetch', fetchMock);
+
+      await client.exchangeFlowAssertion(ASSERTION);
+
+      expect(fetchMock.mock.calls[0][1].body.get('client_secret')).toBe('secret');
+      expect(fetchMock.mock.calls[0][1].headers).not.toHaveProperty('Authorization');
+    });
+
+    it('reports a request that does not reach the server', async () => {
+      const client = await newClient();
+      vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('offline')));
+
+      await expect(client.exchangeFlowAssertion(ASSERTION)).rejects.toMatchObject({
+        code: 'JS-AUTH_CORE-EFA-NE03',
+        message: 'offline',
+      });
+    });
+
+    it('names the missing grant when the application cannot exchange the assertion', async () => {
+      const client = await newClient();
+      vi.stubGlobal(
+        'fetch',
+        vi.fn().mockResolvedValue(jsonResponse({error: 'unauthorized_client', error_description: 'x'}, false, 400)),
+      );
+
+      const error: Error = await client.exchangeFlowAssertion(ASSERTION).catch((e: Error) => e);
+
+      expect(error).toMatchObject({code: 'JS-AUTH_CORE-EFA-UC04'});
+      expect(error.message).toContain('urn:ietf:params:oauth:grant-type:token-exchange');
+    });
+
+    it('reports any other rejection with the server message', async () => {
+      const client = await newClient();
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValue(jsonResponse({error: 'invalid_grant'}, false, 400)));
+
+      await expect(client.exchangeFlowAssertion(ASSERTION)).rejects.toMatchObject({
+        code: 'JS-AUTH_CORE-EFA-HE05',
+        message: 'invalid_grant',
+      });
+    });
+
+    it('reports a server without the grant as a rejection, not as an application setting', async () => {
+      const client = await newClient();
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValue(jsonResponse({error: 'unsupported_grant_type'}, false, 400)));
+
+      await expect(client.exchangeFlowAssertion(ASSERTION)).rejects.toMatchObject({
+        code: 'JS-AUTH_CORE-EFA-HE05',
+        message: 'unsupported_grant_type',
+      });
+    });
+
+    it('refuses a response without an access token', async () => {
+      const client = await newClient();
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValue(jsonResponse({token_type: 'Bearer'})));
+
+      await expect(client.exchangeFlowAssertion(ASSERTION)).rejects.toMatchObject({code: 'JS-AUTH_CORE-EFA-IV06'});
+    });
+
+    it('needs a token endpoint', async () => {
+      const client = await newClient();
+      await client.storageManager.setOIDCProviderMetaData({...OIDC_META, token_endpoint: undefined});
+      const fetchMock = vi.fn();
+      vi.stubGlobal('fetch', fetchMock);
+
+      await expect(client.exchangeFlowAssertion(ASSERTION)).rejects.toMatchObject({code: 'JS-AUTH_CORE-EFA-NF01'});
+      expect(fetchMock).not.toHaveBeenCalled();
+    });
+
+    it('refuses a successful response that is not JSON', async () => {
+      const client = await newClient();
+      vi.stubGlobal(
+        'fetch',
+        vi.fn().mockResolvedValue({json: () => Promise.reject(new SyntaxError('x')), ok: true, status: 200}),
+      );
+
+      await expect(client.exchangeFlowAssertion(ASSERTION)).rejects.toMatchObject({code: 'JS-AUTH_CORE-EFA-IV06'});
+    });
+
+    it('needs the client ID', async () => {
+      const client = await newClient({clientId: undefined});
+      const fetchMock = vi.fn();
+      vi.stubGlobal('fetch', fetchMock);
+
+      await expect(client.exchangeFlowAssertion(ASSERTION)).rejects.toMatchObject({code: 'JS-AUTH_CORE-EFA-IV02'});
+      expect(fetchMock).not.toHaveBeenCalled();
+    });
+  });
 });

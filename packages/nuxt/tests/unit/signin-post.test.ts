@@ -28,6 +28,14 @@ const mockClientInstance = vi.hoisted(() => ({
     .fn<() => Promise<string>>()
     .mockResolvedValue('https://localhost:8090/oauth2/authorize?code_challenge=x'),
   signIn: vi.fn<() => Promise<any>>().mockResolvedValue(undefined),
+  exchangeFlowAssertion: vi.fn<() => Promise<any>>().mockResolvedValue({
+    access_token: 'exchanged-at',
+    created_at: 1000,
+    expires_in: '900',
+    id_token: 'assertion-jwt-xyz',
+    scope: 'self',
+    token_type: 'Bearer',
+  }),
   getDecodedIdToken: vi.fn<() => Promise<any>>().mockResolvedValue({iat: 1000, exp: 4600, scope: 'openid profile'}),
 }));
 
@@ -167,7 +175,7 @@ describe('POST /api/auth/signin', () => {
   });
 
   describe('embedded flow completion (SUCCESS_COMPLETED)', () => {
-    it('establishes the session from the assertion and issues a session cookie on flow completion', async () => {
+    it('exchanges the assertion and issues a session cookie on flow completion', async () => {
       const flowPayload = {
         flowId: 'flow-abc',
         selectedAuthenticator: {authenticatorId: 'BasicAuthenticator'},
@@ -187,11 +195,16 @@ describe('POST /api/auth/signin', () => {
 
       const result = await (signinHandler as any)(mockEvent);
 
-      expect(mockClientInstance.getDecodedIdToken).toHaveBeenCalledWith(expect.any(String), 'assertion-jwt-xyz');
+      expect(mockClientInstance.exchangeFlowAssertion).toHaveBeenCalledWith('assertion-jwt-xyz');
       expect(issueSessionCookie).toHaveBeenCalledWith(
         mockEvent,
         expect.any(String),
-        expect.objectContaining({accessToken: 'assertion-jwt-xyz', idToken: 'assertion-jwt-xyz'}),
+        expect.objectContaining({
+          accessToken: 'exchanged-at',
+          expiresIn: '900',
+          idToken: 'assertion-jwt-xyz',
+          scope: 'self',
+        }),
         expect.any(String),
       );
       expect(deleteCookie).toHaveBeenCalled();
@@ -208,6 +221,15 @@ describe('POST /api/auth/signin', () => {
       await expect((signinHandler as any)(mockEvent)).rejects.toMatchObject({
         statusCode: 502,
       });
+    });
+
+    it('issues no session cookie when the assertion cannot be exchanged', async () => {
+      mockClientInstance.signIn.mockResolvedValueOnce({assertion: 'assertion-jwt-xyz', flowStatus: 'COMPLETE'});
+      mockClientInstance.exchangeFlowAssertion.mockRejectedValueOnce(new Error('needs the token exchange grant'));
+      vi.mocked(readBody).mockResolvedValue({payload: {flowId: 'flow-abc'}});
+
+      await expect((signinHandler as any)(mockEvent)).rejects.toMatchObject({statusCode: 500});
+      expect(issueSessionCookie).not.toHaveBeenCalled();
     });
   });
 });

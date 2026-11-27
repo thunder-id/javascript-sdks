@@ -108,7 +108,7 @@ const getOrganizationUnitStorageKey = (pkceKey: string): string => `${getStateSt
 const REVOKE_ACCESS_TOKEN_REQUEST_TIMEOUT_MS = 10_000;
 
 /**
- * The subject token type of a device secret, which the server issues as a JWT.
+ * The subject token type of a device secret and of a flow assertion, both JWTs.
  */
 const JWT_TOKEN_TYPE = 'urn:ietf:params:oauth:token-type:jwt';
 
@@ -160,7 +160,16 @@ class ThunderIDJavaScriptClient<T = Config> implements ThunderIDClient<T> {
   public async initialize(config: T, storage?: Storage): Promise<boolean> {
     const store = storage ?? this.cacheStore;
     const fullConfig = config as unknown as AuthClientConfig<T>;
-    const {clientId, instanceId} = fullConfig as any;
+    const {clientId, instanceId, mode} = fullConfig as any;
+
+    // An embedded sign-in exchanges its assertion at the token endpoint, which needs the client ID.
+    if (mode === 'embedded' && !clientId) {
+      throw new ThunderIDRuntimeError(
+        'Embedded mode needs the `clientId` of the application, next to its `applicationId`.',
+        'JS-AUTH_CORE-INIT-IV01',
+        'javascript',
+      );
+    }
 
     if (instanceId !== undefined) {
       this.instanceIdValue = instanceId;
@@ -321,43 +330,13 @@ class ThunderIDJavaScriptClient<T = Config> implements ThunderIDClient<T> {
       );
     }
 
-    const body: URLSearchParams = new URLSearchParams();
-
-    body.set('client_id', configData.clientId ?? '');
-
-    const hasSecret = Boolean(configData.clientSecret && configData.clientSecret.trim().length > 0);
-    const tokenEndpointAuthMethod = configData.tokenRequest?.authMethod ?? 'client_secret_basic';
-
-    if (hasSecret && tokenEndpointAuthMethod === 'client_secret_post') {
-      body.set('client_secret', configData.clientSecret!);
-    }
-
-    body.set('grant_type', OAuth2GrantTypes.TOKEN_EXCHANGE);
-    body.set('scope', processOpenIDScopes(configData.scopes));
-    body.set('subject_token', deviceSecret);
-    body.set('subject_token_type', JWT_TOKEN_TYPE);
-
-    const headers: Record<string, string> = {
-      Accept: 'application/json',
-      'Content-Type': 'application/x-www-form-urlencoded',
-    };
-
-    if (hasSecret && tokenEndpointAuthMethod === 'client_secret_basic') {
-      const credential = `${encodeURIComponent(configData.clientId!)}:${encodeURIComponent(configData.clientSecret!)}`;
-      headers['Authorization'] = `Basic ${base64Encode(credential)}`;
-    }
-
     let response: Response;
 
     try {
-      response = await fetch(
+      response = await this.postTokenExchange(
         resolveOrganizationUnitEndpoint(discoveredTokenEndpoint, organizationUnitId, configData.baseUrl),
-        {
-          body,
-          credentials: configData.sendCookiesInRequests ? 'include' : 'same-origin',
-          headers,
-          method: 'POST',
-        },
+        deviceSecret,
+        processOpenIDScopes(configData.scopes),
       );
     } catch (error) {
       throw new ThunderIDAuthException(
@@ -381,6 +360,140 @@ class ThunderIDJavaScriptClient<T = Config> implements ThunderIDClient<T> {
     }
 
     return {tokenResponse: await this.authHelper.handleTokenResponse(response, sessionId, true)};
+  }
+
+  /**
+   * Exchanges the assertion a completed embedded flow returned for an access token (RFC 8693), and
+   * returns the session data to keep. The assertion stays as the ID token, the source of the user's
+   * claims. The application needs the token exchange grant.
+   *
+   * @param assertion - The `assertion` of a flow step whose `flowStatus` is `COMPLETE`.
+   * @returns Session data holding the issued access token, with the assertion as `id_token`.
+   */
+  protected async exchangeFlowAssertion(assertion: string): Promise<SessionData> {
+    if (
+      !(await this.storageManager.getTemporaryDataParameter(
+        OIDCDiscoveryConstants.Storage.StorageKeys.OPENID_PROVIDER_CONFIG_INITIATED,
+      ))
+    ) {
+      await this.loadOpenIDProviderConfiguration(false);
+    }
+
+    const tokenEndpoint: string | undefined = (await this.oidcProviderMetaDataProvider()).token_endpoint;
+    const configData = await this.configProvider();
+
+    if (!tokenEndpoint) {
+      throw new ThunderIDAuthException(
+        'JS-AUTH_CORE-EFA-NF01',
+        'Token endpoint not found.',
+        'No token endpoint was found in the OIDC provider meta data returned by the well-known endpoint.',
+      );
+    }
+
+    if (!configData.clientId) {
+      throw new ThunderIDAuthException(
+        'JS-AUTH_CORE-EFA-IV02',
+        'Client ID not configured.',
+        'An embedded sign-in exchanges its assertion for an access token, which needs the `clientId` ' +
+          'of the application.',
+      );
+    }
+
+    let response: Response;
+
+    try {
+      // No `scope`: the issued token carries what the flow granted.
+      response = await this.postTokenExchange(tokenEndpoint, assertion);
+    } catch (error) {
+      throw new ThunderIDAuthException(
+        'JS-AUTH_CORE-EFA-NE03',
+        'The sign-in assertion exchange failed.',
+        error instanceof Error ? error.message : 'The request to exchange the sign-in assertion failed.',
+      );
+    }
+
+    if (!response.ok) {
+      const errorBody: unknown = await response.json().catch((): undefined => undefined);
+      const errorCode: unknown = (errorBody as {error?: unknown} | undefined)?.error;
+
+      if (errorCode === 'unauthorized_client') {
+        throw new ThunderIDAuthException(
+          'JS-AUTH_CORE-EFA-UC04',
+          'The application cannot exchange the sign-in assertion.',
+          `An embedded sign-in needs the ${OAuth2GrantTypes.TOKEN_EXCHANGE} grant type on the application ` +
+            `(${getOAuthErrorMessage(errorBody, String(errorCode))}).`,
+        );
+      }
+
+      throw new ThunderIDAuthException(
+        'JS-AUTH_CORE-EFA-HE05',
+        `The sign-in assertion exchange failed with ${response.status}.`,
+        getOAuthErrorMessage(errorBody, 'The sign-in assertion exchange was rejected.'),
+      );
+    }
+
+    const tokens: {access_token?: unknown; expires_in?: unknown; scope?: unknown; token_type?: unknown} =
+      ((await response.json().catch((): undefined => undefined)) as Record<string, unknown> | undefined) ?? {};
+
+    if (typeof tokens.access_token !== 'string' || !tokens.access_token) {
+      throw new ThunderIDAuthException(
+        'JS-AUTH_CORE-EFA-IV06',
+        'No access token in the response.',
+        'The token endpoint answered the sign-in assertion exchange without an access token.',
+      );
+    }
+
+    return {
+      access_token: tokens.access_token,
+      created_at: Date.now(),
+      expires_in: typeof tokens.expires_in === 'number' ? String(tokens.expires_in) : '3600',
+      id_token: assertion,
+      scope: typeof tokens.scope === 'string' ? tokens.scope : '',
+      token_type: typeof tokens.token_type === 'string' ? tokens.token_type : 'Bearer',
+    };
+  }
+
+  /**
+   * Posts a token exchange (RFC 8693) for a JWT subject token, authenticating the client as configured.
+   */
+  private async postTokenExchange(tokenEndpoint: string, subjectToken: string, scope?: string): Promise<Response> {
+    const configData = await this.configProvider();
+    const body: URLSearchParams = new URLSearchParams();
+
+    body.set('client_id', configData.clientId ?? '');
+
+    const hasSecret = Boolean(configData.clientSecret && configData.clientSecret.trim().length > 0);
+    const tokenEndpointAuthMethod = configData.tokenRequest?.authMethod ?? 'client_secret_basic';
+
+    if (hasSecret && tokenEndpointAuthMethod === 'client_secret_post') {
+      body.set('client_secret', configData.clientSecret!);
+    }
+
+    body.set('grant_type', OAuth2GrantTypes.TOKEN_EXCHANGE);
+
+    if (scope !== undefined) {
+      body.set('scope', scope);
+    }
+
+    body.set('subject_token', subjectToken);
+    body.set('subject_token_type', JWT_TOKEN_TYPE);
+
+    const headers: Record<string, string> = {
+      Accept: 'application/json',
+      'Content-Type': 'application/x-www-form-urlencoded',
+    };
+
+    if (hasSecret && tokenEndpointAuthMethod === 'client_secret_basic') {
+      const credential = `${encodeURIComponent(configData.clientId!)}:${encodeURIComponent(configData.clientSecret!)}`;
+      headers['Authorization'] = `Basic ${base64Encode(credential)}`;
+    }
+
+    return fetch(tokenEndpoint, {
+      body,
+      credentials: configData.sendCookiesInRequests ? 'include' : 'same-origin',
+      headers,
+      method: 'POST',
+    });
   }
 
   /**
