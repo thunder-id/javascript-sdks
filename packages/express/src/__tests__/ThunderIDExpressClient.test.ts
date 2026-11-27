@@ -23,7 +23,7 @@ describe('ThunderIDExpressClient', () => {
         },
       } as unknown as express.Request;
 
-      const payload = {password: 'new-password'};
+      const payload = {currentValue: 'old-password', name: 'password', newValue: 'new-password'};
       await client.updateUserCredentialsFromRequest(req, payload);
 
       expect(updateCredentialsSpy).toHaveBeenCalledWith(payload, 'session-cookie-123');

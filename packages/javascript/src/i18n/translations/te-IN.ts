@@ -1,4 +1,4 @@
-// Copyright 2025 The ThunderID Authors
+// Copyright 2025-2026 The ThunderID Authors
 // SPDX-License-Identifier: Apache-2.0
 
 import {I18nTranslations, I18nMetadata, I18nBundle} from '../models/i18n';
@@ -149,6 +149,9 @@ const translations: I18nTranslations = {
   /* |---------------------------------------------------------------| */
 
   'user.change_password.heading': '{credential} మార్చండి',
+  'user.change_password.current.label': 'ప్రస్తుత {credential}',
+  'user.change_password.current.placeholder': 'మీ ప్రస్తుత {credentialLower}ను నమోదు చేయండి',
+  'user.change_password.current.hint': 'మీరు ఇంకా సెట్ చేయకపోతే దీన్ని ఖాళీగా వదిలేయండి.',
   'user.change_password.new.label': 'కొత్త {credential}',
   'user.change_password.new.placeholder': 'మీ కొత్త {credentialLower} నమోదు చేయండి',
   'user.change_password.confirm.label': 'కొత్త {credential} నిర్ధారించండి',
@@ -159,6 +162,18 @@ const translations: I18nTranslations = {
   'user.change_password.mismatch.error': '{credentialLower} సరిపోలలేదు.',
   'user.change_password.generic.error':
     'మీ {credentialLower} నవీకరించేటప్పుడు లోపం వచ్చింది. దయచేసి మళ్లీ ప్రయత్నించండి.',
+  'user.change_password.current.required.error': 'మీ ప్రస్తుత {credentialLower}ను నమోదు చేయండి.',
+  'user.change_password.current.invalid.error': 'ప్రస్తుత {credentialLower} తప్పు.',
+  'user.change_password.reauthentication.error': 'మీ {credentialLower}ను సెట్ చేయడానికి మళ్లీ సైన్ ఇన్ చేయండి.',
+  'user.reauthentication.required.error': 'ఈ మార్పును సేవ్ చేయడానికి మళ్లీ సైన్ ఇన్ చేయండి.',
+  'user.reauthentication.failed.error': 'మళ్లీ సైన్ ఇన్ పూర్తి కాలేదు. మళ్లీ ప్రయత్నించండి.',
+  'user.reauthentication.popup_blocked.error': 'ఈ సైట్‌కు పాప్-అప్‌లను అనుమతించి, మళ్లీ ప్రయత్నించండి.',
+  'user.reauthentication.different_user.error':
+    'మీరు వేరే ఖాతాతో సైన్ ఇన్ చేశారు. మీ ఖాతాతో సైన్ ఇన్ చేసి మళ్లీ ప్రయత్నించండి.',
+  'user.reauthentication.heading': 'మళ్లీ సైన్ ఇన్ చేయండి',
+  'user.reauthentication.description': 'ఈ మార్పును సేవ్ చేయడానికి ఇది మీరేనని నిర్ధారించండి.',
+  'user.reauthentication.unsupported_option.error': 'ఈ సైన్ ఇన్ ఎంపిక ఇక్కడ అందుబాటులో లేదు. వేరొకదాన్ని ఎంచుకోండి.',
+  'user.reauthentication.buttons.close.text': 'మూసివేయండి',
   'user.change_password.unavailable.heading': '{credential} మార్పులు అందుబాటులో లేవు',
   'user.change_password.unavailable.description': 'దయచేసి మీ నిర్వాహకుడిని సంప్రదించండి.',
 

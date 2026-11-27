@@ -464,6 +464,7 @@ class AuthenticationHelper<T> {
    * @param userId - Optional user ID scoping the session.
    * @param replaceSession - Replace the whole session instead of merging into it, keeping only its device
    *   secret and SSO session handles, so no token of the previous session survives.
+   * @param refreshed - The response refreshes the stored session, which keeps its embedded sign-in mark.
    * @returns A normalized `TokenResponse` object.
    * @throws {ThunderIDAuthException} When the response status is not 200.
    */
@@ -471,6 +472,7 @@ class AuthenticationHelper<T> {
     response: Response,
     userId?: string,
     replaceSession = false,
+    refreshed = false,
   ): Promise<TokenResponse> {
     if (response.status !== 200 || !response.ok) {
       throw new ThunderIDAuthException(
@@ -488,7 +490,7 @@ class AuthenticationHelper<T> {
 
     if (shouldValidateIdToken) {
       return this.validateIdToken(parsedResponse.id_token).then(async () => {
-        await this.storeTokenResponse(parsedResponse, userId, replaceSession);
+        await this.storeTokenResponse(parsedResponse, userId, replaceSession, refreshed);
 
         return {
           accessToken: parsedResponse.access_token,
@@ -503,7 +505,7 @@ class AuthenticationHelper<T> {
       });
     }
 
-    await this.storeTokenResponse(parsedResponse, userId, replaceSession);
+    await this.storeTokenResponse(parsedResponse, userId, replaceSession, refreshed);
 
     return {
       accessToken: parsedResponse.access_token,
@@ -517,13 +519,27 @@ class AuthenticationHelper<T> {
     };
   }
 
-  private async storeTokenResponse(
+  /**
+   * Stores a token response in the session. With `replaceSession`, every earlier session key is cleared
+   * in the same write, except the device secret and the flow sessions.
+   *
+   * @param parsedResponse - The token response.
+   * @param userId - The session.
+   * @param replaceSession - Whether the response replaces the session.
+   * @param refreshed - Whether the response refreshes the stored session.
+   */
+  public async storeTokenResponse(
     parsedResponse: AccessTokenApiResponse,
     userId: string | undefined,
     replaceSession: boolean,
+    refreshed = false,
   ): Promise<void> {
     if (!replaceSession) {
-      await this.storageManager.setSessionData(parsedResponse, userId);
+      // A token endpoint response ends a session from an embedded sign-in flow, unless it refreshes that session.
+      await this.storageManager.setSessionData(
+        refreshed ? parsedResponse : {...parsedResponse, embedded_sign_in: undefined},
+        userId,
+      );
 
       return;
     }

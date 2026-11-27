@@ -1,4 +1,4 @@
-// Copyright 2025 The ThunderID Authors
+// Copyright 2025-2026 The ThunderID Authors
 // SPDX-License-Identifier: Apache-2.0
 
 import {I18nTranslations, I18nMetadata, I18nBundle} from '../models/i18n';
@@ -147,6 +147,9 @@ const translations: I18nTranslations = {
   /* |---------------------------------------------------------------| */
 
   'user.change_password.heading': '{credential} बदलें',
+  'user.change_password.current.label': 'वर्तमान {credential}',
+  'user.change_password.current.placeholder': 'अपना वर्तमान {credentialLower} दर्ज करें',
+  'user.change_password.current.hint': 'यदि आपने अभी तक इसे सेट नहीं किया है तो इसे खाली छोड़ दें।',
   'user.change_password.new.label': 'नया {credential}',
   'user.change_password.new.placeholder': 'अपना नया {credentialLower} दर्ज करें',
   'user.change_password.confirm.label': 'नए {credential} की पुष्टि करें',
@@ -156,6 +159,18 @@ const translations: I18nTranslations = {
   'user.change_password.success': 'आपका {credentialLower} अपडेट कर दिया गया है।',
   'user.change_password.mismatch.error': '{credential} मेल नहीं खाते।',
   'user.change_password.generic.error': 'आपका {credentialLower} अपडेट करते समय त्रुटि हुई। कृपया पुनः प्रयास करें।',
+  'user.change_password.current.required.error': 'अपना वर्तमान {credentialLower} दर्ज करें।',
+  'user.change_password.current.invalid.error': 'वर्तमान {credentialLower} गलत है।',
+  'user.change_password.reauthentication.error': 'अपना {credentialLower} सेट करने के लिए फिर से साइन इन करें।',
+  'user.reauthentication.required.error': 'यह बदलाव सहेजने के लिए फिर से साइन इन करें।',
+  'user.reauthentication.failed.error': 'फिर से साइन इन पूरा नहीं हुआ। पुनः प्रयास करें।',
+  'user.reauthentication.popup_blocked.error': 'इस साइट के लिए पॉप-अप की अनुमति दें, फिर पुनः प्रयास करें।',
+  'user.reauthentication.different_user.error':
+    'आपने किसी दूसरे खाते से साइन इन किया। अपने खाते से साइन इन करें और पुनः प्रयास करें।',
+  'user.reauthentication.heading': 'फिर से साइन इन करें',
+  'user.reauthentication.description': 'यह बदलाव सहेजने के लिए पुष्टि करें कि यह आप ही हैं।',
+  'user.reauthentication.unsupported_option.error': 'यह साइन इन विकल्प यहाँ उपलब्ध नहीं है। कोई दूसरा विकल्प चुनें।',
+  'user.reauthentication.buttons.close.text': 'बंद करें',
   'user.change_password.unavailable.heading': '{credential} परिवर्तन उपलब्ध नहीं है',
   'user.change_password.unavailable.description': 'कृपया अपने व्यवस्थापक से संपर्क करें।',
 

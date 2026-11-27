@@ -1,8 +1,9 @@
-// Copyright 2025 The ThunderID Authors
+// Copyright 2025-2026 The ThunderID Authors
 // SPDX-License-Identifier: Apache-2.0
 
 import ThunderIDError from './ThunderIDError';
-import {ServerError} from '../models/api';
+import {AuthenticationChallenge, ServerError} from '../models/api';
+import parseAuthenticationChallenge from '../utils/parseAuthenticationChallenge';
 import parseApiErrorMessage from '../utils/parseApiErrorMessage';
 
 /**
@@ -43,6 +44,20 @@ const parseServerError = (body: string): ServerError | undefined => {
  */
 export default class ThunderIDAPIError extends ThunderIDError {
   /**
+   * The error the server returned, when its response body was an error envelope: the server's own
+   * error code, and its message and description with their translation keys and parameters. Use it to
+   * show a message specific to the server's code.
+   */
+  public readonly serverError?: ServerError;
+
+  /**
+   * The challenge of a `401` that asks for a more recent sign-in (RFC 9470), from the
+   * `WWW-Authenticate` header or, when the header is not readable, from an `AUTH-4011` body. Sign the
+   * user in again with its `maxAge` and retry.
+   */
+  public readonly authenticationChallenge?: AuthenticationChallenge;
+
+  /**
    * Creates an instance of ThunderIDAPIError.
    *
    * @param message - Human-readable description or raw API error response body
@@ -51,15 +66,9 @@ export default class ThunderIDAPIError extends ThunderIDError {
    * @param statusCode - HTTP status code of the failed request
    * @param statusText - HTTP status text of the failed request
    * @param prefix - Optional prefix prepended to the resolved message
+   * @param wwwAuthenticate - The response's `WWW-Authenticate` header value, read into `authenticationChallenge`
    * @constructor
    */
-  /**
-   * The error the server returned, when its response body was an error envelope: the server's own
-   * error code, and its message and description with their translation keys and parameters. Use it to
-   * show a message specific to the server's code.
-   */
-  public readonly serverError?: ServerError;
-
   constructor(
     message: string,
     code: string,
@@ -67,12 +76,15 @@ export default class ThunderIDAPIError extends ThunderIDError {
     public readonly statusCode?: number,
     public readonly statusText?: string,
     prefix?: string,
+    wwwAuthenticate?: string | null,
   ) {
     const parsed: string = parseApiErrorMessage(message);
     const resolvedMessage: string = prefix ? `${prefix}: ${parsed}` : parsed;
     super(resolvedMessage, code, origin);
 
     this.serverError = parseServerError(message);
+    this.authenticationChallenge =
+      statusCode === 401 ? parseAuthenticationChallenge(wwwAuthenticate, this.serverError) : undefined;
 
     Object.defineProperty(this, 'name', {
       configurable: true,

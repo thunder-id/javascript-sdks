@@ -30,6 +30,7 @@ import {ExtendedAuthorizeRequestUrlParams} from './models/oauth-request';
 import {OIDCDiscoveryApiResponse} from './models/oidc-discovery';
 import {OIDCEndpoints} from './models/oidc-endpoints';
 import {LogoutTokenClaims} from './models/logout-token';
+import type {ReauthenticationOptions, ReauthenticationRequest} from './models/reauthentication';
 import {SessionData, StoredFlowSession, UserSession} from './models/session';
 import {Storage, TemporaryStore} from './models/store';
 import {
@@ -495,6 +496,180 @@ class ThunderIDJavaScriptClient<T = Config> implements ThunderIDClient<T> {
       headers,
       method: 'POST',
     });
+  }
+
+  /**
+   * Builds an authorization request that signs the signed-in user in again, for a change that needs a
+   * recent sign-in. It asks for the configured scopes with PKCE, a new `state` and `nonce`, `max_age`
+   * (or `prompt=login` when `maxAge` is not given), and `id_token_hint` naming the signed-in user.
+   *
+   * @param options - How recent the sign-in must be.
+   * @param redirectUri - A redirect URI registered on the application.
+   * @param userId - The session to sign in again.
+   * @returns The request URL and what redeeming its code needs.
+   */
+  protected async buildReauthenticationRequest(
+    options: ReauthenticationOptions,
+    redirectUri: string,
+    userId?: string,
+  ): Promise<ReauthenticationRequest> {
+    const authorizeEndpoint: string | undefined = (await this.oidcProviderMetaDataProvider()).authorization_endpoint;
+
+    if (!authorizeEndpoint) {
+      throw new ThunderIDRuntimeError(
+        'No authorization endpoint was found in the OpenID provider metadata.',
+        'JS-AUTH_CORE-BRR-NF01',
+        'javascript',
+      );
+    }
+
+    const configData = await this.configProvider();
+    const codeVerifier: string = this.cryptoHelper.getCodeVerifier();
+    const state: string = this.cryptoHelper.generateState();
+    const nonce: string = this.cryptoHelper.generateState();
+    const signInResource: unknown = (configData.signInOptions as Record<string, unknown> | undefined)?.['resource'];
+    const resource: string | undefined = typeof signInResource === 'string' ? signInResource : undefined;
+    const url: URL = new URL(authorizeEndpoint);
+
+    url.searchParams.set('response_type', 'code');
+    url.searchParams.set('client_id', configData.clientId ?? '');
+    url.searchParams.set('redirect_uri', redirectUri);
+    url.searchParams.set('scope', processOpenIDScopes(configData.scopes));
+    url.searchParams.set('state', state);
+    url.searchParams.set('nonce', nonce);
+    url.searchParams.set('code_challenge', await this.cryptoHelper.getCodeChallenge(codeVerifier));
+    url.searchParams.set('code_challenge_method', PKCEConstants.DEFAULT_CODE_CHALLENGE_METHOD);
+
+    if (options.maxAge !== undefined && Number.isFinite(options.maxAge) && options.maxAge >= 0) {
+      url.searchParams.set('max_age', String(Math.floor(options.maxAge)));
+    } else {
+      url.searchParams.set('prompt', 'login');
+    }
+
+    if (resource) {
+      url.searchParams.set('resource', resource);
+    }
+
+    const idToken: string | undefined = (await this.storageManager.getSessionData(userId))?.id_token;
+
+    if (idToken) {
+      url.searchParams.set('id_token_hint', idToken);
+    }
+
+    return {codeVerifier, nonce, redirectUri, resource, state, url: url.toString()};
+  }
+
+  /**
+   * Redeems the code of a request from {@link buildReauthenticationRequest} and, only when the sign-in
+   * belongs to the signed-in user, replaces the session's tokens with the new ones. The ID token must be
+   * valid, carry the request's `nonce`, and name the same `sub` as the session's ID token; otherwise the
+   * session is left as it was. The new access token carries the new sign-in time; a refresh never would.
+   *
+   * @param authorization - The request the code answers.
+   * @param code - The authorization code.
+   * @param userId - The session to update.
+   * @returns The new tokens.
+   */
+  protected async completeReauthentication(
+    authorization: ReauthenticationRequest,
+    code: string,
+    userId?: string,
+  ): Promise<TokenResponse> {
+    const tokenEndpoint: string | undefined = (await this.oidcProviderMetaDataProvider()).token_endpoint;
+    const configData = await this.configProvider();
+
+    if (!tokenEndpoint) {
+      throw new ThunderIDRuntimeError(
+        'No token endpoint was found in the OpenID provider metadata.',
+        'JS-AUTH_CORE-CRA-NF01',
+        'javascript',
+      );
+    }
+
+    const body: URLSearchParams = new URLSearchParams({
+      client_id: configData.clientId ?? '',
+      code,
+      code_verifier: authorization.codeVerifier,
+      grant_type: 'authorization_code',
+      redirect_uri: authorization.redirectUri,
+    });
+
+    if (authorization.resource) {
+      body.set('resource', authorization.resource);
+    }
+
+    const hasSecret = Boolean(configData.clientSecret && configData.clientSecret.trim().length > 0);
+    const tokenEndpointAuthMethod = configData.tokenRequest?.authMethod ?? 'client_secret_basic';
+    const headers: Record<string, string> = {
+      Accept: 'application/json',
+      'Content-Type': 'application/x-www-form-urlencoded',
+    };
+
+    if (hasSecret && tokenEndpointAuthMethod === 'client_secret_post') {
+      body.set('client_secret', configData.clientSecret!);
+    }
+
+    if (hasSecret && tokenEndpointAuthMethod === 'client_secret_basic') {
+      const credential = `${encodeURIComponent(configData.clientId!)}:${encodeURIComponent(configData.clientSecret!)}`;
+      headers['Authorization'] = `Basic ${base64Encode(credential)}`;
+    }
+
+    const response: Response = await fetch(tokenEndpoint, {
+      body,
+      credentials: configData.sendCookiesInRequests ? 'include' : 'same-origin',
+      headers,
+      method: 'POST',
+    });
+    const parsed: AccessTokenApiResponse = (await response.json().catch(() => ({}))) as AccessTokenApiResponse;
+
+    if (!response.ok || !parsed.access_token) {
+      throw new ThunderIDRuntimeError('The sign-in could not be completed.', 'JS-AUTH_CORE-CRA-TE01', 'javascript', {
+        error: (parsed as {error?: unknown}).error,
+      });
+    }
+
+    const idToken: string | undefined = parsed.id_token;
+
+    if (!idToken || !(await this.authHelper.validateIdToken(idToken))) {
+      throw new ThunderIDRuntimeError('The sign-in returned no valid ID token.', 'JS-AUTH_CORE-CRA-IV01', 'javascript');
+    }
+
+    const claims: IdToken = this.cryptoHelper.decodeJwtToken<IdToken>(idToken);
+
+    if (claims['nonce'] !== authorization.nonce) {
+      throw new ThunderIDRuntimeError(
+        'The ID token does not carry the nonce of its request.',
+        'JS-AUTH_CORE-CRA-IV02',
+        'javascript',
+      );
+    }
+
+    const sessionIdToken: string | undefined = (await this.storageManager.getSessionData(userId))?.id_token;
+    const sessionSubject: string | undefined = sessionIdToken
+      ? this.cryptoHelper.decodeJwtToken<IdToken>(sessionIdToken).sub
+      : undefined;
+
+    if (!sessionSubject || claims.sub !== sessionSubject) {
+      throw new ThunderIDRuntimeError(
+        'The sign-in used a different account than the signed-in user.',
+        'JS-AUTH_CORE-CRA-IV03',
+        'javascript',
+      );
+    }
+
+    parsed.created_at = new Date().getTime();
+    await this.authHelper.storeTokenResponse(parsed, userId, true);
+
+    return {
+      accessToken: parsed.access_token,
+      authorizationDetails: parsed.authorization_details,
+      createdAt: parsed.created_at,
+      expiresIn: parsed.expires_in,
+      idToken: parsed.id_token,
+      refreshToken: parsed.refresh_token,
+      scope: parsed.scope,
+      tokenType: parsed.token_type,
+    };
   }
 
   /**
@@ -1353,7 +1528,7 @@ class ThunderIDJavaScriptClient<T = Config> implements ThunderIDClient<T> {
       );
     }
 
-    return this.authHelper.handleTokenResponse(tokenResponse, userId);
+    return this.authHelper.handleTokenResponse(tokenResponse, userId, false, true);
   }
 
   /**

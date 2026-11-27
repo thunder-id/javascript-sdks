@@ -1,9 +1,9 @@
-// Copyright 2025 The ThunderID Authors
+// Copyright 2025-2026 The ThunderID Authors
 // SPDX-License-Identifier: Apache-2.0
 
 'use client';
 
-import {AttributeVerificationConstants, deepMerge, User} from '@thunderid/node';
+import {AttributeVerificationConstants, AuthenticationChallenge, deepMerge, User} from '@thunderid/node';
 import {
   BaseUserProfile,
   BaseUserProfileProps,
@@ -26,6 +26,12 @@ export type UserProfileProps = Omit<BaseUserProfileProps, 'user' | 'profile' | '
    * `default-self-attribute-verification-flow`.
    */
   verificationFlowHandle?: string;
+  /**
+   * Called when saving a change needs a more recent sign-in (`AUTH-4011`), such as a new email
+   * address, with the server's challenge. Sign the user in again with `challenge.maxAge` as the
+   * `max_age` sign-in option, then let the user save again.
+   */
+  onReauthenticationRequired?: (challenge: AuthenticationChallenge) => void;
 };
 
 /**
@@ -55,6 +61,7 @@ const UserProfile: FC<UserProfileProps> = ({
   preferences,
   editable = true,
   verificationFlowHandle = AttributeVerificationConstants.DEFAULT_FLOW_HANDLE,
+  onReauthenticationRequired,
   ...rest
 }: UserProfileProps): ReactElement => {
   const {preferences: contextPreferences} = useThunderID();
@@ -83,13 +90,18 @@ const UserProfile: FC<UserProfileProps> = ({
       }
     });
 
-    const result: {data: {user: User}; error: string; success: boolean} = await updateProfile(
-      {payload: updatedAttributes},
-      await getSessionId(),
-    );
+    const result: {
+      authenticationChallenge?: AuthenticationChallenge;
+      data: {user: User};
+      error: string;
+      success: boolean;
+    } = await updateProfile({payload: updatedAttributes}, await getSessionId());
 
     if (result.success) {
       onUpdateProfile(result.data.user);
+    } else if (result.authenticationChallenge) {
+      setError(t('user.reauthentication.required.error'));
+      onReauthenticationRequired?.(result.authenticationChallenge);
     } else {
       setError(result.error || t('user.profile.update.generic.error'));
     }

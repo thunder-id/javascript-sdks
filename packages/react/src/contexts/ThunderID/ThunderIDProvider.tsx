@@ -6,6 +6,8 @@ import {
   createResourceInvalidator,
   ThunderIDAPIError,
   ThunderIDRuntimeError,
+  ReauthenticationMethod,
+  ReauthenticationOptions,
   generateFlattenedUserProfile,
   OIDCDiscoveryApiResponse,
   SignInOptions,
@@ -13,6 +15,7 @@ import {
   UserProfile,
   IdToken,
   extractUserClaimsFromIdToken,
+  EmbeddedSignInFlowRequest,
   EmbeddedSignInFlowResponse,
   EmbeddedRecoveryFlowRequest,
   EmbeddedRecoveryFlowResponse,
@@ -32,6 +35,7 @@ import ThunderIDContext, {ThunderIDContextProps} from './ThunderIDContext';
 import useCurrentProjectState, {CurrentProjectState} from './useCurrentProjectState';
 import getUsersMe from '../../api/account/getUsersMe';
 import getUsersMeMeta from '../../api/account/getUsersMeMeta';
+import ReauthenticationDialog from '../../components/auth/Reauthentication/ReauthenticationDialog';
 import useBrowserUrl from '../../hooks/useBrowserUrl';
 import {ThunderIDReactConfig} from '../../models/config';
 import {configureEmotionNonce} from '../../styles/emotion';
@@ -47,6 +51,16 @@ const logger: ReturnType<typeof createPackageComponentLogger> = createPackageCom
   '@thunderid/react',
   'ThunderIDProvider',
 );
+
+/**
+ * A re-sign-in the provider's dialog runs for `reauthenticate`.
+ */
+interface ReauthenticationRequestState {
+  id: number;
+  options: ReauthenticationOptions;
+  reject: (reason: unknown) => void;
+  resolve: () => void;
+}
 
 /**
  * Props interface of {@link ThunderIDProvider}
@@ -117,6 +131,42 @@ const ThunderIDProvider: FC<PropsWithChildren<ThunderIDProviderProps>> = ({
 
   const [isUpdatingSession, setIsUpdatingSession] = useState<boolean>(false);
   const [wellKnown, setWellKnown] = useState<OIDCDiscoveryApiResponse | null>(null);
+  // How the user signs in again, kept current with the session so `reauthenticate` can open a popup at once.
+  const reauthenticationMethodRef: RefObject<ReauthenticationMethod | null> = useRef<ReauthenticationMethod | null>(
+    null,
+  );
+  // A re-sign-in the provider's dialog is running for `reauthenticate`. The ref settles it from outside
+  // React's render, when another call replaces it or the provider unmounts.
+  const [reauthenticationRequest, setReauthenticationRequest] = useState<ReauthenticationRequestState | null>(null);
+  const reauthenticationRequestRef: RefObject<ReauthenticationRequestState | null> =
+    useRef<ReauthenticationRequestState | null>(null);
+
+  const settleReauthentication = (request: ReauthenticationRequestState, error?: unknown): void => {
+    if (reauthenticationRequestRef.current === request) {
+      reauthenticationRequestRef.current = null;
+      setReauthenticationRequest(null);
+    }
+
+    if (error === undefined) {
+      request.resolve();
+    } else {
+      request.reject(error);
+    }
+  };
+
+  useEffect(
+    () => (): void => {
+      const open: ReauthenticationRequestState | null = reauthenticationRequestRef.current;
+
+      if (open) {
+        reauthenticationRequestRef.current = null;
+        open.reject(
+          new ThunderIDRuntimeError('The sign-in ended before it completed.', 'REACT-REAUTHENTICATION-CN01', 'react'),
+        );
+      }
+    },
+    [],
+  );
 
   // Holds the in-flight `updateSession()` promise so concurrent callers coalesce onto a single
   // `/users/me` request instead of issuing one each.
@@ -143,6 +193,7 @@ const ThunderIDProvider: FC<PropsWithChildren<ThunderIDProviderProps>> = ({
       let resolvedBaseUrl: string = baseUrl;
 
       const decodedToken: IdToken = await client.getDecodedIdToken();
+      reauthenticationMethodRef.current = await client.getReauthenticationMethod();
 
       // If there's a `user_org` claim in the ID token,
       // Treat this login as a organization login.
@@ -470,7 +521,47 @@ const ThunderIDProvider: FC<PropsWithChildren<ThunderIDProviderProps>> = ({
       await updateSession();
     }
 
-    return (result as User | undefined) ?? undefined;
+    return result ?? undefined;
+  };
+
+  /**
+   * Signs the user in again, in a popup for a redirect session or in the provider's dialog for a session
+   * from an embedded sign-in flow, and refreshes the session state from the new tokens. A failed
+   * re-sign-in leaves the session as it was and rejects with the error.
+   */
+  const reauthenticate: ThunderIDContextProps['reauthenticate'] = async (options?: ReauthenticationOptions) => {
+    // Read without an await first, so the popup still opens inside the user action.
+    if (reauthenticationMethodRef.current !== 'flow') {
+      try {
+        await client.reauthenticate(options);
+        await updateSession();
+
+        return;
+      } catch (error) {
+        if ((error as {code?: string})?.code !== 'BROWSER-REAUTHENTICATION-UM02') {
+          throw error;
+        }
+      }
+    }
+
+    await new Promise<void>((resolve: () => void, reject: (reason: unknown) => void): void => {
+      const previous: ReauthenticationRequestState | null = reauthenticationRequestRef.current;
+      const request: ReauthenticationRequestState = {
+        id: (previous?.id ?? 0) + 1,
+        options: options ?? {},
+        reject,
+        resolve,
+      };
+
+      reauthenticationRequestRef.current = request;
+      setReauthenticationRequest(request);
+
+      // One re-sign-in at a time: a new one replaces the one still open.
+      previous?.reject(
+        new ThunderIDRuntimeError('Another sign-in replaced this one.', 'REACT-REAUTHENTICATION-SU01', 'react'),
+      );
+    });
+    await updateSession();
   };
 
   const getCurrentOrganizationUnit: ThunderIDContextProps['getCurrentOrganizationUnit'] = useCallback(
@@ -603,6 +694,7 @@ const ThunderIDProvider: FC<PropsWithChildren<ThunderIDProviderProps>> = ({
       getCurrentOrganizationUnit,
       setCurrentProject,
       switchOrganizationUnit,
+      reauthenticate,
       discovery: {
         wellKnown,
       },
@@ -684,6 +776,7 @@ const ThunderIDProvider: FC<PropsWithChildren<ThunderIDProviderProps>> = ({
       getCurrentOrganizationUnit,
       setCurrentProject,
       switchOrganizationUnit,
+      reauthenticate,
       telemetry,
     ],
   );
@@ -707,6 +800,27 @@ const ThunderIDProvider: FC<PropsWithChildren<ThunderIDProviderProps>> = ({
               >
                 <ComponentRendererProvider renderers={(extensions?.components?.renderers ?? {}) as any}>
                   {children}
+                  {reauthenticationRequest && (
+                    <ReauthenticationDialog
+                      key={reauthenticationRequest.id}
+                      execute={(payload: EmbeddedSignInFlowRequest, options: ReauthenticationOptions) =>
+                        client.executeReauthenticationFlow(payload, options)
+                      }
+                      maxAge={reauthenticationRequest.options.maxAge}
+                      onCancel={(): void =>
+                        settleReauthentication(
+                          reauthenticationRequest,
+                          new ThunderIDRuntimeError(
+                            'The user closed the sign-in.',
+                            'REACT-REAUTHENTICATION-CN01',
+                            'react',
+                          ),
+                        )
+                      }
+                      onComplete={(): void => settleReauthentication(reauthenticationRequest)}
+                      onError={(error: unknown): void => settleReauthentication(reauthenticationRequest, error)}
+                    />
+                  )}
                 </ComponentRendererProvider>
               </UserProvider>
             </FlowProvider>

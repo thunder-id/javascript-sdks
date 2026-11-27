@@ -2,13 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import {
+  AuthenticationChallenge,
   CredentialConstants,
   CredentialUpdateErrorResult,
   PasswordPolicy,
+  type PendingStepUp,
   Preferences,
   mapCredentialUpdateError,
   resolveChangeCredentialPolicy,
   resolveResourceEndpoint,
+  runWithStepUp,
   supportsCredential,
   withVendorCSSClassPrefix,
 } from '@thunderid/browser';
@@ -22,6 +25,7 @@ import {
   computed,
   defineComponent,
   h,
+  onUnmounted,
   ref,
 } from 'vue';
 import BaseChangeCredential, {type ChangePasswordValues} from './BaseChangeCredential';
@@ -40,6 +44,7 @@ type ChangeCredentialProps = Readonly<{
   attribute: string;
   cardLayout: boolean;
   className: string;
+  onReauthenticationRequired?: (challenge: AuthenticationChallenge) => void;
   policy?: PasswordPolicy;
   preferences?: Preferences;
   showRequirements: boolean;
@@ -49,10 +54,16 @@ type ChangeCredentialProps = Readonly<{
 /**
  * ChangeCredential lets the signed-in user set a new value for one of their own credentials.
  *
- * It collects only a new value and its confirmation. The self-service credential write path
- * does not verify the account's existing value today, so this component does not ask for one;
- * once server-side current-value verification ships, that field returns without a breaking
- * change to this component's public props.
+ * It collects the current value, the new value and its confirmation. The server needs the
+ * current value when the user holds the credential, and answers a wrong or missing one on the
+ * current-value field. A user who has not set the credential yet leaves the current value
+ * empty; that change needs a recent sign-in. When the sign-in is too old, the component signs
+ * the user in again with the server's `max_age`, checks that the same user signed in, and sends
+ * the change once more; the values stay in memory only. A session from a redirect sign-in signs in
+ * again in a popup, and one from an embedded sign-in flow runs the sign-in flow in a dialog. If the
+ * browser blocks the popup, the next submit opens it first. Listen to `reauthentication-required` to handle the challenge in
+ * your app instead. Changing a credential the user holds ends the user's sessions, including this
+ * one.
  */
 const ChangeCredential: Component = defineComponent({
   name: 'ChangeCredential',
@@ -72,6 +83,15 @@ const ChangeCredential: Component = defineComponent({
     cardLayout: {default: false, type: Boolean},
     /** Extra CSS class added to the root element. */
     className: {default: '', type: String},
+    /**
+     * Bound by `@reauthentication-required`. When set, a change that needs a more recent sign-in
+     * (`AUTH-4011`) calls it with the server's challenge instead of the component signing the user in
+     * again by itself.
+     */
+    onReauthenticationRequired: {
+      default: undefined,
+      type: Function as PropType<(challenge: AuthenticationChallenge) => void>,
+    },
     /** Explicit rules. When omitted, they are derived from the user schema. */
     policy: {default: undefined, type: Object as PropType<PasswordPolicy>},
     /** Component-level preferences to override global preferences. */
@@ -87,7 +107,14 @@ const ChangeCredential: Component = defineComponent({
   },
   emits: ['success'],
   setup(props: ChangeCredentialProps, {emit}: SetupContext): () => VNode {
-    const {baseUrl, endpoints, instanceId, preferences: contextPreferences} = useThunderID();
+    const {baseUrl, endpoints, instanceId, preferences: contextPreferences, reauthenticate} = useThunderID();
+    const pendingStepUp: PendingStepUp = {};
+    // Whether the component is still on screen, so a change is not sent after it has closed.
+    let active = true;
+
+    onUnmounted((): void => {
+      active = false;
+    });
     const {userSchema} = useUser();
     const {t} = useI18n();
     const resolvedDisplayName: ComputedRef<string> = computed(
@@ -112,20 +139,25 @@ const ChangeCredential: Component = defineComponent({
       resolveChangeCredentialPolicy(userSchema?.value, props.attribute, props.policy),
     );
 
-    async function handleSubmit({newPassword}: ChangePasswordValues): Promise<void> {
+    async function handleSubmit({currentPassword, newPassword}: ChangePasswordValues): Promise<void> {
       error.value = null;
       fieldErrors.value = {};
       success.value = false;
       loading.value = true;
 
       try {
-        await updateMeCredentials({
-          baseUrl,
-          instanceId,
-          payload: {
-            [props.attribute]: newPassword,
-          },
-          url: resolveResourceEndpoint('usersMeCredentials', {endpoints}),
+        await runWithStepUp({
+          onReauthenticationRequired: props.onReauthenticationRequired,
+          isActive: (): boolean => active,
+          pending: pendingStepUp,
+          reauthenticate,
+          send: () =>
+            updateMeCredentials({
+              baseUrl,
+              instanceId,
+              payload: {currentValue: currentPassword, name: props.attribute, newValue: newPassword},
+              url: resolveResourceEndpoint('usersMeCredentials', {endpoints}),
+            }),
         });
 
         success.value = true;

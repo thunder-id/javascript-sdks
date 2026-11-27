@@ -30,6 +30,7 @@ describe('signInAction', () => {
     vi.resetAllMocks();
     client = {
       exchangeFlowAssertion: vi.fn(),
+      getAuthorizeRequestUrl: vi.fn().mockResolvedValue('https://idp.example.com/oauth2/authorize'),
       getConfiguration: vi.fn().mockResolvedValue({}),
       decodeJwtToken: vi.fn().mockResolvedValue({sid: 'sid-1', sub: 'user-1'}),
       getDecodedIdToken: vi.fn().mockResolvedValue({sid: 'old-sid', sub: 'old-user'}),
@@ -58,6 +59,31 @@ describe('signInAction', () => {
     const result = await signInAction({executionId: 'e-1'}, {});
 
     expect(result).toEqual({error: 'offline', success: false});
+  });
+
+  describe('a redirect sign-in', () => {
+    it('starts a new session for a recent sign-in, and sends only max_age and prompt', async () => {
+      (SessionManager.getTempSessionCookieName as unknown as Mock).mockReturnValue('temp');
+      cookieStore['getAll'].mockReturnValue([{name: 'session', value: 'signed-in-token'}]);
+
+      const result = await signInAction({login_hint: 'x', max_age: 180, prompt: 'login'}, {});
+
+      expect(SessionManager.createTempSession).toHaveBeenCalledTimes(1);
+      expect(cookieStore['set']).toHaveBeenCalledWith('temp', 'temp-token', undefined);
+      const [params, sessionId] = client['getAuthorizeRequestUrl'].mock.calls[0];
+      expect(params).toEqual({max_age: '180', prompt: 'login'});
+      expect(sessionId).toBe((SessionManager.createTempSession as unknown as Mock).mock.calls[0][0]);
+      expect(result).toEqual({data: {signInUrl: 'https://idp.example.com/oauth2/authorize'}, success: true});
+    });
+
+    it('starts the embedded flow for a payload that names the flow type', async () => {
+      client['signIn'].mockResolvedValue({executionId: 'e-1', flowStatus: 'INCOMPLETE'});
+
+      await signInAction({flowType: 'AUTHENTICATION'}, {});
+
+      expect(client['signIn']).toHaveBeenCalled();
+      expect(client['getAuthorizeRequestUrl']).not.toHaveBeenCalled();
+    });
   });
 
   describe('when the flow completes', () => {

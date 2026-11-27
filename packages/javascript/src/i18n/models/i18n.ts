@@ -1,4 +1,4 @@
-// Copyright 2025 The ThunderID Authors
+// Copyright 2025-2026 The ThunderID Authors
 // SPDX-License-Identifier: Apache-2.0
 
 /* eslint-disable typescript-sort-keys/interface */
@@ -148,6 +148,9 @@ export interface I18nTranslations {
   /* |---------------------------------------------------------------| */
 
   'user.change_password.heading': string;
+  'user.change_password.current.label': string;
+  'user.change_password.current.placeholder': string;
+  'user.change_password.current.hint': string;
   'user.change_password.new.label': string;
   'user.change_password.new.placeholder': string;
   'user.change_password.confirm.label': string;
@@ -157,6 +160,17 @@ export interface I18nTranslations {
   'user.change_password.success': string;
   'user.change_password.mismatch.error': string;
   'user.change_password.generic.error': string;
+  'user.change_password.current.required.error': string;
+  'user.change_password.current.invalid.error': string;
+  'user.change_password.reauthentication.error': string;
+  'user.reauthentication.required.error': string;
+  'user.reauthentication.failed.error': string;
+  'user.reauthentication.popup_blocked.error': string;
+  'user.reauthentication.different_user.error': string;
+  'user.reauthentication.heading': string;
+  'user.reauthentication.description': string;
+  'user.reauthentication.unsupported_option.error': string;
+  'user.reauthentication.buttons.close.text': string;
   'user.change_password.unavailable.heading': string;
   'user.change_password.unavailable.description': string;
   'user.agents.title': string;

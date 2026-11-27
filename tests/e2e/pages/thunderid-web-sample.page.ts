@@ -1,4 +1,4 @@
-// Copyright 2025 The ThunderID Authors
+// Copyright 2025-2026 The ThunderID Authors
 // SPDX-License-Identifier: Apache-2.0
 
 /**
@@ -219,9 +219,12 @@ export class ThunderIDAccountPageSamplePage extends ThunderIDWebSamplePage {
     await this.page.getByRole('button', {name: cta}).click();
   }
 
-  /** Fills the currently-open credential form's new-value and confirmation fields, without
-   * submitting. */
-  async fillCredentialFields(newValue: string, confirmValue: string): Promise<void> {
+  /** Fills the currently-open credential form's new-value and confirmation fields, and the
+   * current value when one is given, without submitting. */
+  async fillCredentialFields(newValue: string, confirmValue: string, currentValue?: string): Promise<void> {
+    if (currentValue !== undefined) {
+      await this.page.locator('input[name="currentPassword"]').fill(currentValue);
+    }
     await this.page.locator('input[name="newPassword"]').fill(newValue);
     await this.page.locator('input[name="confirmPassword"]').fill(confirmValue);
   }
@@ -231,12 +234,12 @@ export class ThunderIDAccountPageSamplePage extends ThunderIDWebSamplePage {
     return this.page.getByRole('button', {name: /^Update /}).isDisabled();
   }
 
-  /** Expands the named credential's row, fills the new value and its confirmation, and
-   * submits. Waits for the row to collapse back afterward — `ChangeCredential`'s `onSuccess`
+  /** Expands the named credential's row, fills the current value, the new value and its
+   * confirmation, and submits. Waits for the row to collapse back afterward — `ChangeCredential`'s `onSuccess`
    * closes it in this sample, so that collapse is this method's proof the write actually
    * succeeded server-side rather than just that the button was clicked. Call
    * {@link openSecurityTab} first. */
-  async changeCredential(cta: string, newValue: string): Promise<void> {
+  async changeCredential(cta: string, currentValue: string, newValue: string): Promise<void> {
     const toggle = this.page.getByRole('button', {name: cta});
     // Bounded wait before the click: if the caller's page state doesn't actually have this row
     // (e.g. the Security tab isn't open), fail fast with a clear "not visible" error instead of
@@ -245,7 +248,7 @@ export class ThunderIDAccountPageSamplePage extends ThunderIDWebSamplePage {
     await expect(toggle).toBeVisible({timeout: Timeouts.ELEMENT_VISIBILITY});
     await toggle.click();
 
-    await this.fillCredentialFields(newValue, newValue);
+    await this.fillCredentialFields(newValue, newValue, currentValue);
     await this.page.getByRole('button', {name: /^Update /}).click();
 
     await expect(toggle).toHaveAttribute('aria-expanded', 'false', {timeout: Timeouts.ELEMENT_VISIBILITY});

@@ -1,8 +1,15 @@
-// Copyright 2025 The ThunderID Authors
+// Copyright 2025-2026 The ThunderID Authors
 // SPDX-License-Identifier: Apache-2.0
 
 import {generateFlattenedUserProfile} from '@thunderid/browser';
-import type {AttributeSchema, FlowMetadataResponse, UpdateMeProfileConfig, User, UserProfile} from '@thunderid/node';
+import type {
+  AttributeSchema,
+  AuthenticationChallenge,
+  FlowMetadataResponse,
+  UpdateMeProfileConfig,
+  User,
+  UserProfile,
+} from '@thunderid/node';
 import {FlowMetaProvider, FlowProvider, I18nProvider, ThemeProvider, UserProvider} from '@thunderid/vue';
 import {defineComponent, h, type Component, type Ref, type SetupContext, type VNode} from 'vue';
 import NuxtAPIRoutes from '../constants/NuxtAPIRoutes';
@@ -111,12 +118,22 @@ const ThunderIDRoot: Component = defineComponent({
     const updateProfile = async (
       requestConfig: UpdateMeProfileConfig,
       _sessionId?: string,
-    ): Promise<{data: {user: User}; error: string; success: boolean}> => {
+    ): Promise<{
+      authenticationChallenge?: AuthenticationChallenge;
+      data: {user: User};
+      error: string;
+      success: boolean;
+    }> => {
       if (_sessionId) {
         // no-op: session is resolved server-side
       }
       try {
-        const result: {data: {user: User}; error: string; success: boolean} = await $fetch(NuxtAPIRoutes.USER_PROFILE, {
+        const result: {
+          authenticationChallenge?: AuthenticationChallenge;
+          data: {user: User};
+          error: string;
+          success: boolean;
+        } = await $fetch(NuxtAPIRoutes.USER_PROFILE, {
           body: requestConfig,
           method: 'PATCH',
         });

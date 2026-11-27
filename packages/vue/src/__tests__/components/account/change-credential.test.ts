@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import {getDefaultI18nBundles, substituteTranslationParams} from '@thunderid/browser';
-import {DOMWrapper, mount} from '@vue/test-utils';
+import {DOMWrapper, flushPromises, mount} from '@vue/test-utils';
 import {Mock, beforeEach, describe, expect, it, vi} from 'vitest';
 import {nextTick, ref} from 'vue';
 import ChangeCredential from '../../../components/account/change-credential/ChangeCredential';
@@ -10,6 +10,7 @@ import {I18N_KEY, THUNDERID_KEY, USER_KEY} from '../../../keys';
 import type {I18nContextValue, ThunderIDContext, UserContextValue} from '../../../models/contexts';
 
 const mockUpdateMeCredentials = vi.fn() as Mock;
+const mockReauthenticate = vi.fn() as Mock;
 
 vi.mock('../../../api/account/updateMeCredentials', () => ({
   default: (...args: unknown[]): unknown => mockUpdateMeCredentials(...args) as unknown,
@@ -22,6 +23,7 @@ const createThunderIDContext = (): ThunderIDContext =>
     isInitialized: ref(true),
     isLoading: ref(false),
     isSignedIn: ref(true),
+    reauthenticate: (...args: unknown[]): unknown => mockReauthenticate(...args) as unknown,
     user: ref(null),
     vendor: 'thunderid',
   }) as unknown as ThunderIDContext;
@@ -88,17 +90,20 @@ describe('ChangeCredential', () => {
     vi.clearAllMocks();
   });
 
-  it('renders only the two fields, with no current-value field', () => {
+  it('renders an optional current-value field above the new value and its confirmation', () => {
     const wrapper = mountChangeCredential();
 
+    expect(inputByName(wrapper, 'currentPassword').exists()).toBe(true);
+    expect(inputByName(wrapper, 'currentPassword').element.required).toBe(false);
     expect(inputByName(wrapper, 'newPassword').exists()).toBe(true);
     expect(inputByName(wrapper, 'confirmPassword').exists()).toBe(true);
-    expect(wrapper.find('input[name="currentPassword"]').exists()).toBe(false);
+    expect(wrapper.text()).toMatch(/leave this empty if you have not set one yet/i);
   });
 
-  it('marks both fields as new-password for password managers', () => {
+  it('marks the current field as current-password and the new fields as new-password', () => {
     const wrapper = mountChangeCredential();
 
+    expect(inputByName(wrapper, 'currentPassword').attributes('autocomplete')).toBe('current-password');
     expect(inputByName(wrapper, 'newPassword').attributes('autocomplete')).toBe('new-password');
     expect(inputByName(wrapper, 'confirmPassword').attributes('autocomplete')).toBe('new-password');
   });
@@ -130,7 +135,7 @@ describe('ChangeCredential', () => {
     expect(submit().attributes('disabled')).toBeUndefined();
   });
 
-  it('sends only the new value, keyed by password by default, and emits success', async () => {
+  it('sends the name and new value without a current value when it is left empty, and emits success', async () => {
     mockUpdateMeCredentials.mockResolvedValueOnce(undefined);
     const wrapper = mountChangeCredential({policy: {regex: '^.{8,}$'}});
 
@@ -142,23 +147,23 @@ describe('ChangeCredential', () => {
     expect(mockUpdateMeCredentials).toHaveBeenCalledWith(
       expect.objectContaining({
         baseUrl: 'https://localhost:8090',
-        payload: {password: 'n3wP@ssword'},
+        payload: {currentValue: undefined, name: 'password', newValue: 'n3wP@ssword'},
       }),
     );
     expect(wrapper.emitted('success')).toBeTruthy();
   });
 
-  it('keys the payload by attribute when set to something other than password', async () => {
+  it('sends the current value and names the attribute when set to something other than password', async () => {
     mockUpdateMeCredentials.mockResolvedValueOnce(undefined);
     const wrapper = mountChangeCredential({attribute: 'pin', policy: {regex: '^.{4,}$'}});
 
-    await fill(wrapper, {confirmPassword: '1234', newPassword: '1234'});
+    await fill(wrapper, {confirmPassword: '1234', currentPassword: '0000', newPassword: '1234'});
     await wrapper.find('form').trigger('submit');
     await nextTick();
 
     expect(mockUpdateMeCredentials).toHaveBeenCalledWith(
       expect.objectContaining({
-        payload: {pin: '1234'},
+        payload: {currentValue: '0000', name: 'pin', newValue: '1234'},
       }),
     );
   });
@@ -167,11 +172,12 @@ describe('ChangeCredential', () => {
     mockUpdateMeCredentials.mockResolvedValueOnce(undefined);
     const wrapper = mountChangeCredential({policy: {regex: '^.{8,}$'}});
 
-    await fill(wrapper, {confirmPassword: 'n3wP@ssword', newPassword: 'n3wP@ssword'});
+    await fill(wrapper, {confirmPassword: 'n3wP@ssword', currentPassword: '0ldP@ssword', newPassword: 'n3wP@ssword'});
     await wrapper.find('form').trigger('submit');
     await nextTick();
     await nextTick();
 
+    expect(inputByName(wrapper, 'currentPassword').element.value).toBe('');
     expect(inputByName(wrapper, 'newPassword').element.value).toBe('');
     expect(inputByName(wrapper, 'confirmPassword').element.value).toBe('');
   });
@@ -190,6 +196,118 @@ describe('ChangeCredential', () => {
     await nextTick();
 
     expect(wrapper.text()).toMatch(/password is too common/i);
+  });
+
+  it.each([
+    ['USR-1047', 400, /enter your current password/i],
+    ['USR-1048', 403, /the current password is incorrect/i],
+  ])('shows %s on the current field with translated text', async (code: string, status: number, text: RegExp) => {
+    const {ThunderIDAPIError} = await import('@thunderid/browser');
+
+    mockUpdateMeCredentials.mockRejectedValueOnce(
+      new ThunderIDAPIError(JSON.stringify({code, message: {defaultValue: 'Server text'}}), 'x-003', 'vue', status),
+    );
+    const wrapper = mountChangeCredential({policy: {regex: '^.{8,}$'}});
+
+    await fill(wrapper, {confirmPassword: 'n3wP@ssword', currentPassword: 'wr0ng', newPassword: 'n3wP@ssword'});
+    await wrapper.find('form').trigger('submit');
+    await nextTick();
+    await nextTick();
+
+    const currentField = inputByName(wrapper, 'currentPassword').element.closest('.thunderid-password-field');
+    expect(currentField?.textContent).toMatch(text);
+    expect(wrapper.text()).not.toContain('Server text');
+  });
+
+  it('hands the challenge to a reauthentication-required listener instead of signing in again', async () => {
+    const {StepUpRequiredError} = await import('@thunderid/browser');
+
+    mockUpdateMeCredentials.mockRejectedValueOnce(
+      new StepUpRequiredError(
+        JSON.stringify({code: 'AUTH-4011', message: {defaultValue: 'Recent authentication required'}}),
+        'x-004',
+        'vue',
+        401,
+        'Unauthorized',
+        undefined,
+        'Bearer error="insufficient_user_authentication", max_age="300"',
+      ),
+    );
+    const onReauthenticationRequired = vi.fn();
+    const wrapper = mountChangeCredential({attribute: 'pin', onReauthenticationRequired, policy: {regex: '^.{4,}$'}});
+
+    await fill(wrapper, {confirmPassword: '1234', newPassword: '1234'});
+    await wrapper.find('form').trigger('submit');
+    await flushPromises();
+
+    expect(wrapper.text()).toMatch(/sign in again to set your pin/i);
+    expect(onReauthenticationRequired).toHaveBeenCalledWith({error: 'insufficient_user_authentication', maxAge: 300});
+    expect(mockReauthenticate).not.toHaveBeenCalled();
+  });
+
+  describe('when a first value needs a recent sign-in', () => {
+    const stepUp = async (): Promise<Error> => {
+      const {StepUpRequiredError} = await import('@thunderid/browser');
+
+      return new StepUpRequiredError(
+        JSON.stringify({code: 'AUTH-4011', message: {defaultValue: 'Recent authentication required'}}),
+        'updateMeCredentials-StepUpRequired-001',
+        'vue',
+        401,
+        'Unauthorized',
+        undefined,
+        'Bearer error="insufficient_user_authentication", max_age="300"',
+      );
+    };
+
+    const submitPin = async (wrapper: ReturnType<typeof mountChangeCredential>): Promise<void> => {
+      await fill(wrapper, {confirmPassword: '1234', newPassword: '1234'});
+      await wrapper.find('form').trigger('submit');
+      await flushPromises();
+    };
+
+    beforeEach(() => {
+      mockReauthenticate.mockReset();
+    });
+
+    it('signs the user in again with the challenge max_age and sends the same change once more', async () => {
+      mockUpdateMeCredentials.mockRejectedValueOnce(await stepUp()).mockResolvedValueOnce(undefined);
+      mockReauthenticate.mockResolvedValue(undefined);
+      const wrapper = mountChangeCredential({attribute: 'pin', policy: {regex: '^.{4,}$'}});
+
+      await submitPin(wrapper);
+
+      expect(mockReauthenticate).toHaveBeenCalledWith({maxAge: 300});
+      expect(mockUpdateMeCredentials).toHaveBeenCalledTimes(2);
+      expect((mockUpdateMeCredentials.mock.calls[1][0] as {payload: unknown}).payload).toEqual({
+        currentValue: undefined,
+        name: 'pin',
+        newValue: '1234',
+      });
+      expect(wrapper.emitted('success')).toBeTruthy();
+    });
+
+    it('shows the sign-in-again text when the change is refused again', async () => {
+      mockUpdateMeCredentials.mockRejectedValue(await stepUp());
+      mockReauthenticate.mockResolvedValue(undefined);
+      const wrapper = mountChangeCredential({attribute: 'pin', policy: {regex: '^.{4,}$'}});
+
+      await submitPin(wrapper);
+
+      expect(wrapper.text()).toMatch(/sign in again to set your pin/i);
+      expect(mockUpdateMeCredentials).toHaveBeenCalledTimes(2);
+    });
+
+    it('shows why signing in again failed and does not retry', async () => {
+      mockUpdateMeCredentials.mockRejectedValue(await stepUp());
+      mockReauthenticate.mockRejectedValue(Object.assign(new Error('other user'), {code: 'JS-AUTH_CORE-CRA-IV03'}));
+      const wrapper = mountChangeCredential({attribute: 'pin', policy: {regex: '^.{4,}$'}});
+
+      await submitPin(wrapper);
+
+      expect(wrapper.text()).toMatch(/you signed in with a different account/i);
+      expect(mockUpdateMeCredentials).toHaveBeenCalledTimes(1);
+    });
   });
 
   it('derives the policy regex from the user schema', async () => {

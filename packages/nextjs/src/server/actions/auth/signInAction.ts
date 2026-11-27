@@ -1,4 +1,4 @@
-// Copyright 2025 The ThunderID Authors
+// Copyright 2025-2026 The ThunderID Authors
 // SPDX-License-Identifier: Apache-2.0
 
 'use server';
@@ -9,6 +9,8 @@ import {
   EmbeddedFlowExecuteRequestConfig,
   IdToken,
   isEmpty,
+  pickRecentSignInParams,
+  RecentSignInParams,
   ServerError,
   SessionData,
   ThunderIDAPIError,
@@ -51,10 +53,21 @@ const signInAction = async (
 
     let sessionId: string | undefined;
 
-    const existingSessionToken: string | undefined = getChunkedCookie(
-      cookieStore,
-      SessionManager.getSessionCookieName(),
-    );
+    // Without a flow payload, the user signs in by redirect. Of the sign-in options, only `max_age` and
+    // `prompt=login`, which ask for a recent sign-in, reach the authorization request.
+    const isRedirect: boolean =
+      !payload ||
+      isEmpty(payload) ||
+      !('executionId' in payload || 'applicationId' in payload || 'flowType' in payload);
+    const recentSignInParams: RecentSignInParams = isRedirect
+      ? pickRecentSignInParams(payload as Record<string, unknown> | undefined)
+      : {};
+    // A recent sign-in for a signed-in user starts a new session, whose callback then replaces the cookie.
+    const isRecentSignIn: boolean = Object.keys(recentSignInParams).length > 0;
+
+    const existingSessionToken: string | undefined = isRecentSignIn
+      ? undefined
+      : getChunkedCookie(cookieStore, SessionManager.getSessionCookieName());
 
     if (existingSessionToken) {
       try {
@@ -65,7 +78,7 @@ const signInAction = async (
       }
     }
 
-    if (!sessionId) {
+    if (!sessionId && !isRecentSignIn) {
       const tempSessionToken: string | undefined = cookieStore.get(SessionManager.getTempSessionCookieName())?.value;
 
       if (tempSessionToken) {
@@ -90,9 +103,8 @@ const signInAction = async (
       );
     }
 
-    // If no payload provided, redirect to sign-in URL for redirect-based sign-in.
-    if (!payload || isEmpty(payload)) {
-      const defaultSignInUrl: string = await client.getAuthorizeRequestUrl({}, sessionId);
+    if (isRedirect) {
+      const defaultSignInUrl: string = await client.getAuthorizeRequestUrl({...recentSignInParams}, sessionId);
       return {data: {signInUrl: String(defaultSignInUrl)}, success: true};
     }
 

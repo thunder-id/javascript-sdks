@@ -1,4 +1,4 @@
-// Copyright 2025 The ThunderID Authors
+// Copyright 2025-2026 The ThunderID Authors
 // SPDX-License-Identifier: Apache-2.0
 
 import {I18nTranslations, I18nMetadata, I18nBundle} from '../models/i18n';
@@ -148,6 +148,9 @@ const translations: I18nTranslations = {
   /* |---------------------------------------------------------------| */
 
   'user.change_password.heading': 'Alterar {credential}',
+  'user.change_password.current.label': '{credential} atual',
+  'user.change_password.current.placeholder': 'Digite seu {credentialLower} atual',
+  'user.change_password.current.hint': 'Deixe em branco se você ainda não definiu um.',
   'user.change_password.new.label': 'Novo {credential}',
   'user.change_password.new.placeholder': 'Digite seu novo {credentialLower}',
   'user.change_password.confirm.label': 'Confirmar novo {credential}',
@@ -157,6 +160,17 @@ const translations: I18nTranslations = {
   'user.change_password.success': 'Seu {credentialLower} foi atualizado.',
   'user.change_password.mismatch.error': 'Os {credentialLower}s não coincidem.',
   'user.change_password.generic.error': 'Ocorreu um erro ao atualizar seu {credentialLower}. Tente novamente.',
+  'user.change_password.current.required.error': 'Digite seu {credentialLower} atual.',
+  'user.change_password.current.invalid.error': 'O {credentialLower} atual está incorreto.',
+  'user.change_password.reauthentication.error': 'Entre novamente para definir seu {credentialLower}.',
+  'user.reauthentication.required.error': 'Entre novamente para salvar esta alteração.',
+  'user.reauthentication.failed.error': 'A nova entrada não foi concluída. Tente novamente.',
+  'user.reauthentication.popup_blocked.error': 'Permita pop-ups para este site e tente novamente.',
+  'user.reauthentication.different_user.error': 'Você entrou com outra conta. Entre com a sua conta e tente novamente.',
+  'user.reauthentication.heading': 'Entre novamente',
+  'user.reauthentication.description': 'Confirme que é você para salvar esta alteração.',
+  'user.reauthentication.unsupported_option.error': 'Esta opção de entrada não está disponível aqui. Escolha outra.',
+  'user.reauthentication.buttons.close.text': 'Fechar',
   'user.change_password.unavailable.heading': 'Alteração de {credentialLower} indisponível',
   'user.change_password.unavailable.description': 'Entre em contato com o administrador.',
 

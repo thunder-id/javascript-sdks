@@ -2,15 +2,18 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import {
+  AuthenticationChallenge,
   CredentialConstants,
   CredentialUpdateErrorResult,
   PasswordPolicy,
+  PendingStepUp,
   mapCredentialUpdateError,
   resolveChangeCredentialPolicy,
   resolveResourceEndpoint,
+  runWithStepUp,
   supportsCredential,
 } from '@thunderid/browser';
-import {FC, useMemo, useState} from 'react';
+import {FC, useMemo, useEffect, useRef, useState} from 'react';
 import BaseChangeCredential, {BaseChangeCredentialProps, ChangePasswordValues} from './BaseChangeCredential';
 import updateMeCredentials from '../../../api/account/updateMeCredentials';
 import useThunderID from '../../../contexts/ThunderID/useThunderID';
@@ -37,6 +40,13 @@ export interface ChangeCredentialProps
    */
   attribute?: string;
   /**
+   * Called when setting the credential needs a more recent sign-in (`AUTH-4011`), with the
+   * server's challenge, instead of the component signing the user in again by itself. Sign the
+   * user in again with `challenge.maxAge` as the `max_age` authorization parameter, then let the
+   * user submit again. The form also shows a "sign in again" message.
+   */
+  onReauthenticationRequired?: (challenge: AuthenticationChallenge) => void;
+  /**
    * Called after the credential has been changed successfully.
    */
   onSuccess?: () => void;
@@ -45,10 +55,15 @@ export interface ChangeCredentialProps
 /**
  * ChangeCredential lets the signed-in user set a new value for one of their own credentials.
  *
- * It collects only a new value and its confirmation. The self-service credential write path
- * does not verify the account's existing value today, so this component does not ask for one;
- * once server-side current-value verification ships, that field returns without a breaking
- * change to this component's public props.
+ * It collects the current value, the new value and its confirmation. The server needs the
+ * current value when the user holds the credential, and answers a wrong or missing one on the
+ * current-value field. A user who has not set the credential yet leaves the current value
+ * empty; that change needs a recent sign-in. When the sign-in is too old, the component signs
+ * the user in again with the server's `max_age`, checks that the same user signed in, and sends
+ * the change once more; the values stay in memory only. A session from a redirect sign-in signs in
+ * again in a popup, and one from an embedded sign-in flow runs the sign-in flow in a dialog. If the
+ * browser blocks the popup, the next submit opens it first. Set `onReauthenticationRequired` to handle the challenge in your
+ * app instead. Changing a credential the user holds ends the user's sessions, including this one.
  *
  * It reads the applicable rules from the user schema already resolved by the ThunderID
  * provider, so it adds no network request beyond the write itself, and posts to
@@ -68,6 +83,9 @@ export interface ChangeCredentialProps
  * // Basic usage, manages the password
  * <ChangeCredential onSuccess={() => toast('Password updated')} />
  *
+ * // A first PIN: the component signs the user in again by itself when the sign-in is too old
+ * <ChangeCredential attribute="pin" />
+ *
  * // With an explicit rule instead of the schema-derived policy
  * <ChangeCredential
  *   policy={{regex: '^.{12,}$'}}
@@ -80,12 +98,24 @@ export interface ChangeCredentialProps
  */
 const ChangeCredential: FC<ChangeCredentialProps> = ({
   attribute = CredentialConstants.PASSWORD,
+  onReauthenticationRequired = undefined,
   onSuccess = undefined,
   policy = undefined,
   preferences = undefined,
   ...rest
 }: ChangeCredentialProps) => {
-  const {baseUrl, endpoints, instanceId, preferences: contextPreferences} = useThunderID();
+  const {baseUrl, endpoints, instanceId, preferences: contextPreferences, reauthenticate} = useThunderID();
+  const pendingStepUp: PendingStepUp = useRef<PendingStepUp['current']>(undefined);
+  // Whether the component is still on screen, so a change is not sent after it has closed.
+  const mountedRef = useRef<boolean>(true);
+
+  useEffect(() => {
+    mountedRef.current = true;
+
+    return (): void => {
+      mountedRef.current = false;
+    };
+  }, []);
   const {userSchema} = useUser();
   const resolvedDisplayName: string = userSchema?.[attribute]?.displayName ?? defaultDisplayName(attribute);
 
@@ -109,18 +139,25 @@ const ChangeCredential: FC<ChangeCredentialProps> = ({
     [userSchema, attribute, policy],
   );
 
-  const handleSubmit = async ({newPassword}: ChangePasswordValues): Promise<void> => {
+  const handleSubmit = async ({currentPassword, newPassword}: ChangePasswordValues): Promise<void> => {
     setError(null);
     setFieldErrors({});
     setSuccess(false);
     setLoading(true);
 
     try {
-      await updateMeCredentials({
-        baseUrl,
-        instanceId,
-        payload: {[attribute]: newPassword},
-        url: resolveResourceEndpoint('usersMeCredentials', {endpoints}),
+      await runWithStepUp({
+        onReauthenticationRequired,
+        isActive: (): boolean => mountedRef.current,
+        pending: pendingStepUp,
+        reauthenticate,
+        send: () =>
+          updateMeCredentials({
+            baseUrl,
+            instanceId,
+            payload: {currentValue: currentPassword, name: attribute, newValue: newPassword},
+            url: resolveResourceEndpoint('usersMeCredentials', {endpoints}),
+          }),
       });
 
       setSuccess(true);

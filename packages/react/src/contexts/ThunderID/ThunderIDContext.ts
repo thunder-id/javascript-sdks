@@ -1,4 +1,4 @@
-// Copyright 2025 The ThunderID Authors
+// Copyright 2025-2026 The ThunderID Authors
 // SPDX-License-Identifier: Apache-2.0
 
 import {
@@ -20,6 +20,7 @@ import {
   AttributeSchema,
   CurrentOrganizationUnit,
   Project,
+  ReauthenticationOptions,
   SwitchOrganizationUnitOptions,
   User,
 } from '@thunderid/browser';
@@ -58,6 +59,15 @@ export type ThunderIDContextProps = {
    * Reads the current organization unit from the session's claims. For display only.
    */
   getCurrentOrganizationUnit: () => Promise<CurrentOrganizationUnit | null>;
+  /**
+   * Signs the signed-in user in again, for a change that needs a recent sign-in, and replaces the
+   * session's tokens only when the same user signed in. Pass the `maxAge` of the `StepUpRequiredError`
+   * the change failed with, then retry the change once. A session from a redirect sign-in signs in again
+   * in a popup, so call it from a user action. A session from an embedded sign-in flow runs the sign-in
+   * flow again in a dialog the provider shows. It rejects when the user cancels, the sign-in fails, or a
+   * different user signs in, and the session is then left as it was.
+   */
+  reauthenticate: (options?: ReauthenticationOptions) => Promise<void>;
   /**
    * Signs in again bounded to the organization unit `organizationUnitId`, replacing the session on
    * success and refreshing the user. A failed switch keeps the previous session and rejects with an
@@ -305,6 +315,7 @@ const ThunderIDContext: Context<ThunderIDContextProps | null> = createContext<nu
   getCurrentOrganizationUnit: () => Promise.resolve(null),
   preferences: undefined,
   switchOrganizationUnit: () => Promise.resolve(undefined),
+  reauthenticate: () => Promise.resolve(),
   scopes: undefined,
   setCurrentProject: () => undefined,
   discovery: {

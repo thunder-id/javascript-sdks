@@ -1,4 +1,4 @@
-// Copyright 2025 The ThunderID Authors
+// Copyright 2025-2026 The ThunderID Authors
 // SPDX-License-Identifier: Apache-2.0
 
 import {createResourceInvalidator} from '@thunderid/browser';
@@ -6,6 +6,9 @@ import {
   type ApiFetcher,
   AttributeSchema,
   type CurrentOrganizationUnit,
+  type EmbeddedSignInFlowRequest,
+  type ReauthenticationMethod,
+  type ReauthenticationOptions,
   type SwitchOrganizationUnitOptions,
   ThunderIDAPIError,
   ThunderIDRuntimeError,
@@ -50,6 +53,7 @@ import ThemeProvider from './ThemeProvider';
 import UserProvider from './UserProvider';
 import getUsersMe from '../api/account/getUsersMe';
 import getUsersMeMeta from '../api/account/getUsersMeMeta';
+import ReauthenticationDialog from '../components/auth/reauthentication/ReauthenticationDialog';
 import useCurrentProjectState, {type CurrentProjectState} from '../composables/useCurrentProjectState';
 import {THUNDERID_KEY} from '../keys';
 import type {ThunderIDVueConfig} from '../models/config';
@@ -220,6 +224,15 @@ const ThunderIDProvider: Component = defineComponent({
     const isLoading: Ref<boolean> = ref<boolean>(true);
     const user: ShallowRef<any | null> = shallowRef<any | null>(null);
     const userProfile: ShallowRef<UserProfile | null> = shallowRef<UserProfile | null>(null);
+    // How the user signs in again, kept current with the session so `reauthenticate` can open a popup at once.
+    let reauthenticationMethod: ReauthenticationMethod | null = null;
+    // A re-sign-in the provider's dialog is running for `reauthenticate`.
+    const reauthenticationRequest: ShallowRef<{
+      id: number;
+      options: ReauthenticationOptions;
+      reject: (reason: unknown) => void;
+      resolve: () => void;
+    } | null> = shallowRef(null);
     const userSchema: Ref<Record<string, AttributeSchema> | null> = ref<Record<string, AttributeSchema> | null>(null);
     const currentOrganizationUnit: ShallowRef<CurrentOrganizationUnit | null> =
       shallowRef<CurrentOrganizationUnit | null>(null);
@@ -262,6 +275,7 @@ const ThunderIDProvider: Component = defineComponent({
         let baseUrl: string = resolvedBaseUrl.value;
 
         const decodedToken: IdToken = await client.getDecodedIdToken();
+        reauthenticationMethod = await client.getReauthenticationMethod();
 
         if (decodedToken?.['user_org']) {
           baseUrl = `${resolveRequestBaseUrl(await client.getConfiguration()) ?? ''}/o`;
@@ -397,6 +411,68 @@ const ThunderIDProvider: Component = defineComponent({
       return switched;
     }
 
+    // ── Sign In Again ──
+    // The client leaves the session as it was when the re-sign-in fails, so the state is only refreshed on success.
+    async function reauthenticate(options?: ReauthenticationOptions): Promise<void> {
+      // Read without an await first, so the popup still opens inside the user action.
+      if (reauthenticationMethod !== 'flow') {
+        try {
+          await client.reauthenticate(options);
+          await updateSession();
+
+          return;
+        } catch (error) {
+          if ((error as {code?: string})?.code !== 'BROWSER-REAUTHENTICATION-UM02') {
+            throw error;
+          }
+        }
+      }
+
+      await new Promise<void>((resolve: () => void, reject: (reason: unknown) => void): void => {
+        const previous: typeof reauthenticationRequest.value = reauthenticationRequest.value;
+
+        reauthenticationRequest.value = {id: (previous?.id ?? 0) + 1, options: options ?? {}, reject, resolve};
+        // One re-sign-in at a time: a new one replaces the one still open.
+        previous?.reject(
+          new ThunderIDRuntimeError('Another sign-in replaced this one.', 'VUE-REAUTHENTICATION-SU01', 'vue'),
+        );
+      });
+      await updateSession();
+    }
+
+    function renderReauthenticationDialog(): VNode | null {
+      const request: typeof reauthenticationRequest.value = reauthenticationRequest.value;
+
+      if (!request) {
+        return null;
+      }
+
+      const settle = (): void => {
+        if (reauthenticationRequest.value === request) {
+          reauthenticationRequest.value = null;
+        }
+      };
+
+      return h(ReauthenticationDialog, {
+        key: request.id,
+        execute: (payload: EmbeddedSignInFlowRequest, flowOptions: ReauthenticationOptions) =>
+          client.executeReauthenticationFlow(payload, flowOptions),
+        maxAge: request.options.maxAge,
+        onCancel: (): void => {
+          settle();
+          request.reject(new ThunderIDRuntimeError('The user closed the sign-in.', 'VUE-REAUTHENTICATION-CN01', 'vue'));
+        },
+        onComplete: (): void => {
+          settle();
+          request.resolve();
+        },
+        onError: (error: unknown): void => {
+          settle();
+          request.reject(error);
+        },
+      });
+    }
+
     // ── Provide Context ──
     const context: ThunderIDContext = {
       afterSignInUrl: props.afterSignInUrl,
@@ -419,6 +495,7 @@ const ThunderIDProvider: Component = defineComponent({
       setCurrentProject: projectState.setCurrentProject,
       getCurrentOrganizationUnit: (): Promise<CurrentOrganizationUnit | null> => client.getCurrentOrganizationUnit(),
       switchOrganizationUnit,
+      reauthenticate,
       http: {
         fetcher: props.http?.fetcher,
         request: (requestConfig?: any): Promise<HttpResponse<any>> => client.request(requestConfig),
@@ -587,6 +664,10 @@ const ThunderIDProvider: Component = defineComponent({
     });
 
     onUnmounted((): void => {
+      reauthenticationRequest.value?.reject(
+        new ThunderIDRuntimeError('The sign-in ended before it completed.', 'VUE-REAUTHENTICATION-CN01', 'vue'),
+      );
+      reauthenticationRequest.value = null;
       if (appContext && providesAtAppLevel && appContext.provides[THUNDERID_KEY as symbol] === context) {
         delete appContext.provides[THUNDERID_KEY as symbol];
       }
@@ -631,7 +712,7 @@ const ThunderIDProvider: Component = defineComponent({
                               userSchema: userSchema.value,
                             },
                             {
-                              default: (): any => slots['default']?.(),
+                              default: (): any => [slots['default']?.(), renderReauthenticationDialog()],
                             },
                           ),
                       }),

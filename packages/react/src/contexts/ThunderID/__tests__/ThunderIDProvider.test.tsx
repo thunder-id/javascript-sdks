@@ -1,7 +1,7 @@
 // Copyright 2026 The ThunderID Authors
 // SPDX-License-Identifier: Apache-2.0
 
-import {cleanup, render, screen, waitFor} from '@testing-library/react';
+import {cleanup, fireEvent, render, screen, waitFor} from '@testing-library/react';
 import {ThunderIDAPIError, ThunderIDRuntimeError} from '@thunderid/browser';
 import {ReactElement, useEffect} from 'react';
 import {Mock, afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
@@ -21,11 +21,13 @@ type UserProfileResponse = Record<string, string>;
 interface MockClient {
   clearSession: Noop;
   exchangeToken: Noop;
+  executeReauthenticationFlow: Mock<() => Promise<Record<string, string>>>;
   getAccessToken: Noop;
   getConfiguration: Mock<() => Promise<{afterSignInUrl: string; baseUrl: string}>>;
   getDecodedIdToken: Mock<() => Promise<Record<string, string>>>;
   getDiscoveryResponse: Mock<() => Promise<null>>;
   getIdToken: Noop;
+  getReauthenticationMethod: Mock<() => Promise<string>>;
   getStorageManager: Noop;
   /** Callbacks registered through `client.on(...)`, keyed by event name. */
   handlers: Record<string, SignInHookHandler>;
@@ -35,6 +37,7 @@ interface MockClient {
   isSignedIn: Mock<() => Promise<boolean>>;
   on: Mock<(event: string, callback: SignInHookHandler) => Promise<void>>;
   reInitialize: Noop;
+  reauthenticate: Mock<() => Promise<void>>;
   recover: Noop;
   request: Noop;
   requestAll: Noop;
@@ -65,7 +68,8 @@ vi.mock('../../../api/account/getUsersMe', () => ({
   default: (): Promise<UserProfileResponse> => mocks.getUsersMe(),
 }));
 
-vi.mock('../../../styles/emotion', () => ({
+vi.mock('../../../styles/emotion', async (importOriginal: () => Promise<Record<string, unknown>>) => ({
+  ...(await importOriginal()),
   configureEmotionNonce: (nonce?: string): void => mocks.configureEmotionNonce(nonce),
 }));
 
@@ -90,6 +94,7 @@ function createMockClient(): MockClient {
   const client: MockClient = {
     clearSession: vi.fn(),
     exchangeToken: vi.fn(),
+    executeReauthenticationFlow: vi.fn(() => Promise.resolve({assertion: 'a', flowStatus: 'COMPLETE'})),
     getAccessToken: vi.fn(),
     getConfiguration: vi.fn(() =>
       Promise.resolve({afterSignInUrl: window.location.origin, baseUrl: 'https://localhost:8090'}),
@@ -97,6 +102,7 @@ function createMockClient(): MockClient {
     getDecodedIdToken: vi.fn(() => Promise.resolve({sub: 'user-1'})),
     getDiscoveryResponse: vi.fn(() => Promise.resolve(null)),
     getIdToken: vi.fn(),
+    getReauthenticationMethod: vi.fn(() => Promise.resolve('popup')),
     getStorageManager: vi.fn(),
     handlers,
     initialize: vi.fn(() => Promise.resolve(true)),
@@ -109,6 +115,7 @@ function createMockClient(): MockClient {
       return Promise.resolve();
     }),
     reInitialize: vi.fn(),
+    reauthenticate: vi.fn(() => Promise.resolve()),
     recover: vi.fn(),
     request: vi.fn(),
     requestAll: vi.fn(),
@@ -327,6 +334,83 @@ describe('ThunderIDProvider revalidateProfile', () => {
     await user!.revalidateProfile();
 
     expect(mocks.getUsersMe).not.toHaveBeenCalled();
+  });
+});
+
+describe('ThunderIDProvider reauthenticate', () => {
+  let reauthenticate: ((options?: {maxAge?: number}) => Promise<void>) | null = null;
+
+  const Probe = (): ReactElement => {
+    const context = useThunderID();
+
+    useEffect(() => {
+      reauthenticate = context.reauthenticate;
+    });
+
+    return <div data-testid="probe" />;
+  };
+
+  const renderWithProbe = async (): Promise<void> => {
+    mocks.client.signedIn = true;
+    render(
+      <ThunderIDProvider baseUrl="https://localhost:8090" clientId="test-client" preferences={{resolveFromMeta: false}}>
+        <Probe />
+      </ThunderIDProvider>,
+    );
+    await waitFor(() => expect(mocks.client.getReauthenticationMethod).toHaveBeenCalled());
+    await settle();
+  };
+
+  afterEach(() => {
+    reauthenticate = null;
+  });
+
+  it('signs in again in a popup for a session from a redirect sign-in', async () => {
+    await renderWithProbe();
+
+    await reauthenticate!({maxAge: 30});
+
+    expect(mocks.client.reauthenticate).toHaveBeenCalledWith({maxAge: 30});
+    expect(mocks.client.executeReauthenticationFlow).not.toHaveBeenCalled();
+  });
+
+  it('runs the sign-in flow in a dialog for a session from a sign-in flow', async () => {
+    mocks.client.getReauthenticationMethod = vi.fn(() => Promise.resolve('flow'));
+    await renderWithProbe();
+
+    await reauthenticate!({maxAge: 30});
+
+    expect(mocks.client.reauthenticate).not.toHaveBeenCalled();
+    expect(mocks.client.executeReauthenticationFlow).toHaveBeenCalledWith({}, {maxAge: 30});
+  });
+
+  it('falls back to the dialog when the popup reports a session from a sign-in flow', async () => {
+    mocks.client.reauthenticate = vi.fn(() =>
+      Promise.reject(new ThunderIDRuntimeError('x', 'BROWSER-REAUTHENTICATION-UM02', 'browser')),
+    );
+    await renderWithProbe();
+
+    await reauthenticate!({maxAge: 30});
+
+    expect(mocks.client.executeReauthenticationFlow).toHaveBeenCalledWith({}, {maxAge: 30});
+  });
+
+  it('rejects when the user closes the dialog', async () => {
+    mocks.client.getReauthenticationMethod = vi.fn(() => Promise.resolve('flow'));
+    mocks.client.executeReauthenticationFlow = vi.fn(() =>
+      Promise.resolve({
+        data: {meta: {components: [{eventType: 'TRIGGER', id: 'go', label: 'Continue', type: 'ACTION'}]}},
+        executionId: 'e-1',
+        flowStatus: 'INCOMPLETE',
+        type: 'VIEW',
+      } as unknown as Record<string, string>),
+    );
+    await renderWithProbe();
+
+    const pending: Promise<void> = reauthenticate!({maxAge: 30});
+    fireEvent.click(await screen.findByRole('button', {name: 'Close'}));
+
+    await expect(pending).rejects.toMatchObject({code: 'REACT-REAUTHENTICATION-CN01'});
   });
 });
 

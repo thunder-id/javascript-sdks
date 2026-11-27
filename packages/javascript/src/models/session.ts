@@ -22,6 +22,8 @@ export interface SessionData {
   created_at: number;
   /** The device secret a sign-in with the `device_sso` scope returned, exchanged to switch organization units. */
   device_secret?: string;
+  /** Set when the session came from an embedded sign-in flow. */
+  embedded_sign_in?: boolean;
   expires_in: string;
   /** The SSO session handles embedded flow steps returned. */
   flow_sessions?: StoredFlowSession[];

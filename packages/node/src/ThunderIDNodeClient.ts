@@ -1,4 +1,4 @@
-// Copyright 2025 The ThunderID Authors
+// Copyright 2025-2026 The ThunderID Authors
 // SPDX-License-Identifier: Apache-2.0
 
 import {
@@ -36,6 +36,7 @@ import {
   ThunderIDRuntimeError,
   TokenResponse,
   updateMeCredentials,
+  UpdateMeCredentialsPayload,
   User,
 } from '@thunderid/javascript';
 import evaluateAccessRequest from './api/access/evaluateAccess';
@@ -628,10 +629,11 @@ class ThunderIDNodeClient<T extends ThunderIDNodeConfig = ThunderIDNodeConfig> e
   }
 
   /**
-   * Updates one or more of the signed-in user's credentials (e.g. `password`, or any other
-   * attribute the user type schema declares `credential: true`).
+   * Sets one of the signed-in user's credentials (e.g. `password`, or any other attribute the user
+   * type schema declares `credential: true`). Give `currentValue` when the user holds the credential;
+   * a first value needs a recent sign-in instead. See {@link updateMeCredentials}.
    */
-  public async updateUserCredentials(payload: Record<string, string>, userId?: string): Promise<void> {
+  public async updateUserCredentials(payload: UpdateMeCredentialsPayload, userId?: string): Promise<void> {
     const configData: AuthClientConfig<T> = await this.getStorageManager().getConfigData();
     const baseUrl: string | undefined = configData?.baseUrl;
 

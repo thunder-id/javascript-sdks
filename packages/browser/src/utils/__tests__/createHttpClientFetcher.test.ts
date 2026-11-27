@@ -47,6 +47,25 @@ describe('createHttpClientFetcher', () => {
     await expect(response.json()).resolves.toEqual({code: 'USR-1017'});
   });
 
+  it('keeps the response headers of a non-ok response so a challenge can be read', async () => {
+    mockRequest.mockRejectedValueOnce(
+      Object.assign(new Error('Unauthorized'), {
+        response: {
+          data: {code: 'AUTH-4011'},
+          headers: {'www-authenticate': 'Bearer error="insufficient_user_authentication", max_age="300"'},
+          status: 401,
+          statusText: 'Unauthorized',
+        },
+      }),
+    );
+
+    const response = await createHttpClientFetcher()('https://localhost:8090/x', {method: 'POST'});
+
+    expect(response.headers.get('WWW-Authenticate')).toBe(
+      'Bearer error="insufficient_user_authentication", max_age="300"',
+    );
+  });
+
   it('rethrows a genuine network error with no attached response', async () => {
     mockRequest.mockRejectedValueOnce(Object.assign(new Error('Failed to fetch'), {code: 'NETWORK_ERROR'}));
 

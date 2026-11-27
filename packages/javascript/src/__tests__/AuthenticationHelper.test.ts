@@ -119,6 +119,38 @@ describe('AuthenticationHelper', () => {
       expect((await storageManager.getSessionData()).authorization_details).toEqual(granted);
     });
 
+    it('ends the embedded sign-in mark of the session it stores into', async () => {
+      const storageManager = new StorageManager<unknown>('test-instance', new MemoryStore());
+      await storageManager.setConfigData({baseUrl: BASE_URL, clientId: 'test-client'});
+      await storageManager.setSessionData({access_token: 'flow-at', embedded_sign_in: true});
+      const sessionHelper = new AuthenticationHelper<unknown>(
+        storageManager,
+        {} as unknown as IsomorphicCrypto<unknown>,
+      );
+
+      await sessionHelper.handleTokenResponse(tokenResponse(TOKEN_BODY));
+
+      const session = await storageManager.getSessionData();
+      expect(session.access_token).toBe('access-token');
+      expect(session.embedded_sign_in).toBeUndefined();
+    });
+
+    it('keeps the embedded sign-in mark when the response refreshes the session', async () => {
+      const storageManager = new StorageManager<unknown>('test-instance', new MemoryStore());
+      await storageManager.setConfigData({baseUrl: BASE_URL, clientId: 'test-client'});
+      await storageManager.setSessionData({access_token: 'flow-at', embedded_sign_in: true});
+      const sessionHelper = new AuthenticationHelper<unknown>(
+        storageManager,
+        {} as unknown as IsomorphicCrypto<unknown>,
+      );
+
+      await sessionHelper.handleTokenResponse(tokenResponse(TOKEN_BODY), undefined, false, true);
+
+      const session = await storageManager.getSessionData();
+      expect(session.access_token).toBe('access-token');
+      expect(session.embedded_sign_in).toBe(true);
+    });
+
     it('leaves the authorization details out when the server granted none', async () => {
       const response = await helper.handleTokenResponse(tokenResponse(TOKEN_BODY));
 

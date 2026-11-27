@@ -1,4 +1,4 @@
-// Copyright 2025 The ThunderID Authors
+// Copyright 2025-2026 The ThunderID Authors
 // SPDX-License-Identifier: Apache-2.0
 
 import type {
@@ -7,6 +7,7 @@ import type {
   AttributeSchema,
   CurrentOrganizationUnit,
   Project,
+  ReauthenticationOptions,
   SwitchOrganizationUnitOptions,
   FlowMetadataResponse,
   HttpRequestConfig,
@@ -90,6 +91,15 @@ export interface ThunderIDContext {
     organizationUnitId: string,
     options?: SwitchOrganizationUnitOptions,
   ) => Promise<User | undefined>;
+  /**
+   * Signs the signed-in user in again, for a change that needs a recent sign-in, and replaces the
+   * session's tokens only when the same user signed in. Pass the `maxAge` of the `StepUpRequiredError`
+   * the change failed with, then retry the change once. A session from a redirect sign-in signs in again
+   * in a popup, so call it from a user action. A session from an embedded sign-in flow runs the sign-in
+   * flow again in a dialog the provider shows. It rejects when the user cancels, the sign-in fails, or a
+   * different user signs in, and the session is then left as it was.
+   */
+  reauthenticate: (options?: ReauthenticationOptions) => Promise<void>;
   // ── HTTP ──
   http: {
     /**

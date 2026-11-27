@@ -1,4 +1,4 @@
-// Copyright 2025 The ThunderID Authors
+// Copyright 2025-2026 The ThunderID Authors
 // SPDX-License-Identifier: Apache-2.0
 
 import {
@@ -6,6 +6,8 @@ import {
   getTokenPermissions,
   OrganizationUnitSwitchErrorCodes,
   ThunderIDAPIError,
+  ThunderIDRuntimeError,
+  pickRecentSignInParams,
 } from '@thunderid/browser';
 import {VendorConstants} from '@thunderid/node';
 import type {
@@ -177,10 +179,13 @@ export default defineNuxtPlugin((nuxtApp: NuxtApp) => {
   // ── 3. Action helpers (Nuxt-aware navigation) ───────────────────────────
   const signIn = async (options?: Record<string, unknown>): Promise<void> => {
     const returnTo: string | undefined = typeof options?.returnTo === 'string' ? options.returnTo : undefined;
-    const url: string = returnTo
-      ? `${NuxtAPIRoutes.SIGN_IN}?returnTo=${encodeURIComponent(returnTo)}`
-      : NuxtAPIRoutes.SIGN_IN;
-    await navigateTo(url, {external: true});
+    // Of the sign-in options, only `max_age` and `prompt=login`, which ask for a recent sign-in, are sent.
+    const query: URLSearchParams = new URLSearchParams({
+      ...(returnTo ? {returnTo} : {}),
+      ...pickRecentSignInParams(options),
+    });
+    const search: string = query.toString();
+    await navigateTo(search ? `${NuxtAPIRoutes.SIGN_IN}?${search}` : NuxtAPIRoutes.SIGN_IN, {external: true});
   };
 
   const currentOrganizationUnit: ComputedRef<CurrentOrganizationUnit | null> = computed(
@@ -299,6 +304,16 @@ export default defineNuxtPlugin((nuxtApp: NuxtApp) => {
     getCurrentOrganizationUnit: (): Promise<CurrentOrganizationUnit | null> =>
       Promise.resolve(currentOrganizationUnit.value),
     switchOrganizationUnit,
+    // The session lives on the server, so a change that needs a recent sign-in is answered by signing in
+    // again through the sign-in route, not by a popup.
+    reauthenticate: (): Promise<never> =>
+      Promise.reject(
+        new ThunderIDRuntimeError(
+          'Signing in again in the page is not available in @thunderid/nuxt; sign in again with `max_age`.',
+          'NUXT-REAUTHENTICATION-UM01',
+          'nuxt',
+        ),
+      ),
     // Lets the management composables build the URLs the management route accepts.
     endpoints: publicConfig.endpoints,
     exchangeToken: noop,

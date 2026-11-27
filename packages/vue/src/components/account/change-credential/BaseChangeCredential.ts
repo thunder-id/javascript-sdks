@@ -30,12 +30,13 @@ import PasswordField from '../../primitives/PasswordField/PasswordField';
 
 /**
  * The values collected by the form and emitted on `submit`.
- *
- * There is deliberately no current-value field here. The self-service credential write
- * endpoint does not verify the account's existing value today, so a field the server
- * ignores would only teach the user a false sense of security.
  */
 export interface ChangePasswordValues {
+  /**
+   * The credential's current value, present only when the user filled it in. The server
+   * needs it when the user holds the credential, and not when the user sets a first one.
+   */
+  currentPassword?: string;
   newPassword: string;
 }
 
@@ -58,8 +59,9 @@ type BaseChangeCredentialProps = Readonly<{
 const ruleIcon = (passed: boolean): VNode => (passed ? CheckIcon() : XIcon());
 
 /**
- * Presentational change-credential form with just the two fields a first-time or
- * unverified credential change needs: new value and confirmation.
+ * Presentational change-credential form: the current value, the new value and its
+ * confirmation. The current value is optional, so a user who has not set the credential
+ * yet can set a first one.
  *
  * Holds no context and performs no network calls: it renders the fields, evaluates the
  * policy for the checklist and the submit gate, and emits `submit` with the validated
@@ -82,7 +84,7 @@ const BaseChangeCredential: Component = defineComponent({
     credentialDisplayName: {default: 'Password', type: String},
     /** A form-level error, typically a server failure that maps to no single field. */
     error: {default: null, type: String as PropType<string | null>},
-    /** Server-supplied errors keyed by field name (`newPassword`). */
+    /** Server-supplied errors keyed by field name (`currentPassword` or `newPassword`). */
     fieldErrors: {default: () => ({}), type: Object as PropType<Record<string, string>>},
     /** Whether a submission is in flight. */
     loading: {default: false, type: Boolean},
@@ -132,6 +134,7 @@ const BaseChangeCredential: Component = defineComponent({
     // `title` overrides the default heading; an explicit empty string omits it entirely.
     const resolvedTitle: ComputedRef<string> = computed(() => props.title ?? translate('user.change_password.heading'));
 
+    const currentPassword: Ref<string> = ref('');
     const newPassword: Ref<string> = ref('');
     const confirmPassword: Ref<string> = ref('');
     const submitted: Ref<boolean> = ref(false);
@@ -143,6 +146,7 @@ const BaseChangeCredential: Component = defineComponent({
       (succeeded: boolean): void => {
         if (!succeeded) return;
 
+        currentPassword.value = '';
         newPassword.value = '';
         confirmPassword.value = '';
         submitted.value = false;
@@ -171,7 +175,12 @@ const BaseChangeCredential: Component = defineComponent({
 
       if (!canSubmit.value) return;
 
-      emit('submit', {newPassword: newPassword.value});
+      emit(
+        'submit',
+        currentPassword.value
+          ? {currentPassword: currentPassword.value, newPassword: newPassword.value}
+          : {newPassword: newPassword.value},
+      );
     }
 
     return (): VNode => {
@@ -187,6 +196,7 @@ const BaseChangeCredential: Component = defineComponent({
       // not flag fields the user has not finished filling in.
       const confirmError: string | undefined =
         submitted.value && !confirmMatches.value ? translate('user.change_password.mismatch.error') : undefined;
+      const currentPasswordError: string | undefined = props.fieldErrors['currentPassword'];
       const newPasswordError: string | undefined = props.fieldErrors['newPassword'];
 
       const form: VNode = h('form', {class: rootClass, novalidate: true, onSubmit: handleSubmit}, [
@@ -205,6 +215,20 @@ const BaseChangeCredential: Component = defineComponent({
           : null,
 
         h('div', {class: withVendorCSSClassPrefix('change-credential__fields')}, [
+          h(PasswordField, {
+            autocomplete: 'current-password',
+            disabled: interactionDisabled.value,
+            error: currentPasswordError,
+            helperText: translate('user.change_password.current.hint'),
+            label: translate('user.change_password.current.label'),
+            modelValue: currentPassword.value,
+            name: 'currentPassword',
+            'onUpdate:modelValue': (value: string): void => {
+              currentPassword.value = value;
+            },
+            placeholder: translate('user.change_password.current.placeholder'),
+          }),
+
           h(PasswordField, {
             autocomplete: 'new-password',
             disabled: interactionDisabled.value,
