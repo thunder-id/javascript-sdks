@@ -96,6 +96,8 @@ export class TelemetryNames {
    * - `/applications/:id` is `application.detail-view`;
    * - `/applications/create` and `/applications/:id/status` are `application.create-view` and
    *   `application.status-view`, and `/applications/:id/settings` is `setting.list-view`;
+   * - `/applications/types`, a collection right below another with no id between them, is a view of the
+   *   first: `application.types-view`;
    * - `/organizations/:org/home` is `organization.home-view`, and `/` is `app.home-view`.
    */
   static pageName(pattern: string): string {
@@ -116,6 +118,12 @@ export class TelemetryNames {
       return `${owner(segments.length - 2)}.detail-view`;
     }
     if (TelemetryNames.isCollection(last)) {
+      const before: string | undefined = segments[segments.length - 2];
+      // A collection right below another, with no id between them, belongs to it: `/applications/types`
+      // is the applications' types page, not a list of types of its own.
+      if (before !== undefined && !TelemetryNames.isParameter(before) && TelemetryNames.isCollection(before)) {
+        return `${TelemetryNames.singular(before)}.${last}-view`;
+      }
       return `${TelemetryNames.singular(last)}.list-view`;
     }
     return `${owner(segments.length - 2)}.${last}-view`;
