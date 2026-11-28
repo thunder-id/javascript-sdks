@@ -21,6 +21,8 @@ import {
   type BaseApplicationDetailsRenderProps,
   BaseGroupCreate,
   type BaseGroupCreateRenderProps,
+  BaseInviteToOrganizationUnit,
+  type BaseInviteToOrganizationUnitRenderProps,
   BaseRolePermissions,
   type BaseRolePermissionsRenderProps,
   BaseUserDetails,
@@ -29,6 +31,8 @@ import {
   BaseVerifyAttribute,
   type BaseVerifyAttributeRenderProps,
   GroupCreate,
+  InviteToOrganizationUnit,
+  type InviteUserFlowResponse,
   OrganizationUnitSwitcher,
   type OrganizationUnitSwitcherRenderProps,
   type RolePermissionChange,
@@ -43,6 +47,7 @@ import {
   applicationCard,
   applicationForm,
   groupForm,
+  inviteForm,
   organizationUnitPicker,
   PrimeRolePermissions,
   PrimeTheme,
@@ -53,6 +58,7 @@ import {
 import {bool, num, quoted, SOURCE_CONTROL, str} from './storyKit';
 import type {Action, Args, ComponentDef} from './types';
 import {narrow} from './widgets';
+import playgroundConfig from '../../config';
 
 // Sample data for the Base components. Nothing here reaches a server.
 
@@ -142,6 +148,83 @@ export const submitSampleVerification = (payload: EmbeddedSelfFlowRequest): Prom
     error: {message: {defaultValue: 'The code is incorrect.', key: 'otp.invalid'}},
   } as unknown as EmbeddedSelfFlowResponse);
 };
+
+// An invitation flow shaped like the server's INVITATION template: an email, then roles, then sent.
+const invitationStep = (
+  components: Record<string, unknown>[],
+  additionalData?: Record<string, string>,
+): InviteUserFlowResponse =>
+  ({
+    challengeToken: 'sample',
+    data: {additionalData, components},
+    executionId: 'sample',
+    flowStatus: 'INCOMPLETE',
+  }) as InviteUserFlowResponse;
+
+export const SAMPLE_INVITATION_STEP: InviteUserFlowResponse = invitationStep([
+  {id: 'text_header_email', label: 'Invite a member', type: 'TEXT', variant: 'HEADING_1'},
+  {
+    components: [
+      {id: 'input_prompt_email', label: 'Email', ref: 'email', required: true, type: 'EMAIL_INPUT'},
+      {eventType: 'SUBMIT', id: 'action_submit_email', label: 'Next', type: 'ACTION', variant: 'PRIMARY'},
+    ],
+    id: 'block_email',
+    type: 'BLOCK',
+  },
+]);
+
+const SAMPLE_ROLES_STEP: InviteUserFlowResponse = invitationStep(
+  [
+    {id: 'heading_roles_new', label: 'Choose their roles', type: 'TEXT', variant: 'HEADING_1'},
+    {
+      components: [
+        {id: 'roles_input_new', label: 'Roles', ref: 'roles', required: true, type: 'ROLE_SELECT'},
+        {eventType: 'SUBMIT', id: 'action_roles_new', label: 'Send invitation', type: 'ACTION', variant: 'PRIMARY'},
+      ],
+      id: 'block_roles',
+      type: 'BLOCK',
+    },
+  ],
+  {
+    roleOptions: JSON.stringify([
+      {id: 'role-developer', name: 'Developer'},
+      {id: 'role-viewer', name: 'Viewer'},
+      {id: 'role-billing', name: 'Billing admin'},
+    ]),
+  },
+);
+
+const SAMPLE_SENT_STEP: InviteUserFlowResponse = invitationStep([
+  {id: 'invite_sent_new_heading', label: 'Invitation sent', type: 'TEXT', variant: 'HEADING_1'},
+  {id: 'invite_sent_new_message', label: 'They get an email with a link to join. The link works once.', type: 'TEXT'},
+]);
+
+export const submitSampleInvitation = (payload: Record<string, unknown>): Promise<InviteUserFlowResponse> => {
+  if (payload['action'] === 'action_submit_email') return Promise.resolve(SAMPLE_ROLES_STEP);
+  if (payload['action'] === 'action_roles_new') return Promise.resolve(SAMPLE_SENT_STEP);
+
+  return Promise.resolve(SAMPLE_INVITATION_STEP);
+};
+
+const INVITE_TEMPLATE = `<InviteToOrganizationUnit :flow-id="invitationFlowId">
+  <template #default="{title, components, additionalData, values, handleInputChange, handleSubmit, isLoading, error}">
+    <Card>
+      <template #title>{{ title }}</template>
+      <template #content>
+        <Message v-if="error" severity="error">{{ error.message }}</Message>
+        <!-- EMAIL_INPUT: the email, then ROLE_SELECT: the roles, as space-separated IDs -->
+        <InputText :model-value="values.email" @update:model-value="(v) => handleInputChange('email', v ?? '')" />
+        <label v-for="role in parseRoleOptions(additionalData?.roleOptions)" :key="role.id">
+          <Checkbox binary :model-value="picked(values.roles).includes(role.id)" @update:model-value="() => handleInputChange('roles', toggle(values.roles, role.id))" />
+          {{ role.name }}
+        </label>
+      </template>
+      <template #footer>
+        <Button label="Next" :loading="isLoading" @click="handleSubmit(submitAction(components), values)" />
+      </template>
+    </Card>
+  </template>
+</InviteToOrganizationUnit>`;
 
 const isLive = (args: Args): boolean => str(args, 'source') === 'live';
 
@@ -593,6 +676,63 @@ export const CUSTOM_RENDER_COMPONENTS: ComponentDef[] = [
     stories: [
       {id: 'base', name: 'Sample flow (code 123456)'},
       {args: {source: 'live'}, id: 'live', name: 'Live (needs sign-in, sends a code)'},
+    ],
+  },
+  {
+    code: () => ({
+      imports: ['InviteToOrganizationUnit', 'parseRoleOptions'],
+      otherImports: [
+        "import Button from 'primevue/button';",
+        "import Card from 'primevue/card';",
+        "import Checkbox from 'primevue/checkbox';",
+        "import InputText from 'primevue/inputtext';",
+        "import Message from 'primevue/message';",
+      ],
+      template: INVITE_TEMPLATE,
+    }),
+    controls: [
+      SOURCE_CONTROL,
+      {
+        control: 'text',
+        description: 'Live only: ID of an INVITATION flow. Defaults to VITE_THUNDERID_INVITATION_FLOW_ID.',
+        name: 'flowId',
+        type: 'string',
+      },
+    ],
+    defaults: {flowId: playgroundConfig.invitationFlowId ?? '', source: 'base'},
+    group: 'Custom rendering',
+    id: 'custom-invitetoorganizationunit-form',
+    live: true,
+    name: 'InviteToOrganizationUnit → PrimeVue form',
+    render: (args: Args, action: Action): VNode =>
+      themed(
+        440,
+        isLive(args) && str(args, 'flowId')
+          ? h(
+              InviteToOrganizationUnit,
+              {
+                flowId: str(args, 'flowId'),
+                key: `live-${str(args, 'flowId')}`,
+                onError: (error: Error): void => action('error', quoted(error.message)),
+              },
+              {default: (state: BaseInviteToOrganizationUnitRenderProps) => inviteForm(state)},
+            )
+          : h(
+              BaseInviteToOrganizationUnit,
+              {
+                flowId: 'sample',
+                onInitialize: (): Promise<InviteUserFlowResponse> => Promise.resolve(SAMPLE_INVITATION_STEP),
+                onSubmit: (payload: Record<string, unknown>): Promise<InviteUserFlowResponse> => {
+                  action('submit', JSON.stringify(payload));
+                  return submitSampleInvitation(payload);
+                },
+              },
+              {default: (state: BaseInviteToOrganizationUnitRenderProps) => inviteForm(state)},
+            ),
+      ),
+    stories: [
+      {id: 'base', name: 'Sample flow'},
+      {args: {source: 'live'}, id: 'live', name: 'Live (needs sign-in and a flow ID)'},
     ],
   },
   {

@@ -9,6 +9,7 @@ import {
   BaseSignUpButton,
   BaseUserAvatar,
   BaseUserDropdown,
+  BaseInviteToOrganizationUnit,
   BaseUserProfile,
   BaseVerifyAttribute,
   Button,
@@ -19,6 +20,7 @@ import {
   FacebookButton,
   FlowTimer,
   GitHubButton,
+  InviteToOrganizationUnit,
   GoogleButton,
   LanguageSwitcher,
   LinkedInButton,
@@ -45,7 +47,13 @@ import {
 } from '@thunderid/react';
 import {ChangeEvent, FC, ReactNode} from 'react';
 import {ADMIN_COMPONENTS} from './adminStories';
-import {SAMPLE_VERIFICATION_STEP, submitSampleVerification, withCustomStory} from './customRenderStories';
+import {
+  SAMPLE_INVITATION_STEP,
+  SAMPLE_VERIFICATION_STEP,
+  submitSampleInvitation,
+  submitSampleVerification,
+  withCustomStory,
+} from './customRenderStories';
 import {ORGANIZATION_UNIT_ADMIN_STORIES} from './organizationUnitAdminStories';
 import {ORGANIZATION_UNIT_SWITCHER_STORY} from './organizationUnitStories';
 import {PERSONAL_AGENT_DETAILS_STORY, PERSONAL_AGENT_LIST_STORY} from './personalAgentStories';
@@ -54,6 +62,7 @@ import {SHARING_STORIES} from './sharingStories';
 import {bool, jsx, num, omit, SOURCE_CONTROL, str} from './storyHelpers';
 import {Narrow, OtpFieldStory, PasswordFieldStory, SelectStory} from './StoryWidgets';
 import type {Action, Args, ComponentDef} from './types';
+import playgroundConfig from '../../config';
 import {getDisplayName} from '../../lib/user';
 
 const SAMPLE_USER: Record<string, string> = {
@@ -887,6 +896,73 @@ export const COMPONENTS: ComponentDef[] = [
     ),
     stories: [{id: 'default', name: 'Default'}],
   },
+  withCustomStory({
+    code: (args: Args) =>
+      str(args, 'source') === 'live'
+        ? {
+            imports: ['InviteToOrganizationUnit'],
+            jsx: jsx('InviteToOrganizationUnit', omit(args, 'source'), {extra: ['onError={handleError}']}),
+          }
+        : {
+            imports: ['BaseInviteToOrganizationUnit'],
+            jsx: jsx(
+              'BaseInviteToOrganizationUnit',
+              {flowId: str(args, 'flowId') || 'sample'},
+              {extra: ['onInitialize={startFlow}', 'onSubmit={submitStep}']},
+            ),
+          },
+    controls: [
+      SOURCE_CONTROL,
+      {
+        control: 'text',
+        description:
+          "Live only: ID of an INVITATION flow that the signed-in user's organization unit owns or was shared. " +
+          'Defaults to VITE_THUNDERID_INVITATION_FLOW_ID.',
+        name: 'flowId',
+        type: 'string',
+      },
+    ],
+    defaults: {flowId: playgroundConfig.invitationFlowId ?? '', source: 'base'},
+    group: 'Auth flows',
+    id: 'invitetoorganizationunit',
+    live: true,
+    name: 'InviteToOrganizationUnit',
+    render: (args: Args, action: Action) => {
+      if (str(args, 'source') !== 'live') {
+        return (
+          <Narrow width={440}>
+            <BaseInviteToOrganizationUnit
+              flowId="sample"
+              onInitialize={() => Promise.resolve(SAMPLE_INVITATION_STEP)}
+              onSubmit={(payload: Record<string, unknown>) => {
+                action('onSubmit', JSON.stringify(payload));
+
+                return submitSampleInvitation(payload);
+              }}
+            />
+          </Narrow>
+        );
+      }
+
+      return str(args, 'flowId') ? (
+        <Narrow width={440}>
+          <InviteToOrganizationUnit
+            flowId={str(args, 'flowId')}
+            onFlowChange={(response) => action('onFlowChange', response.flowStatus)}
+            onError={(error: Error) => action('onError', error.message)}
+          />
+        </Narrow>
+      ) : (
+        <Alert variant="info">
+          <Alert.Description>Set flowId to the ID of an INVITATION flow to run it.</Alert.Description>
+        </Alert>
+      );
+    },
+    stories: [
+      {id: 'base', name: 'Sample flow'},
+      {args: {source: 'live'}, id: 'live', name: 'Signed-in user (sends an invitation)'},
+    ],
+  }),
   {
     code: (args: Args) =>
       str(args, 'source') === 'live'

@@ -51,6 +51,8 @@ const translations: I18nTranslations = {
   /* Select */
   'elements.fields.auth_flow_select.aria_label': 'Selecionar um fluxo de início de sessão',
   'elements.fields.auth_flow_select.empty': 'Nenhum fluxo de início de sessão encontrado.',
+  'elements.fields.role_select.aria_label': 'Selecionar funções',
+  'elements.fields.role_select.empty': 'Nenhuma função para atribuir.',
   'elements.fields.select.load_more': 'Carregar mais',
   'elements.fields.select.loading': 'A carregar…',
   'elements.fields.select.loading_more': 'A carregar mais…',
@@ -320,6 +322,9 @@ const translations: I18nTranslations = {
     'O formulário de início de sessão não está disponível de momento. Tente novamente mais tarde.',
   'errors.signin.timeout': 'O tempo permitido para completar a etapa expirou.',
   'errors.signin.session.expired': 'A sua sessão expirou. Volte à aplicação e inicie sessão novamente.',
+  'errors.invite.flow.failure': 'Ocorreu um erro durante o convite. Tente novamente mais tarde.',
+  'errors.invite.components.not.available':
+    'O formulário de convite não está disponível de momento. Tente novamente mais tarde.',
 
   /* |---------------------------------------------------------------| */
   /* |                        Flow Expiry                            | */

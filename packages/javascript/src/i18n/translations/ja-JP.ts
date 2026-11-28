@@ -51,6 +51,8 @@ const translations: I18nTranslations = {
   /* Select */
   'elements.fields.auth_flow_select.aria_label': 'ログインフローを選択',
   'elements.fields.auth_flow_select.empty': '該当するログインフローが見つかりません。',
+  'elements.fields.role_select.aria_label': 'ロールを選択',
+  'elements.fields.role_select.empty': '割り当てるロールがありません。',
   'elements.fields.select.load_more': 'さらに読み込む',
   'elements.fields.select.loading': '読み込み中…',
   'elements.fields.select.loading_more': 'さらに読み込み中…',
@@ -316,6 +318,8 @@ const translations: I18nTranslations = {
   'errors.signin.timeout': 'ステップを完了するために許可された時間が経過しました。',
   'errors.signin.session.expired':
     'セッションの有効期限が切れました。アプリケーションに戻って、もう一度サインインしてください。',
+  'errors.invite.flow.failure': '招待中にエラーが発生しました。後でもう一度お試しください。',
+  'errors.invite.components.not.available': '現在、招待フォームを利用できません。後でもう一度お試しください。',
 
   /* |---------------------------------------------------------------| */
   /* |                        Flow Expiry                            | */

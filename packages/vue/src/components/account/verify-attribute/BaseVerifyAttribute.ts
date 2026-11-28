@@ -22,17 +22,15 @@ import {
   type Ref,
   type SetupContext,
   type VNode,
-  type VNodeArrayChildren,
-  cloneVNode,
   defineComponent,
   h,
-  isVNode,
   ref,
   watch,
 } from 'vue';
 import useFlowMeta from '../../../composables/useFlowMeta';
 import {extractErrorMessage, normalizeFlowResponse} from '../../../utils/flowTransformer';
 import getAuthComponentHeadings, {type AuthComponentHeadingsResult} from '../../../utils/getAuthComponentHeadings';
+import withFlowTestIds, {collectFlowIds} from '../../../utils/withFlowTestIds';
 import useAdminTranslation from '../../management/shared/useAdminTranslation';
 import {renderVerificationComponents} from '../../auth/flow/AuthOptionFactory';
 import Alert from '../../primitives/Alert';
@@ -41,35 +39,6 @@ import Spinner from '../../primitives/Spinner';
 import Typography from '../../primitives/Typography';
 
 type VerificationState = 'loading' | 'active' | 'complete' | 'failed';
-
-// Flow identifiers of the step's inputs (`ref`, else `id`) and actions (`id`).
-const collectFlowIds = ({actions, inputs}: FlowStepComponents): {actions: Set<string>; fields: Set<string>} => ({
-  actions: new Set(actions.map((component: EmbeddedFlowComponent) => component.id)),
-  fields: new Set(inputs.map((component: EmbeddedFlowComponent) => component.ref ?? component.id)),
-});
-
-// Tags the nodes rendered from the flow with `thunderid-field-<ref>` and `thunderid-action-<id>`.
-// The shared factory keys a node by its component id and names an input by its ref.
-const withFlowTestIds = (node: VNode, ids: {actions: Set<string>; fields: Set<string>}): VNode => {
-  const name: unknown = node.props?.['name'];
-  let testId: string | undefined;
-  if (typeof name === 'string' && ids.fields.has(name)) {
-    testId = `thunderid-field-${name}`;
-  } else if (node.key !== null && ids.actions.has(String(node.key))) {
-    testId = `thunderid-action-${String(node.key)}`;
-  }
-
-  const children: VNode['children'] = Array.isArray(node.children)
-    ? (node.children.map((child: unknown) =>
-        isVNode(child) ? withFlowTestIds(child, ids) : child,
-      ) as VNodeArrayChildren)
-    : node.children;
-  if (!testId && children === node.children) return node;
-
-  const tagged: VNode = cloneVNode(node, testId ? {'data-testid': testId} : null);
-  tagged.children = children;
-  return tagged;
-};
 
 /**
  * Slot props of the default scoped slot, so the steps can be drawn with any UI.

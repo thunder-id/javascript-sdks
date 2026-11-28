@@ -3,6 +3,7 @@
 
 import {
   ConsentConstants,
+  EmbeddedFlowComponent,
   FieldError,
   FlowExecutionError,
   FlowMetadataResponse,
@@ -15,6 +16,8 @@ import {
   getConsentElementDecision,
   getConsentOneTime,
   getConsentValidityPeriod,
+  getFlowStepComponents,
+  resolveFlowTemplateLiterals,
 } from '@thunderid/browser';
 import {FC, ReactElement, ReactNode, useCallback, useContext, useEffect, useRef, useState} from 'react';
 import useStyles from './BaseAcceptInvite.styles';
@@ -30,6 +33,7 @@ import {cx} from '../../../styles/emotion';
 import {normalizeFlowResponse, extractErrorMessage} from '../../../utils/flowTransformer';
 import isConsentApprovalBlocked from '../../../utils/isConsentApprovalBlocked';
 import {initiateOAuthRedirect} from '../../../utils/oauth';
+import withFlowTestIds, {collectFlowIds} from '../../../utils/withFlowTestIds';
 import AlertPrimitive from '../../primitives/Alert/Alert';
 import Button from '../../primitives/Button/Button';
 // eslint-disable-next-line import/no-named-as-default
@@ -292,6 +296,10 @@ const BaseAcceptInvite: FC<BaseAcceptInviteProps> = ({
   const {expireStep, isStepExpired} = useStepExpiry(currentFlow);
   const [isStorageReady, setIsStorageReady] = useState(false);
   const challengeTokenRef: any = useRef<string | null>(null);
+  // Kept only while a redirect is under way, for its callback: the provider leaves any sign-in callback alone while
+  // it is set.
+  const executionIdStorageKey = `${vendor}_execution_id`;
+  const clearStoredExecutionId = (): void => sessionStorage.removeItem(executionIdStorageKey);
 
   /**
    * Project server-side validation errors from the most recent flow response into
@@ -412,7 +420,7 @@ const BaseAcceptInvite: FC<BaseAcceptInviteProps> = ({
    */
   useOAuthCallback({
     currentExecutionId: executionId ?? null,
-    executionIdStorageKey: `${vendor}_execution_id`,
+    executionIdStorageKey,
     isInitialized: isStorageReady,
     onComplete: () => {
       setIsValidatingToken(false);
@@ -425,8 +433,11 @@ const BaseAcceptInvite: FC<BaseAcceptInviteProps> = ({
       setIsValidatingToken(false);
       handleError(error);
     },
-    onFlowChange: (response: any) => {
+    onFlowChange: (response: AcceptInviteFlowResponse) => {
       onFlowChange?.(response);
+      if (response.flowStatus === 'COMPLETE' || response.flowStatus === 'ERROR') {
+        clearStoredExecutionId();
+      }
       if (response.flowStatus === 'COMPLETE') {
         setIsComplete(true);
         const completionComponents: any[] = response.data?.components || response.data?.meta?.components || [];
@@ -630,6 +641,7 @@ const BaseAcceptInvite: FC<BaseAcceptInviteProps> = ({
         if (response.type === 'REDIRECTION') {
           const redirectURL: any = response.data?.redirectURL || response?.redirectURL;
           if (redirectURL && typeof window !== 'undefined') {
+            sessionStorage.setItem(executionIdStorageKey, currentFlow.executionId);
             // Initiate OAuth redirect with secure state management
             initiateOAuthRedirect(redirectURL, vendor);
             return;
@@ -638,18 +650,19 @@ const BaseAcceptInvite: FC<BaseAcceptInviteProps> = ({
 
         // Check for completion
         if (response.flowStatus === 'COMPLETE') {
+          clearStoredExecutionId();
           setIsComplete(true);
           const completionComponents: any[] = response.data?.components || response.data?.meta?.components || [];
           if (completionComponents.length > 0) {
             setCurrentFlow(response);
-          } else {
-            onComplete?.();
           }
+          onComplete?.();
           return;
         }
 
         // Check for error status
         if (response.flowStatus === 'ERROR') {
+          clearStoredExecutionId();
           handleError(response);
           return;
         }
@@ -721,11 +734,6 @@ const BaseAcceptInvite: FC<BaseAcceptInviteProps> = ({
       setApiError(null);
 
       try {
-        // Store executionId in sessionStorage for OAuth callback
-        if (executionId) {
-          sessionStorage.setItem(`${vendor}_execution_id`, executionId);
-        }
-
         // Send the invite token to validate and continue the flow
         const payload: any = {
           executionId,
@@ -743,6 +751,7 @@ const BaseAcceptInvite: FC<BaseAcceptInviteProps> = ({
 
         // Check for error (invalid token)
         if (response.flowStatus === 'ERROR') {
+          clearStoredExecutionId();
           setIsTokenInvalid(true);
           handleError(response);
           return;
@@ -767,22 +776,27 @@ const BaseAcceptInvite: FC<BaseAcceptInviteProps> = ({
   /**
    * Extract title and subtitle from components.
    */
-  const extractHeadings: any = useCallback((components: any[]): {subtitle?: string; title?: string} => {
-    let title: string | undefined;
-    let subtitle: string | undefined;
+  const extractHeadings: any = useCallback(
+    (components: any[]): {subtitle?: string; title?: string} => {
+      // The flow writes its texts as translation templates, so resolve them here as the field labels are.
+      const resolve = (text: string): string => resolveFlowTemplateLiterals(text, {meta, t});
+      let title: string | undefined;
+      let subtitle: string | undefined;
 
-    components.forEach((comp: any) => {
-      if (comp.type === 'TEXT') {
-        if (comp.variant === 'HEADING_1' && !title) {
-          title = comp.label;
-        } else if ((comp.variant === 'HEADING_2' || comp.variant === 'SUBTITLE_1') && !subtitle) {
-          subtitle = comp.label;
+      components.forEach((comp: {label?: string; type?: string; variant?: string}) => {
+        if (comp.type === 'TEXT') {
+          if (comp.variant === 'HEADING_1' && !title) {
+            title = comp.label && resolve(comp.label);
+          } else if ((comp.variant === 'HEADING_2' || comp.variant === 'SUBTITLE_1') && !subtitle) {
+            subtitle = comp.label && resolve(comp.label);
+          }
         }
-      }
-    });
+      });
 
-    return {subtitle, title};
-  }, []);
+      return {subtitle, title};
+    },
+    [meta, t],
+  );
 
   /**
    * Filter out heading components for default rendering.
@@ -902,26 +916,31 @@ const BaseAcceptInvite: FC<BaseAcceptInviteProps> = ({
         )}
         <div>
           {componentsWithoutHeadings && componentsWithoutHeadings.length > 0
-            ? renderInviteUserComponents(
-                componentsWithoutHeadings,
-                formValues,
-                touchedFields,
-                formErrors,
-                isLoading,
-                isFormValid,
-                resetForm,
-                handleInputChange,
-                {
-                  _customRenderers: customRenderers,
-                  _theme: theme,
-                  isFormComplete: validateForm(componentsWithoutHeadings).isValid,
-                  isTimeoutDisabled: isStepExpired,
-                  onInputBlur: handleInputBlur,
-                  onStepExpire: expireStep,
-                  onSubmit: handleSubmit,
-                  size,
-                  variant,
-                },
+            ? withFlowTestIds(
+                renderInviteUserComponents(
+                  componentsWithoutHeadings,
+                  formValues,
+                  touchedFields,
+                  formErrors,
+                  isLoading,
+                  isFormValid,
+                  resetForm,
+                  handleInputChange,
+                  {
+                    _customRenderers: customRenderers,
+                    _theme: theme,
+                    isFormComplete: validateForm(componentsWithoutHeadings).isValid,
+                    isTimeoutDisabled: isStepExpired,
+                    meta,
+                    onInputBlur: handleInputBlur,
+                    onStepExpire: expireStep,
+                    onSubmit: handleSubmit,
+                    size,
+                    t,
+                    variant,
+                  },
+                ),
+                collectFlowIds(getFlowStepComponents(componentsWithoutHeadings as EmbeddedFlowComponent[])),
               )
             : !isLoading && (
                 <AlertPrimitive variant="warning">

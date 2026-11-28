@@ -1,4 +1,4 @@
-// Copyright 2025 The ThunderID Authors
+// Copyright 2025-2026 The ThunderID Authors
 // SPDX-License-Identifier: Apache-2.0
 
 import {EmbeddedFlowType} from '@thunderid/browser';
@@ -9,6 +9,7 @@ import type {BaseInviteUserRenderProps, InviteUserFlowResponse} from './BaseInvi
 import useFetchAuthFlows from '../../../composables/auth/useFetchAuthFlows';
 import useFetchUsers from '../../../composables/management/useFetchUsers';
 import useFetchUserTypes from '../../../composables/management/useFetchUserTypes';
+import useFlowExecute from '../../../composables/auth/useFlowExecute';
 import useThunderID from '../../../composables/useThunderID';
 
 export type InviteUserRenderProps = BaseInviteUserRenderProps;
@@ -35,31 +36,19 @@ const InviteUser: Component = defineComponent({
     variant: {default: 'outlined', type: String as PropType<'outlined' | 'elevated'>},
   },
   setup(props: any, {slots}: SetupContext): () => VNode | null {
-    const {http, baseUrl, isInitialized} = useThunderID();
+    const {isInitialized} = useThunderID();
+    const execute: (payload: Record<string, any>) => Promise<InviteUserFlowResponse> =
+      useFlowExecute<InviteUserFlowResponse>();
 
     const fetchAuthFlows: FetchAuthFlows = useFetchAuthFlows();
     const fetchUsers: FetchUsers = useFetchUsers();
     const fetchUserTypes: FetchUserTypes = useFetchUserTypes();
 
-    const handleInitialize = async (payload: Record<string, any>): Promise<InviteUserFlowResponse> => {
-      const response: any = await http.request({
-        data: {...payload, flowType: EmbeddedFlowType.UserOnboarding, verbose: true},
-        headers: {Accept: 'application/json', 'Content-Type': 'application/json'},
-        method: 'POST',
-        url: `${baseUrl}/flow/execute`,
-      } as any);
-      return response.data as InviteUserFlowResponse;
-    };
+    const handleInitialize = (payload: Record<string, any>): Promise<InviteUserFlowResponse> =>
+      execute({...payload, flowType: EmbeddedFlowType.UserOnboarding, verbose: true});
 
-    const handleSubmit = async (payload: Record<string, any>): Promise<InviteUserFlowResponse> => {
-      const response: any = await http.request({
-        data: {...payload, verbose: true},
-        headers: {Accept: 'application/json', 'Content-Type': 'application/json'},
-        method: 'POST',
-        url: `${baseUrl}/flow/execute`,
-      } as any);
-      return response.data as InviteUserFlowResponse;
-    };
+    const handleSubmit = (payload: Record<string, any>): Promise<InviteUserFlowResponse> =>
+      execute({...payload, verbose: true});
 
     return (): VNode | null =>
       h(

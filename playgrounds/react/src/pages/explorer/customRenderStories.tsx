@@ -14,6 +14,7 @@ import {
   BaseGroupDetails,
   BaseGroupList,
   type BaseGroupMembersRenderProps,
+  BaseInviteToOrganizationUnit,
   BaseRoleCreate,
   BaseRoleDetails,
   BaseRoleList,
@@ -28,6 +29,7 @@ import {
   EmbeddedSelfFlowStatus,
   type BasicApplication,
   type Group,
+  type InviteUserFlowResponse,
   type ManagedUser,
   type RoleSummary,
   getAgentName,
@@ -52,6 +54,7 @@ import {
   ApplicationForm,
   GroupCard,
   IdentityGrid,
+  InviteForm,
   ListGrid,
   Mui,
   NamedForm,
@@ -107,6 +110,67 @@ export const submitSampleVerification = (payload: EmbeddedSelfFlowRequest): Prom
     data: {components: SAMPLE_VERIFICATION_STEP.data?.components},
     error: {message: {defaultValue: 'The code is incorrect.', key: 'otp.invalid'}},
   } as unknown as EmbeddedSelfFlowResponse);
+};
+
+// An invitation flow shaped like the server's INVITATION template: an email, then roles, then sent.
+const invitationStep = (
+  components: Record<string, unknown>[],
+  additionalData?: Record<string, unknown>,
+): InviteUserFlowResponse =>
+  ({
+    challengeToken: 'sample',
+    data: {additionalData, components},
+    executionId: 'sample',
+    flowStatus: 'INCOMPLETE',
+  }) as unknown as InviteUserFlowResponse;
+
+export const SAMPLE_INVITATION_STEP: InviteUserFlowResponse = invitationStep([
+  {id: 'text_header_email', label: 'Invite a member', type: 'TEXT', variant: 'HEADING_1'},
+  {
+    components: [
+      {id: 'input_prompt_email', label: 'Email', ref: 'email', required: true, type: 'EMAIL_INPUT'},
+      {eventType: 'SUBMIT', id: 'action_submit_email', label: 'Next', type: 'ACTION', variant: 'PRIMARY'},
+    ],
+    id: 'block_email',
+    type: 'BLOCK',
+  },
+]);
+
+const SAMPLE_ROLES_STEP: InviteUserFlowResponse = invitationStep(
+  [
+    {id: 'heading_roles_new', label: 'Choose their roles', type: 'TEXT', variant: 'HEADING_1'},
+    {
+      components: [
+        {id: 'roles_input_new', label: 'Roles', ref: 'roles', required: true, type: 'ROLE_SELECT'},
+        {eventType: 'SUBMIT', id: 'action_roles_new', label: 'Send invitation', type: 'ACTION', variant: 'PRIMARY'},
+      ],
+      id: 'block_roles',
+      type: 'BLOCK',
+    },
+  ],
+  {
+    roleOptions: JSON.stringify([
+      {id: 'role-developer', name: 'Developer'},
+      {id: 'role-viewer', name: 'Viewer'},
+      {id: 'role-billing', name: 'Billing admin'},
+    ]),
+  },
+);
+
+const SAMPLE_SENT_STEP: InviteUserFlowResponse = invitationStep([
+  {id: 'invite_sent_new_heading', label: 'Invitation sent', type: 'TEXT', variant: 'HEADING_1'},
+  {
+    id: 'invite_sent_new_message',
+    label: 'They get an email with a link to join. The link works once.',
+    type: 'TEXT',
+  },
+]);
+
+export const submitSampleInvitation = (payload: Record<string, unknown>): Promise<InviteUserFlowResponse> => {
+  if (payload['action'] === 'action_submit_email') return Promise.resolve(SAMPLE_ROLES_STEP);
+  if (payload['action'] === 'action_roles_new') return Promise.resolve(SAMPLE_SENT_STEP);
+
+  return Promise.resolve(SAMPLE_INVITATION_STEP);
 };
 
 /** The `source` control, with the custom renderer as a third option. */
@@ -380,6 +444,36 @@ const CODE: Record<string, () => Snippet> = {
     otherImports: ["import {Alert, Button, Card, CardContent, CardHeader, Chip, Stack} from '@mui/material';"],
   }),
   userlist: () => listSnippet('UserList', 'users'),
+  invitetoorganizationunit: () => ({
+    imports: ['InviteToOrganizationUnit', 'parseRoleOptions'],
+    jsx: `<InviteToOrganizationUnit flowId={invitationFlowId}>
+  {({title, components, additionalData, values, handleInputChange, handleSubmit, isLoading, error}) => (
+    <Card>
+      <CardHeader title={title} />
+      <CardContent>
+        {error && <Alert severity="error">{error.message}</Alert>}
+        {/* EMAIL_INPUT: the email, then ROLE_SELECT: the roles, as space-separated IDs */}
+        <TextField label="Email" value={values.email ?? ''} onChange={(e) => handleInputChange('email', e.target.value)} />
+        {parseRoleOptions(additionalData?.roleOptions).map((role) => (
+          <FormControlLabel
+            key={role.id}
+            label={role.name}
+            control={<Checkbox onChange={() => handleInputChange('roles', toggle(values.roles, role.id))} />}
+          />
+        ))}
+      </CardContent>
+      <CardActions>
+        <Button variant="contained" loading={isLoading} onClick={() => handleSubmit(submitAction(components), values)}>
+          Next
+        </Button>
+      </CardActions>
+    </Card>
+  )}
+</InviteToOrganizationUnit>`,
+    otherImports: [
+      "import {Alert, Button, Card, CardActions, CardContent, CardHeader, Checkbox, FormControlLabel, TextField} from '@mui/material';",
+    ],
+  }),
   verifyattribute: () => ({
     imports: ['VerifyAttribute'],
     jsx: `<VerifyAttribute attribute="email" onCancel={close} onComplete={close}>
@@ -711,6 +805,21 @@ const RENDER: Record<string, (args: Args, action: Action) => ReactNode> = {
         valueOf: (user: ManagedUser, attribute: string) => user.attributes?.[attribute],
       },
     ),
+  invitetoorganizationunit: (_args: Args, action: Action) => (
+    <Narrow width={440}>
+      <BaseInviteToOrganizationUnit
+        flowId="sample"
+        onInitialize={() => Promise.resolve(SAMPLE_INVITATION_STEP)}
+        onSubmit={(payload: Record<string, unknown>) => {
+          action('onSubmit', JSON.stringify(payload));
+
+          return submitSampleInvitation(payload);
+        }}
+      >
+        {InviteForm}
+      </BaseInviteToOrganizationUnit>
+    </Narrow>
+  ),
   verifyattribute: (_args: Args, action: Action) => (
     <Narrow width={440}>
       <BaseVerifyAttribute

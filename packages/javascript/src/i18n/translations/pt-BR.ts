@@ -51,6 +51,8 @@ const translations: I18nTranslations = {
   /* Select */
   'elements.fields.auth_flow_select.aria_label': 'Selecionar um fluxo de login',
   'elements.fields.auth_flow_select.empty': 'Nenhum fluxo de login encontrado.',
+  'elements.fields.role_select.aria_label': 'Selecionar funções',
+  'elements.fields.role_select.empty': 'Nenhuma função para atribuir.',
   'elements.fields.select.load_more': 'Carregar mais',
   'elements.fields.select.loading': 'Carregando…',
   'elements.fields.select.loading_more': 'Carregando mais…',
@@ -320,6 +322,9 @@ const translations: I18nTranslations = {
     'O formulário de login não está disponível no momento. Tente novamente mais tarde.',
   'errors.signin.timeout': 'O tempo permitido para concluir a etapa expirou.',
   'errors.signin.session.expired': 'Sua sessão expirou. Volte para o aplicativo e faça login novamente.',
+  'errors.invite.flow.failure': 'Ocorreu um erro durante o convite. Tente novamente mais tarde.',
+  'errors.invite.components.not.available':
+    'O formulário de convite não está disponível no momento. Tente novamente mais tarde.',
 
   /* |---------------------------------------------------------------| */
   /* |                        Flow Expiry                            | */

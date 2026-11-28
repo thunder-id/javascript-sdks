@@ -51,6 +51,8 @@ const translations: I18nTranslations = {
   /* Select */
   'elements.fields.auth_flow_select.aria_label': 'Select a login flow',
   'elements.fields.auth_flow_select.empty': 'No login flows found.',
+  'elements.fields.role_select.aria_label': 'Select roles',
+  'elements.fields.role_select.empty': 'No roles to assign.',
   'elements.fields.select.load_more': 'Load more',
   'elements.fields.select.loading': 'Loading…',
   'elements.fields.select.loading_more': 'Loading more…',
@@ -309,6 +311,9 @@ const translations: I18nTranslations = {
     'An error occurred while completing the passkeys sign-in flow. Please try again later.',
   'errors.signin.timeout': 'Time allowed to complete the step has expired.',
   'errors.signin.session.expired': 'Your session has expired. Please return to the application and sign in again.',
+  'errors.invite.flow.failure': 'An error occurred during the invitation. Please try again later.',
+  'errors.invite.components.not.available':
+    'The invitation form is not available at the moment. Please try again later.',
 
   /* |---------------------------------------------------------------| */
   /* |                        Flow Expiry                            | */

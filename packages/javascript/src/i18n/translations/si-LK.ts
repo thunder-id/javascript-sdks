@@ -51,6 +51,8 @@ const translations: I18nTranslations = {
   /* Select */
   'elements.fields.auth_flow_select.aria_label': 'පිවිසුම් ප්‍රවාහයක් තෝරන්න',
   'elements.fields.auth_flow_select.empty': 'පිවිසුම් ප්‍රවාහ හමු නොවීය.',
+  'elements.fields.role_select.aria_label': 'භූමිකා තෝරන්න',
+  'elements.fields.role_select.empty': 'පැවරීමට භූමිකා නොමැත.',
   'elements.fields.select.load_more': 'තවත් පූරණය කරන්න',
   'elements.fields.select.loading': 'පූරණය වේ…',
   'elements.fields.select.loading_more': 'තවත් පූරණය වේ…',
@@ -316,6 +318,8 @@ const translations: I18nTranslations = {
   'errors.signin.components.not.available': 'ප්‍රවේශ වීමේ පිටුව දැන් ලබා ගත නොහැකිය. කරුණාකර පසුව නැවත උත්සාහ කරන්න.',
   'errors.signin.timeout': 'පියවර සම්පූර්ණ කිරීමට ලබා දී තිබූ කාලය ඉකුත් වී ඇත.',
   'errors.signin.session.expired': 'ඔබගේ සැසිය කල් ඉකුත් වී ඇත. කරුණාකර යෙදුම වෙත ආපසු ගොස් නැවත ලොග් වන්න.',
+  'errors.invite.flow.failure': 'ආරාධනය අතරතුර දෝෂයක් ඇති විය. කරුණාකර පසුව නැවත උත්සාහ කරන්න.',
+  'errors.invite.components.not.available': 'ආරාධන පෝරමය මේ මොහොතේ ලබා ගත නොහැක. කරුණාකර පසුව නැවත උත්සාහ කරන්න.',
 
   /* |---------------------------------------------------------------| */
   /* |                        Flow Expiry                            | */

@@ -14,6 +14,8 @@ export interface PlaygroundConfig {
   clientId: string;
   /** Resource endpoint overrides passed to `<ThunderIDProvider :endpoints>`. Unset keeps the SDK defaults. */
   endpoints?: EndpointOverrides;
+  /** ID of an INVITATION flow for the InviteToOrganizationUnit story and check. */
+  invitationFlowId?: string;
   scopes: string[];
   storage?: StorageMode;
 }
@@ -36,6 +38,7 @@ const playgroundConfig: PlaygroundConfig = {
   baseUrl: (read('VITE_THUNDERID_BASE_URL') ?? 'https://localhost:8090').replace(/\/+$/, ''),
   clientId: read('VITE_THUNDERID_CLIENT_ID') ?? '',
   endpoints: buildEndpointOverrides((key: ResourceEndpointKey): string | undefined => read(endpointEnvKey(key))),
+  invitationFlowId: read('VITE_THUNDERID_INVITATION_FLOW_ID'),
   scopes: (read('VITE_THUNDERID_SCOPES') ?? 'openid profile email').split(/\s+/).filter(Boolean),
   storage: readStorage(read('VITE_THUNDERID_STORAGE')),
 };

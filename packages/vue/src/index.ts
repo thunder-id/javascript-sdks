@@ -199,6 +199,16 @@ export {default as InviteUser} from './components/auth/invite-user/InviteUser';
 export type {InviteUserRenderProps} from './components/auth/invite-user/InviteUser';
 export {default as BaseInviteUser} from './components/auth/invite-user/BaseInviteUser';
 export type {BaseInviteUserRenderProps, BaseInviteUserProps} from './components/auth/invite-user/BaseInviteUser';
+export type {InviteUserFlowResponse} from './composables/auth/useInviteFlow';
+export {default as InviteToOrganizationUnit} from './components/auth/invite-to-organization-unit/InviteToOrganizationUnit';
+export type {InviteToOrganizationUnitRenderProps} from './components/auth/invite-to-organization-unit/InviteToOrganizationUnit';
+export {default as BaseInviteToOrganizationUnit} from './components/auth/invite-to-organization-unit/BaseInviteToOrganizationUnit';
+export {parseRoleOptions, resolveFlowTemplateLiterals} from '@thunderid/browser';
+export type {RoleOption} from '@thunderid/browser';
+export type {
+  BaseInviteToOrganizationUnitProps,
+  BaseInviteToOrganizationUnitRenderProps,
+} from './components/auth/invite-to-organization-unit/BaseInviteToOrganizationUnit';
 export {default as LanguageSwitcher} from './components/common/language-switcher/LanguageSwitcher';
 export {default as BaseLanguageSwitcher} from './components/common/language-switcher/BaseLanguageSwitcher';
 

@@ -278,6 +278,40 @@ export const CAPABILITIES: Capability[] = [
     section: 'Authentication',
   },
   {
+    api: '<InviteToOrganizationUnit flowId />',
+    id: 'invite-to-organization-unit',
+    name: 'Invitation into an organization unit (starts the flow)',
+    run: async (getContext: () => CapabilityContext) => {
+      const {sdk} = getContext();
+      const gate: CapabilityResult | null = requireSignedIn(getContext());
+
+      if (gate) return gate;
+      if (!playgroundConfig.invitationFlowId) return skip('VITE_THUNDERID_INVITATION_FLOW_ID is not set');
+
+      // Only starts the flow: the first step asks for an email, so no invitation is sent.
+      const response: {data?: {executionId?: string}} = await track(
+        'invitation:start',
+        () =>
+          withTimeout(
+            sdk.http.request({
+              data: {flowId: playgroundConfig.invitationFlowId, verbose: true},
+              headers: {Accept: 'application/json', 'Content-Type': 'application/json'},
+              method: 'POST',
+              url: resolveResourceEndpoint('flowExecute', {endpoints: sdk.endpoints}) ?? `${sdk.baseUrl}/flow/execute`,
+            }) as Promise<{data?: {executionId?: string}}>,
+            10000,
+            'flow initiation',
+          ),
+        (value: {data?: unknown}) => flowSummary(value?.data),
+      );
+
+      return response?.data?.executionId
+        ? pass(`flow started: ${flowSummary(response.data)}`)
+        : fail(`no execution: ${flowSummary(response?.data)}`);
+    },
+    section: 'Authentication',
+  },
+  {
     api: '<Recovery /> · recover({applicationId, flowType})',
     id: 'recovery',
     name: 'Account recovery',

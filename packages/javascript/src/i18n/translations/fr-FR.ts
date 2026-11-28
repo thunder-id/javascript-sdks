@@ -51,6 +51,8 @@ const translations: I18nTranslations = {
   /* Select */
   'elements.fields.auth_flow_select.aria_label': 'Sélectionner un flux de connexion',
   'elements.fields.auth_flow_select.empty': 'Aucun flux de connexion trouvé.',
+  'elements.fields.role_select.aria_label': 'Sélectionner des rôles',
+  'elements.fields.role_select.empty': 'Aucun rôle à attribuer.',
   'elements.fields.select.load_more': 'Charger plus',
   'elements.fields.select.loading': 'Chargement…',
   'elements.fields.select.loading_more': 'Chargement supplémentaire…',
@@ -326,6 +328,9 @@ const translations: I18nTranslations = {
     "Le formulaire de connexion n'est pas disponible pour le moment. Veuillez réessayer plus tard.",
   'errors.signin.timeout': "Le temps imparti pour effectuer cette e'tape est expire'.",
   'errors.signin.session.expired': "Votre session a expiré. Veuillez retourner à l'application et vous reconnecter.",
+  'errors.invite.flow.failure': 'Une erreur s’est produite pendant l’invitation. Veuillez réessayer plus tard.',
+  'errors.invite.components.not.available':
+    'Le formulaire d’invitation n’est pas disponible pour le moment. Veuillez réessayer plus tard.',
 
   /* |---------------------------------------------------------------| */
   /* |                        Flow Expiry                            | */

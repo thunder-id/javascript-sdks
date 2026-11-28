@@ -1,4 +1,4 @@
-// Copyright 2025 The ThunderID Authors
+// Copyright 2025-2026 The ThunderID Authors
 // SPDX-License-Identifier: Apache-2.0
 
 import {
@@ -8,13 +8,13 @@ import {
   FetchUserTypes,
   getOrganizationUnitChildren,
   OrganizationUnitListResponse,
-  resolveResourceEndpoint,
 } from '@thunderid/browser';
 import {FC, ReactElement, ReactNode, useCallback} from 'react';
 // eslint-disable-next-line import/no-named-as-default
 import BaseInviteUser, {BaseInviteUserRenderProps, InviteUserFlowResponse} from './BaseInviteUser';
 import useThunderID from '../../../contexts/ThunderID/useThunderID';
 import useFetchAuthFlows from '../../../hooks/auth/useFetchAuthFlows';
+import useFlowExecute from '../../../hooks/auth/useFlowExecute';
 import useFetchUsers from '../../../hooks/management/useFetchUsers';
 import useFetchUserTypes from '../../../hooks/management/useFetchUserTypes';
 
@@ -120,54 +120,24 @@ const InviteUser: FC<InviteUserProps> = ({
   showTitle = true,
   showSubtitle = true,
 }: InviteUserProps): ReactElement => {
-  const {http, baseUrl, endpoints, getAccessToken, isInitialized} = useThunderID();
-
-  // The user-onboarding flow runs on the resource server, which may differ from `baseUrl` (the
-  // authorization server) in a trusted-issuer setup. Honor the `flowExecute` endpoint override.
-  const flowExecuteUrl: string = resolveResourceEndpoint('flowExecute', {endpoints}) ?? `${baseUrl}/flow/execute`;
+  const {baseUrl, getAccessToken, isInitialized} = useThunderID();
+  // Posts to the resource server's flow execution endpoint with the admin's access token.
+  const execute: (payload: Record<string, unknown>) => Promise<InviteUserFlowResponse> =
+    useFlowExecute<InviteUserFlowResponse>();
 
   /**
    * Initialize the invite user flow.
    * Makes an authenticated request to /flow/execute with flowType: USER_ONBOARDING.
    */
-  const handleInitialize = async (payload: Record<string, any>): Promise<InviteUserFlowResponse> => {
-    const response: any = await http.request({
-      data: {
-        ...payload,
-        flowType: EmbeddedFlowType.UserOnboarding,
-        verbose: true,
-      },
-      headers: {
-        Accept: 'application/json',
-        'Content-Type': 'application/json',
-      },
-      method: 'POST',
-      url: flowExecuteUrl,
-    } as any);
-
-    return response.data as InviteUserFlowResponse;
-  };
+  const handleInitialize = (payload: Record<string, any>): Promise<InviteUserFlowResponse> =>
+    execute({...payload, flowType: EmbeddedFlowType.UserOnboarding, verbose: true});
 
   /**
    * Submit flow step data.
    * Makes an authenticated request to /flow/execute with the step data.
    */
-  const handleSubmit = async (payload: Record<string, any>): Promise<InviteUserFlowResponse> => {
-    const response: any = await http.request({
-      data: {
-        ...payload,
-        verbose: true,
-      },
-      headers: {
-        Accept: 'application/json',
-        'Content-Type': 'application/json',
-      },
-      method: 'POST',
-      url: flowExecuteUrl,
-    } as any);
-
-    return response.data as InviteUserFlowResponse;
-  };
+  const handleSubmit = (payload: Record<string, any>): Promise<InviteUserFlowResponse> =>
+    execute({...payload, verbose: true});
 
   const fetchOrganizationUnitChildren: (
     parentId: string,

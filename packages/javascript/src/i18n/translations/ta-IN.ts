@@ -51,6 +51,8 @@ const translations: I18nTranslations = {
   /* Select */
   'elements.fields.auth_flow_select.aria_label': 'உள்நுழைவு ஓட்டத்தைத் தேர்ந்தெடுக்கவும்',
   'elements.fields.auth_flow_select.empty': 'உள்நுழைவு ஓட்டங்கள் எதுவும் கிடைக்கவில்லை.',
+  'elements.fields.role_select.aria_label': 'பங்குகளைத் தேர்ந்தெடுக்கவும்',
+  'elements.fields.role_select.empty': 'ஒதுக்குவதற்கு பங்குகள் எதுவும் இல்லை.',
   'elements.fields.select.load_more': 'மேலும் ஏற்றவும்',
   'elements.fields.select.loading': 'ஏற்றுகிறது…',
   'elements.fields.select.loading_more': 'மேலும் ஏற்றுகிறது…',
@@ -320,6 +322,8 @@ const translations: I18nTranslations = {
   'errors.signin.components.not.available': 'உள்நுழைவு படிவம் இப்போது கிடைக்கவில்லை. பின்னர் மீண்டும் முயற்சிக்கவும்.',
   'errors.signin.timeout': 'படிநிலையை முடிக்க அனுமதிக்கப்பட்ட நேரம் காலாவதியானது.',
   'errors.signin.session.expired': 'உங்கள் அமர்வு காலாவதியானது. பயன்பாட்டிற்குத் திரும்பி மீண்டும் உள்நுழையவும்.',
+  'errors.invite.flow.failure': 'அழைப்பின்போது பிழை ஏற்பட்டது. பின்னர் மீண்டும் முயற்சிக்கவும்.',
+  'errors.invite.components.not.available': 'அழைப்புப் படிவம் தற்போது கிடைக்கவில்லை. பின்னர் மீண்டும் முயற்சிக்கவும்.',
 
   /* |---------------------------------------------------------------| */
   /* |                        Flow Expiry                            | */

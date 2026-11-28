@@ -5,6 +5,7 @@ export enum EmbeddedFlowType {
   AdminInitiated = 'ADMIN_INITIATED',
   Authentication = 'AUTHENTICATION',
   DeviceGrant = 'DEVICE_GRANT',
+  Invitation = 'INVITATION',
   Recovery = 'RECOVERY',
   Registration = 'REGISTRATION',
   Self = 'SELF',
@@ -159,6 +160,9 @@ export enum EmbeddedFlowComponentType {
 
   /** Rich text display component that renders formatted HTML content */
   RichText = 'RICH_TEXT',
+
+  /** Multiple-choice picker over the roles a step offers in additionalData, submitted as space-separated IDs */
+  RoleSelect = 'ROLE_SELECT',
 
   /** Select/dropdown input component for single choice selection */
   Select = 'SELECT',
