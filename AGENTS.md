@@ -111,9 +111,9 @@ A component that changes here usually needs the same change in the sibling SDKs.
 
 ## Samples
 
-The quickstarts and integration samples live in [thunder-id/samples](https://github.com/thunder-id/samples), and each one pins a released version of this SDK. A change here therefore can't break a sample until the sample bumps its version, which is exactly when a break would surface for a real app. Before raising a pull request, check every sample that uses this SDK:
+The quickstarts and integration samples live in [thunder-id/samples](https://github.com/thunder-id/samples), and every sample uses the latest release of this SDK: each sample depends on its `@thunderid/*` packages as `"latest"`, and its committed `package-lock.json` records the release it resolved. Do not pin a sample to an older release. The samples keep no compatibility with earlier releases either, so there are no fallback settings, aliased variables or notes for older versions. A release that changes what a sample relies on therefore breaks the sample at its next install. Before raising a pull request, check every sample that uses this SDK:
 
-- **A sample stops compiling or behaving the same** (a renamed type or package, a changed signature, a moved default): raise a samples pull request that bumps the SDK version and fixes the sample. Keep it as a draft until the SDK release it needs is out.
+- **A sample stops compiling or behaving the same** (a renamed type or package, a changed signature, a moved default): raise a samples pull request that changes the sample for the release that carries this change, without keeping the old behaviour working beside it. Keep it as a draft until that release is out. Then move the samples to the release, as the samples repository's [SDK versions](https://github.com/thunder-id/samples/blob/main/AGENTS.md#sdk-versions) rules describe, and mark it ready.
 - **The change adds something a sample exists to show** (a self-service capability for `self-service/myaccount-react`, a management component or operation for `management/admin-react`, a new sign-in option for the quickstarts): update that sample in the same samples pull request, so it demonstrates the new capability rather than working around its absence.
 - Link the samples pull request from this pull request's **Related PRs**, or say why no sample is affected.
 
